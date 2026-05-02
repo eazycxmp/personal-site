@@ -1,2 +1,5 @@
 # personal-site
-espencampbell.com
+
+Source for [espencampbell.com](https://espencampbell.com).
+
+Static HTML, deployed on Vercel.
