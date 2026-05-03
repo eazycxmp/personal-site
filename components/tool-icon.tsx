@@ -2,27 +2,57 @@
 
 import { useState } from "react";
 
-export function ToolIcon({ name, slug }: { name: string; slug: string | null }) {
-  const [imgError, setImgError] = useState(false);
-  const showImage = slug && !imgError;
+type Props = {
+  name: string;
+  slug: string | null;
+  domain?: string | null;
+  iconUrl?: string | null;
+};
+
+export function ToolIcon({ name, slug, domain, iconUrl }: Props) {
+  const initialStage: "direct" | "simple" | "logo" | "fallback" = iconUrl
+    ? "direct"
+    : slug
+    ? "simple"
+    : domain
+    ? "logo"
+    : "fallback";
+  const [stage, setStage] = useState(initialStage);
 
   return (
-    <div className="group aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] flex flex-col items-center justify-center gap-3 p-4 hover:border-[var(--color-fg)] hover:-translate-y-1 transition-all duration-300">
-      <div className="w-10 h-10 flex items-center justify-center">
-        {showImage ? (
+    <div className="aspect-square rounded-lg bg-white flex flex-col items-center justify-center gap-2 p-3 hover:scale-105 transition-transform">
+      <div className="w-8 h-8 flex items-center justify-center">
+        {stage === "direct" && iconUrl && (
+          <img
+            src={iconUrl}
+            alt={name}
+            className="w-8 h-8 object-contain"
+            onError={() => setStage(slug ? "simple" : domain ? "logo" : "fallback")}
+          />
+        )}
+        {stage === "simple" && slug && (
           <img
             src={`https://cdn.simpleicons.org/${slug}`}
             alt={name}
-            className="w-10 h-10 object-contain dark:invert opacity-80 group-hover:opacity-100 transition-opacity"
-            onError={() => setImgError(true)}
+            className="w-8 h-8 object-contain"
+            onError={() => setStage(domain ? "logo" : "fallback")}
           />
-        ) : (
-          <div className="display-type text-2xl font-medium opacity-60 group-hover:opacity-100 transition-opacity">
+        )}
+        {stage === "logo" && domain && (
+          <img
+            src={`https://img.logo.dev/${domain}?token=pk_X-1ZO13GSgeOoUrIuJ6GMQ&size=64&format=png`}
+            alt={name}
+            className="w-8 h-8 object-contain"
+            onError={() => setStage("fallback")}
+          />
+        )}
+        {stage === "fallback" && (
+          <div className="display-type text-xl font-medium text-[#1a1a1a]">
             {name.charAt(0)}
           </div>
         )}
       </div>
-      <p className="font-mono text-xs text-center text-[var(--color-muted)] group-hover:text-[var(--color-fg)] transition-colors uppercase tracking-wider">
+      <p className="font-mono text-[10px] text-center text-[#1a1a1a]/70 uppercase tracking-wider leading-tight">
         {name}
       </p>
     </div>

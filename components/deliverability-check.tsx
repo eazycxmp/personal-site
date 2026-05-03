@@ -17,10 +17,10 @@ type ApiResponse = {
 };
 
 const RECENT_EXAMPLES = [
-  { domain: "stripe.com", score: 100 },
-  { domain: "github.com", score: 100 },
-  { domain: "vercel.com", score: 95 },
-  { domain: "espencampbell.com", score: 80 },
+  { domain: "stripe.com", score: 88 },
+  { domain: "github.com", score: 75 },
+  { domain: "vercel.com", score: 72 },
+  { domain: "espencampbell.com", score: 65 },
 ];
 
 export function DeliverabilityCheck() {
@@ -53,26 +53,26 @@ export function DeliverabilityCheck() {
   }
 
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
-      <form onSubmit={handleCheck} className="flex border-b border-[var(--color-border)]">
-        <div className="flex-1 relative">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden shadow-sm">
+      <form onSubmit={handleCheck} className="flex items-center gap-3 p-3">
+        <div className="flex-1 relative px-4 py-3">
           <input
             type="text"
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             placeholder="yourdomain.com"
-            className="w-full px-5 py-4 bg-transparent text-base font-mono outline-none placeholder:text-[var(--color-muted)]"
+            className="w-full bg-transparent text-base font-mono outline-none placeholder:text-[var(--color-muted)]"
             autoComplete="off"
             spellCheck={false}
           />
           {!domain && !loading && (
-            <span className="absolute left-[7.4rem] top-1/2 -translate-y-1/2 w-[2px] h-5 bg-[var(--color-fg)] animate-blink pointer-events-none" aria-hidden />
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-[var(--color-fg)] animate-blink pointer-events-none" aria-hidden />
           )}
         </div>
         <button
           type="submit"
           disabled={loading || !domain.trim()}
-          className="px-6 bg-[var(--color-fg)] text-[var(--color-bg)] font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-6 py-3 bg-[var(--color-fg)] text-[var(--color-bg)] font-medium text-sm rounded-full hover:bg-[var(--color-accent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Checking" : "Run check"}
         </button>

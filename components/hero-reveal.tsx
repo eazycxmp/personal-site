@@ -13,16 +13,6 @@ export function HeroReveal() {
     <section className="mb-20 md:mb-28 pt-8">
       <div className="grid md:grid-cols-12 gap-8 md:gap-12 items-end">
         <div className="md:col-span-8">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-            className="flex items-center gap-3 mb-8 text-sm tracking-wide uppercase font-mono"
-          >
-            <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
-            <span className="text-[var(--color-muted)]">Espen Campbell</span>
-          </motion.div>
-
           <motion.h1
             initial="hidden"
             animate="visible"

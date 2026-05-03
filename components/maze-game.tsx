@@ -406,7 +406,7 @@ export function MazeGame() {
           Best: <span className="text-[var(--color-accent)] tabular-nums">{bestLevel}</span>
         </span>
       </div>
-      <div className="relative inline-block w-full">
+      <div className="relative inline-block w-full max-w-2xl">
         <canvas
           ref={canvasRef}
           width={canvasW}
