@@ -1,4 +1,8 @@
+import { Nav } from "@/components/nav";
+import { Footer } from "@/components/footer";
 import { ToolIcon } from "@/components/tool-icon";
+
+export const metadata = { title: "Stack — Espen Campbell" };
 
 type StackSection = {
   category: string;
@@ -74,39 +78,55 @@ const STACK: StackSection[] = [
 
 const NOISE = "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")";
 
-export default function Stack() {
+export default function StackPage() {
   return (
-    <div className="max-w-6xl mx-auto px-6 pt-20 pb-32">
-      <div className="mb-16">
-        <p className="font-mono text-sm text-[var(--color-muted)] uppercase tracking-wider mb-4">The tools</p>
-        <h1 className="display-type text-5xl md:text-7xl font-medium mb-6 max-w-3xl leading-[1.05]">Stack</h1>
-        <p className="text-lg md:text-xl text-[var(--color-muted)] max-w-2xl leading-relaxed">
-          The tools I actually use, organized by what they do. If a tool is here, I&apos;ve shipped real work with it. No tourists.
-        </p>
-      </div>
+    <>
+      <Nav />
+      <main className="max-w-screen-xl mx-auto px-5 md:px-8 pt-12 md:pt-16 pb-16">
+        <div className="mb-16">
+          <div className="label-eyebrow mb-3.5">THE TOOLS</div>
+          <h1 className="serif-display text-[44px] md:text-[64px] leading-[1.05] mb-4">Stack</h1>
+          <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
+            The tools I actually use, organized by what they do. If a tool is here, I&apos;ve shipped real work with it. No tourists.
+          </p>
+        </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {STACK.map((section, i) => (
-          <article key={section.category} className="rounded-2xl overflow-hidden relative group hover:-translate-y-1 transition-transform duration-300" style={{ background: section.gradient }}>
-            <div className="absolute inset-0 opacity-30 mix-blend-overlay pointer-events-none" style={{ backgroundImage: NOISE }} />
-            <div className="relative p-7 md:p-8 text-white">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-60 mb-2">{String(i + 1).padStart(2, "0")} / {String(STACK.length).padStart(2, "0")}</p>
-                  <h2 className="display-type text-3xl md:text-4xl font-medium mb-1 leading-tight">{section.category}</h2>
-                  <p className="font-mono text-xs uppercase tracking-wider opacity-70">{section.description}</p>
+        <div className="grid md:grid-cols-2 gap-6">
+          {STACK.map((section, i) => (
+            <article
+              key={section.category}
+              className="rounded-2xl overflow-hidden relative group hover:-translate-y-1 transition-transform duration-300"
+              style={{ background: section.gradient }}
+            >
+              <div className="absolute inset-0 opacity-30 mix-blend-overlay pointer-events-none" style={{ backgroundImage: NOISE }} />
+              <div className="relative p-7 md:p-8 text-white">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-widest opacity-60 mb-2">
+                      {String(i + 1).padStart(2, "0")} / {String(STACK.length).padStart(2, "0")}
+                    </p>
+                    <h2 className="serif-display text-3xl md:text-4xl mb-1 leading-tight">{section.category}</h2>
+                    <p className="font-mono text-xs uppercase tracking-wider opacity-70">{section.description}</p>
+                  </div>
+                  <span className="font-mono text-xs opacity-60">{section.tools.length} tools</span>
                 </div>
-                <span className="font-mono text-xs opacity-60">{section.tools.length} tools</span>
+                <div className="grid grid-cols-3 gap-3">
+                  {section.tools.map((tool) => (
+                    <ToolIcon
+                      key={tool.name}
+                      name={tool.name}
+                      slug={tool.slug}
+                      domain={tool.domain ?? null}
+                      iconUrl={tool.iconUrl ?? null}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {section.tools.map((tool) => (
-                  <ToolIcon key={tool.name} name={tool.name} slug={tool.slug} domain={tool.domain ?? null} iconUrl={tool.iconUrl ?? null} />
-                ))}
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
+            </article>
+          ))}
+        </div>
+      </main>
+      <Footer />
+    </>
   );
 }

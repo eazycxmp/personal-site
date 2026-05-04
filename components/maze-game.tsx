@@ -85,6 +85,10 @@ export function MazeGame() {
   const [level, setLevel] = useState(1);
   const [bestLevel, setBestLevel] = useState(1);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [canvasDims, setCanvasDims] = useState(() => {
+    const c = getLevelConfig(1);
+    return { w: c.cols * CELL, h: c.rows * CELL };
+  });
 
   const mazeRef = useRef<string[]>([]);
   const startRef = useRef<Pos>({ x: 1, y: 1 });
@@ -102,6 +106,7 @@ export function MazeGame() {
 
   useEffect(() => {
     const stored = localStorage.getItem("mazeRunBestLevel");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setBestLevel(parseInt(stored, 10));
   }, []);
 
@@ -123,6 +128,7 @@ export function MazeGame() {
     lastHazardSpawnRef.current = performance.now();
     startTimeRef.current = performance.now();
     setTimeLeft(config.timeLimit);
+    setCanvasDims({ w: config.cols * CELL, h: config.rows * CELL });
   }, []);
 
   const startGame = useCallback(() => {
@@ -389,9 +395,8 @@ export function MazeGame() {
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [gameState, level, bestLevel, isWall]);
 
-  const config = levelConfigRef.current;
-  const canvasW = config.cols * CELL;
-  const canvasH = config.rows * CELL;
+  const canvasW = canvasDims.w;
+  const canvasH = canvasDims.h;
 
   return (
     <div className="space-y-4">
