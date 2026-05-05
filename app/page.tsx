@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Nav } from "@/components/nav";
-import { GtmFlow } from "@/components/gtm-flow";
+import { HeroPhoto } from "@/components/hero-photo";
 import { Footer } from "@/components/footer";
 import { ButtonPrimary, ButtonSecondary } from "@/components/buttons";
 import { DeliverabilityChecker } from "@/components/deliverability-checker";
@@ -54,12 +54,12 @@ export default function HomePage() {
         {/* HERO */}
         <section className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 px-5 md:px-8 pt-10 md:pt-16 pb-10">
           <div className="order-2 md:order-1">
-            <h1 className="serif-display text-[32px] md:text-[42px] leading-[1.05] mb-2">
+            <h1 className="serif-display text-[44px] md:text-[60px] leading-[1.05] mb-3">
               GTM systems<br />
               for B2B SaaS<br />
               founders.
             </h1>
-            <p className="text-[13px] md:text-[14px] text-[var(--color-ink-soft)] leading-[1.6] mb-4 md:max-w-[380px]">
+            <p className="text-[14px] md:text-[15px] text-[var(--color-ink-soft)] leading-[1.6] mb-4 md:max-w-[400px]">
               Outbound, RevOps, AI personalization. Built end-to-end with HubSpot, Clay, n8n, and
               Claude. For Series A through B teams that need infrastructure, not another deck.
             </p>
@@ -73,7 +73,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="order-1 md:order-2 aspect-[4/5] rounded-xl overflow-hidden">
-            <GtmFlow />
+            <HeroPhoto />
           </div>
         </section>
 
@@ -200,37 +200,37 @@ export default function HomePage() {
 
         {/* SELECTED WORK */}
         <section className="px-5 md:px-8 pt-3 pb-9">
-          <div className="flex items-baseline justify-between mb-3.5">
+          <div className="flex items-baseline justify-between mb-4">
             <h2 className="serif-display text-[20px] md:text-[22px]">Selected work</h2>
             <span className="label-eyebrow">3 PROJECTS</span>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {caseStudies.map((cs) => (
               <Link
                 key={cs.slug}
                 href={`/work/${cs.slug}`}
-                className={`${cs.gradientClass} block rounded-lg p-4 md:p-5 text-[var(--color-cream)] transition-transform hover:scale-[1.005]`}
+                className={`${cs.gradientClass} group block rounded-xl p-7 md:p-10 text-[var(--color-cream)] relative overflow-hidden hover:scale-[1.006] transition-transform duration-300`}
               >
-                {/* Mobile */}
-                <div className="md:hidden">
-                  <div className="flex justify-between items-baseline mb-2">
-                    <div className="text-[9px] tracking-[0.1em] opacity-70">
-                      {cs.number.split(" / ")[0]} · {cs.category.split(" · ")[0]}
-                    </div>
-                    <div className="text-[14px]">→</div>
+                {/* Background depth elements */}
+                <div className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-white/[0.06] blur-3xl pointer-events-none" />
+                <div className="absolute -left-10 -bottom-10 w-56 h-56 rounded-full bg-black/[0.18] blur-2xl pointer-events-none" />
+
+                <div className="relative">
+                  <div className="flex justify-between items-start mb-5">
+                    <span className="text-[10px] tracking-[0.12em] opacity-50 uppercase">
+                      {cs.number} · {cs.category}
+                    </span>
+                    <span className="text-[18px] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>
                   </div>
-                  <div className="serif-display text-[18px] mb-2">{cs.client}</div>
-                  <div className="text-[12px] leading-[1.5] opacity-90">{cs.cardSummary}</div>
-                </div>
-                {/* Desktop */}
-                <div className="hidden md:grid grid-cols-[1fr_1.5fr_30px] gap-5 items-center">
-                  <div>
-                    <div className="text-[9px] tracking-[0.1em] opacity-70">{cs.number}</div>
-                    <div className="serif-display text-[18px] mt-1 mb-0.5">{cs.client}</div>
-                    <div className="text-[9px] tracking-[0.1em] opacity-70">{cs.category}</div>
+                  <div className="serif-display text-[28px] md:text-[38px] leading-[1.05] mb-2">
+                    {cs.client}
                   </div>
-                  <div className="text-[12px] leading-[1.5] opacity-90">{cs.cardSummary}</div>
-                  <div className="text-right text-[16px]">→</div>
+                  <div className="serif-display italic text-[15px] md:text-[17px] opacity-65 mb-4 leading-[1.3] whitespace-pre-line">
+                    {cs.title}
+                  </div>
+                  <div className="text-[12px] md:text-[13px] opacity-80 leading-[1.55] max-w-2xl">
+                    {cs.cardSummary}
+                  </div>
                 </div>
               </Link>
             ))}
