@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Nav } from "@/components/nav";
+import { GtmFlow } from "@/components/gtm-flow";
 import { Footer } from "@/components/footer";
 import { ButtonPrimary, ButtonSecondary } from "@/components/buttons";
 import { DeliverabilityChecker } from "@/components/deliverability-checker";
@@ -50,12 +50,12 @@ export default function HomePage() {
         {/* HERO */}
         <section className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 px-5 md:px-8 pt-10 md:pt-16 pb-10">
           <div className="order-2 md:order-1">
-            <h1 className="serif-display text-[32px] md:text-[42px] leading-[1.05] mb-4">
+            <h1 className="serif-display text-[32px] md:text-[42px] leading-[1.05] mb-2">
               GTM systems<br />
               for B2B SaaS<br />
               founders.
             </h1>
-            <p className="text-[13px] md:text-[14px] text-[var(--color-ink-soft)] leading-[1.6] mb-6 md:max-w-[380px]">
+            <p className="text-[13px] md:text-[14px] text-[var(--color-ink-soft)] leading-[1.6] mb-4 md:max-w-[380px]">
               Outbound, RevOps, AI personalization. Built end-to-end with HubSpot, Clay, n8n, and
               Claude. For Series A through B teams that need infrastructure, not another deck.
             </p>
@@ -68,19 +68,8 @@ export default function HomePage() {
               </ButtonSecondary>
             </div>
           </div>
-          <div className="order-1 md:order-2 aspect-[4/5] rounded-xl relative overflow-hidden bg-[#1B1466]">
-            <Image
-              src="/espen-profile.png"
-              alt="Espen Campbell"
-              fill
-              className="object-cover object-top"
-              priority
-            />
-            <div className="absolute bottom-3 left-3 text-[9px] text-white/70 tracking-[0.12em] leading-[1.7]">
-              GTM BUILDER
-              <br />
-              SF · CPH
-            </div>
+          <div className="order-1 md:order-2 aspect-[4/5] rounded-xl overflow-hidden">
+            <GtmFlow />
           </div>
         </section>
 
