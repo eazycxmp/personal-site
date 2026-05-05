@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "Espen Campbell",
   url: "https://espencampbell.com",
   // SWAP THIS: replace with your real Cal.com booking link
-  calLink: "https://cal.com/espencampbell/audit",
+  calLink: "https://cal.com/espencampbell",
   // SWAP THESE: real socials
   socials: {
     github: "https://github.com/espencampbell",
