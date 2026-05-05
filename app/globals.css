@@ -86,6 +86,39 @@ body {
   text-transform: uppercase;
 }
 
+/* ── Work card animations ─────────────────────────────────────────── */
+
+/* HomeLight: data-fill bars (5%→60% data confirmation) */
+@keyframes hl-fill {
+  0%         { transform: scaleX(0.04); opacity: 0.12; }
+  45%        { opacity: 0.45; }
+  75%        { transform: scaleX(1);    opacity: 0.38; }
+  100%       { transform: scaleX(1);    opacity: 0.12; }
+}
+.hl-bar {
+  transform-origin: left;
+  animation: hl-fill 3.2s ease-in-out infinite;
+}
+
+/* Heimdall: radar-pulse rings (outbound signals) */
+@keyframes hm-pulse {
+  0%   { transform: scale(0.4); opacity: 0.65; }
+  100% { transform: scale(3);   opacity: 0;    }
+}
+.hm-ring {
+  animation: hm-pulse 2.8s ease-out infinite;
+}
+
+/* Gowins: rising bars (inbound growth) */
+@keyframes gw-rise {
+  0%, 100% { transform: scaleY(0.15); opacity: 0.22; }
+  50%      { transform: scaleY(1);    opacity: 0.42; }
+}
+.gw-bar {
+  transform-origin: bottom;
+  animation: gw-rise 2.2s ease-in-out infinite;
+}
+
 /* Hero photo pull-in */
 @keyframes heroPullIn {
   from { opacity: 0; transform: scale(1.1); }

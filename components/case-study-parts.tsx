@@ -106,15 +106,22 @@ export function CaseStudyFooter({ cs }: { cs: CaseStudy }) {
         <div className="px-5 md:px-8 pb-5">
           <Link
             href={`/work/${cs.next.slug}`}
-            className={`${cs.gradientClass} block rounded-lg p-4 md:p-5 text-[var(--color-cream)] flex justify-between items-center hover:scale-[1.005] transition-transform`}
+            className={`${cs.gradientClass} group block rounded-xl p-7 md:p-8 text-[var(--color-cream)] relative overflow-hidden hover:scale-[1.006] transition-transform duration-300`}
           >
-            <div>
-              <div className="text-[10px] opacity-70 tracking-[0.1em] mb-1">
-                {cs.next.numberLabel}
+            <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/[0.06] blur-3xl pointer-events-none" />
+            <div className="relative flex justify-between items-end">
+              <div>
+                <div className="font-mono text-[9px] text-white/50 uppercase tracking-widest mb-3">
+                  {cs.next.numberLabel}
+                </div>
+                <div className="serif-display text-[26px] md:text-[30px] leading-[1.05]">
+                  {cs.next.client}
+                </div>
               </div>
-              <div className="serif-display text-[20px]">{cs.next.client}</div>
+              <div className="text-[20px] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">
+                →
+              </div>
             </div>
-            <div className="text-[16px]">→</div>
           </Link>
         </div>
       )}

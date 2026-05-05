@@ -7,6 +7,7 @@ export type CaseStudy = {
   category: string; // "REVOPS · AUTOMATION"
   gradientClass: string; // "grad-1" | "grad-2" | "grad-3"
   cardSummary: string; // for home page card
+  metrics: { v: string; l: string }[]; // 3 key numbers for work index card
   title: string; // big serif headline
   intro: string; // paragraph under title
   next?: { slug: string; client: string; numberLabel: string };
@@ -23,6 +24,11 @@ export const caseStudies: CaseStudy[] = [
     gradientClass: "grad-1",
     cardSummary:
       "Took over collections, then support. Data confirmation 5→60%. $100K in newly-forecastable pipeline. 55% drop in support ticket volume.",
+    metrics: [
+      { v: "5→60%", l: "data confirmed" },
+      { v: "+$100K", l: "pipeline surfaced" },
+      { v: "−55%", l: "ticket volume" },
+    ],
     title: "From inbox queue to\nforecastable pipeline.",
     intro:
       "HomeLight, a real estate technology platform, brought me in to fix a manual collections process. I rebuilt it. Then they handed me support, and I rebuilt that too.",
@@ -38,6 +44,11 @@ export const caseStudies: CaseStudy[] = [
     gradientClass: "grad-2",
     cardSummary:
       "Outbound engine with Instantly + Clay + Claude API into HubSpot. AI lead scoring from call transcripts. 6 pilots, $300K forecasted.",
+    metrics: [
+      { v: "6", l: "pilots landed" },
+      { v: "$300K", l: "forecasted" },
+      { v: "+40%", l: "VP sales output" },
+    ],
     title: "Selling smart-grid hardware\nwith an AI-scored funnel.",
     intro:
       "Heimdall Power, a Norwegian smart-grid sensor company, sells power-line meters to utilities. I built the outbound and pipeline system that found the right buyers and showed sales which conversations were real.",
@@ -53,6 +64,11 @@ export const caseStudies: CaseStudy[] = [
     gradientClass: "grad-3",
     cardSummary:
       "Inbound forms wired to JobTread quoting and Calendar. 120% more booked calls. $40K in new business in 90 days.",
+    metrics: [
+      { v: "+120%", l: "booked calls" },
+      { v: "$40K", l: "new business" },
+      { v: "90", l: "days to result" },
+    ],
     title: "Turning a tile contractor's\ninbox into a sales engine.",
     intro:
       "Gowins Tile, a Bay Area tile and stone contractor, was losing leads in the gap between website forms and quotes. I rebuilt the path from form to booked estimate.",
