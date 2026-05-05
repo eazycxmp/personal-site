@@ -17,4 +17,7 @@ export const siteConfig = {
     { label: "Stack", href: "/stack" },
     { label: "Play", href: "/play" },
   ],
+  studioNav: [
+    { label: "Projects", href: "/studio" },
+  ],
 };

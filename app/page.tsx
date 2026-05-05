@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { ButtonPrimary, ButtonSecondary } from "@/components/buttons";
@@ -67,7 +68,14 @@ export default function HomePage() {
               </ButtonSecondary>
             </div>
           </div>
-          <div className="order-1 md:order-2 grad-portrait aspect-[4/5] rounded-md relative">
+          <div className="order-1 md:order-2 aspect-[4/5] rounded-xl relative overflow-hidden bg-[#1B1466]">
+            <Image
+              src="/espen-profile.png"
+              alt="Espen Campbell"
+              fill
+              className="object-cover object-top"
+              priority
+            />
             <div className="absolute bottom-3 left-3 text-[9px] text-white/70 tracking-[0.12em] leading-[1.7]">
               GTM BUILDER
               <br />

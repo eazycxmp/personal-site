@@ -86,6 +86,23 @@ body {
   text-transform: uppercase;
 }
 
+/* Studio dark theme */
+.studio-theme {
+  --color-cream: #0D0D0D;
+  --color-ink: #F0EBE3;
+  --color-ink-soft: #A8A39C;
+  --color-muted: #6E6A65;
+  --color-mute-2: #4A4844;
+  --color-line: rgba(255, 255, 255, 0.07);
+  --color-line-strong: rgba(255, 255, 255, 0.14);
+  --color-card: #1A1A18;
+  --color-accent: #A08DF5;
+  --color-fg: #F0EBE3;
+  --color-bg: #0D0D0D;
+  background: #0D0D0D;
+  color: #F0EBE3;
+}
+
 /* Smooth scroll for in-page links */
 html { scroll-behavior: smooth; }
 
