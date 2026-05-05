@@ -62,6 +62,9 @@ body {
 .grad-3 {
   background: linear-gradient(140deg, var(--color-deep) 0%, var(--color-violet) 60%, var(--color-magenta) 100%);
 }
+.grad-4 {
+  background: linear-gradient(140deg, #2A7A42 0%, #1B5630 60%, #0E3420 100%);
+}
 .grad-portrait {
   background: linear-gradient(155deg, #5A6FE0 0%, #3A38B8 50%, var(--color-indigo-deep) 100%);
 }
@@ -88,36 +91,42 @@ body {
 
 /* ── Work card animations ─────────────────────────────────────────── */
 
-/* HomeLight: data-fill bars (5%→60% data confirmation) */
-@keyframes hl-fill {
-  0%         { transform: scaleX(0.04); opacity: 0.12; }
-  45%        { opacity: 0.45; }
-  75%        { transform: scaleX(1);    opacity: 0.38; }
-  100%       { transform: scaleX(1);    opacity: 0.12; }
+/* HomeLight: property location pins fading in (real estate listings) */
+@keyframes hl-pin {
+  0%        { opacity: 0; transform: translateY(-6px) scale(0.7); }
+  20%, 65%  { opacity: 1; transform: translateY(0) scale(1); }
+  90%, 100% { opacity: 0; transform: translateY(-6px) scale(0.7); }
 }
-.hl-bar {
-  transform-origin: left;
-  animation: hl-fill 3.2s ease-in-out infinite;
-}
+.hl-pin { animation: hl-pin 4s ease-in-out infinite; }
 
-/* Heimdall: radar-pulse rings (outbound signals) */
-@keyframes hm-pulse {
-  0%   { transform: scale(0.4); opacity: 0.65; }
-  100% { transform: scale(3);   opacity: 0;    }
+/* Heimdall Power: sensor pulse on power line (electrical monitoring) */
+@keyframes hm-travel {
+  0%   { transform: translateX(-8px); opacity: 0; }
+  8%   { opacity: 0.85; }
+  88%  { opacity: 0.85; }
+  100% { transform: translateX(210px); opacity: 0; }
 }
-.hm-ring {
-  animation: hm-pulse 2.8s ease-out infinite;
-}
+.hm-dot { animation: hm-travel 3.2s linear infinite; }
 
-/* Gowins: rising bars (inbound growth) */
-@keyframes gw-rise {
-  0%, 100% { transform: scaleY(0.15); opacity: 0.22; }
-  50%      { transform: scaleY(1);    opacity: 0.42; }
+@keyframes hm-sensor {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.9; }
 }
-.gw-bar {
-  transform-origin: bottom;
-  animation: gw-rise 2.2s ease-in-out infinite;
+.hm-sensor { animation: hm-sensor 2s ease-in-out infinite; }
+
+/* Gowins Tile: tile grid filling in (tile contractor) */
+@keyframes gw-tile {
+  0%, 100% { background: rgba(255,255,255,0.04); }
+  50%      { background: rgba(255,255,255,0.32); }
 }
+.gw-tile { animation: gw-tile 2.6s ease-in-out infinite; }
+
+/* Vortex Rugby: oval rings pulsing outward (sports brand / vortex) */
+@keyframes vx-pulse {
+  0%   { transform: scale(0.4) rotate(-8deg); opacity: 0.75; }
+  100% { transform: scale(2.4) rotate(8deg);  opacity: 0; }
+}
+.vx-ring { animation: vx-pulse 2.6s ease-out infinite; }
 
 /* Hero photo pull-in */
 @keyframes heroPullIn {

@@ -202,7 +202,7 @@ export default function HomePage() {
         <section className="px-5 md:px-8 pt-3 pb-9">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="serif-display text-[20px] md:text-[22px]">Selected work</h2>
-            <span className="label-eyebrow">3 PROJECTS</span>
+            <span className="label-eyebrow">4 PROJECTS</span>
           </div>
           <div className="flex flex-col gap-3">
             {caseStudies.map((cs) => (
