@@ -4,7 +4,6 @@ import { HeroPhoto } from "@/components/hero-photo";
 import { Footer } from "@/components/footer";
 import { ButtonPrimary, ButtonSecondary } from "@/components/buttons";
 import { DeliverabilityChecker } from "@/components/deliverability-checker";
-import { caseStudies } from "@/lib/case-studies";
 import { siteConfig } from "@/lib/site-config";
 
 const TOOLS = [
@@ -195,45 +194,6 @@ export default function HomePage() {
               If your team is sending more email than ever and getting fewer replies — or your
               pipeline data is too messy to trust — that&apos;s the problem I solve.
             </p>
-          </div>
-        </section>
-
-        {/* SELECTED WORK */}
-        <section className="px-5 md:px-8 pt-3 pb-9">
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 className="serif-display text-[20px] md:text-[22px]">Selected work</h2>
-            <span className="label-eyebrow">4 PROJECTS</span>
-          </div>
-          <div className="flex flex-col gap-3">
-            {caseStudies.map((cs) => (
-              <Link
-                key={cs.slug}
-                href={`/work/${cs.slug}`}
-                className={`${cs.gradientClass} group block rounded-xl p-7 md:p-10 text-[var(--color-cream)] relative overflow-hidden hover:scale-[1.006] transition-transform duration-300`}
-              >
-                {/* Background depth elements */}
-                <div className="absolute -right-20 -top-20 w-72 h-72 rounded-full bg-white/[0.06] blur-3xl pointer-events-none" />
-                <div className="absolute -left-10 -bottom-10 w-56 h-56 rounded-full bg-black/[0.18] blur-2xl pointer-events-none" />
-
-                <div className="relative">
-                  <div className="flex justify-between items-start mb-5">
-                    <span className="text-[10px] tracking-[0.12em] opacity-50 uppercase">
-                      {cs.number} · {cs.category}
-                    </span>
-                    <span className="text-[18px] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200">→</span>
-                  </div>
-                  <div className="serif-display text-[28px] md:text-[38px] leading-[1.05] mb-2">
-                    {cs.client}
-                  </div>
-                  <div className="serif-display italic text-[15px] md:text-[17px] opacity-65 mb-4 leading-[1.3] whitespace-pre-line">
-                    {cs.title}
-                  </div>
-                  <div className="text-[12px] md:text-[13px] opacity-80 leading-[1.55] max-w-2xl">
-                    {cs.cardSummary}
-                  </div>
-                </div>
-              </Link>
-            ))}
           </div>
         </section>
 
