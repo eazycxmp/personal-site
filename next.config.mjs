@@ -7,7 +7,6 @@ const nextConfig = {
     mdxRs: true,
   },
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
 };
 
 const withMDX = createMDX({});
