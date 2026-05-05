@@ -7,7 +7,11 @@ import { DeliverabilityChecker } from "@/components/deliverability-checker";
 import { caseStudies } from "@/lib/case-studies";
 import { siteConfig } from "@/lib/site-config";
 
-const TOOLS = ["HubSpot", "Clay", "n8n", "Claude API", "Apollo", "Instantly", "Fathom"];
+const TOOLS = [
+  "HubSpot", "Clay", "n8n", "Claude API", "Apollo", "Instantly",
+  "Fathom", "Smartlead", "Findymail", "LeadMagic", "Anymailfinder",
+  "Datagma", "Cal.com", "Resend", "Supabase", "Vercel", "Next.js", "Linear",
+];
 
 const PRACTICES = [
   {
@@ -73,18 +77,21 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* TOOLS BANNER */}
-        <section className="bg-[var(--color-ink)] py-4 px-5 md:px-8 flex items-center gap-5 md:gap-7 overflow-x-auto">
-          {TOOLS.map((tool, i) => (
-            <span key={tool} className="flex items-center gap-5 md:gap-7 shrink-0">
-              <span className="serif-display italic text-[14px] md:text-[15px] text-[var(--color-cream)] whitespace-nowrap">
-                {tool}
-              </span>
-              {i < TOOLS.length - 1 && (
+        {/* TOOLS MARQUEE */}
+        <section className="bg-[var(--color-ink)] py-3 overflow-hidden marquee-outer">
+          <div
+            className="marquee-inner flex whitespace-nowrap"
+            style={{ animation: "marquee 60s linear infinite" }}
+          >
+            {[...TOOLS, ...TOOLS].map((tool, i) => (
+              <span key={i} className="inline-flex items-center shrink-0">
+                <span className="serif-display italic text-[13px] md:text-[14px] text-[var(--color-cream)] px-4 md:px-5">
+                  {tool}
+                </span>
                 <span className="text-[var(--color-violet)] text-[6px]">●</span>
-              )}
-            </span>
-          ))}
+              </span>
+            ))}
+          </div>
         </section>
 
         {/* DELIVERABILITY CHECKER */}

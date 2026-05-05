@@ -86,6 +86,14 @@ body {
   text-transform: uppercase;
 }
 
+/* Marquee */
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+.marquee-outer:hover .marquee-inner {
+  animation-play-state: paused;
+}
+
 /* Studio dark theme */
 .studio-theme {
   --color-cream: #0D0D0D;
