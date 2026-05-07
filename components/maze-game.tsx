@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const CELL = 24;
 
-// Difficulty configuration per level
 function getLevelConfig(level: number) {
   const baseSize = 11;
   const size = Math.min(baseSize + Math.floor((level - 1) / 2) * 2, 25);
@@ -19,31 +18,19 @@ function getLevelConfig(level: number) {
 type Pos = { x: number; y: number };
 type Dir = "up" | "down" | "left" | "right" | null;
 type Hazard = { x: number; y: number; vx: number; vy: number; life: number };
+type LeaderboardEntry = { name: string; level: number; date: string };
 
-// Procedural maze generation (recursive backtracker)
 function generateMaze(cols: number, rows: number): string[] {
   const grid: string[][] = Array.from({ length: rows }, () =>
     Array(cols).fill("#")
   );
-
   function carve(x: number, y: number) {
     grid[y][x] = ".";
-    const dirs = [
-      [0, -2],
-      [0, 2],
-      [-2, 0],
-      [2, 0],
-    ].sort(() => Math.random() - 0.5);
+    const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
     for (const [dx, dy] of dirs) {
       const nx = x + dx;
       const ny = y + dy;
-      if (
-        nx > 0 &&
-        nx < cols - 1 &&
-        ny > 0 &&
-        ny < rows - 1 &&
-        grid[ny][nx] === "#"
-      ) {
+      if (nx > 0 && nx < cols - 1 && ny > 0 && ny < rows - 1 && grid[ny][nx] === "#") {
         grid[y + dy / 2][x + dx / 2] = ".";
         carve(nx, ny);
       }
@@ -61,22 +48,33 @@ function pickRandomOpenCell(maze: string[], avoid?: Pos): Pos {
     const x = Math.floor(Math.random() * cols);
     const y = Math.floor(Math.random() * rows);
     if (maze[y][x] === ".") {
-      if (
-        !avoid ||
-        Math.abs(x - avoid.x) + Math.abs(y - avoid.y) > Math.floor(cols / 2)
-      ) {
+      if (!avoid || Math.abs(x - avoid.x) + Math.abs(y - avoid.y) > Math.floor(cols / 2)) {
         return { x, y };
       }
     }
     attempts++;
   }
-  // fallback
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
+  for (let y = 0; y < rows; y++)
+    for (let x = 0; x < cols; x++)
       if (maze[y][x] === ".") return { x, y };
-    }
-  }
   return { x: 1, y: 1 };
+}
+
+function saveLeaderboard(entries: LeaderboardEntry[]) {
+  localStorage.setItem("mazeRunLeaderboard", JSON.stringify(entries));
+}
+
+function addEntry(
+  current: LeaderboardEntry[],
+  name: string,
+  level: number
+): LeaderboardEntry[] {
+  const entry: LeaderboardEntry = {
+    name: name.trim() || "Anon",
+    level,
+    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  };
+  return [...current, entry].sort((a, b) => b.level - a.level).slice(0, 10);
 }
 
 export function MazeGame() {
@@ -89,6 +87,12 @@ export function MazeGame() {
     const c = getLevelConfig(1);
     return { w: c.cols * CELL, h: c.rows * CELL };
   });
+
+  // Leaderboard
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [nameInput, setNameInput] = useState("");
+  const [runLevel, setRunLevel] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
 
   const mazeRef = useRef<string[]>([]);
   const startRef = useRef<Pos>({ x: 1, y: 1 });
@@ -103,16 +107,19 @@ export function MazeGame() {
   const startTimeRef = useRef(0);
   const animFrameRef = useRef(0);
   const levelConfigRef = useRef(getLevelConfig(1));
+  const currentLevelRef = useRef(1);
 
   useEffect(() => {
     const stored = localStorage.getItem("mazeRunBestLevel");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setBestLevel(parseInt(stored, 10));
+    const lb = localStorage.getItem("mazeRunLeaderboard");
+    if (lb) setLeaderboard(JSON.parse(lb));
   }, []);
 
   const setupLevel = useCallback((lvl: number) => {
     const config = getLevelConfig(lvl);
     levelConfigRef.current = config;
+    currentLevelRef.current = lvl;
     const maze = generateMaze(config.cols, config.rows);
     mazeRef.current = maze;
     const start = pickRandomOpenCell(maze);
@@ -133,6 +140,9 @@ export function MazeGame() {
 
   const startGame = useCallback(() => {
     setLevel(1);
+    setRunLevel(0);
+    setSubmitted(false);
+    setNameInput("");
     setupLevel(1);
     setGameState("playing");
   }, [setupLevel]);
@@ -154,6 +164,13 @@ export function MazeGame() {
     if (x < 0 || x >= maze[0].length || y < 0 || y >= maze.length) return true;
     return maze[y][x] === "#";
   }, []);
+
+  const handleSubmitScore = useCallback(() => {
+    const updated = addEntry(leaderboard, nameInput, runLevel);
+    setLeaderboard(updated);
+    saveLeaderboard(updated);
+    setSubmitted(true);
+  }, [leaderboard, nameInput, runLevel]);
 
   // Input
   useEffect(() => {
@@ -205,13 +222,11 @@ export function MazeGame() {
       const remaining = Math.max(config.timeLimit - elapsed, 0);
       setTimeLeft(remaining);
 
-      // Time up
       if (remaining <= 0) {
         endRun();
         return;
       }
 
-      // Player movement
       const sub = subPosRef.current;
       const grid = playerRef.current;
       const queued = queuedDirRef.current;
@@ -246,13 +261,9 @@ export function MazeGame() {
         else if (sub.y > grid.y) sub.y = Math.max(sub.y - moveAmt, grid.y);
       }
 
-      // Goal check
       const goal = goalRef.current;
-      if (
-        Math.abs(sub.x - goal.x) < 0.4 &&
-        Math.abs(sub.y - goal.y) < 0.4
-      ) {
-        const reached = level;
+      if (Math.abs(sub.x - goal.x) < 0.4 && Math.abs(sub.y - goal.y) < 0.4) {
+        const reached = currentLevelRef.current;
         const newBest = Math.max(reached + 1, bestLevel);
         if (newBest > bestLevel) {
           setBestLevel(newBest);
@@ -262,24 +273,16 @@ export function MazeGame() {
         return;
       }
 
-      // Spawn hazards
       const spawnInterval = 1000 / config.hazardRate;
       if (now - lastHazardSpawnRef.current > spawnInterval) {
         lastHazardSpawnRef.current = now;
         spawnHazard(config);
       }
 
-      // Update hazards
       hazardsRef.current = hazardsRef.current
-        .map((h) => ({
-          ...h,
-          x: h.x + h.vx * dt,
-          y: h.y + h.vy * dt,
-          life: h.life - dt,
-        }))
+        .map((h) => ({ ...h, x: h.x + h.vx * dt, y: h.y + h.vy * dt, life: h.life - dt }))
         .filter((h) => h.life > 0 && h.x > -1 && h.x < config.cols + 1 && h.y > -1 && h.y < config.rows + 1);
 
-      // Hazard collision
       for (const h of hazardsRef.current) {
         const dx = h.x - sub.x;
         const dy = h.y - sub.y;
@@ -289,36 +292,18 @@ export function MazeGame() {
         }
       }
 
-      // Render
       drawScene(ctx, config, sub, goal, hazardsRef.current);
-
       animFrameRef.current = requestAnimationFrame(step);
     };
 
     function spawnHazard(config: ReturnType<typeof getLevelConfig>) {
       const side = Math.floor(Math.random() * 4);
-      let x = 0,
-        y = 0,
-        vx = 0,
-        vy = 0;
+      let x = 0, y = 0, vx = 0, vy = 0;
       const speed = 2 + Math.random() * 2;
-      if (side === 0) {
-        x = Math.random() * config.cols;
-        y = -0.5;
-        vy = speed;
-      } else if (side === 1) {
-        x = Math.random() * config.cols;
-        y = config.rows + 0.5;
-        vy = -speed;
-      } else if (side === 2) {
-        x = -0.5;
-        y = Math.random() * config.rows;
-        vx = speed;
-      } else {
-        x = config.cols + 0.5;
-        y = Math.random() * config.rows;
-        vx = -speed;
-      }
+      if (side === 0) { x = Math.random() * config.cols; y = -0.5; vy = speed; }
+      else if (side === 1) { x = Math.random() * config.cols; y = config.rows + 0.5; vy = -speed; }
+      else if (side === 2) { x = -0.5; y = Math.random() * config.rows; vx = speed; }
+      else { x = config.cols + 0.5; y = Math.random() * config.rows; vx = -speed; }
       hazardsRef.current.push({ x, y, vx, vy, life: 6 });
     }
 
@@ -331,11 +316,9 @@ export function MazeGame() {
     ) {
       const w = config.cols * CELL;
       const h = config.rows * CELL;
-
       ctx.fillStyle = "#0a0a0a";
       ctx.fillRect(0, 0, w, h);
 
-      // Maze walls
       const maze = mazeRef.current;
       ctx.fillStyle = "#1a1a1a";
       ctx.strokeStyle = "#2a2a2a";
@@ -349,23 +332,15 @@ export function MazeGame() {
         }
       }
 
-      // Goal (B)
       const pulse = (Math.sin(performance.now() / 250) + 1) / 2;
       ctx.fillStyle = `rgba(34, 197, 94, ${0.4 + pulse * 0.6})`;
       ctx.shadowColor = "#22c55e";
       ctx.shadowBlur = 16;
       ctx.beginPath();
-      ctx.arc(
-        goal.x * CELL + CELL / 2,
-        goal.y * CELL + CELL / 2,
-        CELL / 2.5,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(goal.x * CELL + CELL / 2, goal.y * CELL + CELL / 2, CELL / 2.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Hazards
       hazards.forEach((hz) => {
         ctx.fillStyle = "rgba(255, 50, 50, 0.9)";
         ctx.shadowColor = "#ff3030";
@@ -376,7 +351,6 @@ export function MazeGame() {
       });
       ctx.shadowBlur = 0;
 
-      // Player
       ctx.fillStyle = "#ff4d1f";
       ctx.shadowColor = "#ff4d1f";
       ctx.shadowBlur = 14;
@@ -387,6 +361,7 @@ export function MazeGame() {
     }
 
     function endRun() {
+      setRunLevel(currentLevelRef.current);
       setGameState("dead");
       setLevel(1);
     }
@@ -398,87 +373,155 @@ export function MazeGame() {
   const canvasW = canvasDims.w;
   const canvasH = canvasDims.h;
 
+  // Find player rank after submission
+  const playerRank = submitted
+    ? leaderboard.findIndex((e) => e.name === (nameInput.trim() || "Anon") && e.level === runLevel) + 1
+    : 0;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between font-mono text-sm flex-wrap gap-4">
-        <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
-          Level: <span className="text-[var(--color-fg)] tabular-nums">{level}</span>
-        </span>
-        <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
-          Time: <span className="text-[var(--color-fg)] tabular-nums">{timeLeft.toFixed(1)}s</span>
-        </span>
-        <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
-          Best: <span className="text-[var(--color-accent)] tabular-nums">{bestLevel}</span>
-        </span>
-      </div>
-      <div className="relative inline-block w-full max-w-2xl">
-        <canvas
-          ref={canvasRef}
-          width={canvasW}
-          height={canvasH}
-          className="w-full max-w-2xl rounded-lg border border-[var(--color-border)]"
-          style={{ aspectRatio: `${canvasW}/${canvasH}` }}
-        />
-        {gameState !== "playing" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-lg">
-            <div className="text-center text-white px-6">
-              {gameState === "idle" && (
-                <>
-                  <p className="display-type text-3xl mb-2">Maze Run</p>
-                  <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-1">
-                    Reach the green dot
-                  </p>
-                  <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-6">
-                    Dodge the red ones
-                  </p>
-                  <button
-                    onClick={startGame}
-                    className="px-6 py-3 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors"
-                  >
-                    Start
-                  </button>
-                </>
-              )}
-              {gameState === "won" && (
-                <>
-                  <p className="display-type text-4xl mb-2">Level {level} cleared</p>
-                  <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-6">
-                    {timeLeft.toFixed(1)}s remaining
-                  </p>
-                  <button
-                    onClick={nextLevel}
-                    className="px-6 py-3 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors"
-                  >
-                    Level {level + 1}
-                  </button>
-                </>
-              )}
-              {gameState === "dead" && (
-                <>
-                  <p className="display-type text-4xl mb-2">Run ended</p>
-                  <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-6">
-                    {bestLevel > 1 ? `Best: Level ${bestLevel}` : "First run"}
-                  </p>
-                  <button
-                    onClick={startGame}
-                    className="px-6 py-3 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors"
-                  >
-                    Run again
-                  </button>
-                </>
-              )}
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Game */}
+      <div className="flex-1 space-y-4">
+        <div className="flex items-baseline justify-between font-mono text-sm flex-wrap gap-4">
+          <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
+            Level: <span className="text-[var(--color-fg)] tabular-nums">{level}</span>
+          </span>
+          <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
+            Time: <span className="text-[var(--color-fg)] tabular-nums">{timeLeft.toFixed(1)}s</span>
+          </span>
+          <span className="text-[var(--color-muted)] uppercase tracking-wider text-xs">
+            Best: <span className="text-[var(--color-accent)] tabular-nums">{bestLevel}</span>
+          </span>
+        </div>
+
+        <div className="relative inline-block w-full">
+          <canvas
+            ref={canvasRef}
+            width={canvasW}
+            height={canvasH}
+            className="w-full rounded-lg border border-[var(--color-border)]"
+            style={{ aspectRatio: `${canvasW}/${canvasH}` }}
+          />
+          {gameState !== "playing" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-lg">
+              <div className="text-center text-white px-6 w-full max-w-xs">
+                {gameState === "idle" && (
+                  <>
+                    <p className="display-type text-3xl mb-2">Maze Run</p>
+                    <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-1">Reach the green dot</p>
+                    <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-6">Dodge the red ones</p>
+                    <button
+                      onClick={startGame}
+                      className="px-6 py-3 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors"
+                    >
+                      Start
+                    </button>
+                  </>
+                )}
+                {gameState === "won" && (
+                  <>
+                    <p className="display-type text-4xl mb-2">Level {level} cleared</p>
+                    <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-6">
+                      {timeLeft.toFixed(1)}s remaining
+                    </p>
+                    <button
+                      onClick={nextLevel}
+                      className="px-6 py-3 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors"
+                    >
+                      Level {level + 1}
+                    </button>
+                  </>
+                )}
+                {gameState === "dead" && (
+                  <>
+                    <p className="display-type text-4xl mb-1">Run ended</p>
+                    <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-5">
+                      Reached level {runLevel}
+                    </p>
+
+                    {!submitted ? (
+                      <div className="mb-5">
+                        <p className="font-mono text-[10px] uppercase tracking-wider opacity-60 mb-2">
+                          Post to leaderboard
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => setNameInput(e.target.value.slice(0, 16))}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleSubmitScore(); }}
+                            placeholder="Your name"
+                            maxLength={16}
+                            className="flex-1 px-3 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-mono placeholder:opacity-40 focus:outline-none focus:border-white/50"
+                          />
+                          <button
+                            onClick={handleSubmitScore}
+                            className="px-4 py-2 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors whitespace-nowrap"
+                          >
+                            Submit
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="font-mono text-xs uppercase tracking-wider text-[#22c55e] mb-5">
+                        #{playerRank} on the board
+                      </p>
+                    )}
+
+                    <button
+                      onClick={startGame}
+                      className="px-6 py-3 bg-white/10 border border-white/20 text-white rounded-full font-medium text-sm hover:bg-white hover:text-black transition-colors"
+                    >
+                      Run again
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Mobile controls */}
+        <div className="md:hidden grid grid-cols-3 gap-2 max-w-xs mx-auto pt-4">
+          <div />
+          <button onClick={() => tryDir("up")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">↑</button>
+          <div />
+          <button onClick={() => tryDir("left")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">←</button>
+          <button onClick={() => tryDir("down")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">↓</button>
+          <button onClick={() => tryDir("right")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">→</button>
+        </div>
       </div>
-      {/* Mobile controls */}
-      <div className="md:hidden grid grid-cols-3 gap-2 max-w-xs mx-auto pt-4">
-        <div />
-        <button onClick={() => tryDir("up")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">↑</button>
-        <div />
-        <button onClick={() => tryDir("left")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">←</button>
-        <button onClick={() => tryDir("down")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">↓</button>
-        <button onClick={() => tryDir("right")} className="aspect-square rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] transition-colors text-2xl">→</button>
+
+      {/* Leaderboard */}
+      <div className="lg:w-52 shrink-0">
+        <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-muted)]">Leaderboard</p>
+          </div>
+          {leaderboard.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <p className="font-mono text-[11px] text-[var(--color-muted)]">No runs yet.</p>
+              <p className="font-mono text-[10px] text-[var(--color-muted)] mt-1 opacity-60">Be the first.</p>
+            </div>
+          ) : (
+            <ol className="divide-y divide-[var(--color-border)]">
+              {leaderboard.map((entry, i) => (
+                <li key={i} className="flex items-center gap-3 px-4 py-2.5">
+                  <span
+                    className="font-mono text-[11px] w-5 shrink-0 tabular-nums"
+                    style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#a16207" : "var(--color-muted)" }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="flex-1 truncate text-[12px] text-[var(--color-fg)]">{entry.name}</span>
+                  <span className="font-mono text-[11px] text-[var(--color-accent)] tabular-nums shrink-0">
+                    L{entry.level}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       </div>
     </div>
   );
