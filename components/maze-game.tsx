@@ -434,46 +434,75 @@ export function MazeGame() {
                 )}
                 {gameState === "dead" && (
                   <>
-                    <p className="display-type text-4xl mb-1">Run ended</p>
-                    <p className="font-mono text-xs uppercase tracking-wider opacity-70 mb-5">
-                      Reached level {runLevel}
-                    </p>
-
-                    {!submitted ? (
-                      <div className="mb-5">
-                        <p className="font-mono text-[10px] uppercase tracking-wider opacity-60 mb-2">
-                          Post to leaderboard
-                        </p>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={nameInput}
-                            onChange={(e) => setNameInput(e.target.value.slice(0, 16))}
-                            onKeyDown={(e) => { if (e.key === "Enter") handleSubmitScore(); }}
-                            placeholder="Your name"
-                            maxLength={16}
-                            className="flex-1 px-3 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-mono placeholder:opacity-40 focus:outline-none focus:border-white/50"
-                          />
-                          <button
-                            onClick={handleSubmitScore}
-                            className="px-4 py-2 bg-white text-black rounded-full font-medium text-sm hover:bg-[#ff4d1f] hover:text-white transition-colors whitespace-nowrap"
-                          >
-                            Submit
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="font-mono text-xs uppercase tracking-wider text-[#22c55e] mb-5">
-                        #{playerRank} on the board
+                    {/* Scanline overlay on death screen */}
+                    <div className="absolute inset-0 pointer-events-none rounded-lg" style={{
+                      backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px)"
+                    }} />
+                    <div className="relative z-10">
+                      <p className="font-mono text-[10px] tracking-[0.35em] uppercase mb-3"
+                         style={{ color: "#ff4d1f", textShadow: "0 0 8px #ff4d1f" }}>
+                        GAME OVER
                       </p>
-                    )}
+                      <p className="display-type text-4xl mb-1" style={{ textShadow: "0 0 20px rgba(255,255,255,0.3)" }}>
+                        Level {runLevel}
+                      </p>
+                      <p className="font-mono text-[10px] tracking-widest uppercase mb-6"
+                         style={{ color: "rgba(255,255,255,0.35)" }}>
+                        {runLevel === 1 ? "BETTER LUCK NEXT TIME" : runLevel < 5 ? "NOT BAD" : runLevel < 10 ? "IMPRESSIVE" : "LEGENDARY RUN"}
+                      </p>
 
-                    <button
-                      onClick={startGame}
-                      className="px-6 py-3 bg-white/10 border border-white/20 text-white rounded-full font-medium text-sm hover:bg-white hover:text-black transition-colors"
-                    >
-                      Run again
-                    </button>
+                      {!submitted ? (
+                        <div className="mb-6">
+                          <p className="font-mono text-[10px] tracking-[0.25em] uppercase mb-3"
+                             style={{ color: "#22c55e", textShadow: "0 0 6px #22c55e" }}>
+                            ENTER YOUR NAME
+                          </p>
+                          <div className="flex gap-2 items-end">
+                            <input
+                              type="text"
+                              value={nameInput}
+                              onChange={(e) => setNameInput(e.target.value.slice(0, 12))}
+                              onKeyDown={(e) => { if (e.key === "Enter") handleSubmitScore(); }}
+                              placeholder="_ _ _ _ _"
+                              maxLength={12}
+                              autoFocus
+                              className="flex-1 bg-transparent border-0 border-b text-sm font-mono uppercase tracking-[0.2em] focus:outline-none placeholder:opacity-30"
+                              style={{ borderColor: "#22c55e66", color: "#22c55e", caretColor: "#22c55e" }}
+                            />
+                            <button
+                              onClick={handleSubmitScore}
+                              className="font-mono text-xs uppercase tracking-widest px-3 py-1 border transition-all"
+                              style={{ borderColor: "#22c55e66", color: "#22c55e" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#22c55e"; (e.currentTarget as HTMLButtonElement).style.color = "#000"; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "#22c55e"; }}
+                            >
+                              OK
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-6">
+                          <p className="font-mono text-sm tracking-widest"
+                             style={{ color: "#22c55e", textShadow: "0 0 10px #22c55e, 0 0 24px rgba(34,197,94,0.5)" }}>
+                            ★ RANK #{playerRank} ★
+                          </p>
+                          <p className="font-mono text-[10px] mt-1 uppercase tracking-widest"
+                             style={{ color: "rgba(34,197,94,0.45)" }}>
+                            YOUR SCORE IS SAVED
+                          </p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={startGame}
+                        className="font-mono text-xs uppercase tracking-[0.2em] px-5 py-2.5 border transition-all arcade-blink"
+                        style={{ borderColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.5)" }}
+                        onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = "rgba(255,255,255,0.6)"; b.style.color = "#fff"; b.style.animation = "none"; }}
+                        onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = "rgba(255,255,255,0.2)"; b.style.color = "rgba(255,255,255,0.5)"; b.style.animation = ""; }}
+                      >
+                        ↺ CONTINUE?
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -492,35 +521,75 @@ export function MazeGame() {
         </div>
       </div>
 
-      {/* Leaderboard */}
+      {/* Leaderboard — arcade cabinet style */}
       <div className="lg:w-52 shrink-0">
-        <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--color-border)]">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-muted)]">Leaderboard</p>
+        <div className="rounded-lg overflow-hidden relative" style={{ background: "#060606", border: "1px solid #1c1c1c" }}>
+          {/* Scanlines */}
+          <div className="absolute inset-0 pointer-events-none z-10" style={{
+            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.14) 3px, rgba(0,0,0,0.14) 4px)"
+          }} />
+
+          {/* Header */}
+          <div className="relative z-20 px-4 pt-5 pb-3 text-center">
+            <p className="font-mono text-[11px] tracking-[0.35em] uppercase arcade-flicker"
+               style={{ color: "#22c55e", textShadow: "0 0 8px #22c55e, 0 0 22px rgba(34,197,94,0.35)" }}>
+              ★ HIGH SCORES ★
+            </p>
           </div>
+
+          {/* Divider */}
+          <div className="mx-5 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.5), transparent)" }} />
+
           {leaderboard.length === 0 ? (
-            <div className="px-4 py-6 text-center">
-              <p className="font-mono text-[11px] text-[var(--color-muted)]">No runs yet.</p>
-              <p className="font-mono text-[10px] text-[var(--color-muted)] mt-1 opacity-60">Be the first.</p>
+            <div className="relative z-20 px-4 pb-7 pt-2 text-center space-y-2">
+              <p className="font-mono text-[11px] tracking-widest" style={{ color: "rgba(34,197,94,0.3)" }}>
+                NO DATA
+              </p>
+              <p className="font-mono text-[10px] tracking-widest arcade-blink" style={{ color: "rgba(34,197,94,0.2)" }}>
+                INSERT COIN
+              </p>
             </div>
           ) : (
-            <ol className="divide-y divide-[var(--color-border)]">
-              {leaderboard.map((entry, i) => (
-                <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                  <span
-                    className="font-mono text-[11px] w-5 shrink-0 tabular-nums"
-                    style={{ color: i === 0 ? "#f59e0b" : i === 1 ? "#94a3b8" : i === 2 ? "#a16207" : "var(--color-muted)" }}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 truncate text-[12px] text-[var(--color-fg)]">{entry.name}</span>
-                  <span className="font-mono text-[11px] text-[var(--color-accent)] tabular-nums shrink-0">
-                    L{entry.level}
-                  </span>
-                </li>
-              ))}
+            <ol className="relative z-20 pb-2">
+              {leaderboard.map((entry, i) => {
+                const isTop = i < 3;
+                const rankColor = i === 0 ? "#ffd700" : i === 1 ? "#b8b8b8" : i === 2 ? "#cd7f32" : "rgba(34,197,94,0.5)";
+                const rankGlow = i === 0
+                  ? "0 0 6px #ffd700, 0 0 14px rgba(255,215,0,0.4)"
+                  : i === 1
+                  ? "0 0 5px #b8b8b8, 0 0 10px rgba(184,184,184,0.3)"
+                  : i === 2
+                  ? "0 0 5px #cd7f32, 0 0 10px rgba(205,127,50,0.3)"
+                  : "none";
+                const rankLabel = i === 0 ? "①" : i === 1 ? "②" : i === 2 ? "③" : `${i + 1}.`;
+                return (
+                  <li key={i} className="flex items-center gap-2 px-4 py-[5px]">
+                    <span className="font-mono text-[12px] w-5 shrink-0 tabular-nums"
+                          style={{ color: rankColor, textShadow: rankGlow }}>
+                      {rankLabel}
+                    </span>
+                    <span className="flex-1 truncate font-mono text-[11px] uppercase tracking-wider"
+                          style={{ color: isTop ? rankColor : "rgba(255,255,255,0.2)", textShadow: isTop ? rankGlow : "none" }}>
+                      {entry.name}
+                    </span>
+                    <span className="font-mono text-[11px] tabular-nums shrink-0"
+                          style={{ color: rankColor, textShadow: rankGlow }}>
+                      L{entry.level}
+                    </span>
+                  </li>
+                );
+              })}
             </ol>
           )}
+
+          {/* Footer */}
+          <div className="mx-5 mt-2 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.2), transparent)" }} />
+          <div className="relative z-20 pb-4 text-center">
+            <span className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
+                  style={{ color: "rgba(34,197,94,0.25)" }}>
+              ▶ PLAY TO RANK ◀
+            </span>
+          </div>
         </div>
       </div>
     </div>

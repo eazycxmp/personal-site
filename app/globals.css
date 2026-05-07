@@ -128,6 +128,26 @@ body {
 }
 .vx-ring { animation: vx-pulse 2.6s ease-out infinite; }
 
+/* Arcade leaderboard */
+@keyframes arcade-flicker {
+  0%, 91%, 96%, 100% { opacity: 1; }
+  92%  { opacity: 0.7; }
+  94%  { opacity: 0.9; }
+  97%  { opacity: 0.75; }
+}
+.arcade-flicker { animation: arcade-flicker 6s ease-in-out infinite; }
+
+@keyframes arcade-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.arcade-blink { animation: arcade-blink 1.1s step-end infinite; }
+
+@keyframes arcade-scan {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
 /* Hero photo pull-in */
 @keyframes heroPullIn {
   from { opacity: 0; transform: scale(1.1); }
