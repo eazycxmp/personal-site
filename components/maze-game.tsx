@@ -521,78 +521,72 @@ export function MazeGame() {
         </div>
       </div>
 
-      {/* Leaderboard — blue/green game card */}
+      {/* Leaderboard — Space Ranger */}
       <div className="lg:w-56 shrink-0">
         <div
-          className="rounded-xl overflow-hidden relative"
+          className="rounded-2xl overflow-hidden relative"
           style={{
-            background: "linear-gradient(180deg, #04091f 0%, #020810 100%)",
-            border: "1px solid #0d2040",
-            boxShadow: "0 0 0 1px rgba(0,180,255,0.08), 0 4px 32px rgba(0,80,200,0.18), inset 0 1px 0 rgba(0,180,255,0.1)",
+            background: "#ffffff",
+            border: "2.5px solid #7B35C4",
+            boxShadow: "0 0 0 4px rgba(123,53,196,0.12), 0 6px 28px rgba(123,53,196,0.2)",
           }}
         >
-          {/* Top corner accent */}
-          <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none" style={{
-            background: "radial-gradient(circle at top right, rgba(0,180,255,0.12) 0%, transparent 70%)"
-          }} />
-
-          {/* Header */}
-          <div className="relative px-4 pt-5 pb-3 text-center">
-            <p className="font-mono text-[9px] tracking-[0.4em] uppercase mb-2"
-               style={{ color: "rgba(0,180,255,0.4)" }}>
-              MAZE RUN
+          {/* Purple header band — Buzz's wings */}
+          <div style={{ background: "linear-gradient(135deg, #7B35C4 0%, #4A1A90 100%)" }} className="px-4 pt-4 pb-3 relative overflow-hidden">
+            {/* Star field */}
+            {[{x:"12%",y:"30%"},{x:"40%",y:"15%"},{x:"68%",y:"40%"},{x:"85%",y:"20%"},{x:"25%",y:"65%"},{x:"75%",y:"70%"}].map((s,i) => (
+              <div key={i} className="absolute w-0.5 h-0.5 rounded-full bg-white/60" style={{ left: s.x, top: s.y }} />
+            ))}
+            <p className="font-mono text-[9px] tracking-[0.45em] uppercase text-white/50 mb-1 text-center">
+              SPACE RANGER
             </p>
-            <p className="font-mono text-[12px] tracking-[0.25em] uppercase arcade-flicker font-bold"
-               style={{
-                 background: "linear-gradient(90deg, #00cfff, #22c55e)",
-                 WebkitBackgroundClip: "text",
-                 WebkitTextFillColor: "transparent",
-                 filter: "drop-shadow(0 0 6px rgba(0,200,255,0.5))",
-               }}>
-              HIGH SCORES
+            <p className="font-mono text-[13px] tracking-[0.2em] uppercase font-bold text-white text-center arcade-flicker"
+               style={{ textShadow: "0 0 12px rgba(255,255,255,0.6)" }}>
+              ★ HIGH SCORES ★
             </p>
           </div>
 
-          {/* Gradient divider */}
-          <div className="mx-4 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, #00cfff88, #22c55e88, transparent)" }} />
+          {/* Green chest-panel accent line */}
+          <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "4px" }} />
 
           {leaderboard.length === 0 ? (
-            <div className="px-4 pb-8 pt-2 text-center space-y-2.5">
-              <p className="font-mono text-[11px] tracking-widest" style={{ color: "rgba(0,180,255,0.25)" }}>
+            <div className="px-4 py-8 text-center space-y-2">
+              <p className="font-mono text-[11px] tracking-widest text-purple-300">
                 NO SCORES YET
               </p>
               <p className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
-                 style={{ color: "rgba(34,197,94,0.3)" }}>
+                 style={{ color: "#22c55e" }}>
                 ▸ PLAY TO RANK ◂
               </p>
             </div>
           ) : (
-            <ol className="pb-1">
+            <ol className="divide-y divide-purple-100">
               {leaderboard.map((entry, i) => {
-                const rankColor = i === 0 ? "#ffd700" : i === 1 ? "#c0c8d8" : i === 2 ? "#c87941" : "rgba(0,180,255,0.3)";
-                const rankGlow  = i === 0 ? "0 0 8px rgba(255,215,0,0.6)"
-                                : i === 1 ? "0 0 6px rgba(192,200,216,0.4)"
-                                : i === 2 ? "0 0 6px rgba(200,121,65,0.4)"
-                                : "none";
-                const nameColor = i === 0 ? "#ffe566" : i === 1 ? "#d0d8e8" : i === 2 ? "#dda070" : "rgba(100,160,220,0.5)";
-                const lvlColor  = i < 3 ? "#22c55e" : "rgba(34,197,94,0.35)";
-                const rankLabel = i === 0 ? "01" : i === 1 ? "02" : i === 2 ? "03" : `${String(i + 1).padStart(2, "0")}`;
+                const medalColor = i === 0 ? "#CA8A04" : i === 1 ? "#6B7280" : i === 2 ? "#92400E" : "#A78BFA";
+                const bgRow = i === 0 ? "rgba(250,230,0,0.06)" : i < 3 ? "rgba(123,53,196,0.04)" : "transparent";
+                const rankLabel = ["🥇","🥈","🥉"][i] ?? `${i + 1}.`;
                 return (
                   <li
                     key={i}
-                    className="flex items-center gap-2.5 px-4 py-[5px]"
-                    style={{ borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(0,60,120,0.35)" : "none" }}
+                    className="flex items-center gap-2.5 px-3.5 py-2"
+                    style={{ background: bgRow }}
                   >
-                    <span className="font-mono text-[10px] w-5 shrink-0 tabular-nums"
-                          style={{ color: rankColor, textShadow: rankGlow }}>
+                    <span className="text-[13px] w-6 shrink-0 leading-none">
                       {rankLabel}
                     </span>
-                    <span className="flex-1 truncate font-mono text-[11px] uppercase tracking-wider"
-                          style={{ color: nameColor }}>
+                    <span
+                      className="flex-1 truncate font-mono text-[11px] uppercase tracking-wider font-semibold"
+                      style={{ color: i < 3 ? "#3B0D6E" : medalColor }}
+                    >
                       {entry.name}
                     </span>
-                    <span className="font-mono text-[11px] tabular-nums shrink-0 font-bold"
-                          style={{ color: lvlColor, textShadow: i < 3 ? "0 0 6px rgba(34,197,94,0.5)" : "none" }}>
+                    <span
+                      className="font-mono text-[12px] tabular-nums shrink-0 font-bold rounded px-1.5 py-0.5"
+                      style={{
+                        background: i < 3 ? "#dcfce7" : "#f3f4f6",
+                        color: i < 3 ? "#15803d" : "#6b7280",
+                      }}
+                    >
                       L{entry.level}
                     </span>
                   </li>
@@ -601,12 +595,12 @@ export function MazeGame() {
             </ol>
           )}
 
-          {/* Footer */}
-          <div className="mx-4 mt-2" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.2), transparent)" }} />
-          <div className="py-3 text-center">
+          {/* Green bottom strip */}
+          <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "3px" }} />
+          <div className="py-2.5 text-center" style={{ background: "#f5f0ff" }}>
             <span className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
-                  style={{ color: "rgba(0,200,255,0.3)" }}>
-              ▸ PLAY TO RANK ◂
+                  style={{ color: "#7B35C4" }}>
+              TO INFINITY AND BEYOND
             </span>
           </div>
         </div>
