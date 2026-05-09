@@ -89,45 +89,6 @@ body {
   text-transform: uppercase;
 }
 
-/* ── Work card animations ─────────────────────────────────────────── */
-
-/* HomeLight: property location pins fading in (real estate listings) */
-@keyframes hl-pin {
-  0%        { opacity: 0; transform: translateY(-6px) scale(0.7); }
-  20%, 65%  { opacity: 1; transform: translateY(0) scale(1); }
-  90%, 100% { opacity: 0; transform: translateY(-6px) scale(0.7); }
-}
-.hl-pin { animation: hl-pin 4s ease-in-out infinite; }
-
-/* Heimdall Power: sensor pulse on power line (electrical monitoring) */
-@keyframes hm-travel {
-  0%   { transform: translateX(-8px); opacity: 0; }
-  8%   { opacity: 0.85; }
-  88%  { opacity: 0.85; }
-  100% { transform: translateX(210px); opacity: 0; }
-}
-.hm-dot { animation: hm-travel 3.2s linear infinite; }
-
-@keyframes hm-sensor {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 0.9; }
-}
-.hm-sensor { animation: hm-sensor 2s ease-in-out infinite; }
-
-/* Gowins Tile: tile grid filling in (tile contractor) */
-@keyframes gw-tile {
-  0%, 100% { background: rgba(255,255,255,0.04); }
-  50%      { background: rgba(255,255,255,0.32); }
-}
-.gw-tile { animation: gw-tile 2.6s ease-in-out infinite; }
-
-/* Vortex Rugby: oval rings pulsing outward (sports brand / vortex) */
-@keyframes vx-pulse {
-  0%   { transform: scale(0.4) rotate(-8deg); opacity: 0.75; }
-  100% { transform: scale(2.4) rotate(8deg);  opacity: 0; }
-}
-.vx-ring { animation: vx-pulse 2.6s ease-out infinite; }
-
 /* Arcade leaderboard */
 @keyframes arcade-flicker {
   0%, 91%, 96%, 100% { opacity: 1; }

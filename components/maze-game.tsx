@@ -521,59 +521,78 @@ export function MazeGame() {
         </div>
       </div>
 
-      {/* Leaderboard — arcade cabinet style */}
-      <div className="lg:w-52 shrink-0">
-        <div className="rounded-lg overflow-hidden relative" style={{ background: "#060606", border: "1px solid #1c1c1c" }}>
-          {/* Scanlines */}
-          <div className="absolute inset-0 pointer-events-none z-10" style={{
-            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.14) 3px, rgba(0,0,0,0.14) 4px)"
+      {/* Leaderboard — blue/green game card */}
+      <div className="lg:w-56 shrink-0">
+        <div
+          className="rounded-xl overflow-hidden relative"
+          style={{
+            background: "linear-gradient(180deg, #04091f 0%, #020810 100%)",
+            border: "1px solid #0d2040",
+            boxShadow: "0 0 0 1px rgba(0,180,255,0.08), 0 4px 32px rgba(0,80,200,0.18), inset 0 1px 0 rgba(0,180,255,0.1)",
+          }}
+        >
+          {/* Top corner accent */}
+          <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none" style={{
+            background: "radial-gradient(circle at top right, rgba(0,180,255,0.12) 0%, transparent 70%)"
           }} />
 
           {/* Header */}
-          <div className="relative z-20 px-4 pt-5 pb-3 text-center">
-            <p className="font-mono text-[11px] tracking-[0.35em] uppercase arcade-flicker"
-               style={{ color: "#22c55e", textShadow: "0 0 8px #22c55e, 0 0 22px rgba(34,197,94,0.35)" }}>
-              ★ HIGH SCORES ★
+          <div className="relative px-4 pt-5 pb-3 text-center">
+            <p className="font-mono text-[9px] tracking-[0.4em] uppercase mb-2"
+               style={{ color: "rgba(0,180,255,0.4)" }}>
+              MAZE RUN
+            </p>
+            <p className="font-mono text-[12px] tracking-[0.25em] uppercase arcade-flicker font-bold"
+               style={{
+                 background: "linear-gradient(90deg, #00cfff, #22c55e)",
+                 WebkitBackgroundClip: "text",
+                 WebkitTextFillColor: "transparent",
+                 filter: "drop-shadow(0 0 6px rgba(0,200,255,0.5))",
+               }}>
+              HIGH SCORES
             </p>
           </div>
 
-          {/* Divider */}
-          <div className="mx-5 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.5), transparent)" }} />
+          {/* Gradient divider */}
+          <div className="mx-4 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, #00cfff88, #22c55e88, transparent)" }} />
 
           {leaderboard.length === 0 ? (
-            <div className="relative z-20 px-4 pb-7 pt-2 text-center space-y-2">
-              <p className="font-mono text-[11px] tracking-widest" style={{ color: "rgba(34,197,94,0.3)" }}>
-                NO DATA
+            <div className="px-4 pb-8 pt-2 text-center space-y-2.5">
+              <p className="font-mono text-[11px] tracking-widest" style={{ color: "rgba(0,180,255,0.25)" }}>
+                NO SCORES YET
               </p>
-              <p className="font-mono text-[10px] tracking-widest arcade-blink" style={{ color: "rgba(34,197,94,0.2)" }}>
-                INSERT COIN
+              <p className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
+                 style={{ color: "rgba(34,197,94,0.3)" }}>
+                ▸ PLAY TO RANK ◂
               </p>
             </div>
           ) : (
-            <ol className="relative z-20 pb-2">
+            <ol className="pb-1">
               {leaderboard.map((entry, i) => {
-                const isTop = i < 3;
-                const rankColor = i === 0 ? "#ffd700" : i === 1 ? "#b8b8b8" : i === 2 ? "#cd7f32" : "rgba(34,197,94,0.5)";
-                const rankGlow = i === 0
-                  ? "0 0 6px #ffd700, 0 0 14px rgba(255,215,0,0.4)"
-                  : i === 1
-                  ? "0 0 5px #b8b8b8, 0 0 10px rgba(184,184,184,0.3)"
-                  : i === 2
-                  ? "0 0 5px #cd7f32, 0 0 10px rgba(205,127,50,0.3)"
-                  : "none";
-                const rankLabel = i === 0 ? "①" : i === 1 ? "②" : i === 2 ? "③" : `${i + 1}.`;
+                const rankColor = i === 0 ? "#ffd700" : i === 1 ? "#c0c8d8" : i === 2 ? "#c87941" : "rgba(0,180,255,0.3)";
+                const rankGlow  = i === 0 ? "0 0 8px rgba(255,215,0,0.6)"
+                                : i === 1 ? "0 0 6px rgba(192,200,216,0.4)"
+                                : i === 2 ? "0 0 6px rgba(200,121,65,0.4)"
+                                : "none";
+                const nameColor = i === 0 ? "#ffe566" : i === 1 ? "#d0d8e8" : i === 2 ? "#dda070" : "rgba(100,160,220,0.5)";
+                const lvlColor  = i < 3 ? "#22c55e" : "rgba(34,197,94,0.35)";
+                const rankLabel = i === 0 ? "01" : i === 1 ? "02" : i === 2 ? "03" : `${String(i + 1).padStart(2, "0")}`;
                 return (
-                  <li key={i} className="flex items-center gap-2 px-4 py-[5px]">
-                    <span className="font-mono text-[12px] w-5 shrink-0 tabular-nums"
+                  <li
+                    key={i}
+                    className="flex items-center gap-2.5 px-4 py-[5px]"
+                    style={{ borderBottom: i < leaderboard.length - 1 ? "1px solid rgba(0,60,120,0.35)" : "none" }}
+                  >
+                    <span className="font-mono text-[10px] w-5 shrink-0 tabular-nums"
                           style={{ color: rankColor, textShadow: rankGlow }}>
                       {rankLabel}
                     </span>
                     <span className="flex-1 truncate font-mono text-[11px] uppercase tracking-wider"
-                          style={{ color: isTop ? rankColor : "rgba(255,255,255,0.2)", textShadow: isTop ? rankGlow : "none" }}>
+                          style={{ color: nameColor }}>
                       {entry.name}
                     </span>
-                    <span className="font-mono text-[11px] tabular-nums shrink-0"
-                          style={{ color: rankColor, textShadow: rankGlow }}>
+                    <span className="font-mono text-[11px] tabular-nums shrink-0 font-bold"
+                          style={{ color: lvlColor, textShadow: i < 3 ? "0 0 6px rgba(34,197,94,0.5)" : "none" }}>
                       L{entry.level}
                     </span>
                   </li>
@@ -583,11 +602,11 @@ export function MazeGame() {
           )}
 
           {/* Footer */}
-          <div className="mx-5 mt-2 mb-3" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(34,197,94,0.2), transparent)" }} />
-          <div className="relative z-20 pb-4 text-center">
+          <div className="mx-4 mt-2" style={{ height: "1px", background: "linear-gradient(90deg, transparent, rgba(0,180,255,0.2), transparent)" }} />
+          <div className="py-3 text-center">
             <span className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
-                  style={{ color: "rgba(34,197,94,0.25)" }}>
-              ▶ PLAY TO RANK ◀
+                  style={{ color: "rgba(0,200,255,0.3)" }}>
+              ▸ PLAY TO RANK ◂
             </span>
           </div>
         </div>
