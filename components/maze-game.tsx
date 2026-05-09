@@ -60,17 +60,9 @@ function pickRandomOpenCell(maze: string[], avoid?: Pos): Pos {
   return { x: 1, y: 1 };
 }
 
-function saveLeaderboard(entries: LeaderboardEntry[]) {
-  localStorage.setItem("mazeRunLeaderboard", JSON.stringify(entries));
-}
-
-function addEntry(
-  current: LeaderboardEntry[],
-  name: string,
-  level: number
-): LeaderboardEntry[] {
+function localMerge(current: LeaderboardEntry[], name: string, level: number): LeaderboardEntry[] {
   const entry: LeaderboardEntry = {
-    name: name.trim() || "Anon",
+    name: (name.trim() || "Anon").slice(0, 12),
     level,
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   };
@@ -112,8 +104,14 @@ export function MazeGame() {
   useEffect(() => {
     const stored = localStorage.getItem("mazeRunBestLevel");
     if (stored) setBestLevel(parseInt(stored, 10));
-    const lb = localStorage.getItem("mazeRunLeaderboard");
-    if (lb) setLeaderboard(JSON.parse(lb));
+    // Load global leaderboard; fall back to localStorage if API unavailable
+    fetch("/api/leaderboard")
+      .then((r) => r.json())
+      .then((data) => setLeaderboard(data))
+      .catch(() => {
+        const lb = localStorage.getItem("mazeRunLeaderboard");
+        if (lb) setLeaderboard(JSON.parse(lb));
+      });
   }, []);
 
   const setupLevel = useCallback((lvl: number) => {
@@ -166,10 +164,23 @@ export function MazeGame() {
   }, []);
 
   const handleSubmitScore = useCallback(() => {
-    const updated = addEntry(leaderboard, nameInput, runLevel);
-    setLeaderboard(updated);
-    saveLeaderboard(updated);
+    const name = nameInput.trim() || "Anon";
+    // Optimistic update
+    setLeaderboard((prev) => localMerge(prev, name, runLevel));
     setSubmitted(true);
+    // Persist globally
+    fetch("/api/leaderboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, level: runLevel }),
+    })
+      .then((r) => r.json())
+      .then((data: LeaderboardEntry[]) => { if (data.length) setLeaderboard(data); })
+      .catch(() => {
+        // API unavailable — save locally as fallback
+        const updated = localMerge(leaderboard, name, runLevel);
+        localStorage.setItem("mazeRunLeaderboard", JSON.stringify(updated));
+      });
   }, [leaderboard, nameInput, runLevel]);
 
   // Input
@@ -379,7 +390,7 @@ export function MazeGame() {
     : 0;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
+    <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
       {/* Game */}
       <div className="flex-1 space-y-4">
         <div className="flex items-baseline justify-between font-mono text-sm flex-wrap gap-4">
@@ -521,87 +532,91 @@ export function MazeGame() {
         </div>
       </div>
 
-      {/* Leaderboard — Space Ranger */}
-      <div className="lg:w-56 shrink-0">
+      {/* Leaderboard — Maze Runner Space Ranger */}
+      <div className="lg:w-64 shrink-0 flex flex-col">
         <div
-          className="rounded-2xl overflow-hidden relative"
+          className="rounded-2xl overflow-hidden relative flex flex-col flex-1"
           style={{
             background: "#ffffff",
             border: "2.5px solid #7B35C4",
             boxShadow: "0 0 0 4px rgba(123,53,196,0.12), 0 6px 28px rgba(123,53,196,0.2)",
           }}
         >
-          {/* Purple header band — Buzz's wings */}
-          <div style={{ background: "linear-gradient(135deg, #7B35C4 0%, #4A1A90 100%)" }} className="px-4 pt-4 pb-3 relative overflow-hidden">
-            {/* Star field */}
-            {[{x:"12%",y:"30%"},{x:"40%",y:"15%"},{x:"68%",y:"40%"},{x:"85%",y:"20%"},{x:"25%",y:"65%"},{x:"75%",y:"70%"}].map((s,i) => (
-              <div key={i} className="absolute w-0.5 h-0.5 rounded-full bg-white/60" style={{ left: s.x, top: s.y }} />
+          {/* Purple header band */}
+          <div style={{ background: "linear-gradient(135deg, #7B35C4 0%, #4A1A90 100%)" }} className="px-5 pt-5 pb-4 relative overflow-hidden shrink-0">
+            {[{x:"8%",y:"25%"},{x:"35%",y:"12%"},{x:"62%",y:"38%"},{x:"82%",y:"18%"},{x:"20%",y:"68%"},{x:"72%",y:"65%"},{x:"50%",y:"50%"}].map((s,i) => (
+              <div key={i} className="absolute w-1 h-1 rounded-full bg-white/50" style={{ left: s.x, top: s.y }} />
             ))}
-            <p className="font-mono text-[9px] tracking-[0.45em] uppercase text-white/50 mb-1 text-center">
-              SPACE RANGER
+            <p className="font-mono text-[10px] tracking-[0.45em] uppercase text-white/55 mb-1.5 text-center">
+              MAZE RUNNER
             </p>
-            <p className="font-mono text-[13px] tracking-[0.2em] uppercase font-bold text-white text-center arcade-flicker"
-               style={{ textShadow: "0 0 12px rgba(255,255,255,0.6)" }}>
+            <p className="font-mono text-[15px] tracking-[0.18em] uppercase font-bold text-white text-center arcade-flicker"
+               style={{ textShadow: "0 0 14px rgba(255,255,255,0.65)" }}>
               ★ HIGH SCORES ★
             </p>
           </div>
 
           {/* Green chest-panel accent line */}
-          <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "4px" }} />
+          <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "5px" }} className="shrink-0" />
 
-          {leaderboard.length === 0 ? (
-            <div className="px-4 py-8 text-center space-y-2">
-              <p className="font-mono text-[11px] tracking-widest text-purple-300">
-                NO SCORES YET
-              </p>
-              <p className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
-                 style={{ color: "#22c55e" }}>
-                ▸ PLAY TO RANK ◂
-              </p>
+          {/* Entries — flex-1 so they fill remaining height */}
+          <div className="flex-1 flex flex-col">
+            {leaderboard.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-5 py-10">
+                <p className="font-mono text-[12px] tracking-widest" style={{ color: "#C4B5FD" }}>
+                  NO SCORES YET
+                </p>
+                <p className="font-mono text-[10px] tracking-[0.3em] uppercase arcade-blink"
+                   style={{ color: "#22c55e" }}>
+                  ▸ PLAY TO RANK ◂
+                </p>
+              </div>
+            ) : (
+              <ol className="divide-y divide-purple-100 flex-1">
+                {leaderboard.map((entry, i) => {
+                  const bgRow = i === 0 ? "rgba(250,230,0,0.07)" : i < 3 ? "rgba(123,53,196,0.04)" : "transparent";
+                  const nameColor = i === 0 ? "#3B0D6E" : i < 3 ? "#4C1D95" : "#7C3AED";
+                  const rankLabel = (["🥇","🥈","🥉"] as const)[i] ?? `${i + 1}.`;
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-center gap-3 px-4 py-2.5"
+                      style={{ background: bgRow }}
+                    >
+                      <span className="text-[15px] w-7 shrink-0 leading-none">
+                        {rankLabel}
+                      </span>
+                      <span
+                        className="flex-1 truncate font-mono text-[12px] uppercase tracking-wider font-semibold"
+                        style={{ color: nameColor }}
+                      >
+                        {entry.name}
+                      </span>
+                      <span
+                        className="font-mono text-[13px] tabular-nums shrink-0 font-bold rounded-md px-2 py-0.5"
+                        style={{
+                          background: i < 3 ? "#dcfce7" : "#f3f4f6",
+                          color: i < 3 ? "#15803d" : "#6b7280",
+                        }}
+                      >
+                        L{entry.level}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+
+          {/* Green bottom strip + footer */}
+          <div className="shrink-0">
+            <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "4px" }} />
+            <div className="py-3 text-center" style={{ background: "#f5f0ff" }}>
+              <span className="font-mono text-[10px] tracking-[0.25em] uppercase arcade-blink"
+                    style={{ color: "#7B35C4" }}>
+                TO INFINITY AND BEYOND
+              </span>
             </div>
-          ) : (
-            <ol className="divide-y divide-purple-100">
-              {leaderboard.map((entry, i) => {
-                const medalColor = i === 0 ? "#CA8A04" : i === 1 ? "#6B7280" : i === 2 ? "#92400E" : "#A78BFA";
-                const bgRow = i === 0 ? "rgba(250,230,0,0.06)" : i < 3 ? "rgba(123,53,196,0.04)" : "transparent";
-                const rankLabel = ["🥇","🥈","🥉"][i] ?? `${i + 1}.`;
-                return (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2.5 px-3.5 py-2"
-                    style={{ background: bgRow }}
-                  >
-                    <span className="text-[13px] w-6 shrink-0 leading-none">
-                      {rankLabel}
-                    </span>
-                    <span
-                      className="flex-1 truncate font-mono text-[11px] uppercase tracking-wider font-semibold"
-                      style={{ color: i < 3 ? "#3B0D6E" : medalColor }}
-                    >
-                      {entry.name}
-                    </span>
-                    <span
-                      className="font-mono text-[12px] tabular-nums shrink-0 font-bold rounded px-1.5 py-0.5"
-                      style={{
-                        background: i < 3 ? "#dcfce7" : "#f3f4f6",
-                        color: i < 3 ? "#15803d" : "#6b7280",
-                      }}
-                    >
-                      L{entry.level}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-
-          {/* Green bottom strip */}
-          <div style={{ background: "linear-gradient(90deg, #16a34a, #22c55e, #16a34a)", height: "3px" }} />
-          <div className="py-2.5 text-center" style={{ background: "#f5f0ff" }}>
-            <span className="font-mono text-[9px] tracking-[0.3em] uppercase arcade-blink"
-                  style={{ color: "#7B35C4" }}>
-              TO INFINITY AND BEYOND
-            </span>
           </div>
         </div>
       </div>
