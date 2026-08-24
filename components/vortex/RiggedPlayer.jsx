@@ -187,13 +187,7 @@ function retargetClip(clip, srcBones, dstBones, order, restWS, restWD) {
       _corr.copy(ws).multiply(_inv);
 
       // same world motion, applied to the target's rest
-      // ROOT: the pelvis is the frame every other bone hangs off. Body f's
-      // hips rest is rolled ~90 degrees about Z relative to the reference, and
-      // preserving that roll is what throws her hips out to the side. Anchor
-      // the root to the REFERENCE world rest instead so both rigs share a
-      // pelvis frame; the children still resolve against their own rests.
-      const isRoot = !sb.parent;
-      const wd = _corr.clone().multiply(isRoot ? restWS.get(name) : restWD.get(name));
+      const wd = _corr.clone().multiply(restWD.get(name));
       wD.set(name, wd);
 
       const arr = out.get(name);
