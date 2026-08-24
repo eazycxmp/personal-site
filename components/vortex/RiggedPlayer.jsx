@@ -87,6 +87,45 @@ function restMap(root) {
   return m;
 }
 
+/* The node transforms on these FBX files are NOT the bind pose. Every body
+   ships an embedded clip and loads sitting at frame 0 of it — up to 57 degrees
+   off bind across twenty bones. Body a happens to load mid-stride of the Meshy
+   walk, so measuring "rest" off its nodes made that one clip retarget from a
+   walking pose onto another rig's standing pose, which is exactly why walking
+   was the clip that came out wrong. Read the real bind pose off the skeleton.
+
+   This is used ONLY as the rest reference. Bones a clip does not drive still
+   fall back to the node pose, because that is what body a itself shows when
+   the same clip plays on it unretargeted. */
+function bindRestMap(root) {
+  let mesh = null;
+  root.traverse((o) => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+  const sk = mesh?.skeleton;
+  if (!sk || !sk.boneInverses?.length) return null;
+
+  const m = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  const worldQ = new Map();
+  sk.bones.forEach((bone, i) => {
+    const q = new THREE.Quaternion();
+    m.copy(sk.boneInverses[i]).invert().decompose(p, q, sc);
+    worldQ.set(bone.name, q);
+  });
+
+  const out = new Map();
+  for (const bone of sk.bones) {
+    const parent =
+      bone.parent && bone.parent.isBone && worldQ.has(bone.parent.name) ? bone.parent.name : null;
+    const w = worldQ.get(bone.name);
+    out.set(bone.name, {
+      q: parent ? worldQ.get(parent).clone().invert().multiply(w) : w.clone(),
+      parent,
+    });
+  }
+  return out;
+}
+
 /* Parent-first ordering so a bone's parent world rotation is always ready. */
 function boneOrder(bones) {
   const out = [];
@@ -243,7 +282,7 @@ function loadAssets() {
     // rebase the clips for any body whose rest pose differs from the reference
     const refBones = restMap(templates.a);
     const order = boneOrder(refBones);
-    const refWorld = restWorld(refBones, order);
+    const refWorld = restWorld(bindRestMap(templates.a) || refBones, order);
     const clipsByBody = { a: clips };
     for (const id of Object.keys(templates)) {
       if (id === "a") continue;
@@ -252,7 +291,7 @@ function loadAssets() {
         clipsByBody[id] = clips;
         continue;
       }
-      const world = restWorld(bones, order);
+      const world = restWorld(bindRestMap(templates[id]) || bones, order);
       const remapped = {};
       for (const [name, clip] of Object.entries(clips)) {
         remapped[name] = retargetClip(clip, refBones, bones, order, refWorld, world);
