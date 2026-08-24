@@ -44,25 +44,37 @@ function clearOfPosts(x) {
 // squad selection. every body shares the 24-bone skeleton, so the same clips
 // drive all of them. player 2 fields women throughout — carrier, support and
 // opposition.
+/* The signature sides bring their own texture; the opposition is painted in the
+   away colour so the two teams read apart. Both run on the same light meshes. */
 const SQUADS = {
-  p1: { carrier: "a", mate: "a", defender: "b" },
-  p2: { carrier: "f", mate: "f", defender: "f" },
+  p1: { carrier: "nz", mate: "nz", defender: "burst" },
+  p2: { carrier: "fBreakaway", mate: "fBreakaway", defender: "fDetermined" },
 };
 
 /* Each strip fields a whole team of one signature player. These models arrive
    already textured, so picking a colour picks the side you run out with; the
    opposition and the crowd still follow the same colour choice as before. */
 const HERO_BY_COLOUR = { blue: "burst", green: "kolisi", black: "nz" };
-function passTarget(cx, side) {
-  const base = cx * 0.4;
+/* Q goes left, E goes right, and the ball can only go to someone who is
+   actually on that side of you. This used to pick by which SLOT a man was
+   nominally assigned to, so a runner who had drifted across still counted as
+   your left-hand option — and the pass went the wrong way. It now reads live
+   positions, and returns null when there is nobody over there. */
+const PASS_MIN_GAP = 0.8; // level with you is not a pass
+
+function passTarget(cx, side, mates) {
   let bestI = -1;
   let bestD = Infinity;
-  TEAM_SLOTS.forEach((slot, i) => {
-    if (Math.sign(slot) !== side) return;
-    const d = Math.abs(base + slot - cx);
+  for (let i = 0; i < (mates?.length || 0); i++) {
+    const m = mates[i];
+    if (!m) continue;
+    const dx = m.x - cx;
+    if (Math.sign(dx) !== side) continue; // wrong side of him
+    const d = Math.abs(dx);
+    if (d < PASS_MIN_GAP) continue;
     if (d < bestD) { bestD = d; bestI = i; }
-  });
-  return { idx: bestI, x: base + (TEAM_SLOTS[bestI] ?? side * 3.4) };
+  }
+  return bestI < 0 ? null : { idx: bestI, x: mates[bestI].x, z: mates[bestI].z };
 } // how close the shot must land to bring him down
 // a kick-receipt defence: one flat line of five advancing to meet him, a
 // sweeper behind it, and the fullback as the last man. ANY of them will
@@ -239,8 +251,9 @@ function buildKits(home, away) {
     defender: kit(A, 7, DEFENCE_LOOKS[0]),
     defenderB: kit(A, 4, DEFENCE_LOOKS[1]),
     defenderC: kit(A, 6, DEFENCE_LOOKS[2]),
-    // the fullback wears the reverse of his own strip so he stands out
-    fullback: { ...kit(A, 15, DEFENCE_LOOKS[3]), jersey: A.trim, sleeve: A.jersey, trim: A.jersey },
+    // the last man wears the same strip as the rest of them — he is one of the
+    // side, not a different team
+    fullback: kit(A, 15, DEFENCE_LOOKS[3]),
   };
 }
 
@@ -1523,7 +1536,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
         {/* separate pitch group: tipping him over here composes with the yaw
             above instead of fighting it through Euler order */}
         <group ref={pitch}>
-          <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.defender} />
+          <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.defender} paint />
         </group>
       </group>
     </group>
@@ -2537,6 +2550,19 @@ export default function EnterThePitch() {
     [home, awayColour]
   );
   const [runId, setRunId] = useState(0);
+  // which sides currently have a man to throw to, so the prompt only offers a
+  // pass that can actually be made
+  const [passOpen, setPassOpen] = useState({ "-1": false, "1": false });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const cx = carrierXRef.current;
+      const m = matesRef.current;
+      const left = !!passTarget(cx, -1, m);
+      const right = !!passTarget(cx, 1, m);
+      setPassOpen((p) => (p["-1"] === left && p["1"] === right ? p : { "-1": left, "1": right }));
+    }, 120);
+    return () => clearInterval(id);
+  }, []);
 
   const isDesktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
   const carrierXRef = useRef(0); // where he actually is, metres from centre
@@ -2630,15 +2656,15 @@ export default function EnterThePitch() {
       diveRef.current !== 0
     )
       return;
-    const tgt = passTarget(carrierXRef.current, side);
-    const m = matesRef.current[tgt.idx];
+    const tgt = passTarget(carrierXRef.current, side, matesRef.current);
+    if (!tgt) return; // nobody on that side to throw to
     passRef.current = {
       t: 0,
       side,
       fromX: carrierXRef.current,
       fromZ: carrierZRef.current,
-      toX: m ? m.x : tgt.x,
-      toZ: m ? m.z : 3.2,
+      toX: tgt.x,
+      toZ: tgt.z,
       recvIdx: tgt.idx,
     };
   }
@@ -2969,7 +2995,7 @@ export default function EnterThePitch() {
         {/* pass prompts — on screen whenever a pass is available */}
         {phase === "running" && (
           <>
-            {[["Q", -1], ["E", 1]].map(([key, sd]) => (
+            {[["Q", -1], ["E", 1]].filter(([, sd]) => passOpen[String(sd)]).map(([key, sd]) => (
               <div
                 key={key}
                 className="mono"

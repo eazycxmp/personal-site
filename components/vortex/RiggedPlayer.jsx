@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { REF_NODE_POSE, REF_BIND_POSE } from "./refRig.js";
 
 /* ---------------- rigged players ----------------
    ONE skinned template (24 bones, 226K tris) is loaded and scaled once, then
@@ -20,13 +21,11 @@ import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.j
    carry one geometry per kit, not per player.
 -------------------------------------------------- */
 
+/* Every body is one of the signature players: same 24-bone skeleton, 12-16K
+   triangles apiece. The originals they replaced were 101-226K and 34MB between
+   them, and the only thing still needed from the heaviest of them is the rest
+   pose the clips were authored against — baked into refRig.js. */
 const BODY_FILES = {
-  a: "/models/Meshy_AI_Animation_Walking_withSkin.fbx", // 226K tris
-  b: "/models/BlueBlitz_biped.fbx", // 101K tris, has UVs
-  f: "/models/Female_biped.fbx", // 209K tris, has UVs
-  // Signature players. Same 24-bone skeleton as the rest, so every clip and the
-  // retargeter work on them unchanged — but they arrive already textured, at
-  // 15-16K triangles apiece rather than 226K.
   nz: "/models/Hero_AllBlacks.fbx",
   burst: "/models/Hero_Burst.fbx",
   kolisi: "/models/Hero_Kolisi.fbx",
@@ -34,11 +33,7 @@ const BODY_FILES = {
   fRedKit: "/models/HeroF_RedKit.fbx",
   fBreakaway: "/models/HeroF_Breakaway.fbx",
 };
-
-/* These wear a painted kit; the signature players wear their own texture and
-   are left exactly as the artist built them. */
-const TEXTURED_BODIES = new Set(["nz", "burst", "kolisi", "fDetermined", "fRedKit", "fBreakaway"]);
-const BODY_B_NORMAL = "/models/BlueBlitz_normal.png";
+const DEFAULT_BODY = "nz";
 const CLIP_FILES = {
   run: "/models/Fast Run.fbx",
   catch: "/models/Goalkeeper Catch.fbx",
@@ -279,10 +274,6 @@ function loadAssets() {
       t.rotation.y = Math.PI; // model faces +Z; the pitch runs toward -Z
       templates[id] = t;
     }
-    // the second body ships a normal map, and has the UVs to use it
-    const normalB = await new Promise((res) =>
-      new THREE.TextureLoader().load(BODY_B_NORMAL, res, undefined, () => res(null))
-    );
     const clips = {};
     await Promise.all(
       Object.entries(CLIP_FILES).map(async ([name, url]) => {
@@ -292,13 +283,15 @@ function loadAssets() {
         clips[name] = asset.animations.slice().sort((a, b) => b.duration - a.duration)[0];
       })
     );
-    // rebase the clips for any body whose rest pose differs from the reference
-    const refBones = restMap(templates.a);
+    /* Rebase every clip from the rig they were authored on. That rig is no
+       longer shipped — only its rest pose is, which is all the retargeter ever
+       read from it. */
+    const posed = (rows) => new Map(rows.map(([name, parent, q]) => [name, { q: new THREE.Quaternion(...q), parent }]));
+    const refBones = posed(REF_NODE_POSE);
     const order = boneOrder(refBones);
-    const refWorld = restWorld(bindRestMap(templates.a) || refBones, order);
-    const clipsByBody = { a: clips };
+    const refWorld = restWorld(posed(REF_BIND_POSE), order);
+    const clipsByBody = {};
     for (const id of Object.keys(templates)) {
-      if (id === "a") continue;
       const bones = restMap(templates[id]);
       if (restMatches(refBones, bones)) {
         clipsByBody[id] = clips;
@@ -311,7 +304,7 @@ function loadAssets() {
       }
       clipsByBody[id] = remapped;
     }
-    return { templates, normalB, clipsByBody };
+    return { templates, clipsByBody };
   })();
   return assetPromise;
 }
@@ -506,7 +499,7 @@ function paintedGeometryFor(mesh, kit, bodyId) {
   return geo;
 }
 
-export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
+export default function RiggedPlayer({ poseRef, kit, ballRef, body = DEFAULT_BODY, paint = false }) {
   const groupRef = useRef();
   const [assets, setAssets] = useState(null);
   const st = useRef(null);
@@ -521,14 +514,17 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
 
   useEffect(() => {
     if (!assets || !groupRef.current) return;
-    const { templates, normalB, clipsByBody } = assets;
-    const template = templates[body] || templates.a;
-    const clips = clipsByBody[body] || clipsByBody.a;
+    const { templates, clipsByBody } = assets;
+    const template = templates[body] || templates[DEFAULT_BODY];
+    const clips = clipsByBody[body] || clipsByBody[DEFAULT_BODY];
 
     const rig = cloneSkeleton(template);
     const state = { actions: {}, current: null, mixer: null, hips: null, bindHips: null, rightHand: null };
 
-    const textured = TEXTURED_BODIES.has(body);
+    /* Whether a player wears his own texture or a painted kit is decided by the
+       caller, not by which mesh he is. The opposition runs out in painted kits
+       on the same light meshes the signature sides use. */
+    const textured = !paint;
     state.skins = [];
     rig.traverse((o) => {
       if (o.isSkinnedMesh) {
@@ -543,13 +539,7 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
         // original — keep it, every future kit is painted from it
         state.skins.push({ mesh: o, srcGeo: o.geometry });
         o.geometry = paintedGeometryFor(o, kit, body);
-        const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72 });
-        // the b-body has UVs, so its normal map adds real surface relief
-        if (body === "b" && normalB && o.geometry.attributes.uv) {
-          mat.normalMap = normalB;
-          mat.normalScale = new THREE.Vector2(0.7, 0.7);
-        }
-        o.material = mat;
+        o.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72 });
         o.castShadow = true;
         o.frustumCulled = false;
       }
@@ -587,13 +577,13 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
     // 100-226K triangle skinned mesh and rebuilding the mixer, which dropped
     // frames every time a pass changed who was carrying. The skeleton is
     // identical whoever wears the shirt; only the vertex colours differ.
-  }, [assets, poseRef, body]);
+  }, [assets, poseRef, body, paint]);
 
   // A change of kit is a geometry swap and nothing more. Painted geometries are
   // cached, so after the first time each shirt is worn this costs a pointer.
   useEffect(() => {
     const s = st.current;
-    if (!s?.skins) return;
+    if (!s?.skins?.length) return;
     for (const { mesh, srcGeo } of s.skins) {
       mesh.geometry = paintedGeometryFor({ geometry: srcGeo, skeleton: mesh.skeleton }, kit, body);
     }
