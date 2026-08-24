@@ -30,11 +30,14 @@ const BODY_FILES = {
   nz: "/models/Hero_AllBlacks.fbx",
   burst: "/models/Hero_Burst.fbx",
   kolisi: "/models/Hero_Kolisi.fbx",
+  fDetermined: "/models/HeroF_Determined.fbx",
+  fRedKit: "/models/HeroF_RedKit.fbx",
+  fBreakaway: "/models/HeroF_Breakaway.fbx",
 };
 
 /* These wear a painted kit; the signature players wear their own texture and
    are left exactly as the artist built them. */
-const TEXTURED_BODIES = new Set(["nz", "burst", "kolisi"]);
+const TEXTURED_BODIES = new Set(["nz", "burst", "kolisi", "fDetermined", "fRedKit", "fBreakaway"]);
 const BODY_B_NORMAL = "/models/BlueBlitz_normal.png";
 const CLIP_FILES = {
   run: "/models/Fast Run.fbx",

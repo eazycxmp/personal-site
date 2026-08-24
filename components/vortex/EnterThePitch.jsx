@@ -112,6 +112,9 @@ const faceHeading = (dx, dz) => Math.atan2(-dx, -dz);
 // take the short way round, so a turn never spins the long way
 const shortestTo = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
+// long enough for the eye to travel with the ball rather than be cut across
+const PASS_FLIGHT = 0.62; // seconds the ball is in the air
+
 const LAUNCH_DIST = 7; // metres out where a defender commits and leaves the ground
 const CONTACT_Z = 0.9; // where the tackle resolves
 const DIVE_TRIGGER = 3.4;
@@ -146,10 +149,34 @@ const PALETTES = {
     socks: "#F2C230", boots: "#0E0F10", bootAccent: "#F2C230",
     fans: ["#1B7A3C", "#F2C230", "#12592B", "#D9B02A"],
   },
+  red: {
+    label: "Red",
+    jersey: "#B0202A", sleeve: "#8A1720", trim: "#F4F1E8", shorts: "#8A1720",
+    socks: "#B0202A", boots: "#F4F1E8", bootAccent: "#B0202A",
+    fans: ["#B0202A", "#D4444C", "#E8E4DA", "#7A121A"],
+  },
+  white: {
+    // a white strip needs a dark trim or the number vanishes into the shirt
+    label: "White",
+    jersey: "#EDE8DC", sleeve: "#D8D2C4", trim: "#1B2A44", shorts: "#D8D2C4",
+    socks: "#EDE8DC", boots: "#141416", bootAccent: "#EDE8DC",
+    fans: ["#EDE8DC", "#CFC9B9", "#8E97A6", "#F6F3EB"],
+  },
 };
-const COLOUR_KEYS = ["blue", "black", "green"];
-// the opposition runs out in the next colour along
-const opponentOf = (home) => COLOUR_KEYS[(COLOUR_KEYS.indexOf(home) + 1) % COLOUR_KEYS.length];
+
+/* Each squad has its own three strips, and each strip fields a whole team of
+   one signature player. "Black" is in both lists but is a different side in
+   each, so the lookup is keyed by squad as well as colour. */
+const SQUAD_COLOURS = {
+  p1: ["blue", "black", "green"],
+  p2: ["red", "white", "black"],
+};
+const HERO_BY_SQUAD_COLOUR = {
+  p1: { blue: "burst", black: "nz", green: "kolisi" },
+  p2: { red: "fRedKit", white: "fDetermined", black: "fBreakaway" },
+};
+// the opposition runs out in the next colour along, within that squad's set
+const opponentOf = (keys, home) => keys[(keys.indexOf(home) + 1) % keys.length];
 
 /* Skin tone and hair colour are picked as PAIRS, not from one list each, so a
    squad reads like a real one: dark players with black hair, fair players with
@@ -1144,7 +1171,9 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
     // ---- a pass in the air: play the throw, then take over the receiver ----
     const pass = passRef.current;
     if (pass.t < 1) {
-      pass.t = Math.min(1, pass.t + dt / 0.55);
+      pass.t = Math.min(1, pass.t + dt / PASS_FLIGHT);
+      // he has let it go — stop him drifting on while the ball is away
+      vx.current *= Math.pow(0.02, dt);
       if (pass.t >= 1) {
         // the receiver becomes the carrier for real: this rig takes on his
         // identity (see onHandOver) and moves onto his line, while he loops
@@ -1157,8 +1186,9 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
         recvT.current = 0;
       }
     }
-    recvT.current = Math.min(1, recvT.current + dt / 0.45);
-    passZ.current *= Math.pow(0.25, dt);
+    recvT.current = Math.min(1, recvT.current + dt / 0.5);
+    // he closes back onto the line rather than snapping onto it
+    passZ.current *= Math.pow(0.35, dt);
 
     // ---- continuous movement: steer -> velocity -> position ----
     const steer = steering && pass.t >= 1 ? steerRef.current : 0;
@@ -1167,6 +1197,15 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
     if (!steering) vx.current *= Math.pow(0.05, dt);
     g.position.x = clamp(g.position.x + vx.current * dt, -STEER_HALF, STEER_HALF);
     carrierXRef.current = g.position.x;
+
+    /* While the ball is in the air the camera tracks IT, not the man who threw
+       it. By the time the receiver takes the catch the view has already
+       arrived on him, so the hand-over is a continuation rather than a cut —
+       previously the camera sat on the passer for the whole flight and then
+       lurched sideways on the single frame the carrier changed. */
+    if (pass.t < 1) {
+      carrierXRef.current = lerp(pass.fromX, pass.toX ?? pass.fromX, ss(pass.t));
+    }
 
     // a hard direction reversal at speed reads as a sidestep — show the clip
     const sign = Math.sign(steer);
@@ -2459,13 +2498,17 @@ export default function EnterThePitch() {
   const [beaten, setBeaten] = useState(0);
   const [figure, setFigure] = useState("p1");
   const [homeColour, setHomeColour] = useState("black");
-  const awayColour = opponentOf(homeColour);
+  const colourKeys = SQUAD_COLOURS[figure] || SQUAD_COLOURS.p1;
+  // switching squad can leave a strip selected that this squad does not field —
+  // fall back rather than resetting, so switching back restores your pick
+  const home = colourKeys.includes(homeColour) ? homeColour : colourKeys[0];
+  const awayColour = opponentOf(colourKeys, home);
   // the strip you pick is also the side you run out with
-  const heroBody = HERO_BY_COLOUR[homeColour] || null;
-  const kits = useMemo(() => buildKits(homeColour, awayColour), [homeColour, awayColour]);
+  const heroBody = HERO_BY_SQUAD_COLOUR[figure]?.[home] || null;
+  const kits = useMemo(() => buildKits(home, awayColour), [home, awayColour]);
   const fans = useMemo(
-    () => ({ home: PALETTES[homeColour].fans, away: PALETTES[awayColour].fans }),
-    [homeColour, awayColour]
+    () => ({ home: PALETTES[home].fans, away: PALETTES[awayColour].fans }),
+    [home, awayColour]
   );
   const [runId, setRunId] = useState(0);
 
@@ -2998,7 +3041,7 @@ export default function EnterThePitch() {
               YOUR STRIP
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              {COLOUR_KEYS.map((c) => (
+              {colourKeys.map((c) => (
                 <button
                   key={c}
                   onClick={() => setHomeColour(c)}
@@ -3006,9 +3049,7 @@ export default function EnterThePitch() {
                   style={{
                     background: PALETTES[c].jersey,
                     border:
-                      homeColour === c
-                        ? "2px solid #EDE8DC"
-                        : "2px solid rgba(237,232,220,0.22)",
+                      home === c ? "2px solid #EDE8DC" : "2px solid rgba(237,232,220,0.22)",
                     color: PALETTES[c].trim,
                     padding: "9px 18px",
                     fontSize: 10,
