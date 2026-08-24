@@ -45,10 +45,15 @@ function clearOfPosts(x) {
 // drive all of them. player 2 fields women throughout — carrier, support and
 // opposition.
 /* The signature sides bring their own texture; the opposition is painted in the
-   away colour so the two teams read apart. Both run on the same light meshes. */
+   away colour so the two teams read apart. Both run on the same light meshes.
+
+   The defenders are the players you watch WALK — back to the posts after a try —
+   so they use the meshes whose bind pose sits closest to the rig the clips were
+   authored on (kolisi 25 deg, fRedKit 31 deg, against the old bodies' 28 deg).
+   The walk falls apart on a rig much further out than that. */
 const SQUADS = {
-  p1: { carrier: "nz", mate: "nz", defender: "burst" },
-  p2: { carrier: "fBreakaway", mate: "fBreakaway", defender: "fDetermined" },
+  p1: { carrier: "nz", mate: "nz", defender: "b" },
+  p2: { carrier: "fBreakaway", mate: "fBreakaway", defender: "f" },
 };
 
 /* Each strip fields a whole team of one signature player. These models arrive
@@ -210,6 +215,11 @@ const LOOKS = [
   { skin: "#3F2415", hair: "#D6BC7A" }, // darkest, blond
   { skin: "#EFC9A3", hair: "#4A3320" }, // fair, dark brown
 ];
+/* The painted players are wearing a sculpted scrum cap, not hair. It is one
+   piece of kit, so it is one colour on all of them — giving it the blond and
+   ginger from the looks list made it read as a strange haircut. */
+const SCRUM_CAP = "#141416";
+
 const ATTACK_LOOKS = LOOKS.slice(0, 5);
 const DEFENCE_LOOKS = LOOKS.slice(5);
 
@@ -248,12 +258,12 @@ function buildKits(home, away) {
     ],
     // defenders carry the strip only — the look is stamped on per man at spawn,
     // because three kit names cover seven bodies
-    defender: kit(A, 7, DEFENCE_LOOKS[0]),
-    defenderB: kit(A, 4, DEFENCE_LOOKS[1]),
-    defenderC: kit(A, 6, DEFENCE_LOOKS[2]),
+    defender: { ...kit(A, 7, DEFENCE_LOOKS[0]), hair: SCRUM_CAP },
+    defenderB: { ...kit(A, 4, DEFENCE_LOOKS[1]), hair: SCRUM_CAP },
+    defenderC: { ...kit(A, 6, DEFENCE_LOOKS[2]), hair: SCRUM_CAP },
     // the last man wears the same strip as the rest of them — he is one of the
     // side, not a different team
-    fullback: kit(A, 15, DEFENCE_LOOKS[3]),
+    fullback: { ...kit(A, 15, DEFENCE_LOOKS[3]), hair: SCRUM_CAP },
   };
 }
 
@@ -1342,8 +1352,9 @@ function FlyingBall({ catchRef }) {
 ------------------------------------------------ */
 function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ruckRef, kits }) {
   const base = kits[data.role.kit];
+  // per-man skin tone, but the cap stays the cap
   const kit = useMemo(
-    () => (data.look ? { ...base, ...data.look } : base),
+    () => (data.look ? { ...base, skin: data.look.skin } : base),
     [base, data.look]
   );
   const inner = useRef();
