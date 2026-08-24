@@ -310,11 +310,16 @@ function kitKey(kit, bodyId) {
   return [bodyId, kit.jersey, kit.sleeve, kit.trim, kit.shorts, kit.socks, kit.skin, kit.hair, kit.boots, kit.blood || 0].join("|");
 }
 
-function paintedGeometryFor(mesh, kit, bodyId) {
-  const key = kitKey(kit, bodyId);
-  if (paintedGeoCache.has(key)) return paintedGeoCache.get(key);
+/* Which slot of the kit each vertex belongs to. The geometric work — dominant
+   bone, hairline, torso silhouette — depends only on the BODY, never on the
+   colours, so it runs once per body and is reused by every strip. */
+const R = { jersey: 0, sleeve: 1, trim: 2, skin: 3, hair: 4, shorts: 5, socks: 6, boots: 7 };
+const R_ORDER = ["jersey", "sleeve", "trim", "skin", "hair", "shorts", "socks", "boots"];
+const regionCache = new Map();
 
-  const geo = mesh.geometry.clone();
+function regionsFor(mesh, bodyId) {
+  if (regionCache.has(bodyId)) return regionCache.get(bodyId);
+  const geo = mesh.geometry;
   const pos = geo.attributes.position;
   const si = geo.attributes.skinIndex;
   const sw = geo.attributes.skinWeight;
@@ -357,8 +362,7 @@ function paintedGeometryFor(mesh, kit, bodyId) {
     if ((bones[b]?.name || "").toLowerCase().includes("spine")) torsoW = Math.max(torsoW, mx);
   }
 
-  const c = new THREE.Color();
-  const colors = new Float32Array(n * 3);
+  const region = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const b = owner[i];
     const name = (bones[b]?.name || "").toLowerCase();
@@ -373,7 +377,7 @@ function paintedGeometryFor(mesh, kit, bodyId) {
       // the nape is collar and jersey, never hair — hair reaching down the
       // back of the neck was the giveaway that this bone was being painted
       // as if it were the skull
-      hex = f > 0.62 ? kit.skin : kit.trim; // the collar, and only the collar
+      hex = f > 0.62 ? R.skin : R.trim; // the collar, and only the collar
     }
     else if (name.includes("head")) {
       // A flat height threshold slices the head with a dead-straight line. A
@@ -393,34 +397,65 @@ function paintedGeometryFor(mesh, kit, bodyId) {
       const hairline = 0.72 - zf * 0.13 + wob;
       // ...and on a ponytailed head, the whole back of it, however far it hangs
       const tail = PONYTAIL_BODIES.has(bodyId) && zf > 0.7 + wob;
-      hex = f > hairline || tail ? kit.hair : kit.skin;
+      hex = f > hairline || tail ? R.hair : R.skin;
     }
     // one unbroken jersey over the whole trunk — the collar lives on the neck
-    else if (name.includes("spine")) hex = kit.jersey;
-    else if (name.includes("shoulder")) hex = onTorso ? kit.jersey : kit.sleeve;
-    else if (name.includes("forearm") || name.includes("hand")) hex = kit.skin;
+    else if (name.includes("spine")) hex = R.jersey;
+    else if (name.includes("shoulder")) hex = onTorso ? R.jersey : R.sleeve;
+    else if (name.includes("forearm") || name.includes("hand")) hex = R.skin;
     else if (name.includes("arm")) {
-      if (onTorso) hex = kit.jersey; // ribs and armpit are body, not arm
+      if (onTorso) hex = R.jersey; // ribs and armpit are body, not arm
       else {
         // out along the arm: a short sleeve, then bare skin. Measured across
         // the arm rather than up it, because in the bind T-pose the upper arm
         // is horizontal and a height split would slice it lengthways.
         const armMax = xAbsMax.get(b) ?? ax;
         const t = armMax > torsoW ? (ax - torsoW) / (armMax - torsoW) : 1;
-        hex = t < 0.55 ? kit.sleeve : kit.skin;
+        hex = t < 0.55 ? R.sleeve : R.skin;
       }
     }
-    else if (name.includes("upleg")) hex = f > 0.5 ? kit.shorts : kit.skin;
-    else if (name.includes("leg")) hex = f > 0.78 ? kit.skin : kit.socks;
-    else if (name.includes("foot") || name.includes("toe")) hex = kit.boots;
-    else if (name.includes("hips")) hex = kit.shorts;
-    else hex = kit.jersey;
+    else if (name.includes("upleg")) hex = f > 0.5 ? R.shorts : R.skin;
+    else if (name.includes("leg")) hex = f > 0.78 ? R.skin : R.socks;
+    else if (name.includes("foot") || name.includes("toe")) hex = R.boots;
+    else if (name.includes("hips")) hex = R.shorts;
+    else hex = R.jersey;
 
-    c.set(hex);
-    colors[i * 3] = c.r;
-    colors[i * 3 + 1] = c.g;
-    colors[i * 3 + 2] = c.b;
+    region[i] = hex;
   }
+  regionCache.set(bodyId, region);
+  return region;
+}
+
+function paintedGeometryFor(mesh, kit, bodyId) {
+  const key = kitKey(kit, bodyId);
+  if (paintedGeoCache.has(key)) return paintedGeoCache.get(key);
+
+  const src = mesh.geometry;
+  const pos = src.attributes.position;
+  const n = pos.count;
+  const region = regionsFor(mesh, bodyId);
+
+  /* Eight colours, then a straight fill — no per-vertex geometry, no trig.
+     Bytes rather than floats: a quarter of the memory and a quarter of the
+     writes, and a flat kit colour has nothing like enough tonal range to show
+     the difference. */
+  const c = new THREE.Color();
+  const pal = new Uint8Array(R_ORDER.length * 3);
+  R_ORDER.forEach((slot, k) => {
+    c.set(kit[slot] || kit.jersey);
+    pal[k * 3] = Math.round(c.r * 255);
+    pal[k * 3 + 1] = Math.round(c.g * 255);
+    pal[k * 3 + 2] = Math.round(c.b * 255);
+  });
+  const colors = new Uint8Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const o = region[i] * 3;
+    const d = i * 3;
+    colors[d] = pal[o];
+    colors[d + 1] = pal[o + 1];
+    colors[d + 2] = pal[o + 2];
+  }
+
   // a few small grazes — dark red spots on skin and jersey
   if (kit.blood) {
     let seed = 0;
@@ -439,14 +474,21 @@ function paintedGeometryFor(mesh, kit, bodyId) {
         const dy = pos.getY(i) - sy;
         const dz = pos.getZ(i) - sz;
         if (dx * dx + dy * dy + dz * dz < r2) {
-          colors[i * 3] = c2.r;
-          colors[i * 3 + 1] = c2.g;
-          colors[i * 3 + 2] = c2.b;
+          colors[i * 3] = Math.round(c2.r * 255);
+          colors[i * 3 + 1] = Math.round(c2.g * 255);
+          colors[i * 3 + 2] = Math.round(c2.b * 255);
         }
       }
     }
   }
-  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  /* Share position/normal/uv/skin buffers with the source rather than cloning
+     them. Only the colour attribute differs between strips, so a new kit costs
+     one small array instead of a full copy of a 226K-vertex mesh. */
+  const geo = new THREE.BufferGeometry();
+  for (const name of Object.keys(src.attributes)) geo.setAttribute(name, src.attributes[name]);
+  if (src.index) geo.setIndex(src.index);
+  geo.groups = src.groups;
+  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3, true)); // normalized bytes
   paintedGeoCache.set(key, geo);
   return geo;
 }
@@ -473,8 +515,12 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
     const rig = cloneSkeleton(template);
     const state = { actions: {}, current: null, mixer: null, hips: null, bindHips: null, rightHand: null };
 
+    state.skins = [];
     rig.traverse((o) => {
       if (o.isSkinnedMesh) {
+        // the clone shares the template's geometry, so this is the unpainted
+        // original — keep it, every future kit is painted from it
+        state.skins.push({ mesh: o, srcGeo: o.geometry });
         o.geometry = paintedGeometryFor(o, kit, body);
         const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72 });
         // the b-body has UVs, so its normal map adds real surface relief
@@ -516,7 +562,21 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
       g.remove(rig);
       st.current = null;
     };
-  }, [assets, kit, poseRef, body]);
+    // NOTE: deliberately NOT keyed on kit. Rebuilding the rig means cloning a
+    // 100-226K triangle skinned mesh and rebuilding the mixer, which dropped
+    // frames every time a pass changed who was carrying. The skeleton is
+    // identical whoever wears the shirt; only the vertex colours differ.
+  }, [assets, poseRef, body]);
+
+  // A change of kit is a geometry swap and nothing more. Painted geometries are
+  // cached, so after the first time each shirt is worn this costs a pointer.
+  useEffect(() => {
+    const s = st.current;
+    if (!s?.skins) return;
+    for (const { mesh, srcGeo } of s.skins) {
+      mesh.geometry = paintedGeometryFor({ geometry: srcGeo, skeleton: mesh.skeleton }, kit, body);
+    }
+  }, [assets, kit, body]);
 
   useFrame((_, delta) => {
     const s = st.current;

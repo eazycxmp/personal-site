@@ -2570,6 +2570,10 @@ export default function EnterThePitch() {
     // phone tilt: lean left/right to pick the lane
     function onTilt(e) {
       if (phaseRef.current !== "running") return;
+      // a finger on the pitch beats the accelerometer. Without this the tilt
+      // handler fires continuously and overwrites every drag the moment it
+      // lands, so dragging looked completely dead on a real handset.
+      if (dragRef.current.dragging) return;
       const g = e.gamma;
       if (g == null) return;
       steerRef.current = clamp(g / 20, -1, 1); // lean angle steers proportionally
@@ -2800,12 +2804,17 @@ export default function EnterThePitch() {
           borderRadius: "4px",
           overflow: "hidden",
           cursor: "grab",
-          touchAction: "none",
+          // pan-y, not none: a finger dragged up or down the pitch scrolls the
+          // page as it would anywhere else, while a sideways drag still steers.
+          // Steering only ever uses horizontal movement, so nothing is lost.
+          touchAction: "pan-y",
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
+        // the browser takes the gesture over once it decides you are scrolling
+        onPointerCancel={onPointerUp}
       >
         <Canvas
           shadows
@@ -2884,7 +2893,8 @@ export default function EnterThePitch() {
                   alignItems: "center",
                   gap: 6,
                   flexDirection: sd < 0 ? "row" : "row-reverse",
-                  touchAction: "none",
+                  // still tappable, but never a dead spot for scrolling
+                  touchAction: "manipulation",
                   cursor: isDesktop ? "default" : "pointer",
                 }}
               >
