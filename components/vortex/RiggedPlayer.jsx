@@ -24,7 +24,17 @@ const BODY_FILES = {
   a: "/models/Meshy_AI_Animation_Walking_withSkin.fbx", // 226K tris
   b: "/models/BlueBlitz_biped.fbx", // 101K tris, has UVs
   f: "/models/Female_biped.fbx", // 209K tris, has UVs
+  // Signature players. Same 24-bone skeleton as the rest, so every clip and the
+  // retargeter work on them unchanged — but they arrive already textured, at
+  // 15-16K triangles apiece rather than 226K.
+  nz: "/models/Hero_AllBlacks.fbx",
+  burst: "/models/Hero_Burst.fbx",
+  kolisi: "/models/Hero_Kolisi.fbx",
 };
+
+/* These wear a painted kit; the signature players wear their own texture and
+   are left exactly as the artist built them. */
+const TEXTURED_BODIES = new Set(["nz", "burst", "kolisi"]);
 const BODY_B_NORMAL = "/models/BlueBlitz_normal.png";
 const CLIP_FILES = {
   run: "/models/Fast Run.fbx",
@@ -515,9 +525,17 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = "a" }) {
     const rig = cloneSkeleton(template);
     const state = { actions: {}, current: null, mixer: null, hips: null, bindHips: null, rightHand: null };
 
+    const textured = TEXTURED_BODIES.has(body);
     state.skins = [];
     rig.traverse((o) => {
       if (o.isSkinnedMesh) {
+        if (textured) {
+          // keep the model's own maps — painting over them would throw away
+          // the whole reason for using these
+          o.castShadow = true;
+          o.frustumCulled = false;
+          return;
+        }
         // the clone shares the template's geometry, so this is the unpainted
         // original — keep it, every future kit is painted from it
         state.skins.push({ mesh: o, srcGeo: o.geometry });

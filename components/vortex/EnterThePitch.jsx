@@ -48,6 +48,11 @@ const SQUADS = {
   p1: { carrier: "a", mate: "a", defender: "b" },
   p2: { carrier: "f", mate: "f", defender: "f" },
 };
+
+/* Each strip fields a whole team of one signature player. These models arrive
+   already textured, so picking a colour picks the side you run out with; the
+   opposition and the crowd still follow the same colour choice as before. */
+const HERO_BY_COLOUR = { blue: "burst", green: "kolisi", black: "nz" };
 function passTarget(cx, side) {
   const base = cx * 0.4;
   let bestI = -1;
@@ -2379,8 +2384,14 @@ function World({ progressRef, defendersRef, carrierXRef, phaseRef, tryTRef, squa
   );
 }
 
-function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans }) {
-  const squad = SQUADS[figure] || SQUADS.p1;
+function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans, heroBody }) {
+  const base = SQUADS[figure] || SQUADS.p1;
+  // your whole side runs out as the signature player; the opposition keeps the
+  // painted kits so the two teams still read apart
+  const squad = useMemo(
+    () => (heroBody ? { ...base, carrier: heroBody, mate: heroBody } : base),
+    [base, heroBody]
+  );
   // who has the ball. Scene is keyed on runId, so this resets every run.
   const [lineup, setLineup] = useState(INITIAL_LINEUP);
   const onHandOver = (recvIdx) => setLineup((l) => handOver(l, recvIdx));
@@ -2449,6 +2460,8 @@ export default function EnterThePitch() {
   const [figure, setFigure] = useState("p1");
   const [homeColour, setHomeColour] = useState("black");
   const awayColour = opponentOf(homeColour);
+  // the strip you pick is also the side you run out with
+  const heroBody = HERO_BY_COLOUR[homeColour] || null;
   const kits = useMemo(() => buildKits(homeColour, awayColour), [homeColour, awayColour]);
   const fans = useMemo(
     () => ({ home: PALETTES[homeColour].fans, away: PALETTES[awayColour].fans }),
@@ -2829,6 +2842,7 @@ export default function EnterThePitch() {
             passRef={passRef}
             tryTRef={tryTRef}
             figure={figure}
+            heroBody={heroBody}
             ruckRef={ruckRef}
             kits={kits}
             fans={fans}
