@@ -287,6 +287,7 @@ function paintedGeometryFor(mesh, kit, bodyId) {
   const spanHi = new Map();
   const zLoMap = new Map();
   const zHiMap = new Map();
+  const xAbsMax = new Map();
 
   for (let i = 0; i < n; i++) {
     let best = 0;
@@ -303,6 +304,18 @@ function paintedGeometryFor(mesh, kit, bodyId) {
     const z = pos.getZ(i);
     if (!zLoMap.has(best) || z < zLoMap.get(best)) zLoMap.set(best, z);
     if (!zHiMap.has(best) || z > zHiMap.get(best)) zHiMap.set(best, z);
+    const ax = Math.abs(pos.getX(i));
+    if (!xAbsMax.has(best) || ax > xAbsMax.get(best)) xAbsMax.set(best, ax);
+  }
+
+  /* How wide the trunk is. The shoulder and upper-arm bones own vertices all
+     the way in to the spine — the traps, the shoulder blades, the ribs under
+     the armpit. Painting those by bone name alone put sleeve-coloured patches
+     across the back and bare skin on the ribs. Anything within the torso
+     silhouette is jersey no matter which bone happens to drive it. */
+  let torsoW = 0;
+  for (const [b, mx] of xAbsMax) {
+    if ((bones[b]?.name || "").toLowerCase().includes("spine")) torsoW = Math.max(torsoW, mx);
   }
 
   const c = new THREE.Color();
@@ -313,13 +326,15 @@ function paintedGeometryFor(mesh, kit, bodyId) {
     const lo = spanLo.get(b) ?? 0;
     const hi = spanHi.get(b) ?? 1;
     const f = hi > lo ? (pos.getY(i) - lo) / (hi - lo) : 0.5;
+    const ax = Math.abs(pos.getX(i));
+    const onTorso = torsoW > 0 && ax <= torsoW;
 
     let hex;
     if (name === "neck" || name.endsWith("neck")) {
       // the nape is collar and jersey, never hair — hair reaching down the
       // back of the neck was the giveaway that this bone was being painted
       // as if it were the skull
-      hex = f > 0.62 ? kit.skin : kit.jersey;
+      hex = f > 0.62 ? kit.skin : kit.trim; // the collar, and only the collar
     }
     else if (name.includes("head")) {
       // A flat height threshold slices the head with a dead-straight line. A
@@ -341,10 +356,21 @@ function paintedGeometryFor(mesh, kit, bodyId) {
       const tail = PONYTAIL_BODIES.has(bodyId) && zf > 0.7 + wob;
       hex = f > hairline || tail ? kit.hair : kit.skin;
     }
-    else if (name.includes("spine")) hex = f > 0.9 ? kit.trim : kit.jersey; // collar
-    else if (name.includes("shoulder")) hex = kit.sleeve;
+    // one unbroken jersey over the whole trunk — the collar lives on the neck
+    else if (name.includes("spine")) hex = kit.jersey;
+    else if (name.includes("shoulder")) hex = onTorso ? kit.jersey : kit.sleeve;
     else if (name.includes("forearm") || name.includes("hand")) hex = kit.skin;
-    else if (name.includes("arm")) hex = f > 0.4 ? kit.sleeve : kit.skin;
+    else if (name.includes("arm")) {
+      if (onTorso) hex = kit.jersey; // ribs and armpit are body, not arm
+      else {
+        // out along the arm: a short sleeve, then bare skin. Measured across
+        // the arm rather than up it, because in the bind T-pose the upper arm
+        // is horizontal and a height split would slice it lengthways.
+        const armMax = xAbsMax.get(b) ?? ax;
+        const t = armMax > torsoW ? (ax - torsoW) / (armMax - torsoW) : 1;
+        hex = t < 0.55 ? kit.sleeve : kit.skin;
+      }
+    }
     else if (name.includes("upleg")) hex = f > 0.5 ? kit.shorts : kit.skin;
     else if (name.includes("leg")) hex = f > 0.78 ? kit.skin : kit.socks;
     else if (name.includes("foot") || name.includes("toe")) hex = kit.boots;
