@@ -6,6 +6,13 @@ export const metadata = { title: "Play — Espen Campbell" };
 
 const GAMES = [
   {
+    slug: "vortex",
+    title: "Vortex Rugby",
+    tag: "3D \u00b7 Rugby",
+    body: "A rugby runner in the browser. Motion-captured players on a full stadium pitch \u2014 catch the up-and-under, beat the defensive line, pass or dive for the try. Pick your strip and the opposition changes to match.",
+    status: "Live",
+  },
+  {
     slug: "run",
     title: "Maze Run",
     tag: "Reflex · Speed",
