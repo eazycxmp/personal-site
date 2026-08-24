@@ -44,10 +44,12 @@ const CLIP_FILES = {
   thrown: "/models/Getting Thrown.fbx",
   throwing: "/models/Throwing.fbx",
   backflip: "/models/Backflip.fbx",
+  fallSit: "/models/Falling Down.fbx",
+  sitPose: "/models/Male Sitting Pose.fbx",
 };
 
 // one-shots hold their last frame instead of snapping back
-const ONE_SHOT = new Set(["catch", "dive", "down", "takedown", "roll", "sprintTurn", "turn180", "thrown", "throwing", "backflip"]);
+const ONE_SHOT = new Set(["catch", "dive", "down", "takedown", "roll", "sprintTurn", "turn180", "thrown", "throwing", "backflip", "fallSit", "sitPose"]);
 
 const PLAYER_HEIGHT = 1.85; // metres
 
@@ -308,17 +310,28 @@ function paintedGeometryFor(mesh, kit, bodyId) {
     const f = hi > lo ? (pos.getY(i) - lo) / (hi - lo) : 0.5;
 
     let hex;
-    if (name.includes("head") || name === "neck") {
+    if (name === "neck" || name.endsWith("neck")) {
+      // the nape is collar and jersey, never hair — hair reaching down the
+      // back of the neck was the giveaway that this bone was being painted
+      // as if it were the skull
+      hex = f > 0.62 ? kit.skin : kit.jersey;
+    }
+    else if (name.includes("head")) {
       // A flat height threshold slices the head with a dead-straight line. A
       // real hairline sits high at the brow and drops down the back and sides,
       // so bias the cut by how far back the vertex is, and wobble it slightly
       // so the edge never reads as a machined cut.
       const zLo = zLoMap.get(b) ?? 0;
       const zHi = zHiMap.get(b) ?? 1;
-      const zf = zHi > zLo ? (pos.getZ(i) - zLo) / (zHi - zLo) : 0.5; // 0 face, 1 back
+      // the model is built facing +Z (the rigs are turned 180 in the scene), so
+      // the FACE sits at zHi. Measuring from the near end put the low part of
+      // the hairline across the nose — hence hair painted over faces.
+      const zf = zHi > zLo ? (zHi - pos.getZ(i)) / (zHi - zLo) : 0.5; // 0 face, 1 back
       const wob =
         Math.sin(pos.getX(i) * 38) * 0.022 + Math.sin(pos.getZ(i) * 31 + 1.7) * 0.022;
-      const hairline = 0.74 - zf * 0.38 + wob;
+      // hair sits on the crown and eases down a little at the back — a bigger
+      // drop than this and it runs onto the nape
+      const hairline = 0.72 - zf * 0.13 + wob;
       hex = f > hairline ? kit.hair : kit.skin;
     }
     else if (name.includes("spine")) hex = f > 0.9 ? kit.trim : kit.jersey; // collar

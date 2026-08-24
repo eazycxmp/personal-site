@@ -14,7 +14,7 @@ import * as THREE from "three";
 
 // continuous steering — no lanes. the carrier holds a real x position and
 // velocity; defenders reason about distances in metres.
-let STEER_HALF = 2.6; // widened to the full field at mount on desktop
+const STEER_HALF = 7.0; // the full width of the field, phone or desktop
 const TACKLE_REACH = 2.4; // how far a defender can dive from where he stands
 const CONTACT_RADIUS = 1.0;
 
@@ -69,6 +69,40 @@ const ROLES = [
   { kit: "fullback", number: 15, height: 0.98, girth: 0.92, cadence: 3.4 },
 ];
 
+// how to move, spelled out before anyone kicks off — and said differently
+// depending on what you are holding, because a phone has no Q key and a
+// laptop does not tilt
+const CONTROLS = {
+  desktop: [
+    { keys: ["\u2190", "\u2192"], hint: "or A / D", what: "Run left and right" },
+    { keys: ["DRAG"], hint: "mouse", what: "Or drag across the pitch" },
+    { keys: ["Q", "E"], hint: "", what: "Pass to the man on that side" },
+  ],
+  mobile: [
+    { keys: ["TILT"], hint: "", what: "Lean the phone left or right to run" },
+    { keys: ["DRAG"], hint: "thumb", what: "Or slide across the pitch" },
+    { keys: ["TAP"], hint: "", what: "Tap PASS on either wing to offload" },
+  ],
+};
+const CONTROL_FOOTER = {
+  desktop: "The dive for the line takes care of itself \u2014 just get there.",
+  mobile: "Say yes to motion access, then just tilt. The dive takes care of itself.",
+};
+
+// "Falling Down" runs 2.27s; hand over to the seated pose just before the end
+const FALL_TO_SIT = 2.0;
+// The clips describe a seated body purely as joint angles — Mixamo zeroes the
+// root height, so the hips stay up at standing height and the man hangs in the
+// air. Drop him the difference between a standing hip and a sitting one.
+const SIT_DROP = 0.78;
+
+/* Every rigged player is turned 180 inside his group, so his forward is the
+   group's -z. Facing a heading therefore needs atan2(-dx,-dz); atan2(dx,dz)
+   is exactly backwards and makes men walk to their marks in reverse. */
+const faceHeading = (dx, dz) => Math.atan2(-dx, -dz);
+// take the short way round, so a turn never spins the long way
+const shortestTo = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
+
 const LAUNCH_DIST = 7; // metres out where a defender commits and leaves the ground
 const CONTACT_Z = 0.9; // where the tackle resolves
 const DIVE_TRIGGER = 3.4;
@@ -108,26 +142,54 @@ const COLOUR_KEYS = ["blue", "black", "green"];
 // the opposition runs out in the next colour along
 const opponentOf = (home) => COLOUR_KEYS[(COLOUR_KEYS.indexOf(home) + 1) % COLOUR_KEYS.length];
 
-const SKIN = ["#5E3A24", "#9A6A48", "#6B4226", "#C89A70", "#8A5A3B", "#7A5A44"];
+/* Skin tone and hair colour are picked as PAIRS, not from one list each, so a
+   squad reads like a real one: dark players with black hair, fair players with
+   black hair, dark players with bleached blond, a couple of gingers. Twelve
+   looks — five go to the attack, seven to the defensive line, so on any given
+   run no two men on the pitch share a face. */
+const LOOKS = [
+  { skin: "#4A2C1A", hair: "#12100E" }, // deep brown, black
+  { skin: "#E6BC96", hair: "#12100E" }, // fair, black
+  { skin: "#6B4226", hair: "#E4CE8E" }, // brown, bleached blond
+  { skin: "#C89A70", hair: "#6B4A2A" }, // olive, mid brown
+  { skin: "#8A5A3B", hair: "#241A12" }, // tan, near-black
+  { skin: "#F2CDA7", hair: "#B4551F" }, // pale, ginger
+  { skin: "#5E3A24", hair: "#8B7C68" }, // dark, greying
+  { skin: "#9A6A48", hair: "#12100E" }, // brown, black
+  { skin: "#D9A87C", hair: "#D8C68A" }, // light tan, dirty blond
+  { skin: "#7A5A44", hair: "#3B2416" }, // brown, chestnut
+  { skin: "#3F2415", hair: "#D6BC7A" }, // darkest, blond
+  { skin: "#EFC9A3", hair: "#4A3320" }, // fair, dark brown
+];
+const ATTACK_LOOKS = LOOKS.slice(0, 5);
+const DEFENCE_LOOKS = LOOKS.slice(5);
 
 function buildKits(home, away) {
   const H = PALETTES[home] || PALETTES.black;
   const A = PALETTES[away] || PALETTES.green;
-  const kit = (p, number, skin) => ({
+  const kit = (p, number, look) => ({
     number,
-    skin,
-    hair: "#0D0B09",
+    skin: look.skin,
+    hair: look.hair,
     jersey: p.jersey, sleeve: p.sleeve, trim: p.trim,
     shorts: p.shorts, socks: p.socks, boots: p.boots, bootAccent: p.bootAccent,
   });
   return {
-    player: kit(H, 10, SKIN[0]),
-    defender: kit(A, 7, SKIN[1]),
-    defenderB: kit(A, 4, SKIN[2]),
-    defenderC: kit(A, 6, SKIN[3]),
+    player: kit(H, 10, ATTACK_LOOKS[0]),
+    // the support runners, each his own man
+    mates: [
+      kit(H, 12, ATTACK_LOOKS[1]),
+      kit(H, 9, ATTACK_LOOKS[2]),
+      kit(H, 11, ATTACK_LOOKS[3]),
+      kit(H, 13, ATTACK_LOOKS[4]),
+    ],
+    // defenders carry the strip only — the look is stamped on per man at spawn,
+    // because three kit names cover seven bodies
+    defender: kit(A, 7, DEFENCE_LOOKS[0]),
+    defenderB: kit(A, 4, DEFENCE_LOOKS[1]),
+    defenderC: kit(A, 6, DEFENCE_LOOKS[2]),
     // the fullback wears the reverse of his own strip so he stands out
-    fullback: { ...kit(A, 15, SKIN[4]), jersey: A.trim, sleeve: A.jersey, trim: A.jersey },
-    beaten: kit(A, 7, SKIN[5]),
+    fullback: { ...kit(A, 15, DEFENCE_LOOKS[3]), jersey: A.trim, sleeve: A.jersey, trim: A.jersey },
   };
 }
 
@@ -1187,6 +1249,11 @@ function FlyingBall({ catchRef }) {
    only reach an adjacent lane, so two lanes of separation always beats it.
 ------------------------------------------------ */
 function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ruckRef, kits }) {
+  const base = kits[data.role.kit];
+  const kit = useMemo(
+    () => (data.look ? { ...base, ...data.look } : base),
+    [base, data.look]
+  );
   const inner = useRef();
   const pitch = useRef();
   const poseRef = useRef({ clip: "run", timeScale: 0.72, timeOffset: data.phase });
@@ -1219,7 +1286,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
         poseRef.current.timeScale = 1;
         inner.current.rotation.y = lerp(
           inner.current.rotation.y,
-          gap > 0.5 ? Math.atan2(dx, dz) : Math.PI,
+          gap > 0.5 ? faceHeading(dx, dz) : Math.PI,
           1 - Math.pow(0.05, dt)
         );
       } else {
@@ -1229,25 +1296,59 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
       return;
     }
 
-    // conceded: heads back under the posts to wait for the restart
+    // conceded: trudges back under the posts, then drops and sits it out
     if (phaseRef?.current === "try") {
       const t = tryTRef?.current ?? 0;
       if (t > TRY_SEQ.gather && inner.current) {
         // the posts sit at TRY_LINE_Z inside this same scrolled frame
         const homeZ = TRY_LINE_Z - data.baseZ - 4;
         const homeX = data.postSlot;
-        const k = 1 - Math.pow(0.5, dt);
-        inner.current.position.x += (homeX - inner.current.position.x) * k;
-        inner.current.position.z += (homeZ - inner.current.position.z) * k;
-        inner.current.position.y = 0;
-        inner.current.rotation.x = 0;
-        inner.current.rotation.z = 0;
         const dz = homeZ - inner.current.position.z;
         const dxh = homeX - inner.current.position.x;
-        const moving = Math.hypot(dxh, dz) > 0.6;
+        const gap = Math.hypot(dxh, dz);
+        inner.current.rotation.x = 0;
+        inner.current.rotation.z = 0;
+
+        // three beats: trudge up to the posts facing the way he is walking,
+        // turn back to face the field, and only then do his legs go. each man
+        // is a beat behind the last, so seven of them never drop on one frame.
+        if (gap < 0.6 && data.sitAt == null) data.sitAt = t + 1.4 + data.phase * 0.6;
+        const down = data.sitAt != null && t >= data.sitAt;
+
+        if (down) {
+          const since = t - data.sitAt;
+          // hand over just before the fall clip runs out, so the 0.3s
+          // crossfade lands him in the seated pose rather than snapping
+          poseRef.current.clip = since < FALL_TO_SIT ? "fallSit" : "sitPose";
+          poseRef.current.timeScale = 1;
+          // ride him down over the first beat of the fall so he meets his own
+          // shadow instead of dropping through the turf in one frame
+          inner.current.position.y = -SIT_DROP * ss(clamp(since / 1.1, 0, 1));
+          inner.current.rotation.y = lerp(
+            inner.current.rotation.y,
+            shortestTo(inner.current.rotation.y, data.sitYaw),
+            1 - Math.pow(0.06, dt)
+          );
+          return;
+        }
+
+        const moving = gap > 0.6;
+        if (moving) {
+          const k = 1 - Math.pow(0.5, dt);
+          inner.current.position.x += dxh * k;
+          inner.current.position.z += dz * k;
+        }
+        inner.current.position.y = 0;
         poseRef.current.clip = moving ? "walk" : "idle";
         poseRef.current.timeScale = 1;
-        inner.current.rotation.y = lerp(inner.current.rotation.y, moving ? Math.atan2(dxh, dz) : 0, 1 - Math.pow(0.05, dt));
+        // walking: face the way he is going. arrived: turn round to his own
+        // slouch angle so the row is not seven men in identical poses.
+        const want = moving ? faceHeading(dxh, dz) : data.sitYaw;
+        inner.current.rotation.y = lerp(
+          inner.current.rotation.y,
+          shortestTo(inner.current.rotation.y, want),
+          1 - Math.pow(0.05, dt)
+        );
       }
       return;
     }
@@ -1343,7 +1444,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
         {/* separate pitch group: tipping him over here composes with the yaw
             above instead of fighting it through Euler order */}
         <group ref={pitch}>
-          <RiggedPlayer poseRef={poseRef} kit={kits[data.role.kit]} body={squad.defender} />
+          <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.defender} />
         </group>
       </group>
     </group>
@@ -1395,7 +1496,7 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
         g.position.y = 0;
         poseRef.current.clip = gap > 2.2 ? "run" : gap > 0.5 ? "walk" : "idle";
         poseRef.current.timeScale = 1;
-        g.rotation.y = lerp(g.rotation.y, gap > 0.5 ? Math.atan2(dx, dz) : 0, 1 - Math.pow(0.05, dt));
+        g.rotation.y = lerp(g.rotation.y, gap > 0.5 ? faceHeading(dx, dz) : 0, 1 - Math.pow(0.05, dt));
       } else {
         poseRef.current.clip = "idle";
         poseRef.current.timeScale = 1;
@@ -1449,7 +1550,7 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
         g.position.z += dz * (1 - Math.pow(closing ? 0.06 : 0.2, dt));
         g.position.y = 0;
         // face the way he is travelling, then turn to the scorer as he arrives
-        g.rotation.y = lerp(g.rotation.y, closing ? Math.atan2(dx, dz) : Math.PI, face);
+        g.rotation.y = lerp(g.rotation.y, closing ? faceHeading(dx, dz) : Math.PI, face);
       }
       return;
     }
@@ -1470,7 +1571,7 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
 
   return (
     <group ref={group} position={[TEAM_SLOTS[idx], 0, 2.7]}>
-      <RiggedPlayer poseRef={poseRef} kit={kits.player} body={squad.mate} />
+      <RiggedPlayer poseRef={poseRef} kit={kits.mates[idx % kits.mates.length]} body={squad.mate} />
     </group>
   );
 }
@@ -2317,9 +2418,7 @@ export default function EnterThePitch() {
   );
   const [runId, setRunId] = useState(0);
 
-  // widen to the full field on desktop
   const isDesktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
-  if (isDesktop) STEER_HALF = 7.0;
   const carrierXRef = useRef(0); // where he actually is, metres from centre
   const steerRef = useRef(0); // -1..1 input from keys / tilt / drag
   const passRef = useRef({ t: 1, side: 0, fromX: 0 }); // t<1 while a pass is in the air
@@ -2377,6 +2476,9 @@ export default function EnterThePitch() {
     // fullback — the last man, waiting to hunt
     mk((Math.random() - 0.5) * 4.4, -58, { kit: "fullback" });
     out.forEach((d, i) => {
+      d.look = DEFENCE_LOOKS[i % DEFENCE_LOOKS.length];
+      // beaten men do not sit in a tidy row all square to the posts
+      d.sitYaw = Math.PI + (Math.random() - 0.5) * 2.2;
       d.wave = i < 5 ? 0 : i === 5 ? 1 : 2;
       d.phase = Math.random() * 1.4; // desync the stride cycles
       d.postSlot = (i - 3) * 1.5; // where he'll stand under the posts after a try
@@ -2395,17 +2497,27 @@ export default function EnterThePitch() {
     setPhase(p);
   };
 
+  // a pass only stands up while he is on his feet, has the ball, and has not
+  // already let one go. reads refs only, so a stale closure is harmless.
+  function tryPass(side) {
+    if (
+      phaseRef.current !== "running" ||
+      catchRef.current < 1 ||
+      passRef.current.t < 1 ||
+      diveRef.current !== 0
+    )
+      return;
+    const tgt = passTarget(carrierXRef.current, side);
+    passRef.current = { t: 0, side, fromX: carrierXRef.current, toX: tgt.x, recvIdx: tgt.idx };
+  }
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") steerRef.current = -1;
       if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") steerRef.current = 1;
       // Q/E: sling it to the support runner on that side
       const k = e.key.toLowerCase();
-      if ((k === "q" || k === "e") && phaseRef.current === "running" && catchRef.current >= 1 && passRef.current.t >= 1 && diveRef.current === 0) {
-        const side = k === "q" ? -1 : 1;
-        const tgt = passTarget(carrierXRef.current, side);
-        passRef.current = { t: 0, side, fromX: carrierXRef.current, toX: tgt.x, recvIdx: tgt.idx };
-      }
+      if (k === "q" || k === "e") tryPass(k === "q" ? -1 : 1);
     }
     function onKeyUp(e) {
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
@@ -2705,17 +2817,26 @@ export default function EnterThePitch() {
             className="absolute bottom-3 left-0 right-0 text-center mono"
             style={{ fontSize: 10, opacity: 0.4, zIndex: 5 }}
           >
-            ← → RUN · DRAG OR TILT ON TOUCH
+            {isDesktop ? "← → RUN · OR DRAG" : "TILT TO RUN · OR DRAG"}
           </div>
         )}
 
         {/* pass prompts — on screen whenever a pass is available */}
         {phase === "running" && (
           <>
-            {[["Q", "left", -1], ["E", "right", 1]].map(([key, sideName, sd]) => (
+            {[["Q", -1], ["E", 1]].map(([key, sd]) => (
               <div
                 key={key}
                 className="mono"
+                // on a phone there is no Q key, so the chip itself is the button
+                onPointerDown={
+                  isDesktop
+                    ? undefined
+                    : (e) => {
+                        e.stopPropagation();
+                        tryPass(sd);
+                      }
+                }
                 style={{
                   position: "absolute",
                   bottom: "38%",
@@ -2725,6 +2846,8 @@ export default function EnterThePitch() {
                   alignItems: "center",
                   gap: 6,
                   flexDirection: sd < 0 ? "row" : "row-reverse",
+                  touchAction: "none",
+                  cursor: isDesktop ? "default" : "pointer",
                 }}
               >
                 <span
@@ -2732,12 +2855,12 @@ export default function EnterThePitch() {
                     border: "1px solid rgba(201,162,39,0.8)",
                     color: "#C9A227",
                     background: "rgba(10,13,10,0.55)",
-                    padding: "6px 9px",
+                    padding: isDesktop ? "6px 9px" : "11px 14px",
                     fontSize: 13,
                     borderRadius: 3,
                   }}
                 >
-                  {key}
+                  {isDesktop ? key : sd < 0 ? "◀" : "▶"}
                 </span>
                 <span style={{ fontSize: 9, letterSpacing: "0.12em", opacity: 0.7, color: "#EDE8DC" }}>
                   PASS {sd < 0 ? "◀" : "▶"}
@@ -2760,6 +2883,55 @@ export default function EnterThePitch() {
               They commit early and leave their feet — juke late and they fly past. One touch and
               you're down.
             </p>
+            <div className="mono" style={{ fontSize: 10, opacity: 0.45, letterSpacing: "0.18em" }}>
+              {isDesktop ? "HOW TO MOVE" : "HOW TO MOVE \u00b7 PHONE"}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 7,
+                padding: "12px 16px",
+                border: "1px solid rgba(237,232,220,0.16)",
+                background: "rgba(8,12,18,0.5)",
+                borderRadius: 3,
+              }}
+            >
+              {CONTROLS[isDesktop ? "desktop" : "mobile"].map((c) => (
+                <div
+                  key={c.what}
+                  style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}
+                >
+                  <div style={{ display: "flex", gap: 4, width: 74, flexShrink: 0, justifyContent: "flex-end" }}>
+                    {c.keys.map((k) => (
+                      <span
+                        key={k}
+                        className="mono"
+                        style={{
+                          border: "1px solid rgba(201,162,39,0.75)",
+                          color: "#C9A227",
+                          padding: "3px 7px",
+                          fontSize: 10,
+                          borderRadius: 2,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 12, opacity: 0.85 }}>{c.what}</span>
+                  {c.hint && (
+                    <span className="mono" style={{ fontSize: 9, opacity: 0.35, letterSpacing: "0.1em" }}>
+                      {c.hint.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              ))}
+              <div style={{ fontSize: 11, opacity: 0.5, textAlign: "left", paddingTop: 2 }}>
+                {CONTROL_FOOTER[isDesktop ? "desktop" : "mobile"]}
+              </div>
+            </div>
             <div className="mono" style={{ fontSize: 10, opacity: 0.45, letterSpacing: "0.18em" }}>
               YOUR STRIP
             </div>
