@@ -114,6 +114,7 @@ const shortestTo = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos
 
 // long enough for the eye to travel with the ball rather than be cut across
 const PASS_FLIGHT = 0.62; // seconds the ball is in the air
+const HAND_Y = 1.12; // where a carried ball sits, so a pass leaves and arrives there
 
 const LAUNCH_DIST = 7; // metres out where a defender commits and leaves the ground
 const CONTACT_Z = 0.9; // where the tackle resolves
@@ -1034,7 +1035,7 @@ function Humanoid({
    transfer hard, then recover. the counter-plant is what sells it as a step
    rather than a slide.
 ------------------------------------------------ */
-function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef, downRef, phaseRef, tryTRef, squad, kit, onHandOver }) {
+function Runner({ carrierXRef, carrierZRef, viewXRef, matesRef, steerRef, passRef, hitFlashRef, diveRef, catchRef, downRef, phaseRef, tryTRef, squad, kit, onHandOver }) {
   const group = useRef();
   const ballRef = useRef();
   const dodgeRef = useRef(0);
@@ -1174,15 +1175,25 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
       pass.t = Math.min(1, pass.t + dt / PASS_FLIGHT);
       // he has let it go — stop him drifting on while the ball is away
       vx.current *= Math.pow(0.02, dt);
+      /* Re-aim at the receiver every frame. He is still running, so a target
+         fixed at the moment of the throw is already stale by the time the ball
+         gets there — which is why it landed short and the carrier appeared to
+         cover the rest himself. */
+      const m = matesRef?.current?.[pass.recvIdx];
+      if (m) {
+        pass.toX = m.x;
+        pass.toZ = m.z;
+      }
       if (pass.t >= 1) {
         // the receiver becomes the carrier for real: this rig takes on his
         // identity (see onHandOver) and moves onto his line, while he loops
         // round to the far side wearing the shirt that was just here
         onHandOver?.(pass.recvIdx);
+        // land exactly where the ball did, which is exactly where he is
         g.position.x = clamp(pass.toX, -STEER_HALF, STEER_HALF);
         carrierXRef.current = g.position.x;
         vx.current = 0;
-        passZ.current = 3.2;
+        passZ.current = pass.toZ ?? 3.2;
         recvT.current = 0;
       }
     }
@@ -1197,14 +1208,16 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
     if (!steering) vx.current *= Math.pow(0.05, dt);
     g.position.x = clamp(g.position.x + vx.current * dt, -STEER_HALF, STEER_HALF);
     carrierXRef.current = g.position.x;
+    if (carrierZRef) carrierZRef.current = g.position.z;
 
-    /* While the ball is in the air the camera tracks IT, not the man who threw
-       it. By the time the receiver takes the catch the view has already
-       arrived on him, so the hand-over is a continuation rather than a cut —
-       previously the camera sat on the passer for the whole flight and then
-       lurched sideways on the single frame the carrier changed. */
-    if (pass.t < 1) {
-      carrierXRef.current = lerp(pass.fromX, pass.toX ?? pass.fromX, ss(pass.t));
+    /* The camera has its own target. While the ball is in the air it tracks
+       the BALL, so the view has already arrived on the receiver by the time he
+       takes it. carrierXRef stays the true carrier — the support runners and
+       the defence line off it, and dragging that around mid-pass would slide
+       the whole team sideways underneath the ball. */
+    if (viewXRef) {
+      viewXRef.current =
+        pass.t < 1 ? lerp(pass.fromX, pass.toX ?? pass.fromX, ss(pass.t)) : g.position.x;
     }
 
     // a hard direction reversal at speed reads as a sidestep — show the clip
@@ -1270,9 +1283,11 @@ function PassBall({ passRef, carrierXRef }) {
     const t = clamp(p.t, 0, 1);
     g.current.visible = p.t < 1;
     if (p.t >= 1) return;
+    // hand to hand: it starts where the passer is holding it and finishes on
+    // the receiver's live position, so it covers the whole distance itself
     const x = lerp(p.fromX, p.toX ?? p.fromX, t);
-    const y = 1.15 + Math.sin(Math.PI * t) * 0.55;
-    const z = lerp(0.1, 3.2, t);
+    const z = lerp(p.fromZ ?? 0.1, p.toZ ?? 3.2, t);
+    const y = HAND_Y + Math.sin(Math.PI * t) * 0.5;
     g.current.position.set(x, y, z);
     g.current.rotation.set(0.2, 0, t * 14 * p.side);
   });
@@ -1519,7 +1534,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
    two support runners in club colours. they track the carrier's run but never
    get the ball; when he scores they sprint in and celebrate over him.
 --------------------------------------------- */
-function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squad, ruckRef, kit }) {
+function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squad, ruckRef, kit, matesRef }) {
   const slotRef = useRef(TEAM_SLOTS[idx]);
   const side = Math.sign(TEAM_SLOTS[idx]);
   const group = useRef();
@@ -1623,7 +1638,12 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
 
     // with him for the catch — then he pulls away, stride by stride
     if (cr >= 1) fallBack.current = Math.min(1.8, fallBack.current + dt * 0.7);
-    g.position.x += (carrierXRef.current * 0.4 + slot - g.position.x) * (1 - Math.pow(0.1, dt));
+    // while the ball is on its way to HIM he holds his line and presents a
+    // steady target, instead of drifting out from under it
+    const incoming = passRef?.current && passRef.current.t < 1 && passRef.current.recvIdx === idx;
+    if (!incoming) {
+      g.position.x += (carrierXRef.current * 0.4 + slot - g.position.x) * (1 - Math.pow(0.1, dt));
+    }
     g.position.z = 2.7 + fallBack.current;
     if (cr < 1) {
       poseRef.current.clip = "backpedal";
@@ -1633,6 +1653,8 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
       poseRef.current.timeScale = 1.04 + idx * 0.03; // desync the strides
     }
     g.rotation.y = lerp(g.rotation.y, 0, 1 - Math.pow(0.05, dt));
+    // publish where he actually is, so a pass can be thrown TO him
+    if (matesRef) matesRef.current[idx] = { x: g.position.x, z: g.position.z };
   });
 
   return (
@@ -2423,7 +2445,7 @@ function World({ progressRef, defendersRef, carrierXRef, phaseRef, tryTRef, squa
   );
 }
 
-function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans, heroBody }) {
+function Scene({ carrierXRef, carrierZRef, viewXRef, matesRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans, heroBody }) {
   const base = SQUADS[figure] || SQUADS.p1;
   // your whole side runs out as the signature player; the opposition keeps the
   // painted kits so the two teams still read apart
@@ -2456,7 +2478,7 @@ function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitF
       />
       <directionalLight position={[-24, 32, -14]} intensity={1.0} color="#CFE0FF" />
       <directionalLight position={[0, 20, -40]} intensity={0.6} color="#FFF0C4" />
-      <CameraRig carrierXRef={carrierXRef} phaseRef={phaseRef} diveRef={diveRef} catchRef={catchRef} />
+      <CameraRig carrierXRef={viewXRef} phaseRef={phaseRef} diveRef={diveRef} catchRef={catchRef} />
       <World progressRef={progressRef} defendersRef={defendersRef} carrierXRef={carrierXRef} phaseRef={phaseRef} tryTRef={tryTRef} squad={squad} ruckRef={ruckRef} kits={kits} fans={fans} />
       <Runner
         carrierXRef={carrierXRef}
@@ -2471,6 +2493,9 @@ function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitF
         squad={squad}
         kit={personKit(kits, lineup.carrier)}
         onHandOver={onHandOver}
+        viewXRef={viewXRef}
+        carrierZRef={carrierZRef}
+        matesRef={matesRef}
       />
       <PassBall passRef={passRef} carrierXRef={carrierXRef} />
       {TEAM_SLOTS.map((_, i) => (
@@ -2485,6 +2510,7 @@ function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitF
           squad={squad}
           ruckRef={ruckRef}
           kit={personKit(kits, lineup.mates[i])}
+          matesRef={matesRef}
         />
       ))}
       <FlyingBall catchRef={catchRef} />
@@ -2514,6 +2540,9 @@ export default function EnterThePitch() {
 
   const isDesktop = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
   const carrierXRef = useRef(0); // where he actually is, metres from centre
+  const carrierZRef = useRef(0); // his depth, so a pass leaves from his hands
+  const viewXRef = useRef(0); // what the camera looks at — the ball during a pass
+  const matesRef = useRef([]); // live support-runner positions, so passes can find them
   const steerRef = useRef(0); // -1..1 input from keys / tilt / drag
   const passRef = useRef({ t: 1, side: 0, fromX: 0 }); // t<1 while a pass is in the air
   const driftRef = useRef(0);
@@ -2602,7 +2631,16 @@ export default function EnterThePitch() {
     )
       return;
     const tgt = passTarget(carrierXRef.current, side);
-    passRef.current = { t: 0, side, fromX: carrierXRef.current, toX: tgt.x, recvIdx: tgt.idx };
+    const m = matesRef.current[tgt.idx];
+    passRef.current = {
+      t: 0,
+      side,
+      fromX: carrierXRef.current,
+      fromZ: carrierZRef.current,
+      toX: m ? m.x : tgt.x,
+      toZ: m ? m.z : 3.2,
+      recvIdx: tgt.idx,
+    };
   }
 
   useEffect(() => {
@@ -2886,6 +2924,9 @@ export default function EnterThePitch() {
             tryTRef={tryTRef}
             figure={figure}
             heroBody={heroBody}
+            carrierZRef={carrierZRef}
+            viewXRef={viewXRef}
+            matesRef={matesRef}
             ruckRef={ruckRef}
             kits={kits}
             fans={fans}
