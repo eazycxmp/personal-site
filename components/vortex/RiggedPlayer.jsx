@@ -51,6 +51,11 @@ const CLIP_FILES = {
 // one-shots hold their last frame instead of snapping back
 const ONE_SHOT = new Set(["catch", "dive", "down", "takedown", "roll", "sprintTurn", "turn180", "thrown", "throwing", "backflip", "fallSit", "sitPose"]);
 
+// The female model wears a ponytail. It hangs BELOW the crown line, so a
+// height-based hairline leaves it skin-coloured — everything far enough back
+// on her head is hair regardless of how low it hangs.
+const PONYTAIL_BODIES = new Set(["f"]);
+
 const PLAYER_HEIGHT = 1.85; // metres
 
 const _v = new THREE.Vector3();
@@ -182,7 +187,13 @@ function retargetClip(clip, srcBones, dstBones, order, restWS, restWD) {
       _corr.copy(ws).multiply(_inv);
 
       // same world motion, applied to the target's rest
-      const wd = _corr.clone().multiply(restWD.get(name));
+      // ROOT: the pelvis is the frame every other bone hangs off. Body f's
+      // hips rest is rolled ~90 degrees about Z relative to the reference, and
+      // preserving that roll is what throws her hips out to the side. Anchor
+      // the root to the REFERENCE world rest instead so both rigs share a
+      // pelvis frame; the children still resolve against their own rests.
+      const isRoot = !sb.parent;
+      const wd = _corr.clone().multiply(isRoot ? restWS.get(name) : restWD.get(name));
       wD.set(name, wd);
 
       const arr = out.get(name);
@@ -332,7 +343,9 @@ function paintedGeometryFor(mesh, kit, bodyId) {
       // hair sits on the crown and eases down a little at the back — a bigger
       // drop than this and it runs onto the nape
       const hairline = 0.72 - zf * 0.13 + wob;
-      hex = f > hairline ? kit.hair : kit.skin;
+      // ...and on a ponytailed head, the whole back of it, however far it hangs
+      const tail = PONYTAIL_BODIES.has(bodyId) && zf > 0.7 + wob;
+      hex = f > hairline || tail ? kit.hair : kit.skin;
     }
     else if (name.includes("spine")) hex = f > 0.9 ? kit.trim : kit.jersey; // collar
     else if (name.includes("shoulder")) hex = kit.sleeve;

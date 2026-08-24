@@ -24,7 +24,11 @@ const TEAM_SLOTS = [-5.0, -2.4, 2.4, 5.0];
 
 // where each support runner celebrates, relative to the scorer. all four had
 // been collapsing onto two points (one per side), so it read as two players.
-const CELEBRATE_OFFSET = [-2.3, -0.95, 0.95, 2.3];
+// far enough apart that a nudge round an upright plus the celebration wander
+// still cannot merge two of them into the same patch of grass
+const CELEBRATE_OFFSET = [-4.2, -2.0, 2.0, 4.2];
+// front pair / back pair, so they ring the scorer instead of forming a line
+const CELEBRATE_DEPTH = [-1.5, -3.1, -1.5, -3.1];
 
 // the uprights stand here; nudge anyone whose path would clip a post
 const POST_X = 2.8;
@@ -163,6 +167,20 @@ const LOOKS = [
 ];
 const ATTACK_LOOKS = LOOKS.slice(0, 5);
 const DEFENCE_LOOKS = LOOKS.slice(5);
+
+// The squad as five distinct people. A pass swaps the carrier with whoever
+// receives it, so the man running with the ball afterwards is genuinely the
+// other player — different face, different number — not the same rig moved
+// sideways.
+const personKit = (kits, p) => (p === 0 ? kits.player : kits.mates[p - 1]);
+const INITIAL_LINEUP = { carrier: 0, mates: [1, 2, 3, 4] };
+function handOver(lineup, recvIdx) {
+  if (recvIdx < 0 || recvIdx >= lineup.mates.length) return lineup;
+  const mates = lineup.mates.slice();
+  const carrier = mates[recvIdx];
+  mates[recvIdx] = lineup.carrier;
+  return { carrier, mates };
+}
 
 function buildKits(home, away) {
   const H = PALETTES[home] || PALETTES.black;
@@ -984,7 +1002,7 @@ function Humanoid({
    transfer hard, then recover. the counter-plant is what sells it as a step
    rather than a slide.
 ------------------------------------------------ */
-function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef, downRef, phaseRef, tryTRef, squad, kits }) {
+function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef, downRef, phaseRef, tryTRef, squad, kit, onHandOver }) {
   const group = useRef();
   const ballRef = useRef();
   const dodgeRef = useRef(0);
@@ -1123,8 +1141,10 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
     if (pass.t < 1) {
       pass.t = Math.min(1, pass.t + dt / 0.55);
       if (pass.t >= 1) {
-        // the receiver becomes the carrier: jump to his line, keep his depth,
-        // and burn it off as he accelerates onto the ball
+        // the receiver becomes the carrier for real: this rig takes on his
+        // identity (see onHandOver) and moves onto his line, while he loops
+        // round to the far side wearing the shirt that was just here
+        onHandOver?.(pass.recvIdx);
         g.position.x = clamp(pass.toX, -STEER_HALF, STEER_HALF);
         carrierXRef.current = g.position.x;
         vx.current = 0;
@@ -1188,7 +1208,7 @@ function Runner({ carrierXRef, steerRef, passRef, hitFlashRef, diveRef, catchRef
 
   return (
     <group ref={group}>
-      <RiggedPlayer poseRef={poseRef} kit={kits.player} ballRef={ballRef} body={squad.carrier} />
+      <RiggedPlayer poseRef={poseRef} kit={kit} ballRef={ballRef} body={squad.carrier} />
       <RugbyBall innerRef={ballRef} scale={0.9} />
     </group>
   );
@@ -1455,7 +1475,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
    two support runners in club colours. they track the carrier's run but never
    get the ball; when he scores they sprint in and celebrate over him.
 --------------------------------------------- */
-function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squad, ruckRef, kits }) {
+function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squad, ruckRef, kit }) {
   const slotRef = useRef(TEAM_SLOTS[idx]);
   const side = Math.sign(TEAM_SLOTS[idx]);
   const group = useRef();
@@ -1509,22 +1529,24 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
       const t = tryTRef.current; // the carrier's clock — keeps the flip in sync
       // each man gets his own spot in the huddle, and none of them stands in a post
       const tx = clearOfPosts(carrierXRef.current + CELEBRATE_OFFSET[idx]);
-      const tz = -2.1 + (idx % 2) * 0.7;
+      const tz = CELEBRATE_DEPTH[idx];
       const dx = tx - g.position.x;
       const dz = tz - g.position.z;
       const far = Math.hypot(dx, dz);
       const face = 1 - Math.pow(0.05, dt);
 
-      const ph = side < 0 ? 0 : 2.1;
+      // a phase per man, not per side — two men sharing one phase wander in
+      // lockstep and end up standing in each other
+      const ph = idx * 1.9;
       if (t >= TRY_SEQ.gather && t < TRY_SEQ.disperse) {
         // he flips alone — they mob him, jumping and roaring
         const ct = t - TRY_SEQ.gather;
         poseRef.current.clip = "victory";
-        poseRef.current.timeScale = side < 0 ? 1.3 : 1.0;
-        poseRef.current.timeOffset = side < 0 ? 0 : 1.6;
+        poseRef.current.timeScale = 1.0 + idx * 0.11;
+        poseRef.current.timeOffset = idx * 0.8;
         g.position.y = Math.abs(Math.sin(ct * 4.1 + ph)) * 0.32;
-        g.position.x = clearOfPosts(tx + Math.sin(ct * 1.0 + ph) * 0.7);
-        g.position.z = tz + Math.cos(ct * 1.25 + ph) * 0.6;
+        g.position.x = clearOfPosts(tx + Math.sin(ct * (0.9 + idx * 0.13) + ph) * 0.45);
+        g.position.z = tz + Math.cos(ct * (1.1 + idx * 0.17) + ph) * 0.5;
         g.rotation.y = Math.PI + Math.sin(ct * 0.9 + ph) * 0.8;
       } else if (t >= TRY_SEQ.disperse) {
         // still celebrating, but walking back to where they started
@@ -1571,7 +1593,7 @@ function Teammate({ idx, phaseRef, catchRef, carrierXRef, tryTRef, passRef, squa
 
   return (
     <group ref={group} position={[TEAM_SLOTS[idx], 0, 2.7]}>
-      <RiggedPlayer poseRef={poseRef} kit={kits.mates[idx % kits.mates.length]} body={squad.mate} />
+      <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.mate} />
     </group>
   );
 }
@@ -2359,6 +2381,9 @@ function World({ progressRef, defendersRef, carrierXRef, phaseRef, tryTRef, squa
 
 function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans }) {
   const squad = SQUADS[figure] || SQUADS.p1;
+  // who has the ball. Scene is keyed on runId, so this resets every run.
+  const [lineup, setLineup] = useState(INITIAL_LINEUP);
+  const onHandOver = (recvIdx) => setLineup((l) => handOver(l, recvIdx));
   return (
     <>
       <fog attach="fog" args={["#7d8f9b", 90, 320]} />
@@ -2383,7 +2408,20 @@ function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitF
       <directionalLight position={[0, 20, -40]} intensity={0.6} color="#FFF0C4" />
       <CameraRig carrierXRef={carrierXRef} phaseRef={phaseRef} diveRef={diveRef} catchRef={catchRef} />
       <World progressRef={progressRef} defendersRef={defendersRef} carrierXRef={carrierXRef} phaseRef={phaseRef} tryTRef={tryTRef} squad={squad} ruckRef={ruckRef} kits={kits} fans={fans} />
-      <Runner carrierXRef={carrierXRef} steerRef={steerRef} passRef={passRef} hitFlashRef={hitFlashRef} diveRef={diveRef} catchRef={catchRef} downRef={downRef} phaseRef={phaseRef} tryTRef={tryTRef} squad={squad} kits={kits} />
+      <Runner
+        carrierXRef={carrierXRef}
+        steerRef={steerRef}
+        passRef={passRef}
+        hitFlashRef={hitFlashRef}
+        diveRef={diveRef}
+        catchRef={catchRef}
+        downRef={downRef}
+        phaseRef={phaseRef}
+        tryTRef={tryTRef}
+        squad={squad}
+        kit={personKit(kits, lineup.carrier)}
+        onHandOver={onHandOver}
+      />
       <PassBall passRef={passRef} carrierXRef={carrierXRef} />
       {TEAM_SLOTS.map((_, i) => (
         <Teammate
@@ -2396,7 +2434,7 @@ function Scene({ carrierXRef, steerRef, passRef, progressRef, defendersRef, hitF
           passRef={passRef}
           squad={squad}
           ruckRef={ruckRef}
-          kits={kits}
+          kit={personKit(kits, lineup.mates[i])}
         />
       ))}
       <FlyingBall catchRef={catchRef} />
@@ -2883,7 +2921,7 @@ export default function EnterThePitch() {
               They commit early and leave their feet — juke late and they fly past. One touch and
               you're down.
             </p>
-            <div className="mono" style={{ fontSize: 10, opacity: 0.45, letterSpacing: "0.18em" }}>
+            <div className="mono" style={{ fontSize: 10, color: "#FFFFFF", letterSpacing: "0.18em" }}>
               {isDesktop ? "HOW TO MOVE" : "HOW TO MOVE \u00b7 PHONE"}
             </div>
             <div
@@ -2920,15 +2958,15 @@ export default function EnterThePitch() {
                       </span>
                     ))}
                   </div>
-                  <span style={{ fontSize: 12, opacity: 0.85 }}>{c.what}</span>
+                  <span style={{ fontSize: 12, color: "#FFFFFF" }}>{c.what}</span>
                   {c.hint && (
-                    <span className="mono" style={{ fontSize: 9, opacity: 0.35, letterSpacing: "0.1em" }}>
+                    <span className="mono" style={{ fontSize: 9, color: "#FFFFFF", letterSpacing: "0.1em" }}>
                       {c.hint.toUpperCase()}
                     </span>
                   )}
                 </div>
               ))}
-              <div style={{ fontSize: 11, opacity: 0.5, textAlign: "left", paddingTop: 2 }}>
+              <div style={{ fontSize: 11, color: "#FFFFFF", textAlign: "left", paddingTop: 2 }}>
                 {CONTROL_FOOTER[isDesktop ? "desktop" : "mobile"]}
               </div>
             </div>
@@ -3074,7 +3112,8 @@ export default function EnterThePitch() {
             >
               Welcome to<br />the Club
             </h2>
-            <button
+            <a
+              href="https://www.vortexrugby.com"
               className="mono"
               style={{
                 background: "#6E1423",
@@ -3086,10 +3125,12 @@ export default function EnterThePitch() {
                 textTransform: "uppercase",
                 cursor: "pointer",
                 marginTop: 8,
+                textDecoration: "none",
+                display: "inline-block",
               }}
             >
               Enter The Site
-            </button>
+            </a>
           </div>
         )}
       </div>
