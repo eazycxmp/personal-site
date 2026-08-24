@@ -38,27 +38,6 @@ const BODY_FILES = {
   fBreakaway: "/models/HeroF_Breakaway.fbx",
 };
 const DEFAULT_BODY = "nz";
-const CLIP_FILES = {
-  run: "/models/Fast Run.fbx",
-  catch: "/models/Goalkeeper Catch.fbx",
-  dive: "/models/Run To Dive.fbx",
-  juke: "/models/Evading A Threat (1).fbx",
-  down: "/models/Hit To The Legs (1).fbx",
-  walk: "/models/Meshy_AI_Animation_Walking_without_skin.fbx",
-  takedown: "/models/Double Leg Takedown - Attacker.fbx",
-  backpedal: "/models/Walking Backward.fbx",
-  idle: "/models/Standing Idle.fbx",
-  victory: "/models/Victory.fbx",
-  roll: "/models/Run To Rolling.fbx",
-  sprintTurn: "/models/Sprint Turn.fbx",
-  jogBack: "/models/Slow Jog Backwards.fbx",
-  turn180: "/models/Running Turn 180.fbx",
-  thrown: "/models/Getting Thrown.fbx",
-  throwing: "/models/Throwing.fbx",
-  backflip: "/models/Backflip.fbx",
-  fallSit: "/models/Falling Down.fbx",
-  sitPose: "/models/Male Sitting Pose.fbx",
-};
 
 // one-shots hold their last frame instead of snapping back
 const ONE_SHOT = new Set(["catch", "dive", "down", "takedown", "roll", "sprintTurn", "turn180", "thrown", "throwing", "backflip", "fallSit", "sitPose"]);
@@ -262,56 +241,67 @@ function retargetClip(clip, srcBones, dstBones, order, restWS, restWD) {
   return new THREE.AnimationClip(clip.name, clip.duration, tracks);
 }
 
-let assetPromise = null;
-function loadAssets() {
-  if (assetPromise) return assetPromise;
-  const loader = new FBXLoader();
-  const load = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
-  assetPromise = (async () => {
-    const templates = {};
-    for (const [id, url] of Object.entries(BODY_FILES)) {
-      const t = await load(url);
-      // scale centimetres -> metres exactly once, on the pristine template
-      const box = new THREE.Box3().setFromObject(t);
-      const h = box.max.y - box.min.y;
-      t.scale.setScalar(PLAYER_HEIGHT / h);
-      t.rotation.y = Math.PI; // model faces +Z; the pitch runs toward -Z
-      templates[id] = t;
-    }
-    const clips = {};
-    await Promise.all(
-      Object.entries(CLIP_FILES).map(async ([name, url]) => {
-        const asset = await load(url);
-        // some files bundle the original walk too; the clip the file is named
-        // for is always the longer one
-        clips[name] = asset.animations.slice().sort((a, b) => b.duration - a.duration)[0];
-      })
-    );
-    /* Rebase every clip from the rig they were authored on. That rig is no
-       longer shipped — only its rest pose is, which is all the retargeter ever
-       read from it. */
-    const posed = (rows) => new Map(rows.map(([name, parent, q]) => [name, { q: new THREE.Quaternion(...q), parent }]));
-    const refBones = posed(REF_NODE_POSE);
-    const order = boneOrder(refBones);
+/* Clips come from one baked JSON rather than nineteen FBX files. The tracks
+   are tiny; the containers were not — "Double Leg Takedown" alone was 11.5MB
+   because it ships a skinned mesh the game never looks at. 14.9MB and nineteen
+   requests become 1.0MB and one. See tools/bake-clips.mjs. */
+const CLIPS_URL = "/models/clips.json";
 
-    const refWorld = restWorld(posed(REF_BIND_POSE), order);
-    const clipsByBody = {};
-    for (const id of Object.keys(templates)) {
-      const bones = restMap(templates[id]);
-      if (restMatches(refBones, bones)) {
-        clipsByBody[id] = clips;
-        continue;
-      }
-      const world = restWorld(bindRestMap(templates[id]) || bones, order);
-      const remapped = {};
-      for (const [name, clip] of Object.entries(clips)) {
-        remapped[name] = retargetClip(clip, refBones, bones, order, refWorld, world);
-      }
-      clipsByBody[id] = remapped;
+let clipPromise = null;
+function loadClips() {
+  if (clipPromise) return clipPromise;
+  clipPromise = fetch(CLIPS_URL)
+    .then((r) => r.json())
+    .then((raw) => {
+      const clips = {};
+      for (const [name, json] of Object.entries(raw)) clips[name] = THREE.AnimationClip.parse(json);
+      return clips;
+    });
+  return clipPromise;
+}
+
+/* The reference rest the clips were authored against — no mesh, just poses. */
+let refCache = null;
+function reference() {
+  if (refCache) return refCache;
+  const posed = (rows) => new Map(rows.map(([name, parent, q]) => [name, { q: new THREE.Quaternion(...q), parent }]));
+  const bones = posed(REF_NODE_POSE);
+  const order = boneOrder(bones);
+  refCache = { bones, order, world: restWorld(posed(REF_BIND_POSE), order) };
+  return refCache;
+}
+
+/* Bodies load ON DEMAND. A run uses two of them — the side you picked and the
+   opposition — so fetching all eight upfront meant downloading around 50MB
+   nobody was going to see, and retargeting every clip onto every one of them
+   before the first frame. */
+const bodyPromises = new Map();
+function loadBody(id) {
+  if (bodyPromises.has(id)) return bodyPromises.get(id);
+  const url = BODY_FILES[id] || BODY_FILES[DEFAULT_BODY];
+  const p = (async () => {
+    const [clips, template] = await Promise.all([
+      loadClips(),
+      new Promise((res, rej) => new FBXLoader().load(url, res, undefined, rej)),
+    ]);
+    // scale centimetres -> metres exactly once, on the pristine template
+    const box = new THREE.Box3().setFromObject(template);
+    const h = box.max.y - box.min.y;
+    template.scale.setScalar(PLAYER_HEIGHT / h);
+    template.rotation.y = Math.PI; // model faces +Z; the pitch runs toward -Z
+
+    const ref = reference();
+    const bones = restMap(template);
+    if (restMatches(ref.bones, bones)) return { template, clips };
+    const world = restWorld(bindRestMap(template) || bones, ref.order);
+    const remapped = {};
+    for (const [name, clip] of Object.entries(clips)) {
+      remapped[name] = retargetClip(clip, ref.bones, bones, ref.order, ref.world, world);
     }
-    return { templates, clipsByBody };
+    return { template, clips: remapped };
   })();
-  return assetPromise;
+  bodyPromises.set(id, p);
+  return p;
 }
 
 /* ---- kit painting: dominant-bone vertex colours, cached per kit ---- */
@@ -509,19 +499,19 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = DEFAULT_BOD
   const [assets, setAssets] = useState(null);
   const st = useRef(null);
 
+  // only the body this player actually needs, and only when he needs it
   useEffect(() => {
     let alive = true;
-    loadAssets()
+    setAssets(null);
+    loadBody(body)
       .then((a) => alive && setAssets(a))
-      .catch((e) => console.error("rig load failed", e));
+      .catch((e) => console.error("rig load failed", body, e));
     return () => { alive = false; };
-  }, []);
+  }, [body]);
 
   useEffect(() => {
     if (!assets || !groupRef.current) return;
-    const { templates, clipsByBody } = assets;
-    const template = templates[body] || templates[DEFAULT_BODY];
-    const clips = clipsByBody[body] || clipsByBody[DEFAULT_BODY];
+    const { template, clips } = assets;
 
     const rig = cloneSkeleton(template);
     const state = { actions: {}, current: null, mixer: null, hips: null, bindHips: null, rightHand: null };
@@ -582,7 +572,7 @@ export default function RiggedPlayer({ poseRef, kit, ballRef, body = DEFAULT_BOD
     // 100-226K triangle skinned mesh and rebuilding the mixer, which dropped
     // frames every time a pass changed who was carrying. The skeleton is
     // identical whoever wears the shirt; only the vertex colours differ.
-  }, [assets, poseRef, body, paint]);
+  }, [assets, poseRef, paint]);
 
   // A change of kit is a geometry swap and nothing more. Painted geometries are
   // cached, so after the first time each shirt is worn this costs a pointer.
