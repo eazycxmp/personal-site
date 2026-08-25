@@ -2930,7 +2930,11 @@ export default function EnterThePitch({ bare = false }) {
         className="relative w-full"
         style={isDesktop ? {
           maxWidth: "1560px",
-          height: "min(84vh, 900px)",
+          /* Embedded, height must come from WIDTH, never from vh. The host sizes
+             the frame to the height we report, so a viewport-relative height
+             feeds back on itself — the frame shrinks, the content shrinks with
+             it, and the whole thing collapses. Measured at 90px before this. */
+          ...(bare ? { aspectRatio: "16 / 10" } : { height: "min(84vh, 900px)" }),
           border: "1px solid rgba(237,232,220,0.15)",
           borderRadius: "4px",
           overflow: "hidden",
