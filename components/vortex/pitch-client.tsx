@@ -14,6 +14,6 @@ const EnterThePitch = dynamic(() => import("./EnterThePitch"), {
   ),
 });
 
-export function PitchClient() {
-  return <EnterThePitch />;
+export function PitchClient({ bare = false }: { bare?: boolean }) {
+  return <EnterThePitch bare={bare} />;
 }

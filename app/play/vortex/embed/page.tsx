@@ -9,5 +9,5 @@ export const metadata = {
 };
 
 export default function VortexEmbedPage() {
-  return <PitchClient />;
+  return <PitchClient bare />;
 }

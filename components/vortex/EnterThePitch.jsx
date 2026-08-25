@@ -2543,7 +2543,11 @@ function Scene({ carrierXRef, carrierZRef, viewXRef, matesRef, steerRef, passRef
   );
 }
 
-export default function EnterThePitch() {
+/* `bare` drops the title block and trims the padding, for embedding in a page
+   that already carries the branding — a duplicate "VORTEX RUGBY / ENTER THE
+   PITCH" above someone else's masthead is noise, and the height it costs was
+   pushing the Kick Off button past the bottom of the frame. */
+export default function EnterThePitch({ bare = false }) {
   const [phase, setPhase] = useState("start"); // start | running | diving | tackled | try
   const [beaten, setBeaten] = useState(0);
   const [figure, setFigure] = useState("p1");
@@ -2897,7 +2901,7 @@ export default function EnterThePitch() {
         color: "#EDE8DC",
         fontFamily: "'Inter', sans-serif",
         minHeight: "100vh",
-        padding: "20px 12px",
+        padding: bare ? "0 8px 10px" : "20px 12px",
       }}
     >
       <style>{`
@@ -2909,14 +2913,16 @@ export default function EnterThePitch() {
         .pop { animation: popIn 0.45s cubic-bezier(.2,1.5,.4,1) both; }
       `}</style>
 
-      <div className="text-center mb-3">
-        <div className="mono text-xs" style={{ color: "#C9A227", letterSpacing: "0.2em" }}>
-          VORTEX RUGBY
+      {!bare && (
+        <div className="text-center mb-3">
+          <div className="mono text-xs" style={{ color: "#C9A227", letterSpacing: "0.2em" }}>
+            VORTEX RUGBY
+          </div>
+          <h1 className="display" style={{ fontSize: "clamp(24px,5vw,36px)" }}>
+            Enter The Pitch
+          </h1>
         </div>
-        <h1 className="display" style={{ fontSize: "clamp(24px,5vw,36px)" }}>
-          Enter The Pitch
-        </h1>
-      </div>
+      )}
 
       <div
         className="relative w-full"
