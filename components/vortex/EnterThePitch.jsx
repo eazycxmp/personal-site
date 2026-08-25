@@ -2900,8 +2900,10 @@ export default function EnterThePitch({ bare = false }) {
         background: "#0A0D0A",
         color: "#EDE8DC",
         fontFamily: "'Inter', sans-serif",
-        minHeight: "100vh",
-        padding: bare ? "0 8px 10px" : "20px 12px",
+        // embedded, the frame is sized to the content instead — forcing a
+        // full viewport here is what left dark bands above and below the pitch
+        minHeight: bare ? 0 : "100vh",
+        padding: bare ? 0 : "20px 12px",
       }}
     >
       <style>{`
