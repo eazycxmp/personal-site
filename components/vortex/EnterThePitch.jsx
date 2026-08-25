@@ -52,8 +52,8 @@ function clearOfPosts(x) {
    authored on (kolisi 25 deg, fRedKit 31 deg, against the old bodies' 28 deg).
    The walk falls apart on a rig much further out than that. */
 const SQUADS = {
-  p1: { carrier: "nz", mate: "nz", defender: "b" },
-  p2: { carrier: "fBreakaway", mate: "fBreakaway", defender: "f" },
+  p1: { carrier: "nz", mate: "nz", defender: "burst" },
+  p2: { carrier: "fBreakaway", mate: "fBreakaway", defender: "fRedKit" },
 };
 
 /* Each strip fields a whole team of one signature player. These models arrive
@@ -1547,7 +1547,7 @@ function Defender({ data, progressRef, carrierXRef, phaseRef, tryTRef, squad, ru
         {/* separate pitch group: tipping him over here composes with the yaw
             above instead of fighting it through Euler order */}
         <group ref={pitch}>
-          <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.defender} paint />
+          <RiggedPlayer poseRef={poseRef} kit={kit} body={squad.defender} />
         </group>
       </group>
     </group>
@@ -2469,13 +2469,21 @@ function World({ progressRef, defendersRef, carrierXRef, phaseRef, tryTRef, squa
   );
 }
 
-function Scene({ carrierXRef, carrierZRef, viewXRef, matesRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans, heroBody }) {
+function Scene({ carrierXRef, carrierZRef, viewXRef, matesRef, steerRef, passRef, progressRef, defendersRef, hitFlashRef, diveRef, phaseRef, fireworksRef, catchRef, downRef, tryTRef, figure, ruckRef, kits, fans, heroBody, awayBody }) {
   const base = SQUADS[figure] || SQUADS.p1;
   // your whole side runs out as the signature player; the opposition keeps the
   // painted kits so the two teams still read apart
+  /* Both sides are real characters in their own kits. Painting a kit onto a
+     generic body mottled the skin across a dense mesh — patches of light and
+     dark — and every strip already has a character who wears that colour, so
+     the opposition simply IS the away character. */
   const squad = useMemo(
-    () => (heroBody ? { ...base, carrier: heroBody, mate: heroBody } : base),
-    [base, heroBody]
+    () => ({
+      ...base,
+      ...(heroBody ? { carrier: heroBody, mate: heroBody } : null),
+      ...(awayBody ? { defender: awayBody } : null),
+    }),
+    [base, heroBody, awayBody]
   );
   // who has the ball. Scene is keyed on runId, so this resets every run.
   const [lineup, setLineup] = useState(INITIAL_LINEUP);
@@ -2559,6 +2567,7 @@ export default function EnterThePitch({ bare = false }) {
   const awayColour = opponentOf(colourKeys, home);
   // the strip you pick is also the side you run out with
   const heroBody = HERO_BY_SQUAD_COLOUR[figure]?.[home] || null;
+  const awayBody = HERO_BY_SQUAD_COLOUR[figure]?.[awayColour] || null;
   const kits = useMemo(() => buildKits(home, awayColour), [home, awayColour]);
   const fans = useMemo(
     () => ({ home: PALETTES[home].fans, away: PALETTES[awayColour].fans }),
@@ -2973,6 +2982,7 @@ export default function EnterThePitch({ bare = false }) {
             tryTRef={tryTRef}
             figure={figure}
             heroBody={heroBody}
+            awayBody={awayBody}
             carrierZRef={carrierZRef}
             viewXRef={viewXRef}
             matesRef={matesRef}

@@ -26,10 +26,6 @@ import { REF_NODE_POSE, REF_BIND_POSE } from "./refRig.js";
    them, and the only thing still needed from the heaviest of them is the rest
    pose the clips were authored against — baked into refRig.js. */
 const BODY_FILES = {
-  // The opposition is who you watch WALK, back to the posts after a try. These
-  // two are the bodies they walked on before, kept for that reason alone.
-  b: "/models/BlueBlitz_biped.fbx",
-  f: "/models/Female_biped.fbx",
   nz: "/models/Hero_AllBlacks.fbx",
   burst: "/models/Hero_Burst.fbx",
   kolisi: "/models/Hero_Kolisi.fbx",
