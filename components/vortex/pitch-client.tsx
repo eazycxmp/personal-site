@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // three.js touches window and WebGL on mount, so this never renders on the server
 const EnterThePitch = dynamic(() => import("./EnterThePitch"), {
@@ -52,12 +52,16 @@ function useScrollBridge(active: boolean) {
    fixed frame height leaves dark bands above and below when the content is
    shorter, and clips the Kick Off button when it is taller — and the right
    height differs per device, so only the embed can know it. */
-function useHeightReporter(active: boolean) {
+function useHeightReporter(active: boolean, el: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     if (!active || typeof window === "undefined" || window.parent === window) return;
+    const node = el.current;
+    if (!node) return;
     let last = 0;
     const report = () => {
-      const h = Math.ceil(document.documentElement.getBoundingClientRect().height);
+      /* Measure the GAME, not documentElement — <html> stretches to the frame,
+         so reporting it just echoed the frame's own height back at the host. */
+      const h = Math.ceil(node.getBoundingClientRect().height);
       if (h && h !== last) {
         last = h;
         window.parent.postMessage({ type: "vortex:height", height: h }, "*");
@@ -65,7 +69,7 @@ function useHeightReporter(active: boolean) {
     };
     report();
     const ro = new ResizeObserver(report);
-    ro.observe(document.documentElement);
+    ro.observe(node);
     window.addEventListener("resize", report);
     const t = setInterval(report, 1000); // the canvas settles after the models land
     return () => {
@@ -73,11 +77,16 @@ function useHeightReporter(active: boolean) {
       window.removeEventListener("resize", report);
       clearInterval(t);
     };
-  }, [active]);
+  }, [active, el]);
 }
 
 export function PitchClient({ bare = false }: { bare?: boolean }) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
   useScrollBridge(bare);
-  useHeightReporter(bare);
-  return <EnterThePitch bare={bare} />;
+  useHeightReporter(bare, hostRef);
+  return (
+    <div ref={hostRef}>
+      <EnterThePitch bare={bare} />
+    </div>
+  );
 }
