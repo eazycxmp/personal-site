@@ -3257,6 +3257,9 @@ export default function EnterThePitch() {
             </h2>
             <a
               href="https://www.vortexrugby.com"
+              // breaks out of the frame when this is embedded, and behaves as a
+              // normal link when it is not
+              target="_top"
               className="mono"
               style={{
                 background: "#6E1423",
