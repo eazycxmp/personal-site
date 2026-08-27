@@ -13,6 +13,13 @@ const GAMES = [
     status: "Live",
   },
   {
+    slug: "blackjack",
+    title: "Blackjack",
+    tag: "Cards · Odds",
+    body: "A casino table from the player's chair. Hit, stand, double and split against a six-deck shoe while a coach grades every decision and the bust odds are computed live from the cards still unseen. Built to teach the Hi-Lo count.",
+    status: "Live",
+  },
+  {
     slug: "run",
     title: "Maze Run",
     tag: "Reflex · Speed",
