@@ -35,6 +35,10 @@ const BODY_FILES = {
 };
 const DEFAULT_BODY = "nz";
 
+/* Clips whose authoring rig IS the reference rig, so their rest is its node
+   pose rather than the bind stand-in used for the Mixamo clips. */
+const AUTHORED_ON_REF_NODE = new Set(["walk"]);
+
 // one-shots hold their last frame instead of snapping back
 const ONE_SHOT = new Set(["catch", "dive", "down", "takedown", "roll", "sprintTurn", "turn180", "thrown", "throwing", "backflip", "fallSit", "sitPose"]);
 
@@ -263,7 +267,14 @@ function reference() {
   const posed = (rows) => new Map(rows.map(([name, parent, q]) => [name, { q: new THREE.Quaternion(...q), parent }]));
   const bones = posed(REF_NODE_POSE);
   const order = boneOrder(bones);
-  refCache = { bones, order, world: restWorld(posed(REF_BIND_POSE), order) };
+  refCache = {
+    bones,
+    order,
+    // bind-derived, so it carries the armature's rotation
+    world: restWorld(posed(REF_BIND_POSE), order),
+    // node-derived, so it does not
+    nodeWorld: restWorld(bones, order),
+  };
   return refCache;
 }
 
@@ -289,10 +300,31 @@ function loadBody(id) {
     const ref = reference();
     const bones = restMap(template);
     if (restMatches(ref.bones, bones)) return { template, clips };
-    const world = restWorld(bindRestMap(template) || bones, ref.order);
+
+    /* A clip is rebased off the rest pose it was authored against, and these
+       clips do not share one. The Mixamo clips came from elsewhere, so the
+       reference rig's BIND pose stands in. The walk came off this very rig —
+       its skeleton matches the reference's NODE pose to 0.0 degrees — so for
+       that one the node pose IS the authoring rest.
+
+       The two live in different spaces and cannot be mixed: a bind pose read
+       off boneInverses carries the armature's -90deg X rotation, a node pose
+       does not. Pairing a node source with a bind target is what laid everyone
+       flat on their backs when I first tried this. Each source is therefore
+       paired with a target measured the same way. */
+    const bindWorld = restWorld(bindRestMap(template) || bones, ref.order);
+    const nodeWorld = restWorld(bones, ref.order);
     const remapped = {};
     for (const [name, clip] of Object.entries(clips)) {
-      remapped[name] = retargetClip(clip, ref.bones, bones, ref.order, ref.world, world);
+      const authoredOnNode = AUTHORED_ON_REF_NODE.has(name);
+      remapped[name] = retargetClip(
+        clip,
+        ref.bones,
+        bones,
+        ref.order,
+        authoredOnNode ? ref.nodeWorld : ref.world,
+        authoredOnNode ? nodeWorld : bindWorld
+      );
     }
     return { template, clips: remapped };
   })();
