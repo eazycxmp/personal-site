@@ -151,3 +151,12 @@ html { scroll-behavior: smooth; }
   background: var(--color-violet);
   color: var(--color-cream);
 }
+
+@keyframes puppy-wag {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(9deg); }
+}
+.puppy-tail-wag {
+  transform-origin: 118px 360px;
+  animation: puppy-wag 0.45s ease-in-out infinite;
+}
