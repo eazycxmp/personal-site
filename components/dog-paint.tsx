@@ -1,135 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-type PanelId =
-  | "leftEar"
-  | "rightEar"
-  | "leftInnerEar"
-  | "rightInnerEar"
-  | "forehead"
-  | "leftCheek"
-  | "rightCheek"
-  | "muzzle"
-  | "nose"
-  | "chest"
-  | "body"
-  | "belly"
-  | "leftLeg"
-  | "rightLeg"
-  | "tail";
+import { useEffect, useRef, useState } from "react";
 
 type Swatch = { name: string; hex: string };
 
-type Panel = {
-  id: PanelId;
+type Suggestion = {
   label: string;
-  d: string;
-  suggested: Swatch;
+  swatch: Swatch;
 };
 
-type Stroke = {
-  id: number;
-  panelId: PanelId;
-  color: string;
-  points: string;
-};
-
-const BLANK = "#FFFFFF";
-const BRUSH = 28;
-
-const PANELS: Panel[] = [
-  {
-    id: "tail",
-    label: "Tail",
-    suggested: { name: "Brown", hex: "#8D6E63" },
-    d: "M86 300C28 278 8 328 24 368C36 394 78 376 108 332C116 314 108 304 86 300Z",
-  },
-  {
-    id: "body",
-    label: "Back",
-    suggested: { name: "Caramel", hex: "#C68642" },
-    d: "M108 248C72 272 68 348 102 398C138 428 262 428 298 398C332 348 328 272 292 248C250 222 150 222 108 248Z",
-  },
-  {
-    id: "belly",
-    label: "Belly",
-    suggested: { name: "Cream", hex: "#F3E6D4" },
-    d: "M148 338C128 360 136 404 176 418C200 426 200 426 224 418C264 404 272 360 252 338C228 354 172 354 148 338Z",
-  },
-  {
-    id: "leftLeg",
-    label: "Left paw",
-    suggested: { name: "Golden", hex: "#E8B84A" },
-    d: "M128 392C112 414 114 454 132 466C148 476 176 472 184 452C188 428 168 400 150 390C142 386 134 386 128 392Z",
-  },
-  {
-    id: "rightLeg",
-    label: "Right paw",
-    suggested: { name: "Golden", hex: "#E8B84A" },
-    d: "M272 392C288 414 286 454 268 466C252 476 224 472 216 452C212 428 232 400 250 390C258 386 266 386 272 392Z",
-  },
-  {
-    id: "chest",
-    label: "Chest",
-    suggested: { name: "Cream", hex: "#F3E6D4" },
-    d: "M168 258C148 280 148 322 172 344C188 356 212 356 228 344C252 322 252 280 232 258C216 246 184 246 168 258Z",
-  },
-  {
-    id: "leftEar",
-    label: "Left ear",
-    suggested: { name: "Brown", hex: "#8D6E63" },
-    d: "M132 118C70 108 36 148 48 196C58 228 104 216 136 168C142 148 142 126 132 118Z",
-  },
-  {
-    id: "rightEar",
-    label: "Right ear",
-    suggested: { name: "Brown", hex: "#8D6E63" },
-    d: "M268 118C330 108 364 148 352 196C342 228 296 216 264 168C258 148 258 126 268 118Z",
-  },
-  {
-    id: "forehead",
-    label: "Forehead",
-    suggested: { name: "Golden", hex: "#E8B84A" },
-    d: "M128 148C136 78 264 78 272 148C246 164 154 164 128 148Z",
-  },
-  {
-    id: "leftCheek",
-    label: "Left cheek",
-    suggested: { name: "Golden", hex: "#E8B84A" },
-    d: "M128 148C100 168 98 214 130 234C152 228 164 200 166 172C154 156 140 148 128 148Z",
-  },
-  {
-    id: "rightCheek",
-    label: "Right cheek",
-    suggested: { name: "Golden", hex: "#E8B84A" },
-    d: "M272 148C300 168 302 214 270 234C248 228 236 200 234 172C246 156 260 148 272 148Z",
-  },
-  {
-    id: "muzzle",
-    label: "Muzzle",
-    suggested: { name: "Cream", hex: "#F3E6D4" },
-    d: "M162 168C148 186 150 226 178 240C192 248 208 248 222 240C250 226 252 186 238 168C222 156 178 156 162 168Z",
-  },
-  {
-    id: "leftInnerEar",
-    label: "Inside left ear",
-    suggested: { name: "Pink", hex: "#EC407A" },
-    d: "M124 136C82 132 64 160 72 190C80 208 110 198 128 168C132 154 132 140 124 136Z",
-  },
-  {
-    id: "rightInnerEar",
-    label: "Inside right ear",
-    suggested: { name: "Pink", hex: "#EC407A" },
-    d: "M276 136C318 132 336 160 328 190C320 208 290 198 272 168C268 154 268 140 276 136Z",
-  },
-  {
-    id: "nose",
-    label: "Nose",
-    suggested: { name: "Black", hex: "#212121" },
-    d: "M182 196C172 202 172 216 186 226C194 232 206 232 214 226C228 216 228 202 218 196C210 190 190 190 182 196Z",
-  },
-];
+const LINE_ART = "/puppy-coloring.png";
+const BRUSH = 26;
+const MAX_UNDO = 20;
 
 const COLORS: Swatch[] = [
   { name: "Red", hex: "#E53935" },
@@ -150,208 +32,310 @@ const COLORS: Swatch[] = [
   { name: "White", hex: "#FFFFFF" },
 ];
 
-const STORAGE_KEY = "puppy-paint-v4";
-
-const emptyFills = (): Record<PanelId, string | null> =>
-  Object.fromEntries(PANELS.map((panel) => [panel.id, null])) as Record<
-    PanelId,
-    string | null
-  >;
-
-function panelById(id: PanelId) {
-  return PANELS.find((panel) => panel.id === id)!;
-}
-
-function panelIdFromPoint(x: number, y: number): PanelId | null {
-  const el = document.elementFromPoint(x, y);
-  const host = el?.closest("[data-panel]");
-  const id = host?.getAttribute("data-panel");
-  return id && PANELS.some((panel) => panel.id === id) ? (id as PanelId) : null;
-}
-
-function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
-  const ctm = svg.getScreenCTM();
-  if (!ctm) return null;
-  const pt = svg.createSVGPoint();
-  pt.x = clientX;
-  pt.y = clientY;
-  const mapped = pt.matrixTransform(ctm.inverse());
-  return `${mapped.x.toFixed(1)},${mapped.y.toFixed(1)}`;
-}
-
-function loadSaved(): {
-  fills: Record<PanelId, string | null>;
-  strokes: Stroke[];
-} {
-  if (typeof window === "undefined") return { fills: emptyFills(), strokes: [] };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { fills: emptyFills(), strokes: [] };
-    const parsed = JSON.parse(raw) as {
-      fills?: Partial<Record<PanelId, string | null>>;
-      strokes?: Stroke[];
-    };
-    const fills = emptyFills();
-    for (const panel of PANELS) {
-      const value = parsed.fills?.[panel.id];
-      if (typeof value === "string" || value === null) fills[panel.id] = value;
-    }
-    const strokes = Array.isArray(parsed.strokes)
-      ? parsed.strokes.filter(
-          (stroke) =>
-            stroke &&
-            typeof stroke.points === "string" &&
-            PANELS.some((panel) => panel.id === stroke.panelId)
-        )
-      : [];
-    return { fills, strokes };
-  } catch {
-    return { fills: emptyFills(), strokes: [] };
+function suggestFor(nx: number, ny: number, areaRatio: number): Suggestion {
+  const inDog = nx > 0.18 && nx < 0.72 && ny > 0.12 && ny < 0.9;
+  if (nx > 0.64 && nx < 0.88 && ny > 0.68 && ny < 0.88 && areaRatio < 0.06) {
+    return { label: "the ball", swatch: { name: "Yellow", hex: "#FDD835" } };
   }
+  if (ny < 0.42 && (nx < 0.26 || nx > 0.74)) {
+    return { label: "the trees", swatch: { name: "Green", hex: "#43A047" } };
+  }
+  if (ny < 0.36 && areaRatio > 0.08) {
+    return { label: "the sky", swatch: { name: "Sky", hex: "#4FC3F7" } };
+  }
+  if (ny > 0.72 && (nx < 0.2 || nx > 0.74 || !inDog)) {
+    return { label: "the grass", swatch: { name: "Green", hex: "#66BB6A" } };
+  }
+  if (ny > 0.38 && ny < 0.6 && (nx < 0.22 || nx > 0.76)) {
+    return { label: "the fence", swatch: { name: "Brown", hex: "#8D6E63" } };
+  }
+  if (inDog && ny < 0.42) {
+    if (nx < 0.36) return { label: "the left ear", swatch: { name: "Golden", hex: "#E8B84A" } };
+    if (nx > 0.6) return { label: "the right ear", swatch: { name: "Golden", hex: "#E8B84A" } };
+    if (ny > 0.28 && nx > 0.42 && nx < 0.56) {
+      return { label: "the nose", swatch: { name: "Black", hex: "#212121" } };
+    }
+    return { label: "the head", swatch: { name: "Golden", hex: "#E8B84A" } };
+  }
+  if (inDog && ny > 0.4 && ny < 0.5) {
+    return { label: "the collar", swatch: { name: "Red", hex: "#E53935" } };
+  }
+  if (nx < 0.3 && ny > 0.5 && ny < 0.72) {
+    return { label: "the tail", swatch: { name: "Golden", hex: "#E8B84A" } };
+  }
+  if (inDog && ny > 0.72) {
+    return { label: "a paw", swatch: { name: "Golden", hex: "#E8B84A" } };
+  }
+  if (inDog) {
+    return { label: "the puppy", swatch: { name: "Golden", hex: "#E8B84A" } };
+  }
+  return { label: "this space", swatch: { name: "Sky", hex: "#4FC3F7" } };
+}
+
+function buildWalls(image: HTMLImageElement) {
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  const map = document.createElement("canvas");
+  map.width = width;
+  map.height = height;
+  const ctx = map.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0);
+  const { data } = ctx.getImageData(0, 0, width, height);
+  const walls = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const luma = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      if (data[i + 3] > 20 && luma < 155) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < width && ny < height) {
+              walls[ny * width + nx] = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return { width, height, walls };
+}
+
+function nearestOpen(
+  walls: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number
+) {
+  const sx = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const sy = Math.max(0, Math.min(height - 1, Math.round(y)));
+  if (!walls[sy * width + sx]) return { x: sx, y: sy };
+  for (let r = 1; r <= 24; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = sx + dx;
+        const ny = sy + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!walls[ny * width + nx]) return { x: nx, y: ny };
+      }
+    }
+  }
+  return null;
+}
+
+function floodMask(
+  walls: Uint8Array,
+  width: number,
+  height: number,
+  sx: number,
+  sy: number
+) {
+  const start = nearestOpen(walls, width, height, sx, sy);
+  if (!start) return null;
+  const mask = new Uint8Array(width * height);
+  const stack = [start.x, start.y];
+  let count = 0;
+  let sumX = 0;
+  let sumY = 0;
+  while (stack.length) {
+    const y = stack.pop()!;
+    const x = stack.pop()!;
+    const i = y * width + x;
+    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+    if (walls[i] || mask[i]) continue;
+    mask[i] = 1;
+    count++;
+    sumX += x;
+    sumY += y;
+    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+  }
+  if (count < 20) return null;
+  return {
+    mask,
+    count,
+    cx: sumX / count,
+    cy: sumY / count,
+  };
+}
+
+function maskToCanvas(mask: Uint8Array, width: number, height: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const image = ctx.createImageData(width, height);
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    const p = i * 4;
+    image.data[p] = 255;
+    image.data[p + 1] = 255;
+    image.data[p + 2] = 255;
+    image.data[p + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
 }
 
 export function DogPaint() {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const paintRef = useRef<HTMLCanvasElement>(null);
+  const scratchRef = useRef<HTMLCanvasElement | null>(null);
+  const regionRef = useRef<HTMLCanvasElement | null>(null);
+  const wallsRef = useRef<{ width: number; height: number; walls: Uint8Array } | null>(null);
+  const lastPt = useRef<{ x: number; y: number } | null>(null);
   const drawingRef = useRef(false);
-  const strokeRef = useRef<Stroke | null>(null);
-  const fillsRef = useRef<Record<PanelId, string | null>>(emptyFills());
-  const strokesRef = useRef<Stroke[]>([]);
-  const nextId = useRef(1);
+  const historyRef = useRef<ImageData[]>([]);
 
-  const [fills, setFills] = useState<Record<PanelId, string | null>>(emptyFills);
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [ready, setReady] = useState(false);
   const [pickedColor, setPickedColor] = useState<string | null>(null);
-  const [focusPanel, setFocusPanel] = useState<PanelId | null>(null);
-  const [history, setHistory] = useState<
-    { fills: Record<PanelId, string | null>; strokes: Stroke[] }[]
-  >([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [painted, setPainted] = useState(false);
 
-  fillsRef.current = fills;
-  strokesRef.current = strokes;
+  const brushColor = pickedColor ?? suggestion?.swatch.hex ?? COLORS[10].hex;
 
   useEffect(() => {
-    const saved = loadSaved();
-    setFills(saved.fills);
-    setStrokes(saved.strokes);
-    nextId.current =
-      saved.strokes.reduce((max, stroke) => Math.max(max, stroke.id), 0) + 1;
-    fillsRef.current = saved.fills;
-    strokesRef.current = saved.strokes;
-    setHydrated(true);
+    const image = new Image();
+    image.src = LINE_ART;
+    image.onload = () => {
+      wallsRef.current = buildWalls(image);
+      const paint = paintRef.current;
+      if (!paint) return;
+      paint.width = image.naturalWidth;
+      paint.height = image.naturalHeight;
+      const ctx = paint.getContext("2d")!;
+      ctx.clearRect(0, 0, paint.width, paint.height);
+      const scratch = document.createElement("canvas");
+      scratch.width = paint.width;
+      scratch.height = paint.height;
+      scratchRef.current = scratch;
+      setReady(true);
+    };
   }, []);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ fills, strokes })
-    );
-  }, [fills, strokes, hydrated]);
-
-  const paintedCount = PANELS.filter(
-    (panel) =>
-      fills[panel.id] !== null || strokes.some((stroke) => stroke.panelId === panel.id)
-  ).length;
-  const complete = paintedCount === PANELS.length;
-  const focused = focusPanel ? panelById(focusPanel) : null;
-  const brushColor = pickedColor ?? focused?.suggested.hex ?? COLORS[10].hex;
-
-  const snapshot = () => {
-    setHistory((h) => [
-      ...h.slice(-24),
-      { fills: fillsRef.current, strokes: strokesRef.current },
-    ]);
-  };
-
-  const colorFor = useCallback(
-    (id: PanelId) => pickedColor ?? panelById(id).suggested.hex,
-    [pickedColor]
-  );
-
-  const startOrContinueStroke = (id: PanelId, point: string) => {
-    const color = colorFor(id);
-    const current = strokeRef.current;
-    if (current && current.panelId === id && current.color === color) {
-      current.points += ` ${point}`;
-      setStrokes((prev) =>
-        prev.map((stroke) =>
-          stroke.id === current.id ? { ...current } : stroke
-        )
-      );
-      return;
-    }
-    if (!current) snapshot();
-    const next: Stroke = {
-      id: nextId.current++,
-      panelId: id,
-      color,
-      points: point,
+  const pointFromEvent = (event: React.PointerEvent) => {
+    const paint = paintRef.current;
+    if (!paint) return null;
+    const rect = paint.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * paint.width,
+      y: ((event.clientY - rect.top) / rect.height) * paint.height,
     };
-    strokeRef.current = next;
-    strokesRef.current = [...strokesRef.current, next];
-    setStrokes(strokesRef.current);
   };
 
-  const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    const svg = svgRef.current;
-    if (!svg) return;
-    const id = panelIdFromPoint(event.clientX, event.clientY);
-    if (!id) return;
-    const point = toSvgPoint(svg, event.clientX, event.clientY);
-    if (!point) return;
-    drawingRef.current = true;
-    svg.setPointerCapture(event.pointerId);
-    setFocusPanel(id);
-    startOrContinueStroke(id, point);
+  const pushHistory = () => {
+    const paint = paintRef.current;
+    const ctx = paint?.getContext("2d");
+    if (!paint || !ctx) return;
+    historyRef.current = [
+      ...historyRef.current.slice(-(MAX_UNDO - 1)),
+      ctx.getImageData(0, 0, paint.width, paint.height),
+    ];
+    setCanUndo(true);
   };
 
-  const onPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!drawingRef.current || !svgRef.current) return;
-    const id = panelIdFromPoint(event.clientX, event.clientY);
-    if (!id) {
-      strokeRef.current = null;
-      return;
+  const selectRegion = (x: number, y: number) => {
+    const walls = wallsRef.current;
+    if (!walls) return false;
+    const flooded = floodMask(walls.walls, walls.width, walls.height, x, y);
+    if (!flooded) {
+      regionRef.current = null;
+      return false;
     }
-    setFocusPanel(id);
-    const point = toSvgPoint(svgRef.current, event.clientX, event.clientY);
-    if (point) startOrContinueStroke(id, point);
+    regionRef.current = maskToCanvas(flooded.mask, walls.width, walls.height);
+    const next = suggestFor(
+      flooded.cx / walls.width,
+      flooded.cy / walls.height,
+      flooded.count / (walls.width * walls.height)
+    );
+    setSuggestion(next);
+    return true;
+  };
+
+  const stamp = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const paint = paintRef.current;
+    const scratch = scratchRef.current;
+    const region = regionRef.current;
+    if (!paint || !scratch || !region) return;
+    const sctx = scratch.getContext("2d")!;
+    sctx.clearRect(0, 0, scratch.width, scratch.height);
+    sctx.globalCompositeOperation = "source-over";
+    sctx.strokeStyle = brushColor;
+    sctx.lineWidth = BRUSH;
+    sctx.lineCap = "round";
+    sctx.lineJoin = "round";
+    sctx.beginPath();
+    sctx.moveTo(from.x, from.y);
+    sctx.lineTo(to.x, to.y);
+    sctx.stroke();
+    sctx.globalCompositeOperation = "destination-in";
+    sctx.drawImage(region, 0, 0);
+    paint.getContext("2d")!.drawImage(scratch, 0, 0);
+    setPainted(true);
+  };
+
+  const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const pt = pointFromEvent(event);
+    if (!pt) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    if (!selectRegion(pt.x, pt.y)) return;
+    pushHistory();
+    drawingRef.current = true;
+    lastPt.current = pt;
+    stamp(pt, pt);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current || !lastPt.current) return;
+    const pt = pointFromEvent(event);
+    if (!pt) return;
+    stamp(lastPt.current, pt);
+    lastPt.current = pt;
   };
 
   const onPointerUp = () => {
     drawingRef.current = false;
-    strokeRef.current = null;
+    lastPt.current = null;
   };
 
-  const fillPanel = (id: PanelId, color: string) => {
-    if (fillsRef.current[id] === color) return;
-    snapshot();
-    const next = { ...fillsRef.current, [id]: color };
-    fillsRef.current = next;
-    setFills(next);
-    setFocusPanel(id);
-    setPickedColor(color);
+  const fillRegion = (hex: string) => {
+    const paint = paintRef.current;
+    const region = regionRef.current;
+    const scratch = scratchRef.current;
+    if (!paint || !region || !scratch) return;
+    pushHistory();
+    const sctx = scratch.getContext("2d")!;
+    sctx.clearRect(0, 0, scratch.width, scratch.height);
+    sctx.globalCompositeOperation = "source-over";
+    sctx.fillStyle = hex;
+    sctx.fillRect(0, 0, scratch.width, scratch.height);
+    sctx.globalCompositeOperation = "destination-in";
+    sctx.drawImage(region, 0, 0);
+    paint.getContext("2d")!.drawImage(scratch, 0, 0);
+    setPickedColor(hex);
+    setPainted(true);
   };
 
   const undo = () => {
-    const prev = history[history.length - 1];
-    if (!prev) return;
-    setHistory((h) => h.slice(0, -1));
-    fillsRef.current = prev.fills;
-    strokesRef.current = prev.strokes;
-    setFills(prev.fills);
-    setStrokes(prev.strokes);
+    const prev = historyRef.current.pop();
+    const paint = paintRef.current;
+    if (!prev || !paint) return;
+    paint.getContext("2d")!.putImageData(prev, 0, 0);
+    setCanUndo(historyRef.current.length > 0);
   };
 
   const reset = () => {
-    snapshot();
-    const next = emptyFills();
-    fillsRef.current = next;
-    strokesRef.current = [];
-    setFills(next);
-    setStrokes([]);
-    setFocusPanel(null);
+    const paint = paintRef.current;
+    if (!paint) return;
+    pushHistory();
+    paint.getContext("2d")!.clearRect(0, 0, paint.width, paint.height);
+    setPainted(false);
+    setSuggestion(null);
+    regionRef.current = null;
   };
 
   return (
@@ -359,19 +343,17 @@ export function DogPaint() {
       <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
-            {paintedCount} / {PANELS.length} panels
+            Coloring page
           </p>
           <p className="text-sm text-[var(--color-ink-soft)] mt-1">
-            {complete
-              ? "You painted the whole puppy!"
-              : "Drag your finger inside a panel. The color stays in the lines."}
+            Tap a space for a color idea, then drag to paint. It cannot leave the lines.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={undo}
-            disabled={history.length === 0}
+            disabled={!canUndo}
             className="text-sm px-3 py-1.5 rounded-full border border-[var(--color-line-strong)] disabled:opacity-40 hover:border-[var(--color-ink)] transition-colors"
           >
             Undo
@@ -379,105 +361,63 @@ export function DogPaint() {
           <button
             type="button"
             onClick={reset}
-            className="text-sm px-3 py-1.5 rounded-full border border-[var(--color-line-strong)] hover:border-[var(--color-ink)] transition-colors"
+            disabled={!painted}
+            className="text-sm px-3 py-1.5 rounded-full border border-[var(--color-line-strong)] disabled:opacity-40 hover:border-[var(--color-ink)] transition-colors"
           >
             Clear
           </button>
         </div>
       </div>
 
-      {focused ? (
+      {suggestion ? (
         <div className="mx-5 mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-[var(--color-cream)] px-3 py-2.5">
           <p className="text-sm">
-            <span className="font-medium">{focused.label}</span>
-            <span className="text-[var(--color-muted)]"> — try {focused.suggested.name.toLowerCase()}</span>
+            <span className="text-[var(--color-muted)]">For {suggestion.label}, try </span>
+            <span className="font-medium">{suggestion.swatch.name.toLowerCase()}</span>
           </p>
           <button
             type="button"
-            onClick={() => fillPanel(focused.id, focused.suggested.hex)}
+            onClick={() => fillRegion(suggestion.swatch.hex)}
             className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-white border border-[var(--color-line-strong)] hover:border-[var(--color-ink)] transition-colors"
           >
             <span
               className="w-4 h-4 rounded-full border border-black/15"
-              style={{ background: focused.suggested.hex }}
+              style={{ background: suggestion.swatch.hex }}
             />
-            Use {focused.suggested.name}
+            Fill {suggestion.swatch.name}
           </button>
         </div>
       ) : null}
 
-      <div className="relative px-2 sm:px-6">
-        <svg
-          ref={svgRef}
-          viewBox="0 0 400 490"
-          role="img"
-          aria-label="Puppy coloring page. Drag to paint inside each panel."
-          className="w-full max-w-[440px] mx-auto block select-none touch-none cursor-crosshair"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
-          <defs>
-            {PANELS.map((panel) => (
-              <clipPath key={panel.id} id={`pup-clip-${panel.id}`} clipPathUnits="userSpaceOnUse">
-                <path d={panel.d} />
-              </clipPath>
-            ))}
-          </defs>
-
-          <ellipse cx="200" cy="468" rx="120" ry="12" fill="rgba(42,24,16,0.08)" />
-
-          <g className={complete ? "puppy-tail-wag" : undefined}>
-            <PanelDraw
-              panel={panelById("tail")}
-              fill={fills.tail}
-              strokes={strokes.filter((stroke) => stroke.panelId === "tail")}
-              active={focusPanel === "tail"}
-            />
-          </g>
-
-          {PANELS.filter((panel) => panel.id !== "tail").map((panel) => (
-            <PanelDraw
-              key={panel.id}
-              panel={panel}
-              fill={fills[panel.id]}
-              strokes={strokes.filter((stroke) => stroke.panelId === panel.id)}
-              active={focusPanel === panel.id}
-            />
-          ))}
-
-          <g pointerEvents="none" fill="none" stroke="#1a1a1a" strokeLinejoin="round">
-            {PANELS.map((panel) => (
-              <path key={`outline-${panel.id}`} d={panel.d} strokeWidth="3" />
-            ))}
-          </g>
-
-          <g pointerEvents="none">
-            <ellipse cx="168" cy="132" rx="13" ry="15" fill="#FFFDF8" stroke="#1a1a1a" strokeWidth="2.75" />
-            <ellipse cx="232" cy="132" rx="13" ry="15" fill="#FFFDF8" stroke="#1a1a1a" strokeWidth="2.75" />
-            <ellipse cx="170" cy="135" rx="6" ry="7" fill="#1a1a1a" />
-            <ellipse cx="234" cy="135" rx="6" ry="7" fill="#1a1a1a" />
-            <circle cx="166" cy="129" r="2.2" fill="#FFFDF8" />
-            <circle cx="230" cy="129" r="2.2" fill="#FFFDF8" />
-            <path
-              d="M186 232C192 240 208 240 214 232"
-              fill="none"
-              stroke="#1a1a1a"
-              strokeWidth="2.75"
-              strokeLinecap="round"
-            />
-            {complete ? (
-              <path d="M188 236C194 250 206 250 212 236C206 242 194 242 188 236Z" fill="#F48FB1" />
-            ) : null}
-          </g>
-        </svg>
+      <div ref={wrapRef} className="relative px-2 sm:px-6 pb-2">
+        <div className="relative max-w-[560px] mx-auto aspect-square bg-white">
+          <canvas
+            ref={paintRef}
+            className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={LINE_ART}
+            alt="Puppy coloring page"
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none mix-blend-multiply"
+          />
+          {!ready ? (
+            <p className="absolute inset-0 grid place-items-center text-sm text-[var(--color-muted)]">
+              Loading the coloring page…
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-[var(--color-line)] px-4 py-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <p className="text-sm font-medium">
-            {pickedColor ? "Your color" : "Pick a color, or tap a panel for a suggestion"}
+            {pickedColor ? "Your color" : "Pick a color, or tap the picture for a suggestion"}
           </p>
           <label className="relative w-9 h-9 rounded-full border border-[var(--color-line-strong)] shadow-sm overflow-hidden cursor-pointer shrink-0">
             <span className="sr-only">Pick any color</span>
@@ -494,14 +434,14 @@ export function DogPaint() {
         <div className="grid grid-cols-8 gap-2 max-w-md">
           {COLORS.map((color) => {
             const selected = pickedColor?.toLowerCase() === color.hex.toLowerCase();
-            const suggested = focused?.suggested.hex.toLowerCase() === color.hex.toLowerCase();
+            const suggested = suggestion?.swatch.hex.toLowerCase() === color.hex.toLowerCase();
             return (
               <button
                 key={color.hex + color.name}
                 type="button"
                 onClick={() => setPickedColor(color.hex)}
                 aria-label={color.name}
-                aria-pressed={selected}
+                aria-pressed={!!selected}
                 className={`aspect-square rounded-full border-2 transition-transform ${
                   selected
                     ? "border-[var(--color-ink)] scale-110"
@@ -516,46 +456,5 @@ export function DogPaint() {
         </div>
       </div>
     </div>
-  );
-}
-
-function PanelDraw({
-  panel,
-  fill,
-  strokes,
-  active,
-}: {
-  panel: Panel;
-  fill: string | null;
-  strokes: Stroke[];
-  active: boolean;
-}) {
-  return (
-    <g>
-      <g clipPath={`url(#pup-clip-${panel.id})`}>
-        <path data-panel={panel.id} d={panel.d} fill={fill ?? BLANK} />
-        {strokes.map((stroke) => (
-          <polyline
-            key={stroke.id}
-            points={stroke.points}
-            fill="none"
-            stroke={stroke.color}
-            strokeWidth={BRUSH}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            pointerEvents="none"
-          />
-        ))}
-      </g>
-      {active ? (
-        <path
-          d={panel.d}
-          fill="none"
-          stroke="#4628B8"
-          strokeWidth="4"
-          pointerEvents="none"
-        />
-      ) : null}
-    </g>
   );
 }

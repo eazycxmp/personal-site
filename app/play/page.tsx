@@ -30,7 +30,7 @@ const GAMES = [
     slug: "paint",
     title: "Paint the Pup",
     tag: "Color · Kids",
-    body: "A white puppy coloring page. Tap a panel for a suggested color, then finger-paint inside the lines. The color cannot leave that space.",
+    body: "A puppy coloring page. Tap a space for a suggested color, then finger-paint. The color stays inside the lines.",
     status: "Live",
   },
 ];
