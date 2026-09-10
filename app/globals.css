@@ -157,6 +157,13 @@ html { scroll-behavior: smooth; }
   50% { transform: rotate(9deg); }
 }
 .puppy-tail-wag {
-  transform-origin: 118px 360px;
+  transform-origin: 110px 330px;
   animation: puppy-wag 0.45s ease-in-out infinite;
+}
+
+@keyframes puppy-panel-pulse {
+  50% { stroke: #4628B8; stroke-width: 4.5px; }
+}
+.puppy-panel-hint {
+  animation: puppy-panel-pulse 1.1s ease-in-out infinite;
 }

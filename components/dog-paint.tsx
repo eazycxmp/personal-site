@@ -30,92 +30,92 @@ const PANELS: Panel[] = [
   {
     id: "tail",
     label: "Tail",
-    shade: "#8A7560",
-    d: "M108 338C55 322 26 356 40 402C51 432 88 420 118 386C130 368 124 348 108 338Z",
+    shade: "#7A624C",
+    d: "M92 308C22 278 2 332 18 384C30 418 78 400 112 348C122 324 114 312 92 308Z",
   },
   {
     id: "saddle",
     label: "Back",
-    shade: "#7A6550",
-    d: "M120 276C76 298 70 358 94 408C126 386 274 386 306 408C330 358 324 298 280 276C244 250 156 250 120 276Z",
+    shade: "#6B5340",
+    d: "M98 262C68 286 64 344 88 390L140 362C148 322 154 290 166 268H234C246 290 252 322 260 362L312 390C336 344 332 286 302 262C256 234 144 234 98 262Z",
   },
   {
     id: "belly",
     label: "Belly",
-    shade: "#D4C4B0",
-    d: "M118 366C106 400 120 446 158 462C184 472 216 472 242 462C280 446 294 400 282 366C250 390 150 390 118 366Z",
+    shade: "#D2BFA8",
+    d: "M122 358C104 388 116 434 154 450C180 460 220 460 246 450C284 434 296 388 278 358C242 378 158 378 122 358Z",
   },
   {
     id: "leftLeg",
     label: "Left paw",
-    shade: "#B89F86",
-    d: "M124 394C110 412 108 458 117 476C126 492 160 494 172 476C183 460 176 418 164 396C151 384 136 384 124 394Z",
+    shade: "#B08968",
+    d: "M116 396C98 418 96 464 110 482C122 496 164 498 176 478C186 462 178 424 164 402C148 386 130 386 116 396Z",
   },
   {
     id: "rightLeg",
     label: "Right paw",
-    shade: "#B89F86",
-    d: "M276 394C290 412 292 458 283 476C274 492 240 494 228 476C217 460 224 418 236 396C249 384 264 384 276 394Z",
+    shade: "#B08968",
+    d: "M284 396C302 418 304 464 290 482C278 496 236 498 224 478C214 462 222 424 236 402C252 386 270 386 284 396Z",
   },
   {
     id: "chest",
     label: "Chest",
-    shade: "#EDE4D8",
-    d: "M154 270C130 296 128 348 154 372C176 390 224 390 246 372C272 348 270 296 246 270C224 250 176 250 154 270Z",
+    shade: "#F4EDE3",
+    d: "M166 256C142 280 140 328 164 350C182 364 218 364 236 350C260 328 258 280 234 256C216 244 184 244 166 256Z",
   },
   {
     id: "leftEar",
     label: "Left ear",
-    shade: "#8A7560",
-    d: "M150 148C94 68 20 106 46 188C58 232 118 228 156 186C166 170 164 156 150 148Z",
+    shade: "#6E5A48",
+    d: "M128 122C52 128 22 188 38 240C50 274 102 262 130 208C142 176 144 140 128 122Z",
   },
   {
     id: "rightEar",
     label: "Right ear",
-    shade: "#8A7560",
-    d: "M250 148C306 68 380 106 354 188C342 232 282 228 244 186C234 170 236 156 250 148Z",
+    shade: "#6E5A48",
+    d: "M272 122C348 128 378 188 362 240C350 274 298 262 270 208C258 176 256 140 272 122Z",
   },
   {
     id: "forehead",
     label: "Forehead",
-    shade: "#A89078",
-    d: "M132 150C148 86 252 86 268 150C250 182 226 204 200 204C174 204 150 182 132 150Z",
+    shade: "#A38468",
+    d: "M122 158C128 80 272 80 278 158C252 176 148 176 122 158Z",
   },
   {
     id: "leftCheek",
     label: "Left cheek",
-    shade: "#C4AE96",
-    d: "M132 150C84 172 76 250 124 276C150 270 172 244 178 218C170 184 150 158 132 150Z",
+    shade: "#C9AE94",
+    d: "M122 158C94 178 90 232 124 254C146 250 160 222 164 186C150 166 134 158 122 158Z",
   },
   {
     id: "rightCheek",
     label: "Right cheek",
-    shade: "#C4AE96",
-    d: "M268 150C316 172 324 250 276 276C250 270 228 244 222 218C230 184 250 158 268 150Z",
+    shade: "#C9AE94",
+    d: "M278 158C306 178 310 232 276 254C254 250 240 222 236 186C250 166 266 158 278 158Z",
   },
   {
     id: "muzzle",
     label: "Muzzle",
-    shade: "#E2D3C2",
-    d: "M154 198C142 216 144 272 176 288C190 296 210 296 224 288C256 272 258 216 246 198C230 184 170 184 154 198Z",
+    shade: "#E8D8C4",
+    d: "M164 176C148 196 148 242 176 258C190 266 210 266 224 258C252 242 252 196 236 176C220 164 180 164 164 176Z",
   },
   {
     id: "leftInnerEar",
     label: "Inside left ear",
-    shade: "#C9B09A",
-    d: "M138 158C100 116 66 134 76 182C83 206 120 202 142 176C149 166 145 160 138 158Z",
+    shade: "#E0B8A8",
+    d: "M120 142C70 150 54 188 64 222C72 242 102 232 122 192C130 172 130 150 120 142Z",
   },
   {
     id: "rightInnerEar",
     label: "Inside right ear",
-    shade: "#C9B09A",
-    d: "M262 158C300 116 334 134 324 182C317 206 280 202 258 176C251 166 255 160 262 158Z",
+    shade: "#E0B8A8",
+    d: "M280 142C330 150 346 188 336 222C328 242 298 232 278 192C270 172 270 150 280 142Z",
   },
   {
     id: "nose",
     label: "Nose",
-    shade: "#4A3A32",
-    d: "M182 232C172 238 170 252 184 264C193 271 207 271 216 264C230 252 228 238 218 232C210 224 190 224 182 232Z",
+    shade: "#3D2A24",
+    d: "M180 208C168 216 166 232 184 244C194 252 206 252 216 244C234 232 232 216 220 208C210 200 190 200 180 208Z",
   },
 ];
 
@@ -138,7 +138,7 @@ const COLORS = [
   { name: "White", hex: "#FAFAFA" },
 ] as const;
 
-const STORAGE_KEY = "puppy-paint-v1";
+const STORAGE_KEY = "puppy-paint-v2";
 
 const emptyFills = (): Record<PanelId, string | null> =>
   Object.fromEntries(PANELS.map((panel) => [panel.id, null])) as Record<
@@ -191,8 +191,10 @@ export function DogPaint() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(fills));
   }, [fills, hydrated]);
 
-  const paintedCount = PANELS.filter((panel) => fills[panel.id] !== null).length;
-  const complete = paintedCount === PANELS.length;
+  const remaining = PANELS.filter((panel) => fills[panel.id] === null);
+  const paintedCount = PANELS.length - remaining.length;
+  const complete = remaining.length === 0;
+  const hintUnpainted = remaining.length > 0 && remaining.length <= 5;
 
   const paint = useCallback(
     (id: PanelId) => {
@@ -258,6 +260,11 @@ export function DogPaint() {
                 ? `Painting the ${activeLabel.toLowerCase()}`
                 : "Pick a color, then press a part of the dog."}
           </p>
+          {!complete && remaining.length > 0 && remaining.length <= 8 ? (
+            <p className="text-xs text-[var(--color-muted)] mt-1">
+              Still open: {remaining.map((panel) => panel.label).join(", ")}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -280,16 +287,16 @@ export function DogPaint() {
 
       <div className="relative px-2 sm:px-6">
         <svg
-          viewBox="0 0 400 500"
+          viewBox="0 0 400 510"
           role="img"
           aria-label="Puppy coloring page with 15 shade panels"
-          className="w-full max-w-[420px] mx-auto block select-none touch-none cursor-pointer"
+          className="w-full max-w-[440px] mx-auto block select-none touch-none cursor-pointer"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          <ellipse cx="200" cy="472" rx="118" ry="14" fill="rgba(42,24,16,0.08)" />
+          <ellipse cx="200" cy="488" rx="128" ry="14" fill="rgba(42,24,16,0.08)" />
 
           <g className={complete ? "puppy-tail-wag" : undefined}>
             {PANELS.filter((panel) => panel.id === "tail").map((panel) => (
@@ -299,16 +306,9 @@ export function DogPaint() {
                 fill={fills[panel.id] ?? panel.shade}
                 painted={fills[panel.id] !== null}
                 active={activePanel === panel.id}
+                hint={!complete && hintUnpainted && fills[panel.id] === null}
               />
             ))}
-            <path
-              d="M108 338C55 322 26 356 40 402C51 432 88 420 118 386"
-              fill="none"
-              stroke="#2A1810"
-              strokeWidth="4"
-              strokeLinecap="round"
-              pointerEvents="none"
-            />
           </g>
 
           {PANELS.filter((panel) => panel.id !== "tail").map((panel) => (
@@ -318,73 +318,57 @@ export function DogPaint() {
               fill={fills[panel.id] ?? panel.shade}
               painted={fills[panel.id] !== null}
               active={activePanel === panel.id}
+              hint={!complete && hintUnpainted && fills[panel.id] === null}
             />
           ))}
 
           <g pointerEvents="none" fill="none" stroke="#2A1810" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M128 122C52 128 22 188 38 240C50 274 102 262 130 208" strokeWidth="4" />
+            <path d="M272 122C348 128 378 188 362 240C350 274 298 262 270 208" strokeWidth="4" />
             <path
-              d="M150 148C94 68 20 106 46 188C58 232 118 228 156 186"
-              strokeWidth="4"
-            />
-            <path
-              d="M250 148C306 68 380 106 354 188C342 232 282 228 244 186"
-              strokeWidth="4"
-            />
-            <path
-              d="M132 150C84 172 76 250 124 276C150 292 176 300 200 300C224 300 250 292 276 276C324 250 316 172 268 150C252 86 148 86 132 150Z"
+              d="M122 158C128 80 272 80 278 158C306 178 310 232 276 254C252 268 224 274 200 274C176 274 148 268 124 254C90 232 94 178 122 158Z"
               strokeWidth="4.5"
             />
             <path
-              d="M120 276C76 298 70 358 94 408C110 430 140 455 200 458C260 455 290 430 306 408C330 358 324 298 280 276"
+              d="M98 262C68 286 64 344 88 390C104 418 140 450 200 454C260 450 296 418 312 390C336 344 332 286 302 262"
               strokeWidth="4.5"
             />
-            <path
-              d="M124 394C110 412 108 458 117 476C126 492 160 494 172 476C183 460 176 418 164 396"
-              strokeWidth="4"
-            />
-            <path
-              d="M276 394C290 412 292 458 283 476C274 492 240 494 228 476C217 460 224 418 236 396"
-              strokeWidth="4"
-            />
+            <path d="M116 396C98 418 96 464 110 482C122 496 164 498 176 478" strokeWidth="4" />
+            <path d="M284 396C302 418 304 464 290 482C278 496 236 498 224 478" strokeWidth="4" />
+            <path d="M92 308C22 278 2 332 18 384C30 418 78 400 112 348" strokeWidth="4" />
           </g>
 
           <g pointerEvents="none">
-            <ellipse cx="168" cy="176" rx="17" ry="19" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
-            <ellipse cx="232" cy="176" rx="17" ry="19" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
-            <ellipse cx="171" cy="180" rx="8.5" ry="10" fill="#2A1810" />
-            <ellipse cx="235" cy="180" rx="8.5" ry="10" fill="#2A1810" />
-            <circle cx="166" cy="173" r="3.2" fill="#FFFDF8" />
-            <circle cx="230" cy="173" r="3.2" fill="#FFFDF8" />
+            <ellipse cx="164" cy="152" rx="16" ry="18" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
+            <ellipse cx="236" cy="152" rx="16" ry="18" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
+            <ellipse cx="167" cy="156" rx="8" ry="9.5" fill="#2A1810" />
+            <ellipse cx="239" cy="156" rx="8" ry="9.5" fill="#2A1810" />
+            <circle cx="162" cy="149" r="3" fill="#FFFDF8" />
+            <circle cx="234" cy="149" r="3" fill="#FFFDF8" />
             <path
-              d="M188 262C192 268 208 268 212 262"
+              d="M186 248C192 258 208 258 214 248"
               fill="none"
               stroke="#2A1810"
               strokeWidth="3"
               strokeLinecap="round"
             />
             {complete ? (
-              <path d="M188 266C194 280 206 280 212 266C206 272 194 272 188 266Z" fill="#F48FB1" />
+              <path d="M188 252C194 268 206 268 212 252C206 258 194 258 188 252Z" fill="#F48FB1" />
             ) : null}
+            <path d="M200 244V254" fill="none" stroke="#2A1810" strokeWidth="3" strokeLinecap="round" />
+            <circle cx="174" cy="236" r="2.1" fill="#2A1810" />
+            <circle cx="226" cy="236" r="2.1" fill="#2A1810" />
+            <circle cx="166" cy="244" r="1.7" fill="#2A1810" />
+            <circle cx="234" cy="244" r="1.7" fill="#2A1810" />
             <path
-              d="M200 264V272"
-              fill="none"
-              stroke="#2A1810"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <circle cx="176" cy="248" r="2.2" fill="#2A1810" />
-            <circle cx="224" cy="248" r="2.2" fill="#2A1810" />
-            <circle cx="168" cy="256" r="1.8" fill="#2A1810" />
-            <circle cx="232" cy="256" r="1.8" fill="#2A1810" />
-            <path
-              d="M140 456C146 450 154 450 160 456"
+              d="M132 470C140 462 150 462 158 470"
               fill="none"
               stroke="#2A1810"
               strokeWidth="2.5"
               strokeLinecap="round"
             />
             <path
-              d="M240 456C246 450 254 450 260 456"
+              d="M242 470C250 462 260 462 268 470"
               fill="none"
               stroke="#2A1810"
               strokeWidth="2.5"
@@ -439,21 +423,23 @@ function PanelPath({
   fill,
   painted,
   active,
+  hint,
 }: {
   panel: Panel;
   fill: string;
   painted: boolean;
   active: boolean;
+  hint: boolean;
 }) {
   return (
     <path
       data-panel={panel.id}
       d={panel.d}
       fill={fill}
-      stroke={active ? "#1a1a1a" : painted ? "rgba(42,24,16,0.35)" : "rgba(42,24,16,0.22)"}
-      strokeWidth={active ? 3.5 : 2}
+      stroke={active ? "#1a1a1a" : "#2A1810"}
+      strokeWidth={active ? 4 : 2.75}
       strokeLinejoin="round"
-      className="transition-[fill,stroke] duration-150"
+      className={`transition-[fill,stroke-width] duration-150 ${hint ? "puppy-panel-hint" : ""}`}
       role="button"
       aria-label={`Paint the ${panel.label.toLowerCase()}`}
       tabIndex={-1}
