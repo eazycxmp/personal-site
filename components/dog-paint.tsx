@@ -86,19 +86,13 @@ function buildWalls(image: HTMLImageElement) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
       const luma = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      if (data[i + 3] > 20 && luma < 155) {
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < width && ny < height) {
-              walls[ny * width + nx] = 1;
-            }
-          }
-        }
+      if (data[i + 3] > 20 && luma < 160) {
+        walls[y * width + x] = 1;
       }
     }
   }
+  const ground = Math.round(height * 0.883);
+  for (let x = 0; x < width; x++) walls[ground * width + x] = 1;
   return { width, height, walls };
 }
 
@@ -180,7 +174,6 @@ function maskToCanvas(mask: Uint8Array, width: number, height: number) {
 }
 
 export function DogPaint() {
-  const wrapRef = useRef<HTMLDivElement>(null);
   const paintRef = useRef<HTMLCanvasElement>(null);
   const scratchRef = useRef<HTMLCanvasElement | null>(null);
   const regionRef = useRef<HTMLCanvasElement | null>(null);
@@ -198,21 +191,34 @@ export function DogPaint() {
   const brushColor = pickedColor ?? suggestion?.swatch.hex ?? COLORS[10].hex;
 
   useEffect(() => {
+    let cancelled = false;
     const image = new Image();
     image.src = LINE_ART;
-    image.onload = () => {
+
+    const setup = () => {
+      if (cancelled) return;
       wallsRef.current = buildWalls(image);
       const paint = paintRef.current;
-      if (!paint) return;
+      if (!paint) {
+        requestAnimationFrame(setup);
+        return;
+      }
       paint.width = image.naturalWidth;
       paint.height = image.naturalHeight;
-      const ctx = paint.getContext("2d")!;
-      ctx.clearRect(0, 0, paint.width, paint.height);
+      paint.getContext("2d")!.clearRect(0, 0, paint.width, paint.height);
       const scratch = document.createElement("canvas");
       scratch.width = paint.width;
       scratch.height = paint.height;
       scratchRef.current = scratch;
       setReady(true);
+    };
+
+    if (image.complete && image.naturalWidth > 0) setup();
+    else image.onload = setup;
+    image.onerror = () => setReady(false);
+
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -389,7 +395,7 @@ export function DogPaint() {
         </div>
       ) : null}
 
-      <div ref={wrapRef} className="relative px-2 sm:px-6 pb-2">
+      <div className="relative px-2 sm:px-6 pb-2">
         <div className="relative max-w-[560px] mx-auto aspect-square bg-white">
           <canvas
             ref={paintRef}
