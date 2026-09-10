@@ -21,9 +21,9 @@ export default function PaintPage() {
             Paint the Pup
           </h1>
           <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
-            A puppy coloring page with 15 shade panels. Pick a color, press a part of
-            the dog, and the paint stays inside the lines. Each panel can be its own
-            color. Built for little fingers.
+            A simple white coloring page. Tap a part of the puppy for a color
+            suggestion, then drag your finger to draw. The paint stays inside
+            that panel.
           </p>
         </div>
         <DogPaint />

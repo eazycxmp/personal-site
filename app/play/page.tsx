@@ -30,7 +30,7 @@ const GAMES = [
     slug: "paint",
     title: "Paint the Pup",
     tag: "Color · Kids",
-    body: "A puppy split into 15 shade panels. Pick a color, press a part of the dog, and the paint stays inside the lines. Easy enough for a kid to color with a finger.",
+    body: "A white puppy coloring page. Tap a panel for a suggested color, then finger-paint inside the lines. The color cannot leave that space.",
     status: "Live",
   },
 ];

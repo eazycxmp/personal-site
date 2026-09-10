@@ -13,113 +13,125 @@ type PanelId =
   | "muzzle"
   | "nose"
   | "chest"
-  | "saddle"
+  | "body"
   | "belly"
   | "leftLeg"
   | "rightLeg"
   | "tail";
 
+type Swatch = { name: string; hex: string };
+
 type Panel = {
   id: PanelId;
   label: string;
   d: string;
-  shade: string;
+  suggested: Swatch;
 };
+
+type Stroke = {
+  id: number;
+  panelId: PanelId;
+  color: string;
+  points: string;
+};
+
+const BLANK = "#FFFFFF";
+const BRUSH = 28;
 
 const PANELS: Panel[] = [
   {
     id: "tail",
     label: "Tail",
-    shade: "#7A624C",
-    d: "M92 308C22 278 2 332 18 384C30 418 78 400 112 348C122 324 114 312 92 308Z",
+    suggested: { name: "Brown", hex: "#8D6E63" },
+    d: "M86 300C28 278 8 328 24 368C36 394 78 376 108 332C116 314 108 304 86 300Z",
   },
   {
-    id: "saddle",
+    id: "body",
     label: "Back",
-    shade: "#6B5340",
-    d: "M98 262C68 286 64 344 88 390L140 362C148 322 154 290 166 268H234C246 290 252 322 260 362L312 390C336 344 332 286 302 262C256 234 144 234 98 262Z",
+    suggested: { name: "Caramel", hex: "#C68642" },
+    d: "M108 248C72 272 68 348 102 398C138 428 262 428 298 398C332 348 328 272 292 248C250 222 150 222 108 248Z",
   },
   {
     id: "belly",
     label: "Belly",
-    shade: "#D2BFA8",
-    d: "M122 358C104 388 116 434 154 450C180 460 220 460 246 450C284 434 296 388 278 358C242 378 158 378 122 358Z",
+    suggested: { name: "Cream", hex: "#F3E6D4" },
+    d: "M148 338C128 360 136 404 176 418C200 426 200 426 224 418C264 404 272 360 252 338C228 354 172 354 148 338Z",
   },
   {
     id: "leftLeg",
     label: "Left paw",
-    shade: "#B08968",
-    d: "M116 396C98 418 96 464 110 482C122 496 164 498 176 478C186 462 178 424 164 402C148 386 130 386 116 396Z",
+    suggested: { name: "Golden", hex: "#E8B84A" },
+    d: "M128 392C112 414 114 454 132 466C148 476 176 472 184 452C188 428 168 400 150 390C142 386 134 386 128 392Z",
   },
   {
     id: "rightLeg",
     label: "Right paw",
-    shade: "#B08968",
-    d: "M284 396C302 418 304 464 290 482C278 496 236 498 224 478C214 462 222 424 236 402C252 386 270 386 284 396Z",
+    suggested: { name: "Golden", hex: "#E8B84A" },
+    d: "M272 392C288 414 286 454 268 466C252 476 224 472 216 452C212 428 232 400 250 390C258 386 266 386 272 392Z",
   },
   {
     id: "chest",
     label: "Chest",
-    shade: "#F4EDE3",
-    d: "M166 256C142 280 140 328 164 350C182 364 218 364 236 350C260 328 258 280 234 256C216 244 184 244 166 256Z",
+    suggested: { name: "Cream", hex: "#F3E6D4" },
+    d: "M168 258C148 280 148 322 172 344C188 356 212 356 228 344C252 322 252 280 232 258C216 246 184 246 168 258Z",
   },
   {
     id: "leftEar",
     label: "Left ear",
-    shade: "#6E5A48",
-    d: "M128 122C52 128 22 188 38 240C50 274 102 262 130 208C142 176 144 140 128 122Z",
+    suggested: { name: "Brown", hex: "#8D6E63" },
+    d: "M132 118C70 108 36 148 48 196C58 228 104 216 136 168C142 148 142 126 132 118Z",
   },
   {
     id: "rightEar",
     label: "Right ear",
-    shade: "#6E5A48",
-    d: "M272 122C348 128 378 188 362 240C350 274 298 262 270 208C258 176 256 140 272 122Z",
+    suggested: { name: "Brown", hex: "#8D6E63" },
+    d: "M268 118C330 108 364 148 352 196C342 228 296 216 264 168C258 148 258 126 268 118Z",
   },
   {
     id: "forehead",
     label: "Forehead",
-    shade: "#A38468",
-    d: "M122 158C128 80 272 80 278 158C252 176 148 176 122 158Z",
+    suggested: { name: "Golden", hex: "#E8B84A" },
+    d: "M128 148C136 78 264 78 272 148C246 164 154 164 128 148Z",
   },
   {
     id: "leftCheek",
     label: "Left cheek",
-    shade: "#C9AE94",
-    d: "M122 158C94 178 90 232 124 254C146 250 160 222 164 186C150 166 134 158 122 158Z",
+    suggested: { name: "Golden", hex: "#E8B84A" },
+    d: "M128 148C100 168 98 214 130 234C152 228 164 200 166 172C154 156 140 148 128 148Z",
   },
   {
     id: "rightCheek",
     label: "Right cheek",
-    shade: "#C9AE94",
-    d: "M278 158C306 178 310 232 276 254C254 250 240 222 236 186C250 166 266 158 278 158Z",
+    suggested: { name: "Golden", hex: "#E8B84A" },
+    d: "M272 148C300 168 302 214 270 234C248 228 236 200 234 172C246 156 260 148 272 148Z",
   },
   {
     id: "muzzle",
     label: "Muzzle",
-    shade: "#E8D8C4",
-    d: "M164 176C148 196 148 242 176 258C190 266 210 266 224 258C252 242 252 196 236 176C220 164 180 164 164 176Z",
+    suggested: { name: "Cream", hex: "#F3E6D4" },
+    d: "M162 168C148 186 150 226 178 240C192 248 208 248 222 240C250 226 252 186 238 168C222 156 178 156 162 168Z",
   },
   {
     id: "leftInnerEar",
     label: "Inside left ear",
-    shade: "#E0B8A8",
-    d: "M120 142C70 150 54 188 64 222C72 242 102 232 122 192C130 172 130 150 120 142Z",
+    suggested: { name: "Pink", hex: "#EC407A" },
+    d: "M124 136C82 132 64 160 72 190C80 208 110 198 128 168C132 154 132 140 124 136Z",
   },
   {
     id: "rightInnerEar",
     label: "Inside right ear",
-    shade: "#E0B8A8",
-    d: "M280 142C330 150 346 188 336 222C328 242 298 232 278 192C270 172 270 150 280 142Z",
+    suggested: { name: "Pink", hex: "#EC407A" },
+    d: "M276 136C318 132 336 160 328 190C320 208 290 198 272 168C268 154 268 140 276 136Z",
   },
   {
     id: "nose",
     label: "Nose",
-    shade: "#3D2A24",
-    d: "M180 208C168 216 166 232 184 244C194 252 206 252 216 244C234 232 232 216 220 208C210 200 190 200 180 208Z",
+    suggested: { name: "Black", hex: "#212121" },
+    d: "M182 196C172 202 172 216 186 226C194 232 206 232 214 226C228 216 228 202 218 196C210 190 190 190 182 196Z",
   },
 ];
 
-const COLORS = [
+const COLORS: Swatch[] = [
   { name: "Red", hex: "#E53935" },
   { name: "Orange", hex: "#FB8C00" },
   { name: "Yellow", hex: "#FDD835" },
@@ -132,13 +144,13 @@ const COLORS = [
   { name: "Pink", hex: "#EC407A" },
   { name: "Golden", hex: "#E8B84A" },
   { name: "Caramel", hex: "#C68642" },
-  { name: "Brown", hex: "#6D4C41" },
+  { name: "Brown", hex: "#8D6E63" },
   { name: "Cream", hex: "#F3E6D4" },
   { name: "Black", hex: "#212121" },
-  { name: "White", hex: "#FAFAFA" },
-] as const;
+  { name: "White", hex: "#FFFFFF" },
+];
 
-const STORAGE_KEY = "puppy-paint-v2";
+const STORAGE_KEY = "puppy-paint-v4";
 
 const emptyFills = (): Record<PanelId, string | null> =>
   Object.fromEntries(PANELS.map((panel) => [panel.id, null])) as Record<
@@ -146,21 +158,8 @@ const emptyFills = (): Record<PanelId, string | null> =>
     string | null
   >;
 
-function loadSaved(): Record<PanelId, string | null> {
-  if (typeof window === "undefined") return emptyFills();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyFills();
-    const parsed = JSON.parse(raw) as Partial<Record<PanelId, string | null>>;
-    const next = emptyFills();
-    for (const panel of PANELS) {
-      const value = parsed[panel.id];
-      if (typeof value === "string" || value === null) next[panel.id] = value;
-    }
-    return next;
-  } catch {
-    return emptyFills();
-  }
+function panelById(id: PanelId) {
+  return PANELS.find((panel) => panel.id === id)!;
 }
 
 function panelIdFromPoint(x: number, y: number): PanelId | null {
@@ -170,101 +169,203 @@ function panelIdFromPoint(x: number, y: number): PanelId | null {
   return id && PANELS.some((panel) => panel.id === id) ? (id as PanelId) : null;
 }
 
+function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const mapped = pt.matrixTransform(ctm.inverse());
+  return `${mapped.x.toFixed(1)},${mapped.y.toFixed(1)}`;
+}
+
+function loadSaved(): {
+  fills: Record<PanelId, string | null>;
+  strokes: Stroke[];
+} {
+  if (typeof window === "undefined") return { fills: emptyFills(), strokes: [] };
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { fills: emptyFills(), strokes: [] };
+    const parsed = JSON.parse(raw) as {
+      fills?: Partial<Record<PanelId, string | null>>;
+      strokes?: Stroke[];
+    };
+    const fills = emptyFills();
+    for (const panel of PANELS) {
+      const value = parsed.fills?.[panel.id];
+      if (typeof value === "string" || value === null) fills[panel.id] = value;
+    }
+    const strokes = Array.isArray(parsed.strokes)
+      ? parsed.strokes.filter(
+          (stroke) =>
+            stroke &&
+            typeof stroke.points === "string" &&
+            PANELS.some((panel) => panel.id === stroke.panelId)
+        )
+      : [];
+    return { fills, strokes };
+  } catch {
+    return { fills: emptyFills(), strokes: [] };
+  }
+}
+
 export function DogPaint() {
-  const paintingRef = useRef(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const drawingRef = useRef(false);
+  const strokeRef = useRef<Stroke | null>(null);
   const fillsRef = useRef<Record<PanelId, string | null>>(emptyFills());
+  const strokesRef = useRef<Stroke[]>([]);
+  const nextId = useRef(1);
+
   const [fills, setFills] = useState<Record<PanelId, string | null>>(emptyFills);
-  const [selectedColor, setSelectedColor] = useState<string>(COLORS[10].hex);
-  const [activePanel, setActivePanel] = useState<PanelId | null>(null);
-  const [history, setHistory] = useState<Record<PanelId, string | null>[]>([]);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [pickedColor, setPickedColor] = useState<string | null>(null);
+  const [focusPanel, setFocusPanel] = useState<PanelId | null>(null);
+  const [history, setHistory] = useState<
+    { fills: Record<PanelId, string | null>; strokes: Stroke[] }[]
+  >([]);
   const [hydrated, setHydrated] = useState(false);
 
   fillsRef.current = fills;
+  strokesRef.current = strokes;
 
   useEffect(() => {
-    setFills(loadSaved());
+    const saved = loadSaved();
+    setFills(saved.fills);
+    setStrokes(saved.strokes);
+    nextId.current =
+      saved.strokes.reduce((max, stroke) => Math.max(max, stroke.id), 0) + 1;
+    fillsRef.current = saved.fills;
+    strokesRef.current = saved.strokes;
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(fills));
-  }, [fills, hydrated]);
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ fills, strokes })
+    );
+  }, [fills, strokes, hydrated]);
 
-  const remaining = PANELS.filter((panel) => fills[panel.id] === null);
-  const paintedCount = PANELS.length - remaining.length;
-  const complete = remaining.length === 0;
-  const hintUnpainted = remaining.length > 0 && remaining.length <= 5;
+  const paintedCount = PANELS.filter(
+    (panel) =>
+      fills[panel.id] !== null || strokes.some((stroke) => stroke.panelId === panel.id)
+  ).length;
+  const complete = paintedCount === PANELS.length;
+  const focused = focusPanel ? panelById(focusPanel) : null;
+  const brushColor = pickedColor ?? focused?.suggested.hex ?? COLORS[10].hex;
 
-  const paint = useCallback(
-    (id: PanelId) => {
-      setActivePanel(id);
-      const prev = fillsRef.current;
-      if (prev[id] === selectedColor) return;
-      setHistory((h) => [...h.slice(-24), prev]);
-      const next = { ...prev, [id]: selectedColor };
-      fillsRef.current = next;
-      setFills(next);
-    },
-    [selectedColor]
+  const snapshot = () => {
+    setHistory((h) => [
+      ...h.slice(-24),
+      { fills: fillsRef.current, strokes: strokesRef.current },
+    ]);
+  };
+
+  const colorFor = useCallback(
+    (id: PanelId) => pickedColor ?? panelById(id).suggested.hex,
+    [pickedColor]
   );
+
+  const startOrContinueStroke = (id: PanelId, point: string) => {
+    const color = colorFor(id);
+    const current = strokeRef.current;
+    if (current && current.panelId === id && current.color === color) {
+      current.points += ` ${point}`;
+      setStrokes((prev) =>
+        prev.map((stroke) =>
+          stroke.id === current.id ? { ...current } : stroke
+        )
+      );
+      return;
+    }
+    if (!current) snapshot();
+    const next: Stroke = {
+      id: nextId.current++,
+      panelId: id,
+      color,
+      points: point,
+    };
+    strokeRef.current = next;
+    strokesRef.current = [...strokesRef.current, next];
+    setStrokes(strokesRef.current);
+  };
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     event.preventDefault();
-    paintingRef.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    const svg = svgRef.current;
+    if (!svg) return;
     const id = panelIdFromPoint(event.clientX, event.clientY);
-    if (id) paint(id);
+    if (!id) return;
+    const point = toSvgPoint(svg, event.clientX, event.clientY);
+    if (!point) return;
+    drawingRef.current = true;
+    svg.setPointerCapture(event.pointerId);
+    setFocusPanel(id);
+    startOrContinueStroke(id, point);
   };
 
   const onPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!paintingRef.current) return;
+    if (!drawingRef.current || !svgRef.current) return;
     const id = panelIdFromPoint(event.clientX, event.clientY);
-    if (id) paint(id);
-    else setActivePanel(null);
+    if (!id) {
+      strokeRef.current = null;
+      return;
+    }
+    setFocusPanel(id);
+    const point = toSvgPoint(svgRef.current, event.clientX, event.clientY);
+    if (point) startOrContinueStroke(id, point);
   };
 
   const onPointerUp = () => {
-    paintingRef.current = false;
-    setActivePanel(null);
+    drawingRef.current = false;
+    strokeRef.current = null;
+  };
+
+  const fillPanel = (id: PanelId, color: string) => {
+    if (fillsRef.current[id] === color) return;
+    snapshot();
+    const next = { ...fillsRef.current, [id]: color };
+    fillsRef.current = next;
+    setFills(next);
+    setFocusPanel(id);
+    setPickedColor(color);
   };
 
   const undo = () => {
     const prev = history[history.length - 1];
     if (!prev) return;
     setHistory((h) => h.slice(0, -1));
-    fillsRef.current = prev;
-    setFills(prev);
+    fillsRef.current = prev.fills;
+    strokesRef.current = prev.strokes;
+    setFills(prev.fills);
+    setStrokes(prev.strokes);
   };
 
   const reset = () => {
-    setHistory((h) => [...h, fills]);
+    snapshot();
     const next = emptyFills();
     fillsRef.current = next;
+    strokesRef.current = [];
     setFills(next);
+    setStrokes([]);
+    setFocusPanel(null);
   };
-
-  const activeLabel = PANELS.find((panel) => panel.id === activePanel)?.label;
 
   return (
     <div className="rounded-2xl border border-[var(--color-line-strong)] bg-white overflow-hidden">
-      <div className="px-5 pt-5 pb-2 flex items-start justify-between gap-4">
+      <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
             {paintedCount} / {PANELS.length} panels
           </p>
-          <p className="text-sm text-[var(--color-ink-soft)] mt-1 min-h-[1.25rem]">
+          <p className="text-sm text-[var(--color-ink-soft)] mt-1">
             {complete
               ? "You painted the whole puppy!"
-              : activeLabel
-                ? `Painting the ${activeLabel.toLowerCase()}`
-                : "Pick a color, then press a part of the dog."}
+              : "Drag your finger inside a panel. The color stays in the lines."}
           </p>
-          {!complete && remaining.length > 0 && remaining.length <= 8 ? (
-            <p className="text-xs text-[var(--color-muted)] mt-1">
-              Still open: {remaining.map((panel) => panel.label).join(", ")}
-            </p>
-          ) : null}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -285,128 +386,128 @@ export function DogPaint() {
         </div>
       </div>
 
+      {focused ? (
+        <div className="mx-5 mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-[var(--color-cream)] px-3 py-2.5">
+          <p className="text-sm">
+            <span className="font-medium">{focused.label}</span>
+            <span className="text-[var(--color-muted)]"> — try {focused.suggested.name.toLowerCase()}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => fillPanel(focused.id, focused.suggested.hex)}
+            className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-full bg-white border border-[var(--color-line-strong)] hover:border-[var(--color-ink)] transition-colors"
+          >
+            <span
+              className="w-4 h-4 rounded-full border border-black/15"
+              style={{ background: focused.suggested.hex }}
+            />
+            Use {focused.suggested.name}
+          </button>
+        </div>
+      ) : null}
+
       <div className="relative px-2 sm:px-6">
         <svg
-          viewBox="0 0 400 510"
+          ref={svgRef}
+          viewBox="0 0 400 490"
           role="img"
-          aria-label="Puppy coloring page with 15 shade panels"
-          className="w-full max-w-[440px] mx-auto block select-none touch-none cursor-pointer"
+          aria-label="Puppy coloring page. Drag to paint inside each panel."
+          className="w-full max-w-[440px] mx-auto block select-none touch-none cursor-crosshair"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          <ellipse cx="200" cy="488" rx="128" ry="14" fill="rgba(42,24,16,0.08)" />
+          <defs>
+            {PANELS.map((panel) => (
+              <clipPath key={panel.id} id={`pup-clip-${panel.id}`} clipPathUnits="userSpaceOnUse">
+                <path d={panel.d} />
+              </clipPath>
+            ))}
+          </defs>
+
+          <ellipse cx="200" cy="468" rx="120" ry="12" fill="rgba(42,24,16,0.08)" />
 
           <g className={complete ? "puppy-tail-wag" : undefined}>
-            {PANELS.filter((panel) => panel.id === "tail").map((panel) => (
-              <PanelPath
-                key={panel.id}
-                panel={panel}
-                fill={fills[panel.id] ?? panel.shade}
-                painted={fills[panel.id] !== null}
-                active={activePanel === panel.id}
-                hint={!complete && hintUnpainted && fills[panel.id] === null}
-              />
-            ))}
+            <PanelDraw
+              panel={panelById("tail")}
+              fill={fills.tail}
+              strokes={strokes.filter((stroke) => stroke.panelId === "tail")}
+              active={focusPanel === "tail"}
+            />
           </g>
 
           {PANELS.filter((panel) => panel.id !== "tail").map((panel) => (
-            <PanelPath
+            <PanelDraw
               key={panel.id}
               panel={panel}
-              fill={fills[panel.id] ?? panel.shade}
-              painted={fills[panel.id] !== null}
-              active={activePanel === panel.id}
-              hint={!complete && hintUnpainted && fills[panel.id] === null}
+              fill={fills[panel.id]}
+              strokes={strokes.filter((stroke) => stroke.panelId === panel.id)}
+              active={focusPanel === panel.id}
             />
           ))}
 
-          <g pointerEvents="none" fill="none" stroke="#2A1810" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M128 122C52 128 22 188 38 240C50 274 102 262 130 208" strokeWidth="4" />
-            <path d="M272 122C348 128 378 188 362 240C350 274 298 262 270 208" strokeWidth="4" />
-            <path
-              d="M122 158C128 80 272 80 278 158C306 178 310 232 276 254C252 268 224 274 200 274C176 274 148 268 124 254C90 232 94 178 122 158Z"
-              strokeWidth="4.5"
-            />
-            <path
-              d="M98 262C68 286 64 344 88 390C104 418 140 450 200 454C260 450 296 418 312 390C336 344 332 286 302 262"
-              strokeWidth="4.5"
-            />
-            <path d="M116 396C98 418 96 464 110 482C122 496 164 498 176 478" strokeWidth="4" />
-            <path d="M284 396C302 418 304 464 290 482C278 496 236 498 224 478" strokeWidth="4" />
-            <path d="M92 308C22 278 2 332 18 384C30 418 78 400 112 348" strokeWidth="4" />
+          <g pointerEvents="none" fill="none" stroke="#1a1a1a" strokeLinejoin="round">
+            {PANELS.map((panel) => (
+              <path key={`outline-${panel.id}`} d={panel.d} strokeWidth="3" />
+            ))}
           </g>
 
           <g pointerEvents="none">
-            <ellipse cx="164" cy="152" rx="16" ry="18" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
-            <ellipse cx="236" cy="152" rx="16" ry="18" fill="#FFFDF8" stroke="#2A1810" strokeWidth="3" />
-            <ellipse cx="167" cy="156" rx="8" ry="9.5" fill="#2A1810" />
-            <ellipse cx="239" cy="156" rx="8" ry="9.5" fill="#2A1810" />
-            <circle cx="162" cy="149" r="3" fill="#FFFDF8" />
-            <circle cx="234" cy="149" r="3" fill="#FFFDF8" />
+            <ellipse cx="168" cy="132" rx="13" ry="15" fill="#FFFDF8" stroke="#1a1a1a" strokeWidth="2.75" />
+            <ellipse cx="232" cy="132" rx="13" ry="15" fill="#FFFDF8" stroke="#1a1a1a" strokeWidth="2.75" />
+            <ellipse cx="170" cy="135" rx="6" ry="7" fill="#1a1a1a" />
+            <ellipse cx="234" cy="135" rx="6" ry="7" fill="#1a1a1a" />
+            <circle cx="166" cy="129" r="2.2" fill="#FFFDF8" />
+            <circle cx="230" cy="129" r="2.2" fill="#FFFDF8" />
             <path
-              d="M186 248C192 258 208 258 214 248"
+              d="M186 232C192 240 208 240 214 232"
               fill="none"
-              stroke="#2A1810"
-              strokeWidth="3"
+              stroke="#1a1a1a"
+              strokeWidth="2.75"
               strokeLinecap="round"
             />
             {complete ? (
-              <path d="M188 252C194 268 206 268 212 252C206 258 194 258 188 252Z" fill="#F48FB1" />
+              <path d="M188 236C194 250 206 250 212 236C206 242 194 242 188 236Z" fill="#F48FB1" />
             ) : null}
-            <path d="M200 244V254" fill="none" stroke="#2A1810" strokeWidth="3" strokeLinecap="round" />
-            <circle cx="174" cy="236" r="2.1" fill="#2A1810" />
-            <circle cx="226" cy="236" r="2.1" fill="#2A1810" />
-            <circle cx="166" cy="244" r="1.7" fill="#2A1810" />
-            <circle cx="234" cy="244" r="1.7" fill="#2A1810" />
-            <path
-              d="M132 470C140 462 150 462 158 470"
-              fill="none"
-              stroke="#2A1810"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            <path
-              d="M242 470C250 462 260 462 268 470"
-              fill="none"
-              stroke="#2A1810"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
           </g>
         </svg>
       </div>
 
       <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-[var(--color-line)] px-4 py-4">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <p className="text-sm font-medium">Color for this panel</p>
+          <p className="text-sm font-medium">
+            {pickedColor ? "Your color" : "Pick a color, or tap a panel for a suggestion"}
+          </p>
           <label className="relative w-9 h-9 rounded-full border border-[var(--color-line-strong)] shadow-sm overflow-hidden cursor-pointer shrink-0">
             <span className="sr-only">Pick any color</span>
             <input
               type="color"
-              value={selectedColor}
-              onChange={(event) => setSelectedColor(event.target.value)}
+              value={brushColor}
+              onChange={(event) => setPickedColor(event.target.value)}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               aria-label="Pick any color"
             />
-            <span className="block w-full h-full" style={{ background: selectedColor }} />
+            <span className="block w-full h-full" style={{ background: brushColor }} />
           </label>
         </div>
         <div className="grid grid-cols-8 gap-2 max-w-md">
           {COLORS.map((color) => {
-            const selected = selectedColor.toLowerCase() === color.hex.toLowerCase();
+            const selected = pickedColor?.toLowerCase() === color.hex.toLowerCase();
+            const suggested = focused?.suggested.hex.toLowerCase() === color.hex.toLowerCase();
             return (
               <button
-                key={color.hex}
+                key={color.hex + color.name}
                 type="button"
-                onClick={() => setSelectedColor(color.hex)}
+                onClick={() => setPickedColor(color.hex)}
                 aria-label={color.name}
                 aria-pressed={selected}
                 className={`aspect-square rounded-full border-2 transition-transform ${
                   selected
                     ? "border-[var(--color-ink)] scale-110"
-                    : "border-black/10 hover:scale-105"
+                    : suggested
+                      ? "border-[var(--color-accent)] scale-105"
+                      : "border-black/10 hover:scale-105"
                 }`}
                 style={{ background: color.hex }}
               />
@@ -418,31 +519,43 @@ export function DogPaint() {
   );
 }
 
-function PanelPath({
+function PanelDraw({
   panel,
   fill,
-  painted,
+  strokes,
   active,
-  hint,
 }: {
   panel: Panel;
-  fill: string;
-  painted: boolean;
+  fill: string | null;
+  strokes: Stroke[];
   active: boolean;
-  hint: boolean;
 }) {
   return (
-    <path
-      data-panel={panel.id}
-      d={panel.d}
-      fill={fill}
-      stroke={active ? "#1a1a1a" : "#2A1810"}
-      strokeWidth={active ? 4 : 2.75}
-      strokeLinejoin="round"
-      className={`transition-[fill,stroke-width] duration-150 ${hint ? "puppy-panel-hint" : ""}`}
-      role="button"
-      aria-label={`Paint the ${panel.label.toLowerCase()}`}
-      tabIndex={-1}
-    />
+    <g>
+      <g clipPath={`url(#pup-clip-${panel.id})`}>
+        <path data-panel={panel.id} d={panel.d} fill={fill ?? BLANK} />
+        {strokes.map((stroke) => (
+          <polyline
+            key={stroke.id}
+            points={stroke.points}
+            fill="none"
+            stroke={stroke.color}
+            strokeWidth={BRUSH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            pointerEvents="none"
+          />
+        ))}
+      </g>
+      {active ? (
+        <path
+          d={panel.d}
+          fill="none"
+          stroke="#4628B8"
+          strokeWidth="4"
+          pointerEvents="none"
+        />
+      ) : null}
+    </g>
   );
 }
