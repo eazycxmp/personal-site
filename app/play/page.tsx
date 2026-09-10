@@ -26,6 +26,13 @@ const GAMES = [
     body: "A small dot runs through a maze. Speed increases the longer you survive. Get hit by a wall and it's over. Beat the high score.",
     status: "Live",
   },
+  {
+    slug: "paint",
+    title: "Paint the Pup",
+    tag: "Color · Kids",
+    body: "A puppy coloring page. Tap a space for a suggested color, then finger-paint. The color stays inside the lines.",
+    status: "Live",
+  },
 ];
 
 export default function PlayPage() {
