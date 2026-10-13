@@ -207,9 +207,10 @@ function groundTex(rep) {
   }
   const t = groundTex.base.clone(); t.repeat.set(...rep); return t;
 }
+const SLAB_TOPS = [];   // every ground top, so rain can make them shine
 // a raised slab of ground with darker sides, so the camp sits above the grass like a diorama
 function slab(color, w, d, x, z, top = 0, h = .26) {
-  const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])});
+  const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])}); SLAB_TOPS.push(topM);
   const m = new THREE.Mesh(G.box, [side, side, topM, side, side, side]);
   m.scale.set(w, h, d); m.position.set(x, top - h/2, z); m.receiveShadow = true; m.castShadow = false;
   scene.add(m); return m;
@@ -2160,6 +2161,8 @@ const PADS = [
   {id:'fireStation', x:29.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
   {id:'hospital', x:29.2, z:6, cost:30000, cur:'coin', icon:'🏥', label:'Hospital', after:['fireStation', 'library'], region:'east'},
   {id:'traffic', x:14.6, z:-27.8, cost:20000, cur:'coin', icon:'🛣️', label:'Roads & traffic', after:['lot0s2'], region:'downtown'},
+  {id:'exchange', x:19, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
+  {id:'highway', x:14.6, z:-27.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
   {id:'stadium', x:29.2, z:24, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
@@ -2368,6 +2371,8 @@ const UNLOCK = {
   fireStation(a) { civicBlock('fire', a); if (a) banner('🚒 Fire station!', 'Fire trucks put out fires for you.'); },
   hospital(a) { civicBlock('hospital', a); if (a) banner('🏥 Hospital!', 'Healthier guests wait longer, and an ambulance tends the battlefield.'); },
   traffic(a) { trafficFx(); if (a) banner('🛣️ Roads and traffic!', 'Asphalt streets, traffic lights, a bus line and cars downtown.'); },
+  exchange(a) { exchangeFx(a); $('bInvest').hidden = false; if (a) banner('🏛️ Stock exchange!', 'Invest your cash with 📈. When nothing is left to build, your builders become brokers here.'); },
+  highway(a) { highwayFx(a); if (a) banner('🛣️ The highway!', 'An elevated freeway over the railway to the next city. Cars pay tolls.'); },
   stadium(a) { stadiumFx(a); if (a) banner('🏉 Rugby stadium!', 'Matchdays every few minutes, with a full house paying at the gate.'); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
@@ -4842,18 +4847,33 @@ function updResidents(dt) {
 const BROKER = {top:'suit', body:0xf4f4f4, body2:0x1e1e26, pants:0x1e1e26, hair:'sidepart', hairCol:0x2a1a10, acc:'sunglasses', shoe:0x111114, skin:0xe8b892};
 const MKT = {t:2, idx:[100], ex:null, led:null, ledT:0};
 const brokers = () => workers.filter(w => w.kind === 'broker');
-const exchangeAt = () => W.unlocked.has('downtownGate') ? [20, -21.8] : [6.4, -1.6];
+const exchangeAt = () => [17, -9.3];
 function buildingDone() { return PADS.every(p => p.cur === 'coin' || W.unlocked.has(p.id)); }
-function exchangeFx() {
-  const [x, z] = exchangeAt(), g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); MKT.ex = g;
-  mesh(G.box, 0xdfe4ea, [1.2, .12, 1.2], [0, .06, 0], g); mesh(G.box, 0x8fc6e8, [.9, 1.5, .9], [0, .8, 0], g, {metalness:.5, roughness:.12});
-  mesh(G.box, 0xeef1f4, [1.1, .12, 1.1], [0, 1.6, 0], g);
+function exchangeFx(anim) {
+  // a grand exchange: marble steps, columns, a pediment, a ticker board and a golden bull
+  const g = new THREE.Group(); g.position.set(19, 0, -11.4); g.scale.z = .82; scene.add(g); MKT.ex = g;
+  const MARB = 0xeee8dc, MARB2 = 0xd9d2c2;
+  for (let i = 0; i < 3; i++) mesh(G.box, MARB2, [4.4 - i*.2, .14, 3.2 - i*.2], [0, .07 + i*.14, .1 - i*.05], g);
+  mesh(G.box, MARB, [3.8, 2.6, 2.2], [0, 1.72, -.3], g);
+  for (let i = 0; i < 6; i++) { mesh(G.cyl, 0xf8f4ec, [.13, 2.5, .13], [-1.6 + i*.64, 1.67, 1.1], g); mesh(G.box, MARB2, [.32, .12, .32], [-1.6 + i*.64, 2.95, 1.1], g); }
+  mesh(G.box, MARB2, [4.1, .3, 2.7], [0, 3.1, -.05], g);
+  const ped = mesh(G.cone4, MARB, [1, .9, 1], [0, 3.65, .2], g); ped.rotation.y = Math.PI/4; ped.scale.set(3.1, .9, 2);
+  const name = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('EXCHANGE', '#eee8dc', '#3a2a10')})); name.scale.set(2.6, .42, 1); name.position.set(0, 3.12, 1.27); g.add(name);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(.9, 18, 10, 0, Math.PI*2, 0, Math.PI/2), mat(0x3f7a6a, {metalness:.5, roughness:.35})); dome.position.set(0, 3.25, -.6); dome.castShadow = true; g.add(dome);
+  mesh(G.box, 0x2a1d12, [.8, 1.4, .05], [0, 1.1, .81], g);
+  // the live ticker across the front, and big boards on the side
   const c = document.createElement('canvas'); c.width = 256; c.height = 64; MKT.led = {c, t:new THREE.CanvasTexture(c)}; MKT.led.t.colorSpace = THREE.SRGBColorSpace;
-  for (const ry of [0, Math.PI/2]) { const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:MKT.led.t, toneMapped:false})); s.scale.set(1.3, .32, 1); s.position.set(ry ? .56 : 0, 1.9, ry ? 0 : .56); s.rotation.y = ry; g.add(s); }
-  // a golden bull for luck
-  const bull = new THREE.Group(); bull.position.set(.95, 0, .95); g.add(bull);
-  mesh(G.box, 0xd9a52a, [.25, .2, .45], [0, .3, 0], bull, {metalness:.8, roughness:.25}); mesh(G.box, 0xd9a52a, [.18, .18, .16], [0, .38, .28], bull, {metalness:.8, roughness:.25});
-  for (const s of [-1, 1]) { mesh(G.cone, 0xd9a52a, [.03, .14, .03], [s*.1, .5, .32], bull, {metalness:.8}).rotation.z = -s*.8; for (const zz of [-.15, .15]) mesh(G.box, 0xd9a52a, [.05, .2, .05], [s*.08, .1, zz], bull, {metalness:.8}); }
+  const led = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:MKT.led.t, toneMapped:false})); led.scale.set(2.8, .45, 1); led.position.set(0, 2.55, .82); g.add(led);
+  const side = new THREE.Mesh(G.plane, led.material); side.scale.set(1.8, .45, 1); side.rotation.y = Math.PI/2; side.position.set(1.91, 2.2, -.3); g.add(side);
+  // a golden bull out front
+  const bull = new THREE.Group(); bull.position.set(-1.6, .42, 1.9); bull.rotation.y = .5; g.add(bull);
+  const GOLD = {metalness:.85, roughness:.25};
+  mesh(G.box, 0xd9a52a, [.5, .4, .9], [0, .5, 0], bull, GOLD); mesh(G.box, 0xd9a52a, [.36, .34, .3], [0, .62, .58], bull, GOLD);
+  for (const sx of [-1, 1]) { mesh(G.cone, 0xd9a52a, [.06, .28, .06], [sx*.2, .86, .66], bull, GOLD).rotation.z = -sx*.9; for (const zz of [-.3, .3]) mesh(G.box, 0xd9a52a, [.1, .32, .1], [sx*.16, .16, zz], bull, GOLD); }
+  mesh(G.box, 0x8a8478, [.9, .1, 1.3], [0, -.02, 0], bull);
+  boxes.push({x0:16.9, x1:21.1, z0:-12.75, z1:-10.05});
+  fader(g, 4.4, 4);
+  if (anim) popIn(g);
   drawLed();
 }
 function drawLed() {
@@ -4869,7 +4889,6 @@ function addTraders(n) {
     scene.remove(w.char.g); w.char = makeChar(BROKER); w.char.g.position.set(w.pos.x, 0, w.pos.z);
     mesh(G.box, 0x2a1a10, [.08, .26, .36], [0, -.58, 0], w.char.armR); w.state = 'walk';
   }
-  if (!MKT.ex) exchangeFx();
   $('bInvest').hidden = false;
 }
 function becomeBroker(w) {
@@ -4879,7 +4898,6 @@ function becomeBroker(w) {
   mesh(G.box, 0x2a1a10, [.08, .26, .36], [0, -.58, 0], w.char.armR);
   w.kind = 'broker'; w.state = 'walk'; w.goal = null; w.wait = 0;
   puff(w.pos.x, w.pos.z);
-  if (!MKT.ex) exchangeFx();
   if (started && !W.flags.brokers) banner('📈 Your builders became stockbrokers!', 'Nothing is left to build, so they trade instead. Tap 📈 Invest to grow your cash.');
   $('bInvest').hidden = false; W.flags.brokers = true;
 }
@@ -4888,12 +4906,15 @@ function updBroker(w, dt) {
   if (!w.goal) { const [x, z] = exchangeAt(); w.goal = R() < .5 ? [x - .9, z + .9] : [x + (R() - .5)*9, z + (R() - .5)*.8]; }   // stay on the street
   if (goTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; }
 }
+// every level of the university, and its research lab, makes the brokers smarter
+const uniBoost = () => !W.unlocked.has('library') ? 0 : .000015*lvl('library') + (W.unlocked.has('university') ? .00003 : 0) + (W.unlocked.has('labs') ? .00005 : 0);
 const gauss = () => (R() + R() + R() + R() - 2) * 1.2;
 function updMarket(dt) {
   if (!started) return;
-  if (workers.some(w => w.kind === 'builder') && buildingDone()) for (const w of workers) if (w.kind === 'builder') becomeBroker(w);
+  // brokers need somewhere to work: the stock exchange
+  if (W.unlocked.has('exchange') && workers.some(w => w.kind === 'builder') && buildingDone()) for (const w of workers) if (w.kind === 'builder') becomeBroker(w);
   // with every war won and the rival at peace, some soldiers hang up their gear and trade instead
-  if (W.conquests >= CAMPAIGNS.length && (W.rivalAlly || W.conquests >= CAMPAIGNS.length && !W.rival) && !W.flags.traders && !W.camp && !W.raid && W.army >= 6) {
+  if (W.unlocked.has('exchange') && W.conquests >= CAMPAIGNS.length && (W.rivalAlly || W.conquests >= CAMPAIGNS.length && !W.rival) && !W.flags.traders && !W.camp && !W.raid && W.army >= 6) {
     const n = Math.min(6, Math.floor(W.army / 2));
     W.army -= n; W.flags.traders = n;
     while (soldiers.length > Math.min(W.army, 24)) { const s = soldiers.pop(); scene.remove(s.char.g); stacks.delete(s.stack); if (s.bar) scene.remove(s.bar); puff(s.pos.x, s.pos.z); }
@@ -4903,7 +4924,7 @@ function updMarket(dt) {
   if ((MKT.t -= dt) > 0) return;
   MKT.t = 2;
   const n = brokers().length; if (!n && !W.fund) return;
-  let r = .00012 + .00004*Math.min(12, n) + gauss()*.006;
+  let r = .00012 + .00004*Math.min(12, n) + uniBoost() + gauss()*.006;
   if (R() < .002) { r -= .12; if (W.fund) banner('📉 Market crash!', 'Your fund drops. Markets go up and down: hold on, or cash out.'); }
   else if (R() < .002) { r += .1; if (W.fund) banner('📈 Market boom!', 'Your fund jumps.'); }
   MKT.idx.push(MKT.idx[MKT.idx.length - 1] * (1 + r)); if (MKT.idx.length > 120) MKT.idx.shift();
@@ -4924,6 +4945,7 @@ function openInvest(refresh) {
   const gain = (W.fund || 0) - (W.fundIn || 0), n = brokers().length;
   m.innerHTML = `<div class="card"><h1 style="font-size:26px">📈 Empire Fund</h1>
     <p>${n} broker${n === 1 ? '' : 's'} trade for you. More brokers, better returns, but markets can fall too.</p>
+    <p class="keys">🎓 ${W.unlocked.has('labs') ? 'Research lab' : W.unlocked.has('university') ? 'University' : 'Library'} Lv ${lvl('library')}: +${Math.round(uniBoost()*30*100*10)/10}% a minute. Upgrade it for better returns.</p>
     <canvas id="mktChart" width="380" height="120" style="width:100%;max-width:380px;border-radius:10px;background:#0a0f18"></canvas>
     <p style="font-size:20px;font-weight:900;margin:6px 0">${(W.fund || 0).toLocaleString()} 💵 <small style="color:${gain >= 0 ? '#2f9e44' : '#c0392b'}">${gain >= 0 ? '+' : ''}${gain.toLocaleString()}</small></p>
     <p><button class="big" id="iv25">Invest 25%</button> <button class="big" id="iv100">Invest all</button></p>
@@ -5678,6 +5700,111 @@ function updSpaceView(dt) {
   (S.walkers || []).forEach((a, i) => { const x = -3 + i*2.5 + Math.sin(time*.4 + i)*1.5, z = 3 + Math.cos(time*.3 + i); a.g.position.set(x, S.H(x, z) + Math.abs(Math.sin(time*3 + i))*.12, z); const s = Math.sin(time*3 + i); a.legL.rotation.x = s*.4; a.legR.rotation.x = -s*.4; });
 }
 
+// ------------------------------------------------------------------ the highway: up a ramp out of downtown, over the railway on pillars, into a tunnel to the next city
+const HW = {pts:[[37.5, -36.6, 0], [37.5, -33, 1.6], [36.2, -30.9, 3.2], [31.4, -30.9, 3.4], [27.5, -30.9, 3.2], [23.8, -30.9, 1.7], [20.8, -30.3, .2], [19.2, -29.6, 0]], cars:[], len:0, segs:[], lights:[]};
+function hwAt(u, lane) {
+  // u runs 0..1 out of the tunnel to downtown on one lane, then back on the other
+  let d = (u % 1) * HW.len*2, back = d > HW.len; if (back) d = HW.len*2 - d;
+  for (const s of HW.segs) {
+    if (d <= s.l) { const t = d / s.l, x = s.a[0] + (s.b[0] - s.a[0])*t, z = s.a[1] + (s.b[1] - s.a[1])*t, h = s.a[2] + (s.b[2] - s.a[2])*t, side = back ? -lane : lane;
+      return {x:x + Math.cos(s.yaw)*side, z:z - Math.sin(s.yaw)*side, h, yaw:s.yaw + (back ? Math.PI : 0), pitch:(back ? 1 : -1)*Math.atan2(s.b[2] - s.a[2], s.l)}; }
+    d -= s.l;
+  }
+  const s = HW.segs[HW.segs.length - 1]; return {x:s.b[0], z:s.b[1], h:0, yaw:s.yaw, pitch:0};
+}
+function highwayFx(anim) {
+  clearForest({x0:29, x1:40, z0:-40, z1:-27});
+  const g = new THREE.Group(); scene.add(g); HW.g = g;
+  const CON = 0xb8b4ac, ASP = 0x3a3d42;
+  HW.segs = []; HW.len = 0;
+  for (let i = 0; i < HW.pts.length - 1; i++) {
+    const a = HW.pts[i], b = HW.pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), yaw = Math.atan2(b[0] - a[0], b[1] - a[1]), pitch = Math.atan2(b[2] - a[2], l);
+    HW.segs.push({a, b, l, yaw}); HW.len += l;
+    // the deck: asphalt on a concrete slab, with barriers and a dashed centre line
+    const seg = new THREE.Group(); seg.position.set((a[0] + b[0])/2, (a[2] + b[2])/2, (a[1] + b[1])/2); seg.rotation.order = 'YXZ'; seg.rotation.set(-pitch, yaw, 0); g.add(seg);
+    const L = Math.hypot(l, b[2] - a[2]) + .25;
+    mesh(G.box, CON, [2.6, .35, L], [0, -.12, 0], seg); mesh(G.box, ASP, [2.2, .04, L], [0, .07, 0], seg);
+    for (const s of [-1.22, 1.22]) mesh(G.box, 0xd8d4cc, [.16, .38, L], [s, .24, 0], seg);
+    for (let t = -L/2 + .5; t < L/2 - .3; t += 1.1) mesh(G.box, 0xf2c200, [.07, .02, .55], [0, .1, t], seg);
+    for (const s of [-.7, .7]) for (let t = -L/2 + .5; t < L/2 - .3; t += 1.1) mesh(G.box, 0xf2f2f2, [.05, .02, .45], [s, .1, t], seg);
+    // pillars where the road is up in the air
+    for (let t = .25; t < 1; t += .5) {
+      const x = a[0] + (b[0] - a[0])*t, z = a[1] + (b[1] - a[1])*t, h = a[2] + (b[2] - a[2])*t;
+      if (h < 1.2 || Math.abs(x - 33.6) < 1.2) continue;
+      mesh(G.box, CON, [.6, h - .3, .6], [x, (h - .3)/2, z], g); mesh(G.box, CON, [2.4, .3, .7], [x, h - .45, z], g).rotation.y = yaw;
+    }
+  }
+  // street lights along the elevated part
+  for (let i = 1; i < HW.pts.length - 2; i++) {
+    const [x, z, h] = HW.pts[i]; if (h < 1) continue;
+    mesh(G.cyl, 0x8a8f96, [.04, 1.6, .04], [x + 1.3, h + .8, z], g, {metalness:.6}); mesh(G.box, 0x8a8f96, [.6, .05, .05], [x + 1.05, h + 1.6, z], g);
+    HW.lights.push(bulb(g, x + .8, h + 1.55, z, 0xfff2c8, .09));
+  }
+  // a big green sign over the road
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DOWNTOWN ▸', '#1d6b3a', '#ffffff'), toneMapped:false})); sign.scale.set(2, .55, 1); sign.position.set(35, 5.3, -30.9); sign.rotation.y = Math.PI/2; g.add(sign);
+  for (const z of [-32.1, -29.7]) mesh(G.box, 0x8a8f96, [.08, 5.6, .08], [35, 2.8, z], g, {metalness:.6});
+  mesh(G.box, 0x8a8f96, [.08, .08, 2.6], [35, 5.6, -30.9], g, {metalness:.6});
+  // the tunnel to the next city
+  mesh(G.cone, 0x7d838a, [5.5, 8.5, 5.5], [37.5, 3.6, -41.5], g, {flatShading:true});
+  mesh(G.box, 0x9a958c, [3.4, 3, .9], [37.5, 1.5, -37], g); mesh(G.box, 0x15120f, [2.4, 2.1, .1], [37.5, 1.05, -36.5], g);
+  for (const x of [36.6, 38.4]) bulb(g, x, 2.3, -36.4, 0xffd890, .08);
+  // cars both ways
+  const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a, 0xb04f86, 0xff8a3a];
+  for (let i = 0; i < 8; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.u = i/8; v.lane = .55; HW.cars.push(v); }
+  if (anim) popIn(g);
+}
+let tollT = 15;
+function updHighway(dt) {
+  if (!HW.cars.length) return;
+  for (const v of HW.cars) {
+    v.u = (v.u + dt * 5 / (HW.len*2)) % 1;
+    const p = hwAt(v.u, v.lane);
+    v.g.position.set(p.x, p.h + .12, p.z); v.g.rotation.order = 'YXZ'; v.g.rotation.set(p.pitch, p.yaw, 0);
+    // hidden while inside the tunnel
+    v.g.visible = Math.hypot(p.x - 37.5, p.z + 36.6) > .6;
+  }
+  if (started && (tollT -= dt) <= 0) { tollT = 15; const pay = 300 + 60*W.era; W.coins += pay; W.earned += pay; popText(`🛣️ +${pay} tolls`, new THREE.Vector3(31.4, 5, -30.9), '#ffe06b'); }
+}
+
+// ------------------------------------------------------------------ graphics: wet streets in the rain, pools of light at night, windows lit unevenly
+const POOL = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,214,150,.9)'); r.addColorStop(.5, 'rgba(255,190,110,.35)'); r.addColorStop(1, 'rgba(255,170,90,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+})();
+const pools = [];
+function lightPool(x, z, s = 3, y = .05) {
+  const m = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:POOL, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
+  m.rotation.x = -Math.PI/2; m.position.set(x, y, z); m.scale.set(s, s, 1); m.renderOrder = 2; scene.add(m); pools.push(m); return m;
+}
+let poolScan = 0;
+function updGfx3(dt, dk) {
+  const night = clamp((.55 - dk) * 2.2, 0, 1);
+  // light pools follow every fire and every lamp, and glow at night
+  if ((poolScan -= dt) <= 0) {
+    poolScan = 3;
+    const want = [];
+    for (const l of fireLights) { const p = l.getWorldPosition(new THREE.Vector3()); want.push([p.x, p.z, 4.2]); }
+    for (const d of (W.decor || [])) if (d.k === 'lamp') want.push([d.x, d.z, 3]);
+    if (groundStage.lamps) for (const [x, z] of [[-1.2, -10.6], [5.4, -10.6], [12.6, -4], [12.6, 6.6], [-9.6, -4.6], [-9.6, 9.6], [2.8, 13.2], [12.4, 13.2]]) want.push([x + .44, z, 3.4]);
+    for (const [x, z] of HW.pts.slice(1, -2).filter(p => p[2] >= 1).map(p => [p[0] + .8, p[1]])) want.push([x, z, 2.6, true]);
+    while (pools.length < want.length) lightPool(0, 0);
+    pools.forEach((p, i) => { const w = want[i]; p.visible = !!w; if (w) { p.position.set(w[0], w[3] ? 3.45 : .05, w[1]); p.scale.set(w[2], w[2], 1); } });
+  }
+  for (const p of pools) p.material.opacity = night * .55;
+  // headlights paint the road ahead at night
+  for (const v of [...TRAFFIC.cars, ...HW.cars]) {
+    if (!v.pool) v.pool = lightPool(0, 0, 2.2);
+    const a = v.g.rotation.y; v.pool.position.set(v.g.position.x + Math.sin(a)*1.6, v.g.position.y + .06, v.g.position.z + Math.cos(a)*1.6); v.pool.visible = v.g.visible;
+  }
+  // wet streets shine in the rain
+  const wet = W.weather === 'rain' ? 1 : 0;
+  for (const m of SLAB_TOPS) { m.userData.r0 ??= m.roughness; m.roughness += ((wet ? .32 : m.userData.r0) - m.roughness) * Math.min(1, dt*.6); }
+  if (wet && R() < dt*25) { const x = player.pos.x + (R() - .5)*16, z = player.pos.z + (R() - .5)*16; particle(0xdcecff, new THREE.Vector3(x, .05, z), new THREE.Vector3(0, .8, 0), .25, .05, {grav:1}); }
+  // not every window is lit: each building keeps its own mood
+  for (const m of winMats) { m.userData.k ??= .25 + Math.random()*1.1; m.emissiveIntensity = (1 - dk) * 1.4 * m.userData.k; }
+}
+
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
@@ -5989,7 +6116,7 @@ function update(dt) {
   updBattle(dt); updSea(dt); updAir(dt);
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
-  updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt);
+  updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -6063,7 +6190,7 @@ function render(dt) {
   if (W.weather && W.weather !== 'clear') { sun.intensity *= .65; hemi.intensity *= .85; }   // overcast
   scene.background.setRGB(.12 + .5*dk + golden*.25, .17 + .67*dk + golden*.05, .3 + .65*dk - golden*.12, THREE.SRGBColorSpace); scene.fog.color.copy(scene.background);
   for (const l of fireLights) l.intensity = 3 + (1 - dk)*7;
-  for (const m of winMats) m.emissiveIntensity = (1 - dk) * 1.4;
+  updGfx3(dt, dk);
   for (const m of lampMats) m.color.setRGB(.5 + (1 - dk)*.5, .48 + (1 - dk)*.47, .4 + (1 - dk)*.35);
   if (player.char.crown) player.char.crown.visible = W.era >= 6;
   renderGoals();
