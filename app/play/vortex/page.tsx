@@ -1,9 +1,10 @@
+import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { PitchClient } from "@/components/vortex/pitch-client";
 import Link from "next/link";
 
-export const metadata = { title: "Vortex Rugby — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["vortex"], "Vortex Rugby — Espen Campbell");
 
 export default function VortexPage() {
   return (

@@ -1,9 +1,10 @@
+import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { MazeGame } from "@/components/maze-game";
 import Link from "next/link";
 
-export const metadata = { title: "Maze Run — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["run"], "Maze Run — Espen Campbell");
 
 export default function RunPage() {
   return (

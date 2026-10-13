@@ -1,9 +1,10 @@
+import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { DogPaint } from "@/components/dog-paint";
 import Link from "next/link";
 
-export const metadata = { title: "Paint the Pup — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["paint"], "Paint the Pup — Espen Campbell");
 
 export default function PaintPage() {
   return (

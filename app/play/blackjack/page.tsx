@@ -1,9 +1,10 @@
+import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { BlackjackTable } from "@/components/blackjack-table";
 import Link from "next/link";
 
-export const metadata = { title: "Blackjack — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["blackjack"], "Blackjack — Espen Campbell");
 
 export default function BlackjackPage() {
   return (

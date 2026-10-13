@@ -1,8 +1,9 @@
+import { SHARES, shareMetadata } from "./share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import Link from "next/link";
 
-export const metadata = { title: "Play — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["play"], "Play — Espen Campbell");
 
 const GAMES = [
   {
@@ -23,7 +24,7 @@ const GAMES = [
     slug: "build-your-empire",
     title: "Build Your Empire",
     tag: "3D · Build & Conquer",
-    body: "Catch fish, cook over the fire and carry stacks of food to hungry travelers. Grow a riverside camp into an empire and then a skyline: quarry, iron mine, farmlands, a brewery and beer garden, boats, an army that goes to war, and a downtown of skyscrapers.",
+    body: "Catch fish, cook over the fire and feed hungry travelers, then grow one campfire into an empire: castles with drawbridges, armies from Romans to special forces, galleons, steam and bullet trains, an airport, a concert hall, air strikes over the mountains, and finally a rocket to the Moon.",
     status: "Live",
   },
   {

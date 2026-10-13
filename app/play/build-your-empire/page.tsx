@@ -1,9 +1,10 @@
+import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { BuildYourEmpireFrame } from "@/components/build-your-empire-frame";
 import Link from "next/link";
 
-export const metadata = { title: "Build Your Empire — Espen Campbell" };
+export const metadata = shareMetadata(SHARES["build-your-empire"], "Build Your Empire — Espen Campbell");
 
 export default function BuildYourEmpirePage() {
   return (
