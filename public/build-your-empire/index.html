@@ -102,6 +102,13 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 .shelf div{background:#efe6d6;border-radius:12px;padding:8px 6px;opacity:.55;display:flex;flex-direction:column;gap:2px}
 .shelf div.won{background:linear-gradient(#fff6d8,#f2d27a);opacity:1;box-shadow:0 3px 0 #0002}
 .shelf span{font-size:28px}.shelf b{font-size:12px}.shelf small{font-size:10.5px;opacity:.7}
+#bossBar{position:absolute;left:50%;top:88px;transform:translateX(-50%);z-index:4;background:#2b2118e6;color:#fff;border-radius:12px;padding:6px 12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;gap:4px;min-width:220px;text-align:center}
+#bossBar[hidden]{display:none}#bossBar i{height:10px;border-radius:6px;background:#0005;overflow:hidden;display:block}#bossBar b{display:block;height:100%;background:linear-gradient(90deg,#ff5a3a,#ffb03a);width:100%}
+.trades{display:flex;flex-direction:column;gap:8px;margin:12px 0;text-align:left}
+.trades div{display:flex;align-items:center;gap:8px;background:#fff6e4;border-radius:10px;padding:8px 10px}.trades b{width:110px}.trades span{flex:1;font-size:13px}
+.trades button{border:0;border-radius:10px;padding:6px 10px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}.trades button:disabled{background:#cfc6b6;cursor:default}
+.votes{display:flex;gap:10px;margin:12px 0}.votes button{flex:1;border:0;border-radius:14px;padding:14px 10px;background:#fff6e4;cursor:pointer;box-shadow:0 3px 0 #0002;display:flex;flex-direction:column;gap:4px;color:var(--ink)}
+.votes b{font-size:16px}.votes small{opacity:.7}
 </style>
 </head>
 <body>
@@ -116,9 +123,10 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="goals"></div>
     <div id="modal" hidden></div>
     <div id="placeBar" hidden><span id="placeName"></span><button id="bPlace">Place here ✓</button><button id="bCancel">✕</button></div>
+    <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="overlay">
       <div class="card">
         <h1>🏰 Build Your Empire</h1>
@@ -254,6 +262,11 @@ const ITEM = {
   gun:    {h:.14, icon:'🔫', sell:14, n:'Rifles'},
   tools:  {h:.18, icon:'🔨', sell:12, n:'Tools'},
   scroll: {h:.16, icon:'📜', sell:10, n:'Scrolls'},
+  milk:   {h:.3,  icon:'🥛', sell:2, n:'Milk'},
+  icecream:{h:.3, icon:'🍦', dish:1, price:11, sell:9, n:'Ice cream'},
+  tomato: {h:.22, icon:'🍅', sell:2, n:'Tomatoes'},
+  pizza:  {h:.12, icon:'🍕', dish:1, price:14, sell:11, n:'Pizza'},
+  sushi:  {h:.16, icon:'🍣', dish:1, price:16, sell:12, n:'Sushi'},
   coin:   {h:.07, icon:'💵', n:'Cash'},
 };
 const DISHES = Object.keys(ITEM).filter(k => ITEM[k].dish);
@@ -303,6 +316,11 @@ function buildItem(type) {
       mesh(G.cyl, 0x2a2c30, [.03, .56, .03], [.24, .02, 0], g, {metalness:.7, roughness:.3}).rotation.z = Math.PI/2; break;
     case 'tools': mesh(G.box, 0x8a6a3a, [.5, .06, .07], [0, 0, 0], g); mesh(G.box, 0x8f949c, [.1, .1, .26], [.22, .02, 0], g, {metalness:.6, roughness:.35}); break;
     case 'scroll': { const r = mesh(G.cyl, 0xf1e2b8, [.08, .42, .08], [0, 0, 0], g); r.rotation.z = Math.PI/2; mesh(G.box, 0xc0392b, [.05, .17, .17], [0, 0, 0], g); break; }
+    case 'milk': mesh(G.cyl, 0xf4f4f4, [.12, .28, .12], [0, 0, 0], g, {roughness:.3}); mesh(G.cyl, 0x3f7cc0, [.07, .06, .07], [0, .17, 0], g); break;
+    case 'icecream': mesh(G.cone, 0xe8c48a, [.12, .26, .12], [0, -.05, 0], g).rotation.x = Math.PI; mesh(G.sph, 0xff9ec0, [.14, .12, .14], [0, .12, 0], g); break;
+    case 'tomato': mesh(G.sph, 0xd9302a, [.13, .11, .13], [0, 0, 0], g); mesh(G.box, 0x3f8a3a, [.1, .03, .1], [0, .1, 0], g); break;
+    case 'pizza': mesh(G.cyl, 0xe0b060, [.3, .05, .3], [0, 0, 0], g); mesh(G.cyl, 0xc8402a, [.26, .02, .26], [0, .03, 0], g); for (const [x, z] of [[.1, .05], [-.08, .1], [0, -.12]]) mesh(G.cyl, 0x8a2a1e, [.04, .02, .04], [x, .05, z], g); break;
+    case 'sushi': mesh(G.box, 0xf4f4f4, [.26, .1, .14], [0, 0, 0], g); mesh(G.box, 0xff8a6a, [.28, .05, .15], [0, .07, 0], g); mesh(G.box, 0x1a2a1a, [.06, .12, .15], [0, .02, 0], g); break;
     case 'coin': mesh(G.box, 0x2fa84a, [.38, .065, .2], [0, 0, 0], g); mesh(G.box, 0x86e08f, [.34, .012, .16], [0, .034, 0], g); mesh(G.box, 0xf2f8ea, [.07, .072, .206], [0, 0, 0], g); break;
   }
   return g;
@@ -1007,7 +1025,7 @@ function entity(charOpts, x, z, speed, cap) {
     char:makeChar(charOpts)};
   e.stack = newStack((i, it, y) => {
     const s = Math.sin(e.yaw), c = Math.cos(e.yaw), lag = i * .03;
-    return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.bob, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
+    return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
   });
   return e;
 }
@@ -1024,17 +1042,17 @@ function animEntity(e, dt) {
   const carrying = e.stack.length > 0;
   c.armL.rotation.x = carrying ? -.5 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -.5 : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
-  c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z), e.pos.z); c.g.rotation.y = e.yaw;
+  c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0), e.pos.z); c.g.rotation.y = e.yaw;
 }
-function collide(p, prev) {
+function collide(p, prev, fly) {
   const r = .38;
-  for (const b of boxes) {
+  if (!fly) for (const b of boxes) {
     if (p.x > b.x0 - r && p.x < b.x1 + r && p.z > b.z0 - r && p.z < b.z1 + r) {
       const dx0 = p.x - (b.x0 - r), dx1 = (b.x1 + r) - p.x, dz0 = p.z - (b.z0 - r), dz1 = (b.z1 + r) - p.z, m = Math.min(dx0, dx1, dz0, dz1);
       if (m === dx0) p.x = b.x0 - r; else if (m === dx1) p.x = b.x1 + r; else if (m === dz0) p.z = b.z0 - r; else p.z = b.z1 + r;
     }
   }
-  for (const c of circles) {
+  if (!fly) for (const c of circles) {
     const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + r;
     if (d < min && d > 1e-4) { p.x = c.x + dx/d*min; p.z = c.z + dz/d*min; }
   }
@@ -1139,12 +1157,14 @@ const REGIONS = {
   farm:{name:'the Farmlands', rect:{x0:13.4, x1:30.6, z0:13.9, z1:30.6}, ground:0xb9a865},
   downtown:{name:'Downtown', rect:{x0:13.4, x1:30.6, z0:-29.6, z1:-12.9}, ground:0x9ea3ad},
   airfield:{name:'the Airfield', rect:{x0:-34, x1:-17.6, z0:-14, z1:14}, extra:{x0:-17.7, x1:-10.2, z0:8.85, z1:10.35}, ground:0x8fa86a},
+  ranch:{name:'the Ranch', rect:{x0:-34, x1:-17.6, z0:-30, z1:-14.3}, extra:{x0:-17.8, x1:-10.2, z0:-21.68, z1:-20.32}, ground:0x9fb06a},
 };
 // how regions connect, with the waypoints to cross between them
 const EDGES = [
   ['camp', 'north', [[-7.7, -12.1], [-7.7, -14.9]]], ['camp', 'east', [[12.6, 1.6], [15.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 15.8]]],
   ['east', 'farm', [[19.6, 12.9], [19.6, 15]]], ['south', 'farm', [[12.4, 22.8], [14.6, 22.8]]],
   ['east', 'downtown', [[15, -12.2], [15, -14]]], ['camp', 'airfield', [[-9.6, 9.6], [-18.4, 9.6]]], ['north', 'downtown', [[12.8, -22.5], [14.4, -22.5]]],
+  ['north', 'ranch', [[-9.8, -21], [-18.4, -21]]],
 ];
 const regionOpen = id => id === 'camp' || W.unlocked.has(id + 'Gate');
 function regionOf(x, z) {
@@ -1614,6 +1634,9 @@ const LOOKS = {
   brewer:{body:0x8a5a2b, apron:0xd9c89a, hat:'beanie', hatCol:0x5a3a1a},
   barkeep:{body:0x2f6a4a, apron:0xffffff, hat:'beanie', hatCol:0x1f4a3a},
   scholar:{body:0x2a3a6a, trim:0xe8e0d0, hat:'beanie', hatCol:0x1a1a3a},
+  milkman:{body:0xf4f4f4, apron:0x3f7cc0, hat:'straw'},
+  picker:{body:0x3f8a3a, hat:'straw', pants:0x5a4a3a},
+  sushichef:{body:0xf4f4f4, apron:0x1a1a1a, hat:'beanie', hatCol:0xd9443a},
 };
 function addWorker(kind, x, z, anim) {
   const w = entity(LOOKS[kind] || LOOKS.baker, x, z, WORKER.speed, WORKER.cap + (kind === 'builder' ? 10 : 0)); w.kind = kind; w.state = 'idle'; w.wait = 0; w.home = [x, z];
@@ -1643,6 +1666,9 @@ const ROUTES = {
   scholar:{src:() => [outZone('oven2'), outZone('oven')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('library')},
   miner:{src:() => [oreZone], dst:() => inZone('smelter')},
   hauler:{src:() => [outZone('smelter')], dst:() => inZone('smith')},
+  milkman:{src:() => [outZone('dairy')], dst:() => inZone('creamery')},
+  picker:{src:() => [outZone('tomatoes')], dst:() => inZone('pizzeria')},
+  sushichef:{src:() => [RANCH.pier], dst:() => inZone('sushi')},
   tinker:{src:() => [outZone('smelter')], dst:() => inZone('workshop')},
 };
 // ------------------------------------------------------------------ walking around things: a grid of where people can't go, and A* paths around it
@@ -1810,6 +1836,9 @@ function availableDishes() {
   const d = ['grilled'];
   if (ST.spit && ST.lodge) d.push('roast');
   if ((ST.oven && ST.field) || (ST.oven2 && ST.field2)) d.push('bread');
+  if (ST.creamery && ST.dairy) d.push('icecream');
+  if (ST.pizzeria && ST.tomatoes) d.push('pizza');
+  if (ST.sushi && RANCH.pier) d.push('sushi');
   return d;
 }
 const travelerOrder = (min, spread) => { const d = availableDishes(); return [{type:d[R()*d.length|0], need:min + (R()*(spread + Math.min(W.era, 3)*1.5)|0)}]; };
@@ -2177,11 +2206,37 @@ const PADS = [
   {id:'oilField', x:-2.4, z:-21.6, cost:40, cur:'tools', icon:'🛢️', label:'Oil field', after:['highway', 'mineRail'], need:() => oilReady(), region:'north'},
   {id:'refinery', x:-0.4, z:-19.2, cost:100000, cur:'coin', icon:'🏭', label:'Oil refinery', after:['oilField'], region:'north'},
   {id:'gasStation', x:-0.4, z:-19.2, cost:60000, cur:'coin', icon:'⛽', label:'Gas station', after:['refinery'], region:'north'},
+  {id:'mount1', x:11.3, z:-2.4, cost:2000, cur:'coin', icon:'🐴', label:'Horse', after:['village']},
+  {id:'mount2', x:11.3, z:-2.4, cost:6000, cur:'coin', icon:'🚲', label:'Bicycle', after:['mount1', 'townhall']},
+  {id:'mount3', x:11.3, z:-2.4, cost:15000, cur:'coin', icon:'🛵', label:'Scooter', after:['mount2', 'workshop']},
+  {id:'mount4', x:11.3, z:-2.4, cost:40000, cur:'coin', icon:'🚗', label:'Your own car', after:['mount3', 'downtownGate']},
+  {id:'mount5', x:11.3, z:-2.4, cost:150000, cur:'coin', icon:'🎒', label:'Jetpack', after:['mount4', 'labs']},
+  {id:'wStone', x:-29.5, z:18.4, cost:60, cur:'stone', icon:'🪨', label:'Stonehenge', after:['bridge1']},
+  {id:'wPyramid', x:-22.6, z:18.4, cost:150, cur:'stone', icon:'🔺', label:'Great Pyramid', after:['bridge1', 'townhall']},
+  {id:'wColosseum', x:-29.5, z:23.8, cost:200, cur:'stone', icon:'🏟️', label:'Colosseum', after:['bridge1', 'castle']},
+  {id:'wCathedral', x:-22.6, z:23.8, cost:30, cur:'tools', icon:'⛪', label:'Cathedral', after:['bridge1', 'castle2', 'workshop']},
+  {id:'wTower', x:-29.5, z:29, cost:60, cur:'tools', icon:'🗼', label:'Iron Tower', after:['bridge1', 'steamTrain']},
+  {id:'wNeedle', x:-22.6, z:29, cost:250000, cur:'coin', icon:'🛸', label:'Space Needle', after:['bridge1', 'labs']},
+  {id:'ranchGate', x:-8.9, z:-18, cost:60, cur:'stone', icon:'🐄', label:'Ranch bridge', after:['northGate', 'townhall'], region:'north'},
+  {id:'dairy', x:-30, z:-26.5, cost:2500, cur:'coin', icon:'🐄', label:'Dairy cows', after:['ranchGate'], region:'ranch'},
+  {id:'creamery', x:-21.2, z:-26.5, cost:50, cur:'log', icon:'🍦', label:'Ice cream parlor', after:['dairy'], region:'ranch'},
+  {id:'milkman', x:-30.5, z:-23.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Milkman', after:['creamery'], region:'ranch'},
+  {id:'tomatoes', x:-30, z:-20.5, cost:2500, cur:'coin', icon:'🍅', label:'Tomato field', after:['ranchGate'], region:'ranch'},
+  {id:'pizzeria', x:-21.2, z:-20.5, cost:60, cur:'stone', icon:'🍕', label:'Pizzeria', after:['tomatoes'], region:'ranch'},
+  {id:'picker', x:-26, z:-23.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Tomato picker', after:['pizzeria'], region:'ranch'},
+  {id:'fishPier', x:-18.6, z:-16.2, cost:1200, cur:'coin', icon:'🎣', label:'Fishing pier', after:['ranchGate'], region:'ranch'},
+  {id:'sushi', x:-21.2, z:-16.2, cost:25, cur:'tools', icon:'🍣', label:'Sushi bar', after:['fishPier', 'workshop'], region:'ranch'},
+  {id:'sushichef', x:-21.5, z:-23.1, cost:2000, cur:'coin', icon:'👨‍🍳', label:'Sushi chef', after:['sushi'], region:'ranch'},
+  {id:'aquarium', x:39, z:12.2, cost:40000, cur:'coin', icon:'🐠', label:'Aquarium', after:['steamTrain']},
+  {id:'zoo', x:43.8, z:12.1, cost:60000, cur:'coin', icon:'🦁', label:'Zoo', after:['aquarium', 'castle']},
   {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
   {id:'moonLanding', x:-31, z:3.6, cost:500000, cur:'coin', icon:'🚀', label:'Moon landing', after:['satellite'], region:'airfield'},
   {id:'moonBase', x:-31, z:3.6, cost:1000000, cur:'coin', icon:'🧑‍🚀', label:'Moon base', after:['moonLanding'], region:'airfield'},
   {id:'mars', x:-31, z:3.6, cost:3000000, cur:'coin', icon:'🪐', label:'Mars colony', after:['moonBase'], region:'airfield'},
+  {id:'moonHotel', x:-31, z:3.6, cost:1500000, cur:'coin', icon:'🏨', label:'Moon hotel', after:['moonBase'], region:'airfield'},
+  {id:'asteroid', x:-31, z:3.6, cost:2000000, cur:'coin', icon:'☄️', label:'Asteroid mining', after:['mars', 'moonHotel'], region:'airfield'},
+  {id:'spaceElevator', x:-31, z:3.6, cost:4000000, cur:'coin', icon:'🛗', label:'Space elevator', after:['asteroid'], region:'airfield'},
   {id:'mineRail', x:-2.4, z:-21.6, cost:8, cur:'tools', icon:'🚃', label:'Mine railway', after:['miner', 'workshop'], region:'north'},
   {id:'railway', x:29.3, z:15.4, cost:90, cur:'stone', icon:'🐎', label:'Stagecoach line', after:['farmGate', 'workshop'], region:'farm'},
   {id:'steamTrain', x:29.3, z:15.4, cost:15, cur:'tools', icon:'🚂', label:'Steam train', after:['railway'], region:'farm'},
@@ -2398,6 +2453,24 @@ const UNLOCK = {
   refinery(a) { refineryFx(a); if (a) banner('🏭 Oil refinery!', 'The quarry now refines its own oil. Fuel sells for four times as much as crude.'); },
   gasStation(a) { gasStationFx(a); if (a) banner('⛽ Gas station!', 'A pipe runs from the refinery to a gas station at the highway exit. Every car that fills up pays.'); },
   aiLab(a) { aiFx(1, a); }, superAI(a) { aiFx(2, a); },
+  mount1(a) { mountStage(1, a); }, mount2(a) { mountStage(2, a); }, mount3(a) { mountStage(3, a); }, mount4(a) { mountStage(4, a); }, mount5(a) { mountStage(5, a); },
+  wStone(a) { wonderFx('wStone', a); }, wPyramid(a) { wonderFx('wPyramid', a); }, wColosseum(a) { wonderFx('wColosseum', a); },
+  wCathedral(a) { wonderFx('wCathedral', a); }, wTower(a) { wonderFx('wTower', a); }, wNeedle(a) { wonderFx('wNeedle', a); },
+  ranchGate(a) { openRegion('ranch', a); ranchBridge(a); ranchAnimals(); },
+  dairy(a) { station('dairy', {name:'dairy', gen:'milk', t:1.6, group:'farm', outZ:[-25.8, -26.5], outCap:18, genAt:[-28, 1, -26.5]}); ranchFx('dairy', a); },
+  creamery(a) { station('creamery', {name:'ice cream parlor', in:'milk', out:'icecream', t:1.4, inZ:[-23.8, -26.5], outZ:[-18.6, -26.5], fireAt:[-21.2, 1.4, -26.5]}); ranchFx('creamery', a); if (a) banner('🍦 Ice cream!', 'A new dish on every table. Guests pay well for it.'); },
+  milkman(a) { addWorker('milkman', -30.5, -23.1, a); },
+  tomatoes(a) { station('tomatoes', {name:'tomato field', gen:'tomato', t:1.6, group:'farm', outZ:[-25.8, -20.5], outCap:18, genAt:[-28, 1, -20.5]}); ranchFx('tomatoes', a); },
+  pizzeria(a) { station('pizzeria', {name:'pizzeria', in:'tomato', out:'pizza', t:1.6, inZ:[-23.8, -20.5], outZ:[-18.6, -20.5], fireAt:[-21.2, 1.4, -20.5]}); ranchFx('pizzeria', a); if (a) banner('🍕 Pizza!', 'Hot pizza for your guests, at a much better price.'); },
+  picker(a) { addWorker('picker', -26, -23.1, a); },
+  fishPier(a) { ranchFx('pier', a); RANCH.pier = addZone({kind:'source', item:'fish', rate:.42, wrate:.75, from:() => new THREE.Vector3(-15.4 + R()*1.2, -.1, -16.2 + (R() - .5)*2), x:-18.6, z:-16.2, icon:'🎣', tile:{alpha:1, size:96, label:'Fishing pier'}}); },
+  sushi(a) { station('sushi', {name:'sushi bar', in:'fish', out:'sushi', t:1.4, inZ:[-23.8, -16.2], outZ:[-26.6, -16.2], fireAt:[-21.2, 1.4, -16.2]}); ranchFx('sushi', a); if (a) banner('🍣 Sushi!', 'The best-paying dish in the empire.'); },
+  sushichef(a) { addWorker('sushichef', -21.5, -23.1, a); },
+  aquarium(a) { aquariumFx(a); if (a) banner('🐠 Aquarium!', 'Every fish you have caught brings more visitors.'); },
+  zoo(a) { zooFx(a); if (a) banner('🦁 Zoo!', 'An animal from every land you conquered. Visitors pay to see them.'); },
+  moonHotel(a) { const S = spaceScene('moon'); S.built = -1; if (a) { SPACE.view = 'moon'; SPACE.tour = 8; stage.classList.add('space'); buildBase(S); banner('🏨 Moon hotel!', 'The most expensive rooms in the universe. Guests pay a fortune.'); } },
+  asteroid(a) { if (a) { SPACE.view = 'belt'; SPACE.tour = 8; stage.classList.add('space'); banner('☄️ Asteroid mining!', 'Mining ships haul rare metals back from the belt.'); } },
+  spaceElevator(a) { spaceElevatorFx(a); if (a) banner('🛗 Space elevator!', 'A cable from your launch pad all the way to orbit.'); },
   launchPad(a) { launchPadFx(a); makeCash('space', -27.5, 3.6); if (a) banner('🚀 The space age!', 'Launch satellites for income, then land on the Moon.'); },
   satellite(a) { if (a) launch('sat'); },
   moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
@@ -4164,7 +4237,7 @@ function pave(m) {
   const t = pave.base[kind].clone(); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
   const top = m.material[2]; if (top.map && top.map !== groundTex.base) top.map.dispose(); top.map = t; top.color.set(0xffffff); top.needsUpdate = true;
 }
-const PAVED = r => r !== REGIONS.farm && r !== REGIONS.airfield && r !== REGIONS.north;
+const PAVED = r => r !== REGIONS.farm && r !== REGIONS.airfield && r !== REGIONS.north && r !== REGIONS.ranch;
 function groundStage(n, anim) {
   W.ground = n; W.flags.roads = true;
   player.speed = Math.max(player.speed, 7 + (n - 1)*.4);
@@ -4280,7 +4353,7 @@ function elevAt(x, z) {
   return 0;
 }
 function overpasses(anim) {
-  AREAS.push({x0:30.4, x1:36.6, z0:.35, z1:4.75}, {x0:30.4, x1:36.6, z0:29.0, z1:30.2}, {x0:30.4, x1:32.9, z0:11.5, z1:19.3});
+  AREAS.push({x0:36.4, x1:46.4, z0:.35, z1:14.8}, {x0:30.4, x1:36.6, z0:.35, z1:4.75}, {x0:30.4, x1:36.6, z0:29.0, z1:30.2}, {x0:30.4, x1:32.9, z0:11.5, z1:19.3});
   const g = new THREE.Group(); scene.add(g);
   const IRON = 0x3a6a5a;
   for (const o of OVERPASS) {
@@ -4497,7 +4570,7 @@ const DECOR = {
 };
 const decorObjs = [], rides = [];
 const appeal = () => (W.decor || []).reduce((a, d) => a + DECOR[d.k].appeal, 0);
-const appealMult = () => 1 + Math.min(.5, appeal() * .004);
+const appealMult = () => 1 + Math.min(.75, appeal() * .004 * (policy('appeal') || 1)) + wonderCount()*.05;
 function decorMesh(k, x, z, ry = 0) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = k === 'coaster' ? 0 : ry; scene.add(g); g.updateMatrixWorld(true);
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
@@ -4644,7 +4717,7 @@ function updCitizens(dt) {
     // a plan that takes too long is dropped, so nobody waits forever
     if (s.plan && (s.planT = (s.planT || 0) + dt) > 20) { s.plan = null; s.planT = 0; }
     if (!s.doing && s.rest <= 0) { if (!s.plan) { s.plan = needSpot(s); s.planT = 0; } if (s.plan) s.goal = s.plan.at; }
-    const mood = 12 + (s.need.food + s.need.fun + s.need.social) / 3 + (W.water || 0)*4 + (W.ground || 0)*3 + Math.min(20, appeal()*.15);
+    const mood = 12 + policy('happy') + (s.need.food + s.need.fun + s.need.social) / 3 + (W.water || 0)*4 + (W.ground || 0)*3 + Math.min(20, appeal()*.15);
     s.mood = clamp(mood, 0, 100); sum += s.mood;
     const face = s.mood > 75 ? '😄' : s.mood > 55 ? '🙂' : s.mood > 35 ? '😐' : '😟';
     const extra = s.doing ? {food:'🍽️', fun:'🎉', social:'💬', work:'🔨'}[s.doing.act] : '';
@@ -4813,7 +4886,7 @@ function dwellings() {
   return out;
 }
 const population = () => Object.values(OCC).reduce((a, b) => a + b, 0);
-function rentFor(d) { return OCC[d.k] ? OCC[d.k] * d.per + 2*W.era : 0; }
+function rentFor(d) { return OCC[d.k] ? Math.round((OCC[d.k] * d.per + 2*W.era) * (policy('rent') || 1) * (1 + wonderCount()*.05)) : 0; }
 function spawnMover(path, done, suitcase) {
   const c = makeChar({civ:true});
   if (suitcase) mesh(G.box, [0x8a5a2b, 0x3f7cc0, 0xb8322a][R()*3|0], [.12, .26, .34], [0, -.6, 0], c.armR);
@@ -4947,7 +5020,7 @@ function updMarket(dt) {
   if ((MKT.t -= dt) > 0) return;
   MKT.t = 2;
   const n = brokers().length; if (!n && !W.fund) return;
-  let r = .00012 + .00004*Math.min(12, n) + uniBoost() + gauss()*.006;
+  let r = .00012 + .00004*Math.min(12, n) + uniBoost()*(policy('fund') || 1) + gauss()*.006;
   if (R() < .002) { r -= .12; if (W.fund) banner('📉 Market crash!', 'Your fund drops. Markets go up and down: hold on, or cash out.'); }
   else if (R() < .002) { r += .1; if (W.fund) banner('📈 Market boom!', 'Your fund jumps.'); }
   MKT.idx.push(MKT.idx[MKT.idx.length - 1] * (1 + r)); if (MKT.idx.length > 120) MKT.idx.shift();
@@ -5580,6 +5653,10 @@ const ACH = [
   ['coaster', '🎢', 'Thrill seeker', 'Build a roller coaster', () => (W.decor || []).some(d => d.k === 'coaster')],
   ['cop', '🚓', 'Law and order', 'Catch a robber', () => W.flags.caught],
   ['moon', '🌕', 'One small step', 'Land on the Moon', () => W.flags.moon],
+  ['boss', '🐉', 'Monster slayer', 'Defeat a dragon or a kaiju', () => W.flags.boss],
+  ['wonders', '🗺️', 'Wonders of the world', 'Build all six wonders', () => wonderCount() >= 6],
+  ['jet', '🎒', 'Rocket man', 'Fly with a jetpack', () => W.mount >= 5],
+  ['menu', '🍣', 'Full menu', 'Serve ice cream, pizza and sushi', () => !!(ST.creamery && ST.pizzeria && ST.sushi)],
   ['mars', '🔴', 'Red planet', 'Found a colony on Mars', () => W.flags.mars],
 ];
 let achT = 2;
@@ -5631,6 +5708,7 @@ function planetTex(kind) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function spaceScene(planet) {
+  if (planet === 'belt') return beltScene();
   if (SPACE.scenes[planet]) return SPACE.scenes[planet];
   const sc = new THREE.Scene(), mars = planet === 'mars';
   sc.background = new THREE.Color(mars ? 0x1a0c08 : 0x02030a);
@@ -5665,7 +5743,8 @@ function spaceScene(planet) {
 }
 // the base grows with your empire: domes, labs, solar farms and a rover
 function buildBase(S) {
-  const mars = S.planet === 'mars', level = mars ? (W.flags.mars ? 2 : 0) : (W.unlocked.has('moonBase') ? 2 : W.flags.moon ? 1 : 0);
+  if (S.belt) return;
+  const mars = S.planet === 'mars', level = mars ? (W.flags.mars ? 2 : 0) : (W.unlocked.has('moonHotel') ? 3 : W.unlocked.has('moonBase') ? 2 : W.flags.moon ? 1 : 0);
   if (S.built === level) return; S.built = level;
   S.base.clear();
   const P = (geo, cl, s, pos, o) => mesh(geo, cl, s, pos, S.base, o);
@@ -5688,6 +5767,12 @@ function buildBase(S) {
     mesh(G.box, 0xdfe4ea, [1, .4, 1.6], [0, .55, 0], rover); for (const [x, z] of [[-.55, .55], [.55, .55], [-.55, -.55], [.55, -.55]]) mesh(G.cyl, 0x2a2a2e, [.28, .2, .28], [x, .28, z], rover).rotation.z = Math.PI/2;
     mesh(G.sph, 0xeef0f4, [.4, .12, .4], [0, 1.2, -.3], rover).rotation.x = -.6;
     for (let i = 0; i < 3; i++) { const a = astronaut(); a.g.position.set(-3 + i*2.5, S.H(-3 + i*2.5, 3), 3 + (i % 2)); S.base.add(a.g); (S.walkers ||= []).push(a); }
+  }
+  if (level >= 3) {
+    // the Moon hotel: a glass tower with a ring of rooms and a view of Earth
+    const y0 = S.H(-12, -10);
+    P(G.cyl, 0xdfe4ea, [1.2, 7, 1.2], [-12, y0 + 3.5, -10], {metalness:.4}); P(G.cyl, 0x8fc6e8, [1.25, 6, 1.25], [-12, y0 + 3.6, -10], {metalness:.5, roughness:.1, transparent:true, opacity:.7});
+    P(G.cyl, 0xf2c200, [2.6, .4, 2.6], [-12, y0 + 7.2, -10], {metalness:.7}); for (let i = 0; i < 16; i++) bulb(S.base, -12 + Math.cos(i/16*Math.PI*2)*2.6, y0 + 7.2, -10 + Math.sin(i/16*Math.PI*2)*2.6, 0xfff2c8, .1);
   }
 }
 function lander(l) {
@@ -5742,13 +5827,20 @@ function endCut() {
 }
 function toggleSpace() {
   if (SPACE.cut) return;
-  const places = ['moon', ...(W.flags.mars ? ['mars'] : [])], i = places.indexOf(SPACE.view);
+  const places = ['moon', ...(W.flags.mars ? ['mars'] : []), ...(W.unlocked.has('asteroid') ? ['belt'] : [])], i = places.indexOf(SPACE.view);
   SPACE.view = i < 0 ? places[0] : places[i + 1] || null;
   stage.classList.toggle('space', !!SPACE.view);
   if (SPACE.view) { const S = spaceScene(SPACE.view); buildBase(S); }
 }
 function updSpaceView(dt) {
   if (SPACE.cut) return;
+  if (SPACE.view === 'belt') {
+    const S = beltScene(); SPACE.orbit += dt*.06;
+    S.cam.position.set(Math.sin(SPACE.orbit)*36, 12, Math.cos(SPACE.orbit)*36); S.cam.lookAt(0, 0, 0);
+    for (const r of S.rocks) { r.a += r.sp*dt; r.r.position.x = Math.cos(r.a)*r.d; r.r.position.z = Math.sin(r.a)*r.d; r.r.rotation.x += dt*.3; }
+    for (const sh of S.ships) { const a = time*.2 + sh.ph, d = 18 + Math.sin(time*.5 + sh.ph)*8; sh.s.position.set(Math.cos(a)*d, Math.sin(time + sh.ph)*2, Math.sin(a)*d); sh.s.rotation.y = -a; }
+    return;
+  }
   const S = spaceScene(SPACE.view); SPACE.orbit += dt*.08;
   S.cam.position.set(Math.sin(SPACE.orbit)*20, S.H(0, 0) + 9, Math.cos(SPACE.orbit)*20); S.cam.lookAt(0, S.H(0, 0) + 1, -1);
   if (S.rover) { S.rover.position.x = 6 + Math.sin(time*.3)*4; S.rover.position.y = S.H(S.rover.position.x, 6); S.rover.rotation.y = Math.cos(time*.3) > 0 ? Math.PI/2 : -Math.PI/2; }
@@ -6007,7 +6099,7 @@ function updOil(dt) {
 
 // ------------------------------------------------------------------ AI: the university's last breakthrough. A brain over the lab, drones over the town
 const AI = {brain:null, drones:[]};
-const aiMult = () => 1 + (W.unlocked.has('aiLab') ? .25 : 0) + (W.unlocked.has('superAI') ? .25 : 0);
+const aiMult = () => (policy('work') || 1) * (1 + (W.unlocked.has('aiLab') ? .25 : 0) + (W.unlocked.has('superAI') ? .25 : 0));
 function aiFx(level, anim) {
   if (!AI.brain) {
     const g = new THREE.Group(); g.position.set(25.5, 7.2, -9.6); scene.add(g); AI.brain = g;
@@ -6039,6 +6131,420 @@ function updAI(dt) {
     d.g.position.set(x, 4.5 + Math.sin(u*Math.PI)*2, z); d.g.rotation.y = Math.atan2(d.to[0] - d.from[0], d.to[1] - d.from[1]);
     d.g.rotors.forEach(r => { r.rotation.y += dt*40; });
   }
+}
+
+// ------------------------------------------------------------------ getting around: a horse, a bicycle, a scooter, a car and finally a jetpack
+const MOUNTS = [null,
+  {n:'Horse', icon:'🐴', speed:1.25, y:.55}, {n:'Bicycle', icon:'🚲', speed:1.4, y:.28}, {n:'Scooter', icon:'🛵', speed:1.6, y:.32},
+  {n:'Car', icon:'🚗', speed:1.85, y:.3}, {n:'Jetpack', icon:'🎒', speed:2.1, y:.15}];
+let mountG = null, jetFlame = null;
+function mountStage(n, anim) {
+  W.mount = n;
+  if (mountG) player.char.g.remove(mountG);
+  const M = MOUNTS[n], g = mountG = new THREE.Group(); g.position.y = -M.y; player.char.g.add(g); jetFlame = null;
+  const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
+  if (n === 1) {
+    P(G.box, 0x7a4a26, [.42, .5, 1.3], [0, .85, 0]); P(G.box, 0x7a4a26, [.24, .6, .28], [0, 1.25, .62]).rotation.x = -.5; P(G.box, 0x6a3e20, [.2, .2, .5], [0, 1.5, .85]);
+    P(G.box, 0x2a1a10, [.06, .4, .3], [0, 1.3, .48]); P(G.box, 0x8a2a1e, [.46, .08, .5], [0, 1.12, -.05]);
+    g.legs = []; for (const [x, z] of [[-.14, -.48], [.14, -.48], [-.14, .48], [.14, .48]]) { const l = new THREE.Group(); l.position.set(x, .62, z); g.add(l); mesh(G.box, 0x4a2a14, [.1, .62, .1], [0, -.31, 0], l); g.legs.push(l); }
+    P(G.box, 0x2a1a10, [.06, .5, .06], [0, .9, -.68]).rotation.x = .6;
+  } else if (n === 2) {
+    for (const z of [-.5, .5]) P(G.cyl, 0x1a1a1a, [.32, .04, .32], [0, .32, z]).rotation.z = Math.PI/2;
+    P(G.box, 0xd9443a, [.05, .05, 1], [0, .5, 0], {metalness:.6}); P(G.box, 0xd9443a, [.05, .45, .05], [0, .6, -.15], {metalness:.6}); P(G.box, 0x2a2a2e, [.4, .04, .04], [0, .85, .45]);
+  } else if (n === 3) {
+    P(G.box, 0x3fb0c0, [.4, .35, 1.1], [0, .45, 0]); P(G.box, 0x3fb0c0, [.36, .5, .2], [0, .75, .5]);
+    for (const z of [-.45, .45]) P(G.cyl, 0x1a1a1a, [.2, .12, .2], [0, .2, z]).rotation.z = Math.PI/2;
+    P(G.box, 0x2a2a2e, [.45, .04, .04], [0, 1.05, .55]); bulb(g, 0, .85, .62, 0xfff2c8, .05);
+  } else if (n === 4) {
+    P(G.box, 0xd9443a, [1, .45, 1.9], [0, .45, 0], {metalness:.4, roughness:.3}); P(G.box, 0x8fc6e8, [.9, .3, .8], [0, .82, -.05], {metalness:.5, roughness:.1});
+    for (const [x, z] of [[-.5, .6], [.5, .6], [-.5, -.6], [.5, -.6]]) P(G.cyl, 0x1a1a1a, [.2, .12, .2], [x, .2, z]).rotation.z = Math.PI/2;
+    for (const x of [-.3, .3]) bulb(g, x, .5, .96, 0xfff2c8, .05);
+  } else if (n === 5) {
+    P(G.box, 0x8a8f96, [.45, .55, .25], [0, 1.15, -.3], {metalness:.7, roughness:.3});
+    for (const x of [-.14, .14]) P(G.cyl, 0x3a3e44, [.08, .3, .08], [x, .8, -.3], {metalness:.6});
+    jetFlame = new THREE.Group(); g.add(jetFlame);
+    for (const x of [-.14, .14]) { const f = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0x5af0ff, toneMapped:false})); f.scale.set(.08, .35, .08); f.rotation.x = Math.PI; f.position.set(x, .5, -.3); jetFlame.add(f); }
+  }
+  if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 ? ' And you fly over buildings.' : ''}`); }
+}
+function updMount(dt) {
+  if (!W.mount) { player.rideY = 0; return; }
+  const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
+  player.rideY += ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
+  if (mountG) mountG.position.y = -player.rideY;
+  if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
+  if (jetFlame) { jetFlame.visible = moving; jetFlame.scale.y = .8 + Math.sin(time*30)*.2; if (moving && R() < dt*20) particle(0xd8f0ff, player.pos.clone().setY(player.rideY + .3), new THREE.Vector3((R() - .5), -1.5, (R() - .5)), .5, .1, {grow:.5, op:.5}); }
+  // riding: legs out on the horse, bike and scooter; tucked away in the car
+  if (W.mount <= 3) { player.char.legL.rotation.x = player.char.legR.rotation.x = -1.2; player.char.legL.rotation.z = .3; player.char.legR.rotation.z = -.3; }
+  else { player.char.legL.rotation.z = player.char.legR.rotation.z = 0; }
+}
+
+// ------------------------------------------------------------------ wonders of the world, in a park on the west bank
+const WONDERS = [
+  {id:'wStone', n:'Stonehenge', icon:'🪨', at:[-29.5, 18.4]}, {id:'wPyramid', n:'The Great Pyramid', icon:'🔺', at:[-22.6, 18.4]},
+  {id:'wColosseum', n:'The Colosseum', icon:'🏟️', at:[-29.5, 23.8]}, {id:'wCathedral', n:'The Cathedral', icon:'⛪', at:[-22.6, 23.8]},
+  {id:'wTower', n:'The Iron Tower', icon:'🗼', at:[-29.5, 29]}, {id:'wNeedle', n:'The Space Needle', icon:'🛸', at:[-22.6, 29]},
+];
+const wonderCount = () => WONDERS.filter(w => W.unlocked.has(w.id)).length;
+let wondersOpen = false;
+function wondersPark() {
+  if (wondersOpen) return; wondersOpen = true;
+  clearForest({x0:-34, x1:-17.4, z0:14.6, z1:31.5}); clearForest({x0:-23.4, x1:-20.4, z0:5, z1:15});
+  slab(0x9fb86a, 16.4, 16.6, -25.8, 23.2, .004); slab(0xc9b48a, 1.6, 10, -21.9, 10, .006);
+  for (let z = 16; z <= 31; z += 2.5) slab(0xd8ccb0, 1.2, .6, -26.05, z, .008);
+  AREAS.push({x0:-22.8, x1:-21, z0:5.2, z1:15}, {x0:-34, x1:-17.6, z0:15, z1:31.4});
+}
+function wonderFx(id, anim) {
+  wondersPark();
+  const w = WONDERS.find(q => q.id === id), [x, z] = w.at, g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
+  if (id === 'wStone') {
+    for (let i = 0; i < 10; i++) { const a = i/10*Math.PI*2; P(G.box, 0x9a9da2, [.45, 1.6, .3], [Math.cos(a)*1.7, .8, Math.sin(a)*1.7]).rotation.y = -a; if (i % 2 === 0) P(G.box, 0x8d9096, [1.2, .3, .35], [Math.cos(a + .31)*1.7, 1.75, Math.sin(a + .31)*1.7]).rotation.y = -a - .31 + Math.PI/2; }
+    P(G.box, 0x8d9096, [.8, .5, .5], [0, .25, 0]);
+  } else if (id === 'wPyramid') {
+    for (let i = 0; i < 7; i++) P(G.box, i % 2 ? 0xe0c880 : 0xd4b870, [4.2 - i*.6, .5, 4.2 - i*.6], [0, .25 + i*.5, 0]);
+    P(G.cone4, 0xf2c200, [.4, .5, .4], [0, 3.75, 0], {metalness:.8, roughness:.3}).rotation.y = Math.PI/4;
+  } else if (id === 'wColosseum') {
+    for (let lvl = 0; lvl < 3; lvl++) for (let i = 0; i < 20; i++) {
+      const a = i/20*Math.PI*2; if (lvl === 2 && i > 13) continue;
+      P(G.box, 0xd8ccb0, [.7, .8, .3], [Math.cos(a)*2*1.15, .4 + lvl*.85, Math.sin(a)*2]).rotation.y = -a + Math.PI/2;
+      P(G.box, 0x3a3020, [.3, .45, .32], [Math.cos(a)*2.01*1.15, .42 + lvl*.85, Math.sin(a)*2.01]).rotation.y = -a + Math.PI/2;
+    }
+    P(G.cyl, 0xc8b88a, [1.9, .05, 1.6], [0, .03, 0]);
+  } else if (id === 'wCathedral') {
+    P(G.box, 0xd8d2c4, [1.8, 2.6, 3.6], [0, 1.3, 0]); const r = P(G.cone4, 0x4a5a6a, [1.4, 1.4, 2.6], [0, 3.3, 0]); r.rotation.y = Math.PI/4; r.scale.set(1.3, 1.4, 2.6);
+    for (const x of [-.65, .65]) { P(G.box, 0xd8d2c4, [.6, 4.6, .6], [x, 2.3, 1.7]); P(G.cone4, 0x4a5a6a, [.45, 1.6, .45], [x, 5.4, 1.7]).rotation.y = Math.PI/4; }
+    const rose = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xb04fd0, toneMapped:false})); rose.scale.set(.45, .05, .45); rose.rotation.x = Math.PI/2; rose.position.set(0, 2.6, 1.82); g.add(rose);
+    for (let i = 0; i < 4; i++) P(G.box, WIN.color.getHex(), [.05, .9, .3], [.92, 1.4, -1.2 + i*.8]);
+  } else if (id === 'wTower') {
+    const IRON = 0x6a5a48;
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const l = P(G.box, IRON, [.25, 3.4, .25], [sx*.95, 1.6, sz*.95], {metalness:.5}); l.rotation.set(sz*.28, 0, -sx*.28); }
+    P(G.box, IRON, [1.6, .2, 1.6], [0, 3.1, 0], {metalness:.5}); P(G.box, IRON, [.8, 2.6, .8], [0, 4.5, 0], {metalness:.5}); P(G.box, IRON, [.9, .15, .9], [0, 5.8, 0], {metalness:.5});
+    P(G.box, IRON, [.3, 1.8, .3], [0, 6.8, 0], {metalness:.5}); P(G.cyl, IRON, [.03, .8, .03], [0, 8.1, 0]); bulb(g, 0, 8.5, 0, 0xffe08a, .12);
+    for (let y = 1; y < 3; y += .7) P(G.box, IRON, [2.2 - y*.35, .06, .06], [0, y, .95 - y*.25], {metalness:.5});
+  } else {
+    P(G.cyl, 0xeef1f4, [.35, 6.5, .35], [0, 3.25, 0], {metalness:.3}); for (const a of [0, 2.1, 4.2]) { const l = P(G.box, 0xeef1f4, [.12, 6.6, .12], [Math.cos(a)*.6, 3.2, Math.sin(a)*.6]); l.rotation.set(Math.sin(a)*.08, 0, -Math.cos(a)*.08); }
+    const disc = new THREE.Group(); disc.position.y = 6.6; g.add(disc); w.spin = disc;
+    mesh(G.cyl, 0xf2a21a, [1.7, .35, 1.7], [0, 0, 0], disc, {metalness:.4}); mesh(G.cyl, 0x8fc6e8, [1.6, .25, 1.6], [0, .28, 0], disc, {metalness:.5, roughness:.1}); mesh(G.cyl, 0xeef1f4, [.5, .8, .5], [0, .7, 0], disc);
+    for (let i = 0; i < 12; i++) bulb(disc, Math.cos(i/12*Math.PI*2)*1.7, -.1, Math.sin(i/12*Math.PI*2)*1.7, 0xfff2c8, .05);
+  }
+  boxes.push({x0:x - 2.3, x1:x + 2.3, z0:z - 2.1, z1:z + 2.1});
+  fader(g, 4.6, 5);
+  if (anim) { popIn(g); banner(`${w.icon} ${w.n}!`, `A wonder of the world. Every wonder raises all income by 5% and brings tourists.`); for (let i = 0; i < 24; i++) particle([0xffd84a, 0xffffff, 0xff6a8a][i % 3], new THREE.Vector3(x, 2, z), new THREE.Vector3((R() - .5)*6, 4 + R()*4, (R() - .5)*6), 1.4, .12, {grav:1}); }
+}
+let tourT = 30;
+function updWonders(dt) {
+  for (const w of WONDERS) if (w.spin) w.spin.rotation.y += dt*.4;
+  const n = wonderCount(); if (!n || !started || (tourT -= dt) > 0) return;
+  tourT = 30;
+  const pay = n * (300 + 80*W.era); W.coins += pay; W.earned += pay;
+  popText(`📸 +${pay} tourists`, new THREE.Vector3(-25.8, 4, 23), '#ffe06b');
+  for (let i = 0; i < Math.min(3, n) && movers.length < MAX_MOVERS; i++) { const w = WONDERS.filter(q => W.unlocked.has(q.id))[i]; spawnMover([[-26.05, 15.4], [-26.05, w.at[1]], [w.at[0] + (w.at[0] < -26 ? 2.6 : -2.6), w.at[1]], [-26.05, w.at[1]], [-26.05, 15.4]], null, false); }
+}
+
+// ------------------------------------------------------------------ the Ranch, across the river from the quarry: cows, tomatoes and a fishing pier for new dishes
+const RANCH = {bridge:null, leaves:[], up:0, block:null, animals:[]};
+function ranchBridge(anim) {
+  // a bascule bridge that lifts for passing ships
+  const g = new THREE.Group(); scene.add(g); RANCH.bridge = g;
+  for (const x of [-10.6, -17.4]) mesh(G.box, 0x8f8a80, [.9, .9, 1.8], [x, -.1, -21], g);
+  for (const [hinge, off, dir] of [[-10.6, -1.7, -1], [-17.4, 1.7, 1]]) {
+    const pivot = new THREE.Group(); pivot.position.set(hinge, .35, -21); g.add(pivot);
+    const leaf = new THREE.Group(); leaf.position.x = off; pivot.add(leaf);
+    mesh(G.box, 0x6a5a48, [3.4, .2, 1.5], [0, 0, 0], leaf); for (const z of [-.68, .68]) mesh(G.box, 0x3a6a5a, [3.4, .4, .06], [0, .25, z], leaf, {metalness:.5});
+    pivot.dir = dir; RANCH.leaves.push(pivot);
+  }
+  if (anim) popIn(g);
+}
+function ranchFx(kind, anim) {
+  const g = new THREE.Group(); scene.add(g);
+  const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
+  if (kind === 'dairy') {
+    // a fenced pasture with grazing cows
+    for (let x = -32.8; x <= -27.2; x += .7) for (const z of [-28.6, -24.4]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
+    for (let z = -28.6; z <= -24.4; z += .7) for (const x of [-32.8, -27.2]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
+    for (const z of [-28.6, -24.4]) P(G.box, 0x8a5a2b, [5.6, .06, .06], [-30, .5, z]); for (const x of [-32.8, -27.2]) P(G.box, 0x8a5a2b, [.06, .06, 4.2], [x, .5, -26.5]);
+    P(G.box, 0xb8322a, [1.6, 1.3, 1.2], [-31.6, .65, -27.6]); P(G.cone4, 0x6a3a22, [1.3, .7, 1], [-31.6, 1.65, -27.6]).rotation.y = Math.PI/4;
+    for (let i = 0; i < 3; i++) RANCH.animals.push(animal(g, 'cow', -30 + (i - 1)*1.4, -26.2 + (i % 2)*.8, {x0:-32.4, x1:-27.6, z0:-28.2, z1:-24.8}));
+    boxes.push({x0:-32.8, x1:-27.2, z0:-28.6, z1:-24.4});
+  } else if (kind === 'creamery') {
+    P(G.box, 0xf4f0e6, [2.6, 1.8, 2.2], [-21.2, .9, -26.5]); P(G.box, 0xff9ec0, [2.62, .3, 2.22], [-21.2, 1.6, -26.5]);
+    P(G.cone, 0xe8c48a, [.35, .8, .35], [-21.2, 2.4, -26.5]).rotation.x = Math.PI; P(G.sph, 0xff9ec0, [.38, .32, .38], [-21.2, 2.9, -26.5]);
+    boxes.push({x0:-22.5, x1:-19.9, z0:-27.6, z1:-25.4});
+  } else if (kind === 'tomatoes') {
+    P(G.box, 0x6a4a2a, [5.2, .12, 2.6], [-30, .06, -20.5]);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) { P(G.cone, 0x3f8a3a, [.18, .55, .18], [-32.3 + c*.5, .35, -21.4 + r*.6]); P(G.sph, 0xd9302a, [.08, .08, .08], [-32.2 + c*.5, .45, -21.3 + r*.6]); }
+    boxes.push({x0:-32.6, x1:-27.4, z0:-21.8, z1:-19.2});
+  } else if (kind === 'pizzeria') {
+    P(G.box, 0xe8d0a8, [2.6, 1.7, 2.2], [-21.2, .85, -20.5]); for (let i = 0; i < 5; i++) P(G.box, i % 2 ? 0xf4f0e6 : 0x3f9a3a, [.52, .06, .7], [-22.24 + i*.52, 1.7, -19.1]).rotation.x = .35;
+    P(G.cyl, 0x9a4a32, [.3, 1.2, .3], [-20.4, 2, -21.2]); smokers.push({x:-20.4, y:2.7, z:-21.2});
+    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('PIZZA', '#3f9a3a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-21.2, 1.35, -19.38); g.add(s);
+    boxes.push({x0:-22.5, x1:-19.9, z0:-21.6, z1:-19.4});
+  } else if (kind === 'pier') {
+    for (let i = 0; i < 6; i++) P(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.6], [-17.4 + i*.52, .22, -16.2]);
+  } else if (kind === 'sushi') {
+    P(G.box, 0x2a2a30, [2.6, 1.7, 2.2], [-21.2, .85, -16.2]); P(G.box, 0xd9443a, [2.8, .2, 2.4], [-21.2, 1.75, -16.2]);
+    const r = P(G.cone4, 0x2a2a30, [2, .6, 1.8], [-21.2, 2.15, -16.2]); r.rotation.y = Math.PI/4;
+    for (const x of [-22.1, -20.3]) bulb(g, x, 1.4, -15.05, 0xff6a5a, .1);
+    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('SUSHI', '#d9443a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-21.2, 1.2, -15.08); g.add(s);
+    boxes.push({x0:-22.5, x1:-19.9, z0:-17.3, z1:-15.1});
+  }
+  if (anim) popIn(g);
+}
+// cows, chickens and pigs that wander their pens
+function animal(parent, kind, x, z, pen) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  if (kind === 'cow') {
+    mesh(G.box, 0xf4f4f4, [.5, .45, .9], [0, .55, 0], g); mesh(G.box, 0x1a1a1a, [.51, .2, .3], [0, .62, .1], g); mesh(G.box, 0xf4f4f4, [.3, .3, .3], [0, .72, .55], g); mesh(G.box, 0xffb0b0, [.2, .12, .1], [0, .62, .72], g);
+    for (const [lx, lz] of [[-.18, -.32], [.18, -.32], [-.18, .32], [.18, .32]]) mesh(G.box, 0x3a3a3a, [.08, .35, .08], [lx, .17, lz], g);
+  } else if (kind === 'chicken') {
+    mesh(G.sph, 0xf4f0e6, [.14, .14, .18], [0, .2, 0], g); mesh(G.sph, 0xf4f0e6, [.08, .08, .08], [0, .32, .12], g); mesh(G.box, 0xd9443a, [.03, .06, .05], [0, .41, .12], g); mesh(G.cone, 0xf2a21a, [.03, .06, .03], [0, .32, .2], g).rotation.x = Math.PI/2;
+  } else {
+    mesh(G.box, 0xffb0c0, [.4, .35, .6], [0, .35, 0], g); mesh(G.box, 0xff9eb0, [.22, .2, .1], [0, .38, .33], g); for (const [lx, lz] of [[-.13, -.2], [.13, -.2], [-.13, .2], [.13, .2]]) mesh(G.box, 0xff9eb0, [.07, .2, .07], [lx, .1, lz], g);
+  }
+  return {g, pen, tx:x, tz:z, t:0, sp:kind === 'chicken' ? 1 : .4};
+}
+function ranchAnimals() {
+  const g = new THREE.Group(); scene.add(g);
+  for (let x = -33.2; x <= -27; x += .7) mesh(G.box, 0xc8a878, [.06, .4, .06], [x, .2, -17.6], g);
+  for (let i = 0; i < 6; i++) RANCH.animals.push(animal(g, i < 4 ? 'chicken' : 'pig', -31 + i*.8, -16, {x0:-33, x1:-27.4, z0:-17.2, z1:-14.8}));
+}
+function updRanch(dt) {
+  // the bridge lifts when a ship comes up or down the river
+  if (RANCH.leaves.length) {
+    const shipNear = boats.some(b => Math.abs(b.z + 21) < 8) || pirates.some(p => Math.abs(p.g.position.z + 21) < 8);
+    RANCH.up += ((shipNear ? 1 : 0) - RANCH.up) * Math.min(1, dt*1.2);
+    for (const p of RANCH.leaves) p.rotation.z = p.dir * RANCH.up * 1.25;
+    const want = RANCH.up > .15;
+    if (want && !RANCH.block) { RANCH.block = {x0:-17, x1:-11, z0:-21.8, z1:-20.2}; boxes.push(RANCH.block); }
+    if (!want && RANCH.block) { boxes.splice(boxes.indexOf(RANCH.block), 1); RANCH.block = null; }
+  }
+  for (const a of RANCH.animals) {
+    if ((a.t -= dt) <= 0) { a.t = 2 + R()*4; a.tx = a.pen.x0 + R()*(a.pen.x1 - a.pen.x0); a.tz = a.pen.z0 + R()*(a.pen.z1 - a.pen.z0); }
+    const p = a.g.position, dx = a.tx - p.x, dz = a.tz - p.z, d = Math.hypot(dx, dz);
+    if (d > .1) { p.x += dx/d*Math.min(d, a.sp*dt); p.z += dz/d*Math.min(d, a.sp*dt); a.g.rotation.y = Math.atan2(dx, dz); }
+  }
+}
+
+// ------------------------------------------------------------------ the boss: a dragon in the old days, a kaiju in the modern ones
+const BOSS = {t:900, on:null};
+function makeBoss(kind) {
+  const g = new THREE.Group(); scene.add(g);
+  if (kind === 'dragon') {
+    mesh(G.sph, 0xb8322a, [.9, .7, 2.2], [0, 0, 0], g); mesh(G.sph, 0xd9a52a, [.7, .5, 1.6], [0, -.25, .2], g);
+    const neck = mesh(G.cyl, 0xb8322a, [.35, 1.6, .35], [0, .6, 2], g); neck.rotation.x = .9;
+    mesh(G.box, 0xb8322a, [.6, .5, 1], [0, 1.2, 2.8], g); for (const x of [-.2, .2]) { mesh(G.cone, 0xf4f0e6, [.08, .4, .08], [x, 1.55, 2.5], g).rotation.x = -.6; bulb(g, x, 1.32, 3.3, 0xffe040, .07); }
+    const tail = mesh(G.cone, 0xb8322a, [.4, 2.6, .4], [0, -.1, -2.8], g); tail.rotation.x = -Math.PI/2;
+    g.wings = [];
+    for (const s of [-1, 1]) {
+      const w = new THREE.Group(); w.position.set(s*.7, .4, .3); g.add(w);
+      const m = new THREE.Mesh(new THREE.ConeGeometry(2.2, .05, 3), mat(0x8a1e1a, {side:THREE.DoubleSide})); m.scale.set(1, 1, .7); m.position.x = s*2; m.rotation.z = Math.PI/2; w.add(m); g.wings.push(w);
+    }
+    g.scale.setScalar(1.3);
+  } else {
+    mesh(G.cap, 0x3f6a3a, [4, 4.5, 3.4], [0, 3.2, 0], g); mesh(G.sph, 0x4a7a44, [1.1, .9, 1.2], [0, 6.2, .8], g); for (const x of [-.4, .4]) bulb(g, x, 6.4, 1.85, 0xffe040, .14);
+    for (let i = 0; i < 6; i++) mesh(G.cone, 0xa8c8a8, [.35, .9, .35], [0, 4.6 - i*.6, -1.1 - i*.12], g).rotation.x = -.5;
+    const tail = mesh(G.cone, 0x3f6a3a, [.9, 4, .9], [0, 1, -2.6], g); tail.rotation.x = -1.2;
+    g.legs = []; for (const x of [-.8, .8]) { const l = new THREE.Group(); l.position.set(x, 1.6, 0); g.add(l); mesh(G.box, 0x3f6a3a, [.8, 1.8, .9], [0, -.8, 0], l); g.legs.push(l); }
+    g.arms = []; for (const x of [-1.3, 1.3]) { const a = new THREE.Group(); a.position.set(x, 4.2, .5); g.add(a); mesh(G.box, 0x3f6a3a, [.35, 1.2, .35], [0, -.5, .2], a); g.arms.push(a); }
+  }
+  return g;
+}
+function startBoss() {
+  const kind = W.era >= 8 ? 'kaiju' : 'dragon', g = makeBoss(kind);
+  const hp = 40 + W.era*8;
+  BOSS.on = {kind, g, hp, maxHp:hp, t:0, burnT:2, shotT:0};
+  $('bossBar').hidden = false; $('bossName').textContent = kind === 'dragon' ? '🐉 The Red Dragon' : '🦖 The Kaiju';
+  banner(kind === 'dragon' ? '🐉 A dragon attacks!' : '🦖 A kaiju rises from the river!', 'Your army, castle and planes fight back. Hold on!');
+  snd(70, 1.2, 'sawtooth', .07, .5); shakeCam(.6);
+}
+function updBoss(dt) {
+  if (!started) return;
+  if (!BOSS.on) { if (W.era >= 5 && W.army >= 5 && !W.camp && !W.raid && (BOSS.t -= dt) <= 0) { BOSS.t = 780 + R()*480; startBoss(); } return; }
+  const B = BOSS.on, g = B.g; B.t += dt;
+  if (B.kind === 'dragon') {
+    const a = B.t*.35; g.position.set(3 + Math.cos(a)*11, 9 + Math.sin(B.t*1.3)*1.2, 2 + Math.sin(a)*11); g.rotation.y = -a; g.rotation.z = .3;
+    g.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(B.t*6)*.6; });
+    if (R() < dt*12) { const head = new THREE.Vector3(0, 1.3, 3.5).applyMatrix4(g.matrixWorld); particle([0xffa040, 0xff5a1f, 0xffe060][R()*3|0], head, new THREE.Vector3(Math.sin(g.rotation.y)*5, -5, Math.cos(g.rotation.y)*5), .7, .3, {grow:.6, op:.85}); }
+  } else {
+    const u = Math.min(1, B.t / 10); g.position.set(-13.6 + u*6, -6 + Math.min(1, B.t/3)*6, -24 + u*8); g.rotation.y = .6;
+    g.legs.forEach((l, i) => { l.rotation.x = Math.sin(B.t*2 + i*Math.PI)*.35; }); g.arms.forEach((l, i) => { l.rotation.x = -.8 + Math.sin(B.t*3 + i)*.6; });
+    if ((B.stomp = (B.stomp || 0) - dt) <= 0) { B.stomp = 1.2; shakeCam(.25); snd(45, .3, 'sawtooth', .05); }
+  }
+  // it breathes fire on a building now and then
+  if ((B.burnT -= dt) <= 0) {
+    B.burnT = 8 + R()*6;
+    const targets = Object.values(ST).filter(s => s.inZ && !s.broken && s.id !== 'grill');
+    const s = targets[R()*targets.length|0];
+    if (s) { s.broken = true; s.busy = false; const [x, z] = s.inZ; s.repairZone = addZone({kind:'repair', st:s.id, x, z, icon:'🔨', tile:{alpha:1, size:92, label:'Repair', fill:'rgba(160,40,30,.6)'}}); for (let i = 0; i < 14; i++) particle(0xff7a2a, new THREE.Vector3(x, 1, z), new THREE.Vector3((R() - .5)*3, 3 + R()*3, (R() - .5)*3), .8, .25, {grav:1}); }
+  }
+  // everyone fights back: soldiers fire from the yard, the castle shoots, planes dive in
+  if ((B.shotT -= dt) <= 0) {
+    B.shotT = .18;
+    const from = soldiers.length ? soldiers[R()*soldiers.length|0].pos.clone().setY(1.4) : new THREE.Vector3(-4, 4, 27.8);
+    const to = g.position.clone().add(new THREE.Vector3((R() - .5)*2, B.kind === 'kaiju' ? 3 + R()*3 : (R() - .5), (R() - .5)*2));
+    const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xffe08a, toneMapped:false})); b.scale.setScalar(.08); b.position.copy(from); scene.add(b);
+    flyers.push({m:b, from, to, t:0, dur:.35, done:() => { if (R() < .5) particle(0xffd040, to, new THREE.Vector3((R() - .5)*2, 1, (R() - .5)*2), .4, .25); }});
+    const dmg = .045 * (1 + Math.min(24, W.army)/12) * (1 + (W.castle || 0)*.15) * (1 + planesBuilt()*.25) * (1 + (W.troop || 0)*.1);
+    B.hp -= dmg;
+  }
+  $('bossFill').style.width = Math.max(0, B.hp / B.maxHp * 100) + '%';
+  if (B.hp <= 0 || B.t > 75) {
+    const won = B.hp <= 0, pay = won ? 5000 + 2500*W.era : 0;
+    if (won) { W.coins += pay; W.earned += pay; W.flags.boss = (W.flags.boss || 0) + 1; for (let i = 0; i < 30; i++) particle([0xffd84a, 0xff6a2a, 0xffffff][i % 3], g.position.clone(), new THREE.Vector3((R() - .5)*8, 4 + R()*6, (R() - .5)*8), 1.4, .3, {grav:1}); }
+    banner(won ? `🏆 The ${B.kind} is defeated!` : `The ${B.kind} flies off…`, won ? `Your empire takes ${pay} 💵 in treasure.` : 'Build a bigger army, castle and air force for next time.');
+    scene.remove(g); BOSS.on = null; $('bossBar').hidden = true; save();
+  }
+}
+
+// ------------------------------------------------------------------ trade routes to the other empires
+const TRADE = {cities:[
+  {n:'Ostberg', icon:'🏰', far:30}, {n:'Sahra', icon:'🐪', far:40}, {n:'Port Azul', icon:'⚓', far:35}, {n:'Kumo', icon:'🏯', far:55}, {n:'New Avalon', icon:'🌆', far:45}],
+  goods:['grilled', 'bread', 'beer', 'ingot', 'sword', 'tools', 'roast'], deals:[], trips:[], t:0};
+function tradeDeals() {
+  // every city wants something different, and the prices drift
+  TRADE.deals = TRADE.cities.map((c, i) => { const good = TRADE.goods[(i*3 + Math.floor(W.playT / 180)) % TRADE.goods.length]; return {c, i, good, qty:6 + ((i*5 + Math.floor(W.playT / 60)) % 10), mult:+(2 + ((i*7 + Math.floor(W.playT / 90)) % 9)*.35).toFixed(2)}; });
+}
+const pileOf = item => Object.values(ST).filter(s => s.outStack && (s.out === item || s.gen === item || s.pile === item));
+const stockOf = item => pileOf(item).reduce((a, s) => a + s.outStack.count([item]), 0);
+function openTrade() {
+  tradeDeals();
+  const rel = W.flags.rel || {}, m = $('modal'); m.hidden = false; m.dataset.panel = 'trade';
+  m.innerHTML = `<div class="card"><h1 style="font-size:26px">🗺️ Trade routes</h1><p>Ship your surplus to other empires. Allies (3 trades) pay 25% more.</p>
+    <div class="trades">${TRADE.deals.map(d => { const have = stockOf(d.good), ally = (rel[d.c.n] || 0) >= 3, price = Math.round(d.qty * (ITEM[d.good].sell || 2) * d.mult * (ally ? 1.25 : 1) * (1 + W.era*.15)), busy = TRADE.trips.some(t => t.city === d.c.n);
+      return `<div><b>${d.c.icon} ${d.c.n}${ally ? ' 🤝' : ''}</b><span>wants ${d.qty} ${ITEM[d.good].icon} · pays ${price} 💵</span><button data-i="${d.i}" ${have < d.qty || busy ? 'disabled' : ''}>${busy ? 'On the road…' : have < d.qty ? `You have ${have}` : 'Ship it'}</button></div>`; }).join('')}</div>
+    <button class="ghost" id="trdClose">Close</button></div>`;
+  m.querySelectorAll('.trades button').forEach(b => b.onclick = () => ship(+b.dataset.i));
+  $('trdClose').onclick = () => { m.hidden = true; m.dataset.panel = ''; };
+}
+function ship(i) {
+  const d = TRADE.deals[i], rel = W.flags.rel || {}, ally = (rel[d.c.n] || 0) >= 3; let left = d.qty;
+  for (const s of pileOf(d.good)) while (left > 0 && s.outStack.count([d.good])) { const it = s.outStack.take([d.good]); scene.remove(it.mesh); left--; }
+  const pay = Math.round(d.qty * (ITEM[d.good].sell || 2) * d.mult * (ally ? 1.25 : 1) * (1 + W.era*.15));
+  // a caravan, then a truck, rolls off down the east road
+  const v = vehicle(W.era >= 6 ? 0x3f7cc0 : 0x8a5d36, 14, 1.6, W.era >= 6 ? 'car' : 'bus'); v.speed = 5;
+  driveTo(v, [[46, 1.6]], () => { v.g.visible = false; });
+  TRADE.trips.push({city:d.c.n, t:d.c.far, pay, v});
+  banner(`🚚 Shipment to ${d.c.icon} ${d.c.n}`, `${d.qty} ${ITEM[d.good].n.toLowerCase()} on the road. Back in ${d.c.far}s with ${pay} 💵.`);
+  openTrade();
+}
+function updTrade(dt) {
+  for (const tr of [...TRADE.trips]) {
+    updVehicle(tr.v, dt);
+    if ((tr.t -= dt) > 0) continue;
+    TRADE.trips.splice(TRADE.trips.indexOf(tr), 1); scene.remove(tr.v.g);
+    W.coins += tr.pay; W.earned += tr.pay; const rel = W.flags.rel ||= {}; rel[tr.city] = (rel[tr.city] || 0) + 1;
+    banner(`💰 Trade with ${tr.city}: +${tr.pay}`, rel[tr.city] === 3 ? `${tr.city} is now your ally: better prices from here on.` : 'The caravan is home.');
+    snd(880, .15, 'triangle', .05);
+  }
+}
+
+// ------------------------------------------------------------------ the aquarium and the zoo, east of the railway
+const ZOO = {fish:[], animals:[]};
+function aquariumFx(anim) {
+  const g = new THREE.Group(); g.position.set(39, 0, 12.2); scene.add(g);
+  mesh(G.box, 0xeef1f4, [3.8, 2.2, 2.6], [0, 1.1, 0], g);
+  const tank = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({color:0x3a9ad0, transparent:true, opacity:.55, roughness:.05, metalness:.2})); tank.scale.set(3.2, 1.5, .5); tank.position.set(0, 1.05, 1.32); g.add(tank);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 10, 0, Math.PI*2, 0, Math.PI/2), mat(0x8fc6e8, {metalness:.4, roughness:.1, transparent:true, opacity:.8})); dome.position.y = 2.2; g.add(dome);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('AQUARIUM', '#1f5fb8', '#ffffff'), toneMapped:false})); sign.scale.set(2.2, .5, 1); sign.position.set(0, 2.05, 1.32); g.add(sign);
+  for (let i = 0; i < 8; i++) { const f = itemMesh('fish', i % 3); f.scale.setScalar(.6); scene.remove(f); g.add(f); ZOO.fish.push({m:f, ph:R()*6, y:.6 + R()*.8}); }
+  boxes.push({x0:37.1, x1:40.9, z0:10.9, z1:13.5}); AREAS.push({x0:36.4, x1:46.4, z0:9.6, z1:14.8});
+  fader(g, 3.8, 2.6); if (anim) popIn(g);
+}
+const ZOO_ANIMALS = [['🐘', 0x9aa0a8, 1.4], ['🦒', 0xe0b050, 1], ['🦁', 0xd9a050, .8], ['🐧', 0x1e1e22, .45], ['🐻', 0x6a4426, .9], ['🦓', 0xf4f4f4, .9], ['🐼', 0xf4f4f4, .8]];
+function zooFx(anim) {
+  const g = new THREE.Group(); scene.add(g); ZOO.g = g;
+  for (let i = 0; i < 2; i++) { const x = 42.6 + i*2.4; for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 10.4], g); for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 13.8], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 10.4], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 13.8], g); }
+  slab(0x9fb86a, 4.6, 3.4, 43.8, 12.1, .008);
+  for (const [x, z] of [[42, 12.6], [45.5, 11.4]]) { mesh(G.cyl, 0x5e3f22, [.12, 1.6, .12], [x, .8, z], g); mesh(G.ico, 0x4a9a3a, [.7, .6, .7], [x, 1.9, z], g); }
+  boxes.push({x0:41.5, x1:46.1, z0:10.3, z1:13.9});
+  if (anim) popIn(g);
+  zooAnimals();
+}
+function zooAnimals() {
+  if (!ZOO.g) return;
+  while (ZOO.animals.length < Math.min(ZOO_ANIMALS.length, W.conquests + 1)) {
+    const [icon, col, s] = ZOO_ANIMALS[ZOO.animals.length], a = new THREE.Group(); a.scale.setScalar(s); ZOO.g.add(a);
+    mesh(G.box, col, [.45, .4, .8], [0, .45, 0], a); mesh(G.box, col, [.3, .3, .3], [0, icon === '🦒' ? 1.3 : .7, .45], a);
+    if (icon === '🦒') mesh(G.box, col, [.12, .8, .12], [0, .9, .35], a);
+    if (icon === '🐘') { mesh(G.box, col, [.1, .45, .1], [0, .5, .65], a); for (const x of [-.22, .22]) mesh(G.box, col, [.05, .3, .25], [x, .7, .35], a); }
+    for (const [x, z] of [[-.15, -.28], [.15, -.28], [-.15, .28], [.15, .28]]) mesh(G.box, col, [.09, .3, .09], [x, .15, z], a);
+    ZOO.animals.push({g:a, x:42.6 + (ZOO.animals.length % 2)*2.4, z:12.1, t:0, tx:0, tz:0});
+  }
+}
+let zooT = 25;
+function updZoo(dt) {
+  ZOO.fish.forEach((f, i) => { const a = time*.6 + f.ph; f.m.position.set(Math.sin(a)*1.4, f.y + Math.sin(a*2)*.1, 1.32); f.m.rotation.y = Math.cos(a) > 0 ? Math.PI/2 : -Math.PI/2; });
+  zooAnimals();
+  for (const a of ZOO.animals) { if ((a.t -= dt) <= 0) { a.t = 2 + R()*3; a.tx = a.x + (R() - .5)*1.4; a.tz = 11 + R()*2.2; } const p = a.g.position, dx = a.tx - p.x, dz = a.tz - p.z, d = Math.hypot(dx, dz); if (d > .05) { p.x += dx/d*Math.min(d, .5*dt); p.z += dz/d*Math.min(d, .5*dt); a.g.rotation.y = Math.atan2(dx, dz); } }
+  if (!started || (zooT -= dt) > 0) return; zooT = 25;
+  const aq = W.unlocked.has('aquarium') ? 200 + Math.min(3000, W.caught*2) : 0, zoo = W.unlocked.has('zoo') ? ZOO.animals.length*(250 + 40*W.era) : 0, pay = aq + zoo;
+  if (pay) { W.coins += pay; W.earned += pay; popText(`🐠 +${pay} visitors`, new THREE.Vector3(41.5, 3.5, 12), '#ffe06b'); }
+}
+
+// ------------------------------------------------------------------ the city council votes on what to do next
+const VOTES = [
+  [['💸 Lower taxes', 'Happier people, 10% less rent', {happy:12, rent:.9}], ['🏛️ Raise taxes', '20% more rent, grumpier people', {happy:-12, rent:1.2}]],
+  [['🌳 More parks', 'Parks and rides count 50% more', {appeal:1.5}], ['🛡️ Bigger army', 'Five new soldiers join', {army:5}]],
+  [['🎓 Fund schools', 'The fund grows faster', {fund:1.5}], ['🛣️ Fix the roads', 'You walk 15% faster', {speed:1.15}]],
+  [['🎉 Festival week', 'A festival starts now', {festival:40}], ['🏭 Work week', 'Everything produces 20% faster', {work:1.2}]],
+];
+const POL = {until:0, eff:{}};
+const policy = k => (W.playT < POL.until && POL.eff[k]) || 0;
+let voteT = 420, vote = null;
+function startVote() {
+  vote = {opts:VOTES[(W.flags.votes || 0) % VOTES.length], t:30};
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'vote';
+  m.innerHTML = `<div class="card"><h1 style="font-size:24px">🗳️ The city council votes</h1><p>Pick one. If you don't, the council decides in 30 seconds.</p>
+    <div class="votes">${vote.opts.map((o, i) => `<button data-i="${i}"><b>${o[0]}</b><small>${o[1]}</small></button>`).join('')}</div></div>`;
+  m.querySelectorAll('.votes button').forEach(b => b.onclick = () => decide(+b.dataset.i));
+}
+function decide(i) {
+  if (!vote) return;
+  const [name, , eff] = vote.opts[i]; vote = null; W.flags.votes = (W.flags.votes || 0) + 1;
+  POL.until = W.playT + 300; POL.eff = {...eff};
+  if (eff.army) { W.army += eff.army; for (let k = 0; k < eff.army; k++) { const sl = yardSlot(soldiers.length); makeSoldier(sl[0], sl[1]); } }
+  if (eff.festival) W.festival = eff.festival;
+  const m = $('modal'); if (m.dataset.panel === 'vote') { m.hidden = true; m.dataset.panel = ''; }
+  banner(`🗳️ The council chose: ${name}`, 'It lasts five minutes.'); snd(660, .15, 'triangle', .05);
+}
+function updCouncil(dt) {
+  if (!started || !W.unlocked.has('townhall')) return;
+  if (vote) { if ((vote.t -= dt) <= 0) decide(R() < .5 ? 0 : 1); return; }
+  if ((voteT -= dt) <= 0) { voteT = 420 + R()*240; startVote(); }
+}
+
+// ------------------------------------------------------------------ space mining: an asteroid belt, a Moon hotel and a space elevator
+function spaceElevatorFx(anim) {
+  const g = new THREE.Group(); scene.add(g); SPACE.elev = g;
+  mesh(G.cyl, 0xdfe4ea, [.12, 220, .12], [-31, 110, 8], g, {metalness:.6});
+  mesh(G.cyl, 0x8a8f96, [1.4, .6, 1.4], [-31, 7.6, 8], g, {metalness:.5});
+  const car = new THREE.Group(); g.add(car); SPACE.climber = car;
+  mesh(G.cyl, 0xf4f6f8, [.5, .8, .5], [0, 0, 0], car, {metalness:.4}); mesh(G.cyl, 0x8fc6e8, [.52, .3, .52], [0, .1, 0], car, {metalness:.5, roughness:.1}); bulb(car, 0, .5, 0, 0x5af0ff, .08);
+  if (anim) popIn(g);
+}
+function updSpaceMining(dt) {
+  if (SPACE.climber) { const u = (Math.sin(time*.15) + 1) / 2; SPACE.climber.position.set(-31, 8 + u*60, 8); }
+  if (!started) return;
+  if ((SPACE.mineT = (SPACE.mineT ?? 20) - dt) <= 0) {
+    SPACE.mineT = 20;
+    const pay = (W.unlocked.has('asteroid') ? 30000 : 0) + (W.unlocked.has('moonHotel') ? 20000 : 0) + (W.unlocked.has('spaceElevator') ? 45000 : 0);
+    if (pay) { W.coins += pay; W.earned += pay; popText(`☄️ +${pay} from space`, new THREE.Vector3(-31, 5, 6), '#ffe06b'); }
+  }
+}
+// the belt and the hotel, seen from space
+function beltScene() {
+  if (SPACE.scenes.belt) return SPACE.scenes.belt;
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0x02030a);
+  const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(30, 40, 20); sc.add(sun, new THREE.HemisphereLight(0x8090b0, 0x101010, .5));
+  const n = 1200, pos = new Float32Array(n*3); for (let i = 0; i < n; i++) { const u = R()*2 - 1, a = R()*Math.PI*2, s = Math.sqrt(1 - u*u); pos.set([Math.cos(a)*s*160, u*160, Math.sin(a)*s*160], i*3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sc.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xffffff, size:1.5, sizeAttenuation:false})));
+  const rocks = [];
+  for (let i = 0; i < 60; i++) { const r = new THREE.Mesh(G.ico, mat([0x8a8478, 0x6a645a, 0xa89a80][i % 3], {flatShading:true})); const a = R()*Math.PI*2, d = 10 + R()*24; r.position.set(Math.cos(a)*d, (R() - .5)*6, Math.sin(a)*d); r.scale.setScalar(.4 + R()*1.6); sc.add(r); rocks.push({r, a, d, sp:.02 + R()*.04}); }
+  const ships = [];
+  for (let i = 0; i < 4; i++) { const s = new THREE.Group(); sc.add(s); mesh(G.box, 0xf2a21a, [.8, .5, 1.8], [0, 0, 0], s, {metalness:.5}); mesh(G.box, 0x3a3e44, [.4, .4, .6], [0, .3, -.6], s); const fl = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0x5af0ff, toneMapped:false})); fl.scale.set(.2, .5, .2); fl.rotation.x = -Math.PI/2; fl.position.z = -1.1; s.add(fl); ships.push({s, ph:i*1.6}); }
+  const cam = new THREE.PerspectiveCamera(45, 1, .1, 500);
+  return SPACE.scenes.belt = {sc, cam, rocks, ships, H:() => 0, base:new THREE.Group(), built:9, belt:true};
 }
 
 function save() {
@@ -6279,9 +6785,10 @@ function update(dt) {
   let ix = sx*cy + sy*sy2 + testIn.x, iz = -sx*sy2 + sy*cy + testIn.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   if (!started || PHOTO.on || SPACE.view) ix = iz = 0;
-  player.vel.set(ix * player.speed, 0, iz * player.speed);
+  const ps = player.speed * (W.mount ? MOUNTS[W.mount].speed : 1) * (policy('speed') || 1);
+  player.vel.set(ix * ps, 0, iz * ps);
   prevPos.copy(player.pos);
-  player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos);
+  player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8);
   player.cap = W.cap;
   // a tile works once you stop on it (or linger), so running straight across one does nothing
   const zn = zoneAt(player.pos.x, player.pos.z);
@@ -6353,6 +6860,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
+  updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -6511,7 +7019,7 @@ $('bPlay').onclick = () => {
   startMusic(); showOffline();
 };
 $('bBoard').onclick = openBoard;
-$('bBuild').onclick = openBuild; $('bTrophy').onclick = openTrophies; $('bPhoto').onclick = () => togglePhoto(true); $('bPhotoX').onclick = () => togglePhoto(false); $('bSnap').onclick = savePhoto; $('bSpace').onclick = toggleSpace; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
+$('bBuild').onclick = openBuild; $('bTrophy').onclick = openTrophies; $('bTrade').onclick = openTrade; $('bPhoto').onclick = () => togglePhoto(true); $('bPhotoX').onclick = () => togglePhoto(false); $('bSnap').onclick = savePhoto; $('bSpace').onclick = toggleSpace; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
 addEventListener('keydown', e => { if (BUILD.on && e.key === 'Enter') placeDecor(); if (BUILD.on && e.key === 'Escape') endPlacing(); });
 refreshUpgrades();
 const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
@@ -6523,7 +7031,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
