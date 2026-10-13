@@ -1751,6 +1751,7 @@ function updWorker(w, dt) {
   }
   if (w.kind === 'builder') { updBuilder(w, dt); return; }
   if (w.kind === 'broker') { updBroker(w, dt); return; }
+  if (w.kind === 'oilman') return;   // moved by the oil field
   if (w.kind === 'treasurer') {
     const c = w.pile && w.pile.value > 0 ? w.pile : Object.values(CASH).filter(c => c.value > 0).sort((a, b) => b.value - a.value)[0];
     w.pile = c;
@@ -1844,7 +1845,7 @@ function updLine(L, dt) {
     let d = L.face - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); c.yaw += d * Math.min(1, dt*8);
     const w = c.wants.find(w => w.need > 0);
     if (w && (c.eatT -= dt) <= 0 && L.table.stack.count([w.type])) {
-      c.eatT = .22; c.waitT = 0;
+      c.eatT = .22 / (L.serve || 1); c.waitT = 0;
       const it = L.table.stack.take([w.type]);
       flyAway(it.mesh, () => new THREE.Vector3(c.pos.x, 1.6, c.pos.z), .25);
       w.need--; snd(520 + (w.total - w.need)*40, .05, 'triangle', .04);
@@ -2115,6 +2116,8 @@ const PADS = [
   {id:'barkeep', x:29.4, z:25.4, cost:900, cur:'coin', icon:'🧑‍🍳', label:'Barkeep', after:['beerGarden'], region:'farm'},
   {id:'university', x:29.6, z:-5.6, w:1.9, cost:15, cur:'scroll', icon:'🎓', label:'University', after:['library', 'house2'], region:'east'},
   {id:'labs', x:29.6, z:-5.6, w:1.9, cost:20, cur:'tools', icon:'🔬', label:'Research lab', after:['university', 'workshop'], region:'east'},
+  {id:'aiLab', x:29.6, z:-5.6, w:1.9, cost:40, cur:'scroll', icon:'🤖', label:'AI lab', after:['labs', 'exchange'], region:'east'},
+  {id:'superAI', x:29.6, z:-5.6, w:1.9, cost:250000, cur:'coin', icon:'🧠', label:'Superintelligence', after:['aiLab'], region:'east'},
   {id:'sciFlight', x:22.4, z:-9.2, cost:25, cur:'scroll', icon:'✈️', label:'Aviation', after:['labs'], region:'east', sci:1},
   {id:'airfieldGate', x:-9.4, z:9.6, w:1.8, cost:60, cur:'stone', icon:'🌉', label:'Bridge & airfield', after:['sciFlight']},
   {id:'hangar', x:-21.5, z:-8, cost:20, cur:'tools', icon:'🛩️', label:'Hangar', after:['airfieldGate'], region:'airfield'},
@@ -2153,7 +2156,7 @@ const PADS = [
   {id:'bridge4', x:-8.4, z:4.6, cost:80000, cur:'coin', icon:'🌁', label:'Suspension bridge', after:['bridge3', 'labs']},
   // railways
   {id:'airport', x:-31.5, z:-9.6, cost:40, cur:'tools', icon:'🛫', label:'Passenger airport', after:['hangar', 'downtownGate'], region:'airfield'},
-  {id:'jumbo', x:-31.5, z:-9.6, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
+  {id:'jumbo', x:-30.9, z:.9, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
   {id:'concert', x:25, z:30.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
   {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'workshop']},
   {id:'cruisePort', x:-9.2, z:-11.8, cost:60000, cur:'coin', icon:'🛳️', label:'Cruise ships', after:['cargoPort', 'hall']},
@@ -2164,6 +2167,16 @@ const PADS = [
   {id:'exchange', x:19, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
   {id:'highway', x:14.6, z:-27.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
   {id:'stadium', x:29.2, z:24, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
+  {id:'terminal2', x:-30.9, z:.9, cost:60, cur:'tools', icon:'🏢', label:'Terminal 2', after:['airport'], region:'airfield'},
+  {id:'jet2', x:-30.9, z:.9, cost:90000, cur:'coin', icon:'🛫', label:'2nd airliner', after:['terminal2'], region:'airfield'},
+  {id:'cargoJet', x:-30.9, z:.9, cost:150000, cur:'coin', icon:'📦', label:'Cargo freighter', after:['jet2', 'cargoPort'], region:'airfield'},
+  {id:'stallMain1', x:6.4, z:-2.2, cost:1500, cur:'coin', icon:'⛺', label:'Pop-up tent', after:['waiter2', 'house1']},
+  {id:'stallMain2', x:6.4, z:-2.2, cost:80, cur:'stone', icon:'🏪', label:'Corner store', after:['stallMain1', 'townhall']},
+  {id:'stallHall1', x:22, z:10.9, cost:3000, cur:'coin', icon:'⛺', label:'Market tent', after:['hall', 'farmGate'], region:'east'},
+  {id:'stallHall2', x:22, z:10.9, cost:150, cur:'stone', icon:'🏪', label:'Market store', after:['stallHall1', 'castle'], region:'east'},
+  {id:'oilField', x:-2.4, z:-21.6, cost:40, cur:'tools', icon:'🛢️', label:'Oil field', after:['highway', 'mineRail'], need:() => oilReady(), region:'north'},
+  {id:'refinery', x:-0.4, z:-19.2, cost:100000, cur:'coin', icon:'🏭', label:'Oil refinery', after:['oilField'], region:'north'},
+  {id:'gasStation', x:-0.4, z:-19.2, cost:60000, cur:'coin', icon:'⛽', label:'Gas station', after:['refinery'], region:'north'},
   {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
   {id:'moonLanding', x:-31, z:3.6, cost:500000, cur:'coin', icon:'🚀', label:'Moon landing', after:['satellite'], region:'airfield'},
@@ -2244,8 +2257,8 @@ const UNLOCK = {
     makeTable('hall', DISHES, alongX(19.75, 7), {x:22, z:8.9, w:3, d:1.6});
     boxes.push({x0:19.3, x1:24.7, z0:6.3, z1:7.7});
     makeCash('hall', 26.1, 7);
-    makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[42, 4.2], mult:1.5,
-      slot:k => k === 0 ? [22, 5.5] : [22.4 + k*1.3, 4.2], exit:[[20.6, 4.2], [20.6, 3], [42, 3]],
+    makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[47, 2.9], mult:1.5,
+      slot:k => k === 0 ? [22, 5.5] : k <= 6 ? [22.4 + k*1.3, 4.2] : [30.2 - (k - 7)*1.15, 5.15], exit:[[20.6, 4.2], [20.6, 3], [42, 3]],
       active:() => true, interval:() => 5.5 / (1 + .4*houses() + .25*W.era), order:() => travelerOrder(3, 3)});
   },
   market(a) { buildFx.market(a); addZone({kind:'sell', x:20, z:-6, icon:'💰', tile:{alpha:1, size:92, label:'Sell extras'}}); boxes.push({x0:18.8, x1:21.2, z0:-8.7, z1:-7.7}); },
@@ -2362,20 +2375,29 @@ const UNLOCK = {
   },
   water1(a) { waterStage(1, a); }, water2(a) { waterStage(2, a); }, water3(a) { waterStage(3, a); }, water4(a) { waterStage(4, a); }, water5(a) { waterStage(5, a); },
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },
-  airport(a) { terminalFx(a); makeCash('airport', -31.5, -12.4); makeJet(false); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },
-  jumbo(a) { makeJet(true); if (a) banner('🛬 Jumbo jets!', 'Bigger planes, more passengers, much bigger fares.'); },
+  airport(a) { terminalFx(a); makeCash('airport', -33.1, .9); makeJet(false, 'pax', 0); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },
+  jumbo(a) { makeJet(true, 'pax', 0); if (a) banner('🛬 Jumbo jets!', 'Bigger planes, more passengers, much bigger fares.'); },
   concert(a) { concertFx(a); makeCash('concert', 27.6, 30.1); if (a) banner('🎸 Concert hall!', 'Every couple of minutes a band plays. Fans pay for tickets.'); },
   cargoPort(a) { cargoYard(a); makeBoat('cargo'); if (a) banner('🏗️ Cargo port!', 'Container ships unload at your harbor and pay well.'); },
   cruisePort(a) { makeBoat('cruise'); if (a) banner('🛳️ Cruise ships!', 'Liners bring hungry tourists to your tables.'); },
   police(a) { civicBlock('police', a); if (a) banner('🚓 Police station!', 'Officers chase robbers and keep the peace: unrest fades twice as fast.'); },
   fireStation(a) { civicBlock('fire', a); if (a) banner('🚒 Fire station!', 'Fire trucks put out fires for you.'); },
   hospital(a) { civicBlock('hospital', a); if (a) banner('🏥 Hospital!', 'Healthier guests wait longer, and an ambulance tends the battlefield.'); },
-  traffic(a) { trafficFx(); if (a) banner('🛣️ Roads and traffic!', 'Asphalt streets, traffic lights, a bus line and cars downtown.'); },
+  traffic(a) { trafficFx(); if (a) banner('🛣️ Paved roads!', 'Asphalt streets and traffic lights downtown. Only work trucks drive through town; cars take the highway.'); },
   exchange(a) { exchangeFx(a); $('bInvest').hidden = false; if (a) banner('🏛️ Stock exchange!', 'Invest your cash with 📈. When nothing is left to build, your builders become brokers here.'); },
   highway(a) { highwayFx(a); if (a) banner('🛣️ The highway!', 'An elevated freeway over the railway to the next city. Cars pay tolls.'); },
   stadium(a) { stadiumFx(a); if (a) banner('🏉 Rugby stadium!', 'Matchdays every few minutes, with a full house paying at the gate.'); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
+  terminal2(a) { terminal2Fx(a); if (a) banner('🏢 Terminal 2!', 'A second gate: room for another airliner.'); },
+  jet2(a) { makeJet(false, 'pax', 1); if (a) banner('🛫 A second airliner!', 'Two passenger planes now take turns on the runway.'); },
+  cargoJet(a) { cargoApronFx(a); makeJet(true, 'cargo', 2); if (a) banner('📦 Cargo freighter!', 'An air freight plane for your industry. It earns more than the airliners.'); },
+  stallMain1(a) { stallStage('main', 1, a); }, stallMain2(a) { stallStage('main', 2, a); },
+  stallHall1(a) { stallStage('hall', 1, a); }, stallHall2(a) { stallStage('hall', 2, a); },
+  oilField(a) { oilFieldFx(a); if (a) banner('🛢️ The quarry strikes oil!', 'The stone is all dug out. Pump jacks stand where the rocks were, and the masons work the oil now.'); },
+  refinery(a) { refineryFx(a); if (a) banner('🏭 Oil refinery!', 'The quarry now refines its own oil. Fuel sells for four times as much as crude.'); },
+  gasStation(a) { gasStationFx(a); if (a) banner('⛽ Gas station!', 'A pipe runs from the refinery to a gas station at the highway exit. Every car that fills up pays.'); },
+  aiLab(a) { aiFx(1, a); }, superAI(a) { aiFx(2, a); },
   launchPad(a) { launchPadFx(a); makeCash('space', -27.5, 3.6); if (a) banner('🚀 The space age!', 'Launch satellites for income, then land on the Moon.'); },
   satellite(a) { if (a) launch('sat'); },
   moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
@@ -4258,6 +4280,7 @@ function elevAt(x, z) {
   return 0;
 }
 function overpasses(anim) {
+  AREAS.push({x0:30.4, x1:36.6, z0:.35, z1:4.75}, {x0:30.4, x1:36.6, z0:29.0, z1:30.2}, {x0:30.4, x1:32.9, z0:11.5, z1:19.3});
   const g = new THREE.Group(); scene.add(g);
   const IRON = 0x3a6a5a;
   for (const o of OVERPASS) {
@@ -4907,7 +4930,7 @@ function updBroker(w, dt) {
   if (goTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; }
 }
 // every level of the university, and its research lab, makes the brokers smarter
-const uniBoost = () => !W.unlocked.has('library') ? 0 : .000015*lvl('library') + (W.unlocked.has('university') ? .00003 : 0) + (W.unlocked.has('labs') ? .00005 : 0);
+const uniBoost = () => !W.unlocked.has('library') ? 0 : (W.unlocked.has('aiLab') ? .00005 : 0) + (W.unlocked.has('superAI') ? .00008 : 0) + .000015*lvl('library') + (W.unlocked.has('university') ? .00003 : 0) + (W.unlocked.has('labs') ? .00005 : 0);
 const gauss = () => (R() + R() + R() + R() - 2) * 1.2;
 function updMarket(dt) {
   if (!started) return;
@@ -4961,7 +4984,7 @@ function openInvest(refresh) {
 }
 
 // ------------------------------------------------------------------ the airport: airliners land, unload at the gate and take off again
-let jet = null;
+const JETS = [];
 function terminalFx(anim) {
   const g = new THREE.Group(); g.position.set(-32.1, 0, -4); scene.add(g);
   mesh(G.box, 0xeef1f4, [3, 2, 6], [0, 1, 0], g); mesh(G.box, 0x8fc6e8, [3.02, 1.1, 5.6], [0, 1.15, 0], g, {metalness:.5, roughness:.1});
@@ -4976,65 +4999,99 @@ function terminalFx(anim) {
   fader(g, 3.4, 2.6);
   if (anim) popIn(g);
 }
-function makeJet(big) {
-  if (jet) scene.remove(jet.g);
+function makeJet(big, kind = 'pax', slot = 0) {
+  if (JETS[slot]) scene.remove(JETS[slot].g);
   const g = new THREE.Group(); g.rotation.order = 'YXZ'; scene.add(g);
-  const s = big ? 1.35 : 1, b = new THREE.Group(); b.scale.setScalar(s); b.position.y = .55; g.add(b);
-  const WH = 0xf4f6f8, BL = big ? 0xd9443a : 0x1f5fb8;
+  const cargo = kind === 'cargo', s = cargo ? 1.45 : big ? 1.35 : 1, b = new THREE.Group(); b.scale.setScalar(s); b.position.y = .55; g.add(b);
+  const WH = cargo ? 0xc8ccd2 : 0xf4f6f8, BL = cargo ? 0xf2a21a : slot === 1 ? 0x3f9a6a : big ? 0xd9443a : 0x1f5fb8;
   mesh(G.cyl, WH, [.36, 4.2, .36], [0, .2, 0], b, {roughness:.35}).rotation.x = Math.PI/2;
   mesh(G.sph, WH, [.36, .36, .6], [0, .2, 2.1], b, {roughness:.35}); mesh(G.cone, WH, [.36, .9, .36], [0, .28, -2.5], b).rotation.x = -Math.PI/2;
   mesh(G.box, 0x1a2a3a, [.5, .1, .2], [0, .4, 2.25], b);
   for (const sx of [-1, 1]) {
-    const wg = mesh(G.box, WH, [2.2, .06, .8], [sx*1.2, .05, .2], b); wg.rotation.y = -sx*.35;
-    mesh(G.cyl, 0xb8bcc2, [.16, .55, .16], [sx*1, -.12, .45], b, {metalness:.5}).rotation.x = Math.PI/2;
-    if (big) mesh(G.cyl, 0xb8bcc2, [.15, .5, .15], [sx*1.7, -.08, .15], b, {metalness:.5}).rotation.x = Math.PI/2;
+    const wg = mesh(G.box, WH, [2.2, .06, .8], [sx*1.2, cargo ? .5 : .05, .2], b); wg.rotation.y = -sx*.35;
+    mesh(G.cyl, 0xb8bcc2, [.16, .55, .16], [sx*1, cargo ? .3 : -.12, .45], b, {metalness:.5}).rotation.x = Math.PI/2;
+    if (big || cargo) mesh(G.cyl, 0xb8bcc2, [.15, .5, .15], [sx*1.7, cargo ? .34 : -.08, .15], b, {metalness:.5}).rotation.x = Math.PI/2;
     mesh(G.box, WH, [.8, .05, .35], [sx*.45, .3, -2.35], b).rotation.y = -sx*.3;
   }
   mesh(G.box, BL, [.06, .9, .7], [0, .75, -2.25], b).rotation.x = -.35;
   mesh(G.box, BL, [.74, .08, 3.2], [0, .2, .1], b);
-  for (let i = 0; i < 10; i++) for (const sx of [-1, 1]) mesh(G.box, 0x1a2a3a, [.02, .08, .1], [sx*.36, .32, -1.4 + i*.3], b);
+  if (!cargo) for (let i = 0; i < 10; i++) for (const sx of [-1, 1]) mesh(G.box, 0x1a2a3a, [.02, .08, .1], [sx*.36, .32, -1.4 + i*.3], b);
+  else { const t = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('CARGO', '#c8ccd2', '#d97a10'), side:THREE.DoubleSide})); t.scale.set(1.4, .4, 1); t.rotation.y = Math.PI/2; t.position.set(.37, .25, .2); b.add(t); }
   for (const [x, z] of [[0, 1.6], [-.5, 0], [.5, 0]]) mesh(G.cyl, 0x1a1a1a, [.1, .08, .1], [x, -.25, z], b).rotation.z = Math.PI/2;
-  jet = {g, big, t:0, leg:'away', wait:6, big};
+  const gate = [[-28.6, -2.6], [-28.6, -10.4], [-23.4, -12.6]][slot];
+  JETS[slot] = {g, big, cargo, slot, gate, t:0, leg:'away', wait:6 + slot*9};
   g.visible = false;
 }
-const JET = {gate:[-28.6, -2.6], hold:[-27, 12], top:[-27, -12]};
-function jetPose(x, y, z, nx, ny, nz) {
-  jet.g.position.set(x, y, z); const dx = nx - x, dy = ny - y, dz = nz - z, h = Math.hypot(dx, dz);
-  if (h > .001) { jet.g.rotation.y = Math.atan2(dx, dz); jet.g.rotation.x = -Math.atan2(dy, h); }
+const JET = {hold:[-27, 12], top:[-27, -12]};
+function jetPose(J, x, y, z, nx, ny, nz) {
+  J.g.position.set(x, y, z); const dx = nx - x, dy = ny - y, dz = nz - z, h = Math.hypot(dx, dz);
+  if (h > .001) { J.g.rotation.y = Math.atan2(dx, dz); J.g.rotation.x = -Math.atan2(dy, h); }
 }
+// one plane at a time on the runway; the others hold at the gate or circle out of sight
+const RUNWAY_LEGS = new Set(['approach', 'rollout', 'toHold', 'takeoff']);
 function updJet(dt) {
-  if (!jet) return;
-  const J = jet, L = (a, b, u) => a + (b - a)*clamp(u, 0, 1);
-  // war planes have the runway during an air strike
+  for (const J of JETS) if (J) updOneJet(J, dt);
+}
+function updOneJet(J, dt) {
+  const L = (a, b, u) => a + (b - a)*clamp(u, 0, 1), G0 = J.gate;
   if (W.camp && W.camp.type === 'air' && J.leg === 'away') return;
+  const runwayFree = !JETS.some(o => o && o !== J && RUNWAY_LEGS.has(o.leg));
   J.t += dt;
   const legs = {
-    away:() => { J.g.visible = false; if (J.t > J.wait) next('approach'); },
-    approach:() => { const u = J.t/6; J.g.visible = true; const p = [-27, L(14, .2, u), L(-70, -12, u)]; jetPose(...p, -27, L(14, .2, u + .02), L(-70, -12, u + .02)); if (u >= 1) next('rollout'); },
-    rollout:() => { const u = J.t/3.2, e = 1 - (1 - u)*(1 - u); jetPose(-27, .2*(1 - u), L(-12, 9, e), -27, 0, L(-12, 9, e) + 1); if (u >= 1) next('toGate'); },
-    toGate:() => { const u = J.t/3; jetPose(L(-27, JET.gate[0], u), 0, L(9, JET.gate[1], u), L(-27, JET.gate[0], u + .05), 0, L(9, JET.gate[1], u + .05)); if (u >= 1) { next('gate'); landed(); } },
+    away:() => { J.g.visible = false; if (J.t > J.wait && runwayFree) next('approach'); },
+    approach:() => { const u = J.t/6; J.g.visible = true; jetPose(J, -27, L(14, .2, u), L(-70, -12, u), -27, L(14, .2, u + .02), L(-70, -12, u + .02)); if (u >= 1) next('rollout'); },
+    rollout:() => { const u = J.t/3.2, e = 1 - (1 - u)*(1 - u); jetPose(J, -27, .2*(1 - u), L(-12, 9, e), -27, 0, L(-12, 9, e) + 1); if (u >= 1) next('toGate'); },
+    toGate:() => { const u = J.t/3; jetPose(J, L(-27, G0[0], u), 0, L(9, G0[1], u), L(-27, G0[0], u + .05), 0, L(9, G0[1], u + .05)); if (u >= 1) { next('gate'); landed(J); } },
     gate:() => {
-      if (J.t === dt) for (let i = 0; i < (J.big ? 5 : 3) && movers.length < MAX_MOVERS; i++) spawnMover([[-31.2, -5.6 + i*.3], [-29.9, -5], [-28.9, -3.4]], null, R() < .6);
-      if (J.t > 6) next('toHold');
+      if (J.t === dt && !J.cargo) for (let i = 0; i < (J.big ? 5 : 3) && movers.length < MAX_MOVERS; i++) spawnMover([[-31.2, G0[1] - 3 + i*.3], [-29.9, G0[1] - 2.4], [G0[0] - .3, G0[1] - .8]], null, R() < .6);
+      if (J.t > (J.cargo ? 8 : 6) && runwayFree) next('toHold');
     },
-    toHold:() => { const u = J.t/3; jetPose(L(JET.gate[0], -27, u), 0, L(JET.gate[1], 12, u), L(JET.gate[0], -27, u + .05), 0, L(JET.gate[1], 12, u + .05)); if (u >= 1) next('takeoff'); },
-    takeoff:() => { const u = J.t/5, e = u*u; const z = L(12, -60, e), y = u > .4 ? (u - .4)/.6*14 : 0; jetPose(-27, y, z, -27, y + (u > .4 ? .4 : 0), z - 1); if (u >= 1) { next('away'); J.wait = 14 + R()*8; } },
+    toHold:() => { const u = J.t/3; jetPose(J, L(G0[0], -27, u), 0, L(G0[1], 12, u), L(G0[0], -27, u + .05), 0, L(G0[1], 12, u + .05)); if (u >= 1) next('takeoff'); },
+    takeoff:() => { const u = J.t/5, e = u*u; const z = L(12, -60, e), y = u > .4 ? (u - .4)/.6*14 : 0; jetPose(J, -27, y, z, -27, y + (u > .4 ? .4 : 0), z - 1); if (u >= 1) { next('away'); J.wait = 14 + R()*10; } },
   };
   legs[J.leg]();
   function next(l) { J.leg = l; J.t = 0; }
 }
-function landed() {
-  const fare = (jet.big ? 4000 + 400*W.era : 1500 + 200*W.era);
-  addCash(CASH.airport, fare, {x:-29.6, z:-2.6});
-  popText(`✈️ +${fare} fares`, new THREE.Vector3(-29.6, 3.2, -2.6), '#ffe06b');
+function landed(J) {
+  const [gx, gz] = J.gate;
+  if (J.cargo) {
+    // the freighter unloads crates for the container yard: the best-paying flight
+    const pay = 12000 + 800*W.era;
+    addCash(CASH.airport, pay, {x:gx, z:gz});
+    popText(`📦 +${pay} air freight`, new THREE.Vector3(gx, 3.4, gz), '#ffe06b');
+    for (let i = 0; i < 8; i++) setTimeout(() => particle([0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a][i % 4], new THREE.Vector3(gx + 1, 1.2, gz), new THREE.Vector3(2.4, 1.2, (R() - .5)), 1, .16, {grav:1}), i*200);
+    snd(330, .3, 'triangle', .05); return;
+  }
+  const fare = (J.big ? 4000 + 400*W.era : 1500 + 200*W.era);
+  addCash(CASH.airport, fare, {x:gx, z:gz});
+  popText(`✈️ +${fare} fares`, new THREE.Vector3(gx, 3.2, gz), '#ffe06b');
   snd(523, .2, 'triangle', .05); setTimeout(() => snd(784, .25, 'triangle', .05), 180);
   // arrivals come down the jet bridge and walk into town to eat, over the river bridge if there is one
-  for (let i = 0; i < (jet.big ? 4 : 2); i++) {
-    const L = LINES.main; if (!L || L.q.length >= L.max) break;
-    spawnIn(L); const c = L.q[L.q.length - 1];
-    c.pos.set(-28.9, 0, -3.4 - i*.4);
+  for (let i = 0; i < (J.big ? 4 : 2); i++) {
+    const Ln = LINES.main; if (!Ln || Ln.q.length >= Ln.max) break;
+    spawnIn(Ln); const c = Ln.q[Ln.q.length - 1];
+    c.pos.set(gx - .3, 0, gz - .8 - i*.4);
     c.pre = W.bridge ? [[-29.9, -1], [-29.9, 4.6], [BR.x0 - .4, BR.z], ...WEST_PATH()] : [[-29.9, -1], [-29.9, 9.6], [-18.4, 9.6], [-9.6, 9.6], [-1, 4.6], [5.6, 4.6], [7.2, 2.4]];
   }
+}
+function terminal2Fx(anim) {
+  const g = new THREE.Group(); g.position.set(-32.1, 0, -10.6); scene.add(g);
+  mesh(G.box, 0xeef1f4, [3, 2.2, 4.4], [0, 1.1, 0], g); mesh(G.box, 0x8fc6e8, [3.02, 1.2, 4], [0, 1.25, 0], g, {metalness:.5, roughness:.1});
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 4.6, 16, 1, false, 0, Math.PI), mat(0xdfe4ea, {metalness:.3})); roof.rotation.set(0, 0, Math.PI/2); roof.rotation.order = 'ZYX'; roof.rotation.set(Math.PI/2, 0, Math.PI/2); roof.scale.set(.65, 1, .25); roof.position.y = 2.2; g.add(roof);
+  mesh(G.box, 0x8fc6e8, [1.2, 1, 1.6], [0, 1, 3.1], g, {metalness:.5, roughness:.1});
+  mesh(G.box, 0xb8bcc2, [1.6, .7, .7], [2.2, 1.6, .2], g, {metalness:.4}); mesh(G.cyl, 0x8a8f96, [.12, 1.3, .12], [2.8, .65, .2], g);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('TERMINAL 2', '#0a2a5a', '#ffffff'), toneMapped:false}));
+  sign.scale.set(2.2, .55, 1); sign.rotation.y = Math.PI/2; sign.position.set(1.52, 2.5, 0); g.add(sign);
+  slab(0x6a6e76, 3.2, 5, -29.6, -10.6, .006);
+  boxes.push({x0:-33.6, x1:-30.6, z0:-12.8, z1:-8.4});
+  fader(g, 3.4, 2.8);
+  if (anim) popIn(g);
+}
+function cargoApronFx(anim) {
+  const g = new THREE.Group(); scene.add(g);
+  slab(0x6a6e76, 5, 3.6, -23.4, -12.4, .006);
+  for (let i = 0; i < 6; i++) mesh(G.box, [0xd9443a, 0x3f7cc0, 0xf2a21a][i % 3], [.6, .45, .45], [-21.4 + (i % 3)*.7, .22 + Math.floor(i / 3)*.45, -10.4], g);
+  if (anim) popIn(g);
 }
 
 // ------------------------------------------------------------------ the concert hall: every so often a band plays to a crowd
@@ -5122,7 +5179,7 @@ const CARRY = {
 };
 const carryMode = w => TRAY_KINDS.has(w.kind) ? 'tray' : W.era >= 7 ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
 function equip(w) {
-  if (w.kind === 'broker') return;
+  if (w.kind === 'broker' || w.kind === 'oilman') return;
   const mode = carryMode(w), C = CARRY[mode];
   w.speed = WORKER.speed * C.speed;
   if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
@@ -5225,7 +5282,8 @@ function endRobbery(caught) {
 const CIVIC = {fire:null, truck:null, amb:null, patrol:null};
 function civicBlock(kind, anim) {
   clearForest({x0:35.5, x1:46, z0:-.5, z1:10.5});
-  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 41, 1.6, .007); }
+  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 41, 1.6, .007); AREAS.push({x0:36.4, x1:46.4, z0:.35, z1:9.8}); }
+  boxes.push({police:{x0:36.9, x1:39.5, z0:3.5, z1:6.1}, fire:{x0:40, x1:42.8, z0:3.5, z1:6.1}, hospital:{x0:43.1, x1:46.1, z0:4, z1:6.8}}[kind]);
   const at = {police:[38.2, 4.8], fire:[41.4, 4.8], hospital:[44.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
   const sign = (t, bg, fg, y) => { const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(t, bg, fg), toneMapped:false})); s.scale.set(1.7, .5, 1); s.position.set(0, y, 1.33); g.add(s); };
   if (kind === 'police') {
@@ -5301,7 +5359,6 @@ function updCivic(dt) {
   updVehicle(Am, dt);
   // a patrol car loops through town
   const Pc = CIVIC.patrol;
-  if (Pc && !Pc.busy) driveTo(Pc, [[38, 1.6], [16, 1.6], [16, 3.4], [38, 3.4], Pc.home], () => { Pc.busy = false; Pc.wait = 8; });
   updVehicle(Pc, dt);
   A_SIREN.forEach((b, i) => { b.visible = Math.sin(time*6 + i*Math.PI) > 0; });
 }
@@ -5349,8 +5406,6 @@ function trafficFx() {
   for (const [x, z] of LOOP) for (let k = -2; k <= 2; k++) slab(0xf4f4f4, .7, .14, x + (x < 20 ? 1.4 : -1.4), z + k*.28, .017);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a];
   const per = LOOP.reduce((a, p, i) => a + Math.hypot(LOOP[(i + 1) % 4][0] - p[0], LOOP[(i + 1) % 4][1] - p[1]), 0);
-  for (let i = 0; i < 6; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.s = i/6*per; v.per = per; v.speed = 4 + R(); TRAFFIC.cars.push(v); }
-  const b = vehicle(0xf2a21a, 0, 0, 'bus'); b.s = .5*per; b.per = per; b.speed = 2.6; b.bus = true; TRAFFIC.bus = b; TRAFFIC.cars.push(b);
   // traffic lights at each corner
   for (const [x, z] of LOOP) {
     const g = new THREE.Group(); g.position.set(x + (x < 20 ? -.7 : .7), 0, z + (z > -20 ? .7 : -.7)); scene.add(g);
@@ -5372,7 +5427,7 @@ function loopAt(s) {
   return [...LOOP[0], 0, 0];
 }
 function updTraffic(dt) {
-  if (!TRAFFIC.cars.length) return;
+  if (!TRAFFIC.lights.length) return;
   const phase = Math.floor(time / 7) % 2;   // corners 0 and 2 go together, then 1 and 3
   TRAFFIC.lights.forEach((t, i) => { const green = (i % 2) === phase, amber = (time % 7) > 5.8; t.l[0].visible = !green; t.l[1].visible = green && amber; t.l[2].visible = green && !amber; });
   for (const v of TRAFFIC.cars) {
@@ -5805,6 +5860,187 @@ function updGfx3(dt, dk) {
   for (const m of winMats) { m.userData.k ??= .25 + Math.random()*1.1; m.emissiveIntensity = (1 - dk) * 1.4 * m.userData.k; }
 }
 
+// ------------------------------------------------------------------ stalls: a table, then a pop-up tent, then a proper store
+const STALL = {
+  main:{at:[4, 1], w:2, d:6, alongZ:true, sign:'STORE', groups:null},
+  hall:{at:[22, 7], w:6, d:2.4, alongZ:false, sign:'MARKET', groups:null},
+};
+const STALL_FX = [{serve:1, max:0, mult:1}, {serve:1.4, max:3, mult:1.2}, {serve:2, max:6, mult:1.5}];
+function stallStage(id, n, anim) {
+  const S = STALL[id], L = LINES[id]; if (!L) return;
+  L.baseMult ??= L.mult; L.baseMax ??= L.max;
+  const F = STALL_FX[n]; L.mult = L.baseMult * F.mult; L.max = L.baseMax + F.max; L.serve = F.serve;
+  if (S.g) { scene.remove(S.g); const i = FADERS.findIndex(f => f.g === S.g); if (i >= 0) FADERS.splice(i, 1); }
+  const [cx, cz] = S.at, hw = S.w/2, hd = S.d/2, g = S.g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g);
+  const corners = [[-hw, -hd], [hw, -hd], [-hw, hd], [hw, hd]];
+  if (n === 1) {
+    // a striped pop-up tent with bunting lights
+    for (const [x, z] of corners) mesh(G.cyl, 0xdfe4ea, [.05, 2.3, .05], [x, 1.15, z], g, {metalness:.5});
+    const stripes = 8;
+    for (let i = 0; i < stripes; i++) {
+      const t = -1 + (i + .5)*2/stripes, sz = S.alongZ ? [S.w + .3, .06, S.d/stripes] : [S.w/stripes, .06, S.d + .3];
+      mesh(G.box, i % 2 ? 0xf4f0e6 : 0xd9443a, sz, S.alongZ ? [0, 2.35, t*hd] : [t*hw, 2.35, 0], g);
+    }
+    for (let i = 0; i <= 10; i++) { const t = -1 + i/5; bulb(g, S.alongZ ? hw + .1 : t*hw, 2.2 - Math.abs(Math.sin(i))*.1, S.alongZ ? t*hd : hd + .1, [0xffd36b, 0xff9a5a, 0xfff2b0][i % 3], .05); }
+  } else if (n === 2) {
+    // a proper store: pillars, a roof, a lit sign, shelves of goods
+    for (const [x, z] of corners) mesh(G.box, 0x3a3e44, [.16, 2.6, .16], [x, 1.3, z], g, {metalness:.5});
+    mesh(G.box, 0xeef1f4, [S.w + .5, .22, S.d + .5], [0, 2.7, 0], g); mesh(G.box, 0x1f5fb8, [S.w + .52, .14, S.d + .52], [0, 2.52, 0], g);
+    const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(S.sign, '#1f5fb8', '#ffffff'), toneMapped:false}));
+    sign.scale.set(1.6, .45, 1); if (S.alongZ) { sign.rotation.y = Math.PI/2; sign.position.set(hw + .27, 3.05, 0); } else sign.position.set(0, 3.05, hd + .27); g.add(sign);
+    mesh(G.box, 0x1f5fb8, S.alongZ ? [.06, .5, 1.8] : [1.8, .5, .06], S.alongZ ? [hw + .25, 3.05, 0] : [0, 3.05, hd + .25], g);
+    for (const e of [-1, 1]) {
+      const sx = S.alongZ ? 0 : e*(hw + .1), sz = S.alongZ ? e*(hd + .1) : 0;
+      mesh(G.box, 0x8a5a2b, S.alongZ ? [1.6, 1.4, .3] : [.3, 1.4, 1.6], [sx, .7, sz], g);
+      for (let k = 0; k < 6; k++) mesh(G.box, [0xd9443a, 0xf2c200, 0x3f9a6a, 0x3f7cc0][k % 4], [.18, .2, .18], [sx + (S.alongZ ? -.55 + (k % 3)*.55 : 0), .55 + Math.floor(k / 3)*.45, sz + (S.alongZ ? 0 : -.55 + (k % 3)*.55)], g);
+    }
+    for (let i = 0; i < 12; i++) { const t = -1 + i/5.5; bulb(g, S.alongZ ? hw + .28 : t*(hw + .2), 2.45, S.alongZ ? t*(hd + .2) : hd + .28, 0xfff2c8, .04); }
+  }
+  for (const [x, z] of corners) circles.push({x:cx + x, z:cz + z, r:.14});
+  if (n === 2) fader(g, S.w + .5, 3);
+  if (anim) { popIn(g); banner(n === 1 ? '⛺ Pop-up tent!' : '🏪 A proper store!', `Serves ${F.serve}× faster, room for ${F.max} more in line, and ${Math.round((F.mult - 1)*100)}% more per meal.`); }
+}
+
+// ------------------------------------------------------------------ oil: once the stone is no longer needed, the quarry becomes an oil field and refinery
+const OIL = {jacks:[], flare:null, t:{well:20}, car:null, men:[]};
+const REFINERY = {x0:-8.7, x1:-2.4, z0:-25.4, z1:-20.6};
+const oilReady = () => PADS.every(p => p.cur !== 'stone' || W.unlocked.has(p.id));
+function pipeline(pts, parent, y = 2.3) {
+  // overhead pipes on tall stands: you can walk underneath
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], l = Math.hypot(bx - ax, bz - az);
+    const p = mesh(G.cyl, 0x9aa0a8, [.14, l, .14], [(ax + bx)/2, y, (az + bz)/2], parent, {metalness:.7, roughness:.3});
+    p.rotation.order = 'YXZ'; p.rotation.set(Math.PI/2, Math.atan2(bx - ax, bz - az), 0);
+    for (let t = 0; t < l; t += 2.5) { const x = ax + (bx - ax)*t/l, z = az + (bz - az)*t/l; mesh(G.cyl, 0x5a5e66, [.05, y, .05], [x, y/2, z], parent, {metalness:.5}); }
+    mesh(G.sph, 0x8a8f96, [.2, .2, .2], [bx, y, bz], parent, {metalness:.7});
+  }
+}
+function pumpJack(g, x, z) {
+  const j = new THREE.Group(); j.position.set(x, 0, z); j.rotation.y = R()*Math.PI; g.add(j);
+  mesh(G.box, 0x3a3e44, [.9, .15, .5], [0, .07, 0], j); mesh(G.box, 0x3a3e44, [.12, 1.3, .3], [0, .7, 0], j);
+  const beam = new THREE.Group(); beam.position.y = 1.35; j.add(beam);
+  mesh(G.box, 0xf2a21a, [1.8, .16, .16], [0, 0, 0], beam); mesh(G.box, 0xf2a21a, [.3, .5, .2], [.95, -.15, 0], beam); mesh(G.box, 0x1e1e22, [.4, .28, .3], [-.85, -.05, 0], beam);
+  mesh(G.cyl, 0x2a2a2e, [.03, 1.2, .03], [1.02, .5, 0], j); mesh(G.cyl, 0x5a5e66, [.12, .3, .12], [1.02, .15, 0], j);
+  OIL.jacks.push(beam);
+}
+function oilFieldFx(anim) {
+  const g = new THREE.Group(); scene.add(g);
+  // the rocks are quarried out; pump jacks go where they stood
+  for (const r of rocks) {
+    r.dead = true; r.logs = 0; scene.remove(r.g);
+    const ci = circles.findIndex(c => c.x === r.x && c.z === r.z); if (ci >= 0) circles.splice(ci, 1);
+    const inRef = r.x > REFINERY.x0 - 1 && r.x < REFINERY.x1 + 1 && r.z > REFINERY.z0 - 1 && r.z < REFINERY.z1 + 1;
+    if (!inRef) { pumpJack(g, r.x, r.z); circles.push({x:r.x, z:r.z, r:.7}); }
+  }
+  // the stone workers put on orange coveralls and work the field
+  for (const w of workers) if (w.kind === 'mason') {
+    for (const it of w.stack.items) scene.remove(it.mesh); w.stack.items.length = 0;
+    const old = w.char; scene.remove(old.g);
+    w.char = makeChar({body:0xf28a1a, body2:0xf28a1a, top:'tee', pants:0x2a3a5a, hat:'helmet', hatCol:0xf2c200, hair:'short'}); w.char.g.position.copy(old.g.position);
+    w.kind = 'oilman'; w.carry = null; w.carryG = null; w.goal = null; w.wait = 0; OIL.men.push(w);
+  }
+  if (anim) popIn(g);
+}
+function refineryFx(anim) {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = (REFINERY.x0 + REFINERY.x1)/2, cz = (REFINERY.z0 + REFINERY.z1)/2;
+  slab(0x7a7e86, REFINERY.x1 - REFINERY.x0, REFINERY.z1 - REFINERY.z0, cx, cz, .006);
+  for (const [x, z, h, r] of [[cx - 2.2, cz - .8, 4.6, .5], [cx - .9, cz - 1.1, 3.6, .38], [cx + .4, cz - .7, 5.2, .45]]) {
+    mesh(G.cyl, 0xdfe4ea, [r, h, r], [x, h/2, z], g, {metalness:.5, roughness:.3});
+    for (let y = .8; y < h; y += .9) mesh(G.cyl, 0x8a8f96, [r + .06, .06, r + .06], [x, y, z], g, {metalness:.6});
+  }
+  for (const [x, z] of [[cx + 1.9, cz + .9], [cx + 1.9, cz - .9], [cx - 1.6, cz + 1.2]]) { mesh(G.cyl, 0xf4f4f4, [.75, 1.2, .75], [x, .6, z], g, {metalness:.3}); mesh(G.cyl, 0xd9443a, [.77, .12, .77], [x, .9, z], g); }
+  mesh(G.cyl, 0x5a5e66, [.12, 6, .12], [REFINERY.x0 + .3, 3, REFINERY.z0 + .3], g, {metalness:.5});
+  OIL.flare = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0xffa040, toneMapped:false})); OIL.flare.scale.set(.25, .9, .25); OIL.flare.position.set(REFINERY.x0 + .3, 6.4, REFINERY.z0 + .3); g.add(OIL.flare);
+  for (let i = 0; i < 5; i++) bulb(g, cx - 2.4 + i*1.2, 3.4 + (i % 2)*.8, cz - .4, 0xffe08a, .06);
+  boxes.push({...REFINERY});
+  // a pipeline in from the field
+  pipeline([[2.2, -18.6], [2.2, -22.6], [REFINERY.x1, -22.6]], g);
+  if (anim) popIn(g);
+}
+const GAS = {at:[19.2, -32.9]};
+function gasStationFx(anim) {
+  // just off the highway where it lands downtown, fed by a pipe from the refinery
+  const g = new THREE.Group(); g.position.set(GAS.at[0], 0, GAS.at[1]); scene.add(g);
+  slab(0x3a3d42, 6, 3.6, GAS.at[0], GAS.at[1], .006);
+  for (const [x, z] of [[-1.6, -.8], [1.6, -.8], [-1.6, .8], [1.6, .8]]) mesh(G.box, 0xdfe4ea, [.14, 2.4, .14], [x, 1.2, z], g, {metalness:.5});
+  mesh(G.box, 0xf4f6f8, [4, .25, 2.6], [0, 2.5, 0], g); mesh(G.box, 0xd9443a, [4.02, .16, 2.62], [0, 2.36, 0], g);
+  for (const x of [-.8, .8]) { mesh(G.box, 0xd9443a, [.4, .9, .3], [x, .45, 0], g); mesh(G.box, 0x1a2a3a, [.25, .2, .32], [x, .7, 0], g); }
+  mesh(G.box, 0xeef1f4, [1.4, 1.3, 1.2], [-2.6, .65, -.8], g); mesh(G.box, 0x8fc6e8, [1.42, .5, 1.22], [-2.6, .8, -.8], g, {metalness:.5, roughness:.1});
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('GAS', '#d9443a', '#ffffff'), toneMapped:false})); sign.scale.set(1, .4, 1); sign.position.set(0, 2.5, 1.32); g.add(sign);
+  for (let i = 0; i < 6; i++) bulb(g, -1.8 + i*.72, 2.3, 1.32, 0xffffff, .05);
+  pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -28.9], [12.6, -28.9], [16.4, -32.9]], scene, 2.6);
+  OIL.car = vehicle(0x3f7cc0, 20.8, -30.3, 'car'); OIL.car.g.visible = false; OIL.car.speed = 4;
+  if (anim) popIn(g);
+}
+let oilCarT = 6;
+function updOil(dt) {
+  OIL.jacks.forEach((b, i) => { b.rotation.z = Math.sin(time*1.6 + i*1.3) * .28; });
+  if (OIL.flare) OIL.flare.scale.y = .8 + Math.sin(time*13)*.15 + Math.sin(time*7.3)*.1;
+  // oil workers do the rounds of the pump jacks
+  for (const w of OIL.men) {
+    if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); continue; }
+    if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -20]; }
+    if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
+  }
+  if (!started) return;
+  // crude sells as it is pumped; refined fuel sells for far more
+  if (W.unlocked.has('oilField') && (OIL.t.well -= dt) <= 0) {
+    OIL.t.well = 20; const pay = (W.unlocked.has('refinery') ? 2500 : 600) + 120*W.era; W.coins += pay; W.earned += pay;
+    popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -21), '#ffe06b');
+  }
+  // cars come down off the highway to fill up
+  const C = OIL.car;
+  if (C) {
+    if (!C.busy && (oilCarT -= dt) <= 0) {
+      oilCarT = 10 + R()*6; C.g.visible = true; C.g.position.set(23.8, 0, -30.9);
+      driveTo(C, [[20.8, -30.3], [19.6, -32.6]], () => {
+        C.wait = 3;
+        const pay = 400 + 60*W.era; W.coins += pay; W.earned += pay;
+        popText(`⛽ +${pay}`, new THREE.Vector3(19.4, 3, -32.8), '#ffe06b');
+        setTimeout(() => driveTo(C, [[17.6, -32.4], [19.2, -29.6], [21, -29]], () => { C.busy = false; C.g.visible = false; }), 0);
+      });
+    }
+    updVehicle(C, dt);
+  }
+}
+
+// ------------------------------------------------------------------ AI: the university's last breakthrough. A brain over the lab, drones over the town
+const AI = {brain:null, drones:[]};
+const aiMult = () => 1 + (W.unlocked.has('aiLab') ? .25 : 0) + (W.unlocked.has('superAI') ? .25 : 0);
+function aiFx(level, anim) {
+  if (!AI.brain) {
+    const g = new THREE.Group(); g.position.set(25.5, 7.2, -9.6); scene.add(g); AI.brain = g;
+    const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 1), new THREE.MeshBasicMaterial({color:0x5af0ff, wireframe:true, transparent:true, opacity:.7, toneMapped:false})); g.add(wire);
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.55, 2), new THREE.MeshBasicMaterial({color:0xb8fbff, toneMapped:false})); g.add(core);
+    for (let i = 0; i < 2; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1.5 + i*.35, .03, 6, 40), new THREE.MeshBasicMaterial({color:i ? 0xff4fb0 : 0x5af0ff, toneMapped:false})); r.rotation.x = Math.PI/2 + i*.6; g.add(r); }
+    const beam = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0x5af0ff, transparent:true, opacity:.18, toneMapped:false, depthWrite:false})); beam.scale.set(.3, 4, .3); beam.position.y = -2.6; g.add(beam);
+    AI.wire = wire; AI.core = core;
+  }
+  AI.brain.scale.setScalar(level > 1 ? 1.4 : 1);
+  // delivery drones, each carrying a parcel between the producers
+  while (AI.drones.length < (level > 1 ? 6 : 3)) {
+    const d = new THREE.Group(); scene.add(d);
+    mesh(G.box, 0x2a2e36, [.4, .1, .4], [0, 0, 0], d);
+    for (const [x, z] of [[-.3, -.3], [.3, -.3], [-.3, .3], [.3, .3]]) { mesh(G.cyl, 0x3a3e44, [.03, .1, .03], [x, .06, z], d); d.rotors = d.rotors || []; d.rotors.push(mesh(G.box, 0xdfe4ea, [.28, .01, .04], [x, .12, z], d)); }
+    mesh(G.box, [0xd9443a, 0xf2c200, 0x3f9a6a][AI.drones.length % 3], [.22, .2, .22], [0, -.2, 0], d); bulb(d, 0, -.05, .22, 0x5af0ff, .04);
+    AI.drones.push({g:d, from:null, to:null, t:1});
+  }
+  if (anim) { popIn(AI.brain); banner(level > 1 ? '🧠 Superintelligence!' : '🤖 Artificial intelligence!', level > 1 ? 'Everything runs 50% faster than it ever did, and the drones never sleep.' : 'Your university built an AI. Every producer runs 25% faster, drones carry parcels and the fund trades smarter.'); }
+}
+function updAI(dt) {
+  if (!AI.brain) return;
+  AI.brain.rotation.y += dt*.6; AI.wire.rotation.x += dt*.3; AI.core.scale.setScalar(1 + Math.sin(time*3)*.08);
+  const spots = Object.values(ST).filter(s => s.body).map(s => [s.body.position.x, s.body.position.z]);
+  for (const d of AI.drones) {
+    if (d.t >= 1) { d.from = d.to || [25.5, -9.6]; d.to = spots[R()*spots.length|0] || [0, 0]; d.t = 0; d.len = Math.hypot(d.to[0] - d.from[0], d.to[1] - d.from[1]) || 1; }
+    d.t = Math.min(1, d.t + dt*4 / d.len);
+    const u = d.t, x = d.from[0] + (d.to[0] - d.from[0])*u, z = d.from[1] + (d.to[1] - d.from[1])*u;
+    d.g.position.set(x, 4.5 + Math.sin(u*Math.PI)*2, z); d.g.rotation.y = Math.atan2(d.to[0] - d.from[0], d.to[1] - d.from[1]);
+    d.g.rotors.forEach(r => { r.rotation.y += dt*40; });
+  }
+}
+
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
@@ -6058,7 +6294,7 @@ function update(dt) {
     else { player.tick = .3; full(); }
   }
   for (const s of Object.values(ST)) {
-    const speed = (s.group ? BOOST[s.group] * (s.group === 'farm' ? seasonFarm() : 1) : 1) * (UPG[s.id] ? lvlMult(s.id) : 1);
+    const speed = aiMult() * (s.group ? BOOST[s.group] * (s.group === 'farm' ? seasonFarm() : 1) : 1) * (UPG[s.id] ? lvlMult(s.id) : 1);
     if (s.broken) { if (R() < dt*6) particle(R() < .5 ? 0xff7a2a : 0x555555, new THREE.Vector3(s.inZ[0] + (R() - .5), .8, s.inZ[1] + (R() - .5)), new THREE.Vector3(0, 2.5, 0), 1, .25, {grow:.4, op:.7}); continue; }
     if (s.in) {
       if (!s.busy && s.inStack.length && s.outStack.length < s.outStack.cap) {
@@ -6116,7 +6352,7 @@ function update(dt) {
   updBattle(dt); updSea(dt); updAir(dt);
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
-  updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt);
+  updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -6137,7 +6373,7 @@ function update(dt) {
   updHomes(dt);
   for (const t of nodes()) {
     if (t.shake > 0) { t.shake -= dt; t.g.rotation.z = Math.sin(t.shake * 50) * .06; } else t.g.rotation.z = 0;
-    if (t.logs <= 0 && (t.regrow -= dt) <= 0) { t.logs = t.item === 'stone' ? 5 : 4; setNode(t, true); popIn(t.top); }
+    if (!t.dead && t.logs <= 0 && (t.regrow -= dt) <= 0) { t.logs = t.item === 'stone' ? 5 : 4; setNode(t, true); popIn(t.top); }
   }
   for (const s of stacks) s.update(dt);
   for (const f of [...flyers]) {
@@ -6287,7 +6523,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
