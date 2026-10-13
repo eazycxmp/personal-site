@@ -79,6 +79,15 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 .chip.money{transition:transform .15s}
 .chip.money.bump{transform:scale(1.18)}
 @media (max-width:700px){#goals{width:160px;top:26%}#goals .goal{font-size:11.5px;padding:4px 8px 5px}#goals .goal:nth-child(n+2){display:none}}
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:10px 0}
+.palette button{border:0;border-radius:12px;background:#fff6e4;padding:8px 4px;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 0 #0002;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink)}
+.palette button span{font-size:26px}.palette button small{font-weight:700;opacity:.7}.palette button:disabled{opacity:.4;cursor:default}
+.need{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:800;font-size:14px}.need span{width:92px;text-align:left}
+.need i{flex:1;height:10px;border-radius:6px;background:#0001;overflow:hidden}.need b{display:block;height:100%}
+.bub.mood{padding:1px 5px;font-size:12px;background:#ffffffd8}.bub.mood::after{display:none}
+#placeBar{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800}
+#placeBar[hidden]{display:none}
+#placeBar button{border:0;border-radius:10px;padding:7px 12px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}#placeBar #bCancel{background:#fffaf0;color:#2b2118}
 </style>
 </head>
 <body>
@@ -92,7 +101,8 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="joy"><div id="knob"></div></div>
     <div id="goals"></div>
     <div id="modal" hidden></div>
-    <div id="btns"><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="placeBar" hidden><span id="placeName"></span><button id="bPlace">Place here ✓</button><button id="bCancel">✕</button></div>
+    <div id="btns"><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="overlay">
       <div class="card">
         <h1>🏰 Build Your Empire</h1>
@@ -368,12 +378,12 @@ function pileLayout(x, z, perRow = 2) {
 // ------------------------------------------------------------------ world
 const BOUNDS = {x0:-10.3, x1:13.4, z0:-12.9, z1:13.9};
 // The player may walk anywhere inside the camp or an opened region.
-const AREAS = [BOUNDS];
+const AREAS = [BOUNDS, {x0:-14.2, x1:-10.2, z0:.4, z1:1.6}];   // the camp, and the fishing dock
 const inRect = (r, x, z) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
 const inArea = (x, z) => AREAS.some(r => inRect(r, x, z));
 const boxes = [], circles = [];
 const GY = -.26;   // grass level, below the slabs
-ground(0x4f9e32, 160, 160, 0, 0, GY).material.map = groundTex([26, 26]);
+const grassPlane = ground(0x4f9e32, 160, 160, 0, 0, GY); grassPlane.material.map = groundTex([26, 26]);
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
 slab(0xb98f5c, 40, 2.4, 25, 1.6, .012);
 slab(0xb98f5c, 16, 1.8, 38, 3.6, .012);
@@ -390,8 +400,8 @@ for (let i = 0; i < 40; i++) {
   m.position.set(-16 + R()*4.8, -.19, -40 + R()*80); scene.add(m); ripples.push(m);
 }
 // pier by the fishing spot
-for (let i = 0; i < 6; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-12.9 + i*.52, .22, 1], scene);
-[[-14.2, .2], [-14.2, 1.8], [-12.3, .2], [-12.3, 1.8]].forEach(([x, z]) => mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [x, .1, z], scene));
+for (let i = 0; i < 9; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-14.5 + i*.52, .22, 1], scene);
+[[-14.7, .2], [-14.7, 1.8], [-12.4, .2], [-12.4, 1.8]].forEach(([x, z]) => mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [x, .1, z], scene));
 
 // decorative forest (instanced) outside the camp
 const FOREST = {};
@@ -785,36 +795,124 @@ function hall(anim) {
 }
 
 // ------------------------------------------------------------------ characters
-function makeChar(o) {
-  const g = new THREE.Group(), c = {g, bob:0}, skin = o.skin || 0xf1c9a5;
-  const legL = new THREE.Group(), legR = new THREE.Group();
-  legL.position.set(-.13, .5, 0); legR.position.set(.13, .5, 0); g.add(legL, legR);
-  for (const leg of [legL, legR]) { mesh(G.box, o.pants || 0x3b3b4a, [.17, .45, .2], [0, -.22, 0], leg); mesh(G.box, 0x2a1d12, [.19, .12, .26], [0, -.46, .03], leg); }
-  mesh(G.cap, o.body, [1, 1, .85], [0, .98, 0], g, o.metal ? {metalness:.6, roughness:.35} : undefined);
-  if (o.apron) mesh(G.box, o.apron, [.42, .5, .05], [0, .9, .25], g);
-  if (o.trim) mesh(G.cyl, o.trim, [.33, .1, .29], [0, .62, 0], g);
-  const armL = new THREE.Group(), armR = new THREE.Group();
-  armL.position.set(-.38, 1.22, 0); armR.position.set(.38, 1.22, 0); g.add(armL, armR);
-  for (const arm of [armL, armR]) { mesh(G.box, o.body, [.14, .48, .16], [0, -.22, 0], arm); mesh(G.sph, skin, [.08, .08, .08], [0, -.48, 0], arm); }
-  if (o.hat === 'hood') {
-    mesh(G.sph, o.hatCol || o.body, [.3, .3, .3], [0, 1.65, -.06], g); mesh(G.sph, skin, [.21, .21, .1], [0, 1.6, .2], g);
-    mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [-.08, 1.64, .29], g); mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [.08, 1.64, .29], g);
-  } else if (o.hero) {
-    // a bigger head with a face, and a backpack, so you can spot yourself in a crowd
-    mesh(G.sph, skin, [.31, .3, .3], [0, 1.66, 0], g);
-    for (const x of [-.11, .11]) {
-      mesh(G.sph, 0xffffff, [.065, .072, .04], [x, 1.71, .26], g); mesh(G.sph, 0x1a1a1a, [.036, .042, .03], [x, 1.7, .29], g);
-      mesh(G.sph, 0xff9a8a, [.05, .03, .02], [x*1.65, 1.58, .25], g);
+// ------------------------------------------------------------------ people: faces, hair, clothes and body types, merged so a crowd stays cheap
+const G2 = {sph:new THREE.SphereGeometry(1, 12, 9), sphS:new THREE.SphereGeometry(1, 7, 5), cyl:new THREE.CylinderGeometry(1, 1, 1, 10),
+  flare:new THREE.CylinderGeometry(.55, 1, 1, 12), ring:new THREE.TorusGeometry(1, .1, 4, 14), cap:new THREE.CapsuleGeometry(.3, .42, 3, 10)};
+const HAIRC = [0x1a1410, 0x2a1a10, 0x3a2414, 0x6a4422, 0x9a6a3a, 0xc89a5a, 0xe8c87a, 0x9a3a1a, 0xb8b8b8, 0xd8d8d8, 0x7a2a8a, 0xd9443a];
+const TOPC = [0xf4f4f4, 0x1e1e22, 0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xb04f86, 0x8fc6e8, 0xe8d8b0, 0x7c4fb0, 0xf0c030, 0x2a8a9a, 0xff8a6a, 0x5a6a7a];
+const PANTC = [0x2a3a5a, 0x3a3a4a, 0x1e1e22, 0x6a5a4a, 0xd8cfb8, 0x4a5a3a, 0x8a2a2a, 0x5a7aa8];
+function civLook(i) {
+  let s = (i + 1) * 7919; const r = () => (s = s * 16807 % 2147483647) / 2147483647, pick = a => a[r()*a.length|0];
+  const dress = r() < .18, top = dress ? 'dress' : pick(['tee', 'tee', 'shirt', 'hawaii', 'tank', 'jacket', 'hoodie', 'stripes', 'suit', 'tee']);
+  const hair = pick(dress || r() < .4 ? ['long', 'bun', 'ponytail', 'bangs', 'long', 'afro', 'short'] : ['short', 'buzz', 'sidepart', 'afro', 'bald', 'mohawk', 'short', 'sidepart']);
+  return {civ:0, skin:pick(SKINS), body:pick(TOPC), body2:pick(TOPC), pants:pick(PANTC), shorts:!dress && r() < .25, top, hair, hairCol:pick(HAIRC),
+    face:!dress && !['long', 'bun', 'ponytail', 'bangs'].includes(hair) && r() < .4 ? pick(['beard', 'mustache', 'goatee', 'beard']) : null,
+    acc:pick([null, null, 'sunglasses', 'glasses', 'cap', 'bucket', 'necklace', 'sunglasses', null]), shoe:pick([0x2a1d12, 0xf4f4f4, 0x1e1e22, 0xd9443a, 0x8a5a2b]),
+    bw:.9 + r()*.28, belly:r() < .15};
+}
+const CHAR_MAT = new THREE.MeshStandardMaterial({vertexColors:true, roughness:.66});
+const CHAR_METAL = new THREE.MeshStandardMaterial({vertexColors:true, metalness:.6, roughness:.35});
+const CHAR_GEO = {};
+function mergeParts(grp) {
+  const buckets = [[], []];
+  for (const m of grp.children) if (m.isMesh && !m.material.isMeshBasicMaterial) buckets[m.material.metalness > .3 ? 1 : 0].push(m);
+  return buckets.map(list => {
+    if (!list.length) return null;
+    const pos = [], nor = [], col = [];
+    for (const m of list) {
+      m.updateMatrix();
+      const geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); geo.applyMatrix4(m.matrix);
+      const c = m.material.color, p = geo.attributes.position, n = geo.attributes.normal;
+      for (let i = 0; i < p.count; i++) { pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b); }
     }
-    mesh(G.box, 0x7a2a1a, [.12, .028, .02], [0, 1.55, .295], g);
-    mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g);
-    c.crown = new THREE.Group(); c.crown.position.y = 2.12; g.add(c.crown); c.crown.visible = false;
-    mesh(G.cyl, 0xf2c200, [.21, .13, .21], [0, 0, 0], c.crown, {metalness:.7, roughness:.3});
-    for (let i = 0; i < 5; i++) { const a = i/5*Math.PI*2; mesh(G.cone, 0xf2c200, [.05, .14, .05], [Math.cos(a)*.17, .13, Math.sin(a)*.17], c.crown, {metalness:.7, roughness:.3}); }
-  } else {
-    mesh(G.sph, skin, [.25, .25, .25], [0, 1.6, 0], g);
-    mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [-.09, 1.64, .22], g); mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [.09, 1.64, .22], g);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeBoundingSphere(); return g;
+  });
+}
+const shade = (c, k) => new THREE.Color(c).multiplyScalar(k).getHex();
+function buildBody(o, P) {
+  const {g, legL, legR, armL, armR} = P, skin = o.skin || 0xf1c9a5, top = o.body, pants = o.pants || 0x3b3b4a, bw = o.bw || 1;
+  const hairC = o.hairCol ?? 0x2a1a10, shoe = o.shoe ?? 0x2a1d12, dark = shade(skin, .8);
+  // legs and shoes
+  for (const leg of [legL, legR]) {
+    if (o.top === 'dress') mesh(G2.cyl, skin, [.06, .44, .065], [0, -.24, 0], leg);
+    else if (o.shorts) { mesh(G.box, pants, [.17, .22, .2], [0, -.08, 0], leg); mesh(G2.cyl, skin, [.065, .28, .07], [0, -.32, 0], leg); }
+    else mesh(G.box, pants, [.17, .46, .2], [0, -.22, 0], leg);
+    mesh(G.box, shoe, [.17, .1, .27], [0, -.46, .04], leg); mesh(G.box, shade(shoe, .6), [.18, .03, .28], [0, -.505, .04], leg);
   }
+  // hips, torso and the clothes on it
+  if (o.top === 'dress') mesh(G2.flare, top, [.32*bw, .55, .27], [0, .52, 0], g);
+  else { mesh(G.box, pants, [.36*bw, .16, .23], [0, .58, 0], g); mesh(G.box, 0x2a1d12, [.37*bw, .04, .24], [0, .65, 0], g); }
+  mesh(G2.cap, top, [.95*bw, .78, .74], [0, .98, 0], g, o.metal ? {metalness:.6, roughness:.35} : undefined);
+  if (o.belly) mesh(G2.sph, top, [.24*bw, .2, .16], [0, .86, .1], g);
+  const front = .225;
+  if (o.top === 'stripes') for (const y of [.8, .94, 1.08]) mesh(G2.cyl, o.body2, [.29*bw, .045, .225], [0, y, 0], g);
+  if (o.top === 'hawaii') { let k = 0; for (const [x, y] of [[-.12, .82], [.1, .9], [-.05, 1.05], [.13, 1.12], [-.15, 1.15], [.02, .75]]) { mesh(G2.sphS, k++ % 2 ? o.body2 : 0xf4ecd8, [.05, .045, .02], [x*bw, y, front], g); mesh(G2.sphS, o.body2, [.045, .04, .02], [x*bw, y, -front], g); } }
+  if (o.top === 'jacket' || o.top === 'suit') {
+    const jc = o.top === 'suit' ? 0x1e1e26 : o.body2;
+    mesh(G2.cap, jc, [1*bw, .8, .78], [0, .98, -.01], g);
+    mesh(G.box, o.top === 'suit' ? 0xf4f4f4 : top, [.13, .42, .02], [0, 1, front + .03], g);
+    if (o.top === 'suit') mesh(G.box, 0xb8322a, [.04, .3, .015], [0, .98, front + .045], g);
+  }
+  if (o.top === 'hoodie') { mesh(G2.sph, top, [.2, .14, .12], [0, 1.28, -.16], g); mesh(G.box, shade(top, .8), [.22, .12, .02], [0, .82, front + .01], g); }
+  if (o.top === 'tank') mesh(G.box, shade(top, .85), [.3*bw, .03, .02], [0, 1.18, front], g);
+  if (o.top === 'shirt') { mesh(G.box, shade(top, .85), [.025, .45, .015], [0, .98, front + .01], g); for (const y of [.86, .98, 1.1]) mesh(G2.sphS, 0xf4f4f4, [.015, .015, .01], [0, y, front + .02], g); }
+  if (o.apron) mesh(G.box, o.apron, [.42, .5, .05], [0, .9, .25], g);
+  if (o.trim) mesh(G2.cyl, o.trim, [.33*bw, .1, .29], [0, .62, 0], g);
+  if (o.acc === 'necklace') { const n = mesh(G2.ring, 0xf2c200, [.11, .11, .11], [0, 1.22, .1], g, {metalness:.8, roughness:.25}); n.rotation.x = Math.PI/2.4; }
+  mesh(G2.cyl, skin, [.085, .14, .085], [0, 1.33, 0], g);
+  // arms: sleeves, forearms and hands
+  const bare = o.top === 'tank' || o.top === 'dress', long = ['hoodie', 'jacket', 'suit'].includes(o.top) || o.long;
+  const sleeve = o.top === 'jacket' ? o.body2 : o.top === 'suit' ? 0x1e1e26 : top;
+  for (const arm of [armL, armR]) {
+    mesh(G.box, bare ? skin : sleeve, [.13, .26, .15], [0, -.1, 0], arm);
+    mesh(G.box, long ? sleeve : skin, [.11, .24, .13], [0, -.33, 0], arm);
+    mesh(G2.sphS, skin, [.07, .075, .07], [0, -.48, 0], arm);
+  }
+  if (o.hat === 'hood') { mesh(G2.sph, o.hatCol || top, [.29, .3, .29], [0, 1.64, -.05], g); }
+  // the head: skull, jaw, ears, nose, eyes with whites, brows and a mouth
+  const hy = o.hero ? .04 : 0, hs = o.hero ? 1.14 : 1, H = (x, y, z) => [x*hs, 1.58 + hy + (y - 1.58)*hs, z*hs];
+  mesh(G2.sph, skin, [.235*hs, .25*hs, .24*hs], H(0, 1.6, 0), g);
+  mesh(G2.sph, skin, [.19*hs, .13*hs, .19*hs], H(0, 1.48, .03), g);
+  for (const sx of [-1, 1]) mesh(G2.sphS, dark, [.04*hs, .06*hs, .03*hs], H(sx*.235, 1.58, 0), g);
+  mesh(G.box, shade(skin, .9), [.05*hs, .075*hs, .07*hs], H(0, 1.55, .22), g);
+  for (const sx of [-1, 1]) {
+    mesh(G2.sphS, 0xffffff, [.05*hs, .042*hs, .02*hs], H(sx*.085, 1.61, .205), g);
+    mesh(G2.sphS, o.hero ? 0x2a4a7a : 0x2a1a10, [.028*hs, .032*hs, .015*hs], H(sx*.085, 1.61, .222), g);
+    mesh(G.box, o.hero ? 0x4a2a14 : hairC, [.085*hs, .02*hs, .02*hs], H(sx*.09, 1.675, .21), g).rotation.z = -sx*.12;
+  }
+  mesh(G.box, o.hero ? 0x9a3a2a : 0x8a3a2a, [.085*hs, .022*hs, .015*hs], H(0, 1.47, .2), g);
+  if (o.hero) for (const sx of [-1, 1]) mesh(G2.sphS, 0xff9a8a, [.045, .028, .02], H(sx*.15, 1.52, .17), g);
+  // hair
+  const hc = hairC, st = o.hair ?? 'short';
+  if (st && st !== 'bald' && st !== 'afro' && st !== 'mohawk') mesh(G2.sph, hc, [.25, st === 'buzz' ? .17 : .2, .255], [0, 1.67, -.03], g);
+  if (st === 'long') { mesh(G.box, hc, [.44, .44, .14], [0, 1.44, -.13], g); for (const sx of [-1, 1]) mesh(G.box, hc, [.06, .32, .16], [sx*.22, 1.5, -.02], g); }
+  if (st === 'bun') mesh(G2.sph, hc, [.11, .1, .11], [0, 1.88, -.12], g);
+  if (st === 'ponytail') { const p = mesh(G.box, hc, [.08, .32, .08], [0, 1.5, -.27], g); p.rotation.x = .3; }
+  if (st === 'afro') mesh(G2.sph, hc, [.34, .31, .34], [0, 1.72, -.03], g);
+  if (st === 'mohawk') mesh(G.box, hc, [.06, .14, .42], [0, 1.83, -.02], g);
+  if (st === 'sidepart') mesh(G.box, hc, [.22, .07, .14], [.06, 1.79, .1], g).rotation.z = -.25;
+  if (st === 'bangs') mesh(G.box, hc, [.42, .08, .1], [0, 1.72, .17], g);
+  if (o.face === 'beard') { mesh(G2.sph, hc, [.2, .12, .19], [0, 1.44, .05], g); mesh(G.box, hc, [.13, .03, .03], [0, 1.505, .215], g); }
+  if (o.face === 'mustache') mesh(G.box, hc, [.13, .03, .03], [0, 1.505, .218], g);
+  if (o.face === 'goatee') { mesh(G.box, hc, [.07, .08, .05], [0, 1.43, .2], g); mesh(G.box, hc, [.12, .025, .03], [0, 1.505, .215], g); }
+  if (o.acc === 'sunglasses') { for (const sx of [-1, 1]) mesh(G.box, 0x111114, [.09, .055, .02], [sx*.085, 1.61, .232], g); mesh(G.box, 0x111114, [.06, .015, .015], [0, 1.625, .232], g); }
+  if (o.acc === 'glasses') { for (const sx of [-1, 1]) { mesh(G.box, 0x2a2a2e, [.09, .012, .012], [sx*.085, 1.64, .232], g); mesh(G.box, 0x2a2a2e, [.09, .012, .012], [sx*.085, 1.58, .232], g); } mesh(G.box, 0x2a2a2e, [.27, .012, .012], [0, 1.635, .2], g); }
+  if (o.acc === 'cap') { mesh(G2.sph, o.body2, [.26, .16, .26], [0, 1.73, -.01], g); mesh(G.box, o.body2, [.26, .025, .18], [0, 1.73, .24], g); }
+  if (o.acc === 'bucket') { mesh(G2.flare, o.body2, [.27, .16, .27], [0, 1.8, 0], g); mesh(G2.cyl, o.body2, [.34, .02, .34], [0, 1.73, 0], g); }
+  if (o.acc === 'earrings') for (const sx of [-1, 1]) mesh(G2.sphS, 0xf2c200, [.025, .025, .025], [sx*.235, 1.5, .02], g, {metalness:.8});
+}
+
+function makeChar(o) {
+  if (o.civ) o = {...civLook(o.civ === true ? R()*60|0 : o.civ), ...o, civ:0};
+  const key = JSON.stringify(o);
+  if (!CHAR_GEO[key]) {
+    // build the figure once from parts, then merge each limb into a single mesh
+    const P = {g:new THREE.Group(), legL:new THREE.Group(), legR:new THREE.Group(), armL:new THREE.Group(), armR:new THREE.Group()};
+    buildBody(o, P);
+    const {g, armL, armR} = P;
+    if (o.hero) { mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g); }
   switch (o.hat) {
     case 'fur': { const hy = o.hero ? .1 : 0; mesh(G.cyl, o.hatCol || 0x7a4a2a, [.3, .26, .3], [0, 1.8 + hy, 0], g); mesh(G.cyl, 0xf3eadb, [.32, .08, .32], [0, 1.69 + hy, 0], g); break; }
     case 'straw': mesh(G.cyl, 0xe0c070, [.45, .04, .45], [0, 1.78, 0], g); mesh(G.cyl, 0xe0c070, [.22, .2, .22], [0, 1.88, 0], g); break;
@@ -844,7 +942,23 @@ function makeChar(o) {
   if (o.shield === 'round') { const r = mesh(G.cyl, 0x8a5a2b, [.3, .05, .3], [-.12, -.32, .1], armL); r.rotation.z = Math.PI/2; const p = mesh(G.cyl, 0xd9443a, [.18, .055, .18], [-.12, -.32, .1], armL); p.rotation.z = Math.PI/2; mesh(G.sph, 0x8a8f96, [.05, .05, .05], [-.16, -.32, .1], armL, M); }
   if (o.shield === 'heater') { mesh(G.box, o.trim || 0x2d4fa8, [.06, .4, .36], [-.1, -.25, .12], armL); const t = mesh(G.cone4, o.trim || 0x2d4fa8, [.25, .25, .04], [-.1, -.55, .12], armL); t.rotation.set(Math.PI, Math.PI/2, 0); mesh(G.box, 0xf2c200, [.065, .16, .06], [-.1, -.25, .12], armL); }
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.03, .7, .03], [0, -.72, .06], armR); mesh(G.box, 0x9aa0a8, [.04, .2, .18], [0, -1.02, .14], armR, M); }
-  if (o.sword) c.sword = mesh(G.box, 0xe4e8ee, [.05, .62, .1], [0, -.82, .06], armR, {metalness:.7, roughness:.25});
+  if (o.sword) mesh(G.box, 0xe4e8ee, [.05, .62, .1], [0, -.82, .06], armR, {metalness:.7, roughness:.25});
+    CHAR_GEO[key] = Object.fromEntries(Object.entries(P).map(([k, grp]) => [k, mergeParts(grp)]));
+  }
+  const geo = CHAR_GEO[key];
+  const g = new THREE.Group(), c = {g, bob:0};
+  const legL = new THREE.Group(), legR = new THREE.Group(), armL = new THREE.Group(), armR = new THREE.Group();
+  legL.position.set(-.13, .5, 0); legR.position.set(.13, .5, 0); armL.position.set(-.38*(o.bw || 1), 1.22, 0); armR.position.set(.38*(o.bw || 1), 1.22, 0);
+  g.add(legL, legR, armL, armR);
+  for (const [k, part] of Object.entries({g, legL, legR, armL, armR})) geo[k].forEach((gm, i) => {
+    if (!gm) return;
+    const m = new THREE.Mesh(gm, i ? CHAR_METAL : CHAR_MAT); m.castShadow = true; m.receiveShadow = true; part.add(m);
+  });
+  if (o.hero) {
+    c.crown = new THREE.Group(); c.crown.position.y = 2.16; g.add(c.crown); c.crown.visible = false;
+    mesh(G.cyl, 0xf2c200, [.21, .13, .21], [0, 0, 0], c.crown, {metalness:.7, roughness:.3});
+    for (let i = 0; i < 5; i++) { const a = i/5*Math.PI*2; mesh(G.cone, 0xf2c200, [.05, .14, .05], [Math.cos(a)*.17, .13, Math.sin(a)*.17], c.crown, {metalness:.7, roughness:.3}); }
+  }
   if (o.gun) c.gun = rifle(armR, o.scope);
   if (o.hero || o.rod) {
     // rod held out over the water, with a line and bobber hanging straight down
@@ -914,12 +1028,13 @@ const TROOPS = [
   {n:'Special forces', o:{body:0x5a6448, trim:0x2a2e26, hat:'tactical', pants:0x4e5640, gun:true, scope:true, vest:true}},
 ];
 const ARMS = () => TROOPS[W.troop || 0].o;
-const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower'];
-const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀'];
+const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower', 'Space Empire'];
+const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀', '🪐'];
 const ERA_TXT = ['', 'Word is spreading. More hungry travelers are coming.', 'Word is spreading. More hungry travelers are coming.',
   'Your camp is a town. New land waits beyond the palisade.', 'Stone streets and scholars. Your town is a city.',
   'Soldiers guard the roads and pay tribute.', 'You built a kingdom from one campfire. Now take your army to war.', 'Every land around the river is yours. Now raise a skyline downtown.',
-  'Your first skyscraper towers over the river.', 'Six skyscrapers. Your campfire became a megacity.', 'Land, sea and sky are yours. Thanks for playing!'];
+  'Your first skyscraper towers over the river.', 'Six skyscrapers. Your campfire became a megacity.', 'Land, sea and sky are yours. Thanks for playing!',
+  'Your empire reaches the Moon.'];
 // boosts bought with research
 const BOOST = {fishRate:1, bigFish:.15, farm:1, metal:1, patience:1, tactics:1};
 const WORKER = {speed:3.8, cap:6};
@@ -932,7 +1047,8 @@ buildFx.grill(false);
 boxes.push({x0:-5.3, x1:-3.1, z0:-.1, z1:2.1});
 buildFx.table();
 boxes.push({x0:3.3, x1:4.7, z0:-1.6, z1:3.6});
-const fishZone = addZone({kind:'source', item:'fish', rate:.42, wrate:.75, from:waterPt, x:-9.4, z:1, icon:'🎣', tile:{alpha:1, size:96, label:'Fishing spot'}});
+const fishZone = addZone({kind:'source', item:'fish', rate:.42, wrate:.75, from:waterPt, x:-13.2, z:1, w:1.7, d:1.2, icon:'🎣', tile:{alpha:1, size:96, label:'Fishing spot'}});
+fishZone.mesh.position.y = .3;   // on the dock's planks
 let oreZone = null;
 
 // Tables. Each dish has its own room on a table, so a pile of one dish can
@@ -1570,8 +1686,8 @@ makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[40, 1],
   active:() => W.tut >= 1, interval:() => 7 / (1 + .45*huts() + .3*W.era + .35*houses() + .3*(W.bridge || 0) + .4*(W.train || 0)), order:() => travelerOrder(2, 2)});
 function spawnIn(L) {
   const recruit = L.id === 'mess', col = recruit ? 0x8a7a5a : CLOTHES[R()*CLOTHES.length|0];
-  const c = entity({body:col, hat:recruit ? 'beanie' : (R() < .6 ? 'hood' : 'beanie'), hatCol:recruit ? 0x6a5a3a : col,
-    skin:SKINS[R()*SKINS.length|0], pants:0x3a3a4a}, L.spawn[0], L.spawn[1], 3.2, 0);
+  const c = entity(recruit ? {body:col, hat:'beanie', hatCol:0x6a5a3a, skin:SKINS[R()*SKINS.length|0], pants:0x3a3a4a, hair:'short', hairCol:HAIRC[R()*6|0]} : {civ:true},
+    L.spawn[0], L.spawn[1], 3.2, 0);
   c.wants = L.order().map(w => ({...w, total:w.need})); c.waitT = 0; c.eatT = 0;
   if (L.entry) c.pre = L.entry.map(pt => [...pt]);
   // with a bridge, some travelers come from the west over the river
@@ -1628,7 +1744,7 @@ function revolt() {
   snd(110, .5, 'sawtooth', .05, .6);
 }
 function payOut(c, L) {
-  const value = Math.round(c.wants.reduce((a, w) => a + w.total * (ITEM[w.type].price || 0), 0) * L.mult * (1 + .06*(W.water || 0)));
+  const value = Math.round(c.wants.reduce((a, w) => a + w.total * (ITEM[w.type].price || 0), 0) * L.mult * (1 + .06*(W.water || 0)) * appealMult() * happyMult() * (W.festival > 0 ? 2 : 1));
   addCash(L.cash, value, c.pos);
   W.fed++;
   popText(`+${value} 💵`, new THREE.Vector3(c.pos.x, 2.4, c.pos.z), '#ffe06b');
@@ -1678,7 +1794,7 @@ function warTile() {
 function warAct(zn, e) {
   e.tick = .5;
   const c = CAMPAIGNS[W.conquests];
-  if (!c || W.camp) return;
+  if (!c || W.camp || W.raid) return;
   if (W.army < campNeed(c)) { popText(`Need ${campNeed(c)} 🛡️ soldiers`, e.pos.clone().setY(2.8), '#ffcdb8'); return; }
   if (c.ships && !W.unlocked.has('warship')) { popText('Needs a warship ⛵', e.pos.clone().setY(2.8), '#ffcdb8'); return; }
   if (c.planes && planesBuilt() < c.planes) { popText(`Needs ${c.planes} plane${c.planes > 1 ? 's' : ''} ✈️`, e.pos.clone().setY(2.8), '#ffcdb8'); return; }
@@ -1899,6 +2015,9 @@ const PADS = [
   {id:'bridge3', x:-8.4, z:4.6, cost:15, cur:'tools', icon:'🌉', label:'Iron bridge', after:['bridge2', 'workshop']},
   {id:'bridge4', x:-8.4, z:4.6, cost:80000, cur:'coin', icon:'🌁', label:'Suspension bridge', after:['bridge3', 'labs']},
   // railways
+  {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🚀', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
+  {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
+  {id:'moonLanding', x:-31, z:3.6, cost:500000, cur:'coin', icon:'🌕', label:'Moon landing', after:['satellite'], region:'airfield'},
   {id:'mineRail', x:-2.4, z:-21.6, cost:8, cur:'tools', icon:'🚃', label:'Mine railway', after:['miner', 'workshop'], region:'north'},
   {id:'railway', x:29.3, z:15.4, cost:90, cur:'stone', icon:'🐎', label:'Stagecoach line', after:['farmGate', 'workshop'], region:'farm'},
   {id:'steamTrain', x:29.3, z:15.4, cost:15, cur:'tools', icon:'🚂', label:'Steam train', after:['railway'], region:'farm'},
@@ -2092,6 +2211,9 @@ const UNLOCK = {
   },
   water1(a) { waterStage(1, a); }, water2(a) { waterStage(2, a); }, water3(a) { waterStage(3, a); }, water4(a) { waterStage(4, a); }, water5(a) { waterStage(5, a); },
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },
+  launchPad(a) { launchPadFx(a); makeCash('space', -27.5, 3.6); if (a) banner('🚀 The space age!', 'Launch satellites for income, then land on the Moon.'); },
+  satellite(a) { if (a) launch('sat'); },
+  moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
   mineRail(a) { buildMineRail(a); if (a) banner('🚃 Mine railway!', 'Ore carts run from the mine straight into the smelter.'); },
   railway(a) { W.train = 1; railStage(1, a); makeCash('rail', 29.3, 13); makeTrain(0); if (a) banner('🐎 Stagecoach line!', 'Horses and wagons bring travelers from the next towns.'); },
   steamTrain(a) { W.train = 2; railStage(2, a); overpasses(a); makeTrain(1); if (a) banner('🚂 Steam train!', 'Trains bring travelers and fares from the next towns.'); },
@@ -2116,7 +2238,7 @@ function refreshPads() {
       continue;
     }
     const after = p.after.every(a => W.unlocked.has(a));
-    const ready = after && (!p.army || W.army >= p.army);
+    const ready = after && (!p.army || W.army >= p.army) && (!p.need || p.need());
     const near = p.after.every(a => W.unlocked.has(a) || PADS.find(q => q.id === a).after?.every(b => W.unlocked.has(b)));
     if (!ready && !near) continue;
     let z = padZones[p.id];
@@ -2285,7 +2407,7 @@ function objective() {
   if (broken) return {txt:`🔥 Angry guests set the ${broken.name} on fire. Repair it!`, z:broken.repairZone};
   const camp = CAMPAIGNS[W.conquests];
   if (W.camp && warZone && zdist(warZone) < 14) return {txt:`${W.camp.type === 'air' ? '✈️ Air strike' : W.camp.type === 'sea' ? '⚓ Sea battle' : '⚔️ Battle'} at the ${camp.name}! Stand on the war table to watch`, z:warZone};
-  if (warZone && camp && !W.camp && W.army >= campNeed(camp) && (!camp.ships || W.unlocked.has('warship')) && (!camp.planes || planesBuilt() >= camp.planes))
+  if (warZone && camp && !W.camp && !W.raid && W.army >= campNeed(camp) && (!camp.ships || W.unlocked.has('warship')) && (!camp.planes || planesBuilt() >= camp.planes))
     return {txt:`⚔️ Lead your army against the ${camp.name}`, z:warZone};
   const pads = Object.values(padZones).filter(z => !z.locked);
   const rem = z => z.pad.cost - (W.paid[z.pad.id] || 0);
@@ -2521,13 +2643,13 @@ function startBattle(c) {
   enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [3.47, 2.7, 47.3], enemyCamp);
   const n = Math.min(10, campNeed(c));
   for (let i = 0; i < n; i++) {
-    const e = entity({body:0x8a2a22, hat:'helmet', hatCol:0x5a3a3a, pants:0x2a1a1a, sword:true}, BF.x - 3.6 + (i % 5)*1.8, 42.4 + Math.floor(i / 5)*1.2, 3, 0);
+    const e = entity(ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)], BF.x - 3.6 + (i % 5)*1.8, 42.4 + Math.floor(i / 5)*1.2, 3, 0);
     e.yaw = Math.PI; e.alive = true; e.fall = 0; enemies.push(e);
   }
 }
 function updBattle(dt) {
   if (!enemies.length) return;
-  const ph = W.camp ? W.camp.t : -1, fighting = ph > 9 && ph <= 22;
+  const BC = W.camp || W.raid, ph = BC ? BC.t : -1, fighting = ph > 9 && ph <= 22;
   if (fighting && (W.battleT = (W.battleT || 0) - dt) <= 0) {
     W.battleT = 12 / Math.max(1, enemies.length);
     const alive = enemies.filter(e => e.alive);
@@ -2908,7 +3030,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; joy.on =
 stage.addEventListener('pointerdown', e => {
   if (e.target.closest('button') || !$('overlay').hidden) return;
   const r = stage.getBoundingClientRect();
-  joy.on = true; joy.id = e.pointerId; joy.ox = e.clientX - r.left; joy.oy = e.clientY - r.top; joy.x = joy.y = 0;
+  joy.on = true; joy.id = e.pointerId; joy.ox = e.clientX - r.left; joy.oy = e.clientY - r.top; joy.x = joy.y = 0; joy.t0 = performance.now(); joy.moved = 0;
   const j = $('joy'); j.style.display = 'block'; j.style.left = joy.ox + 'px'; j.style.top = joy.oy + 'px'; $('knob').style.transform = '';
   renderer.domElement.focus({preventScroll:true});
   try { stage.setPointerCapture(e.pointerId); } catch (_) {}
@@ -2918,11 +3040,12 @@ stage.addEventListener('pointermove', e => {
   const r = stage.getBoundingClientRect();
   let dx = e.clientX - r.left - joy.ox, dy = e.clientY - r.top - joy.oy;
   const d = Math.hypot(dx, dy), max = 45;
+  joy.moved = Math.max(joy.moved || 0, d);
   if (d > max) { dx *= max/d; dy *= max/d; }
   joy.x = dx / max; joy.y = dy / max;
   $('knob').style.transform = `translate(${dx}px,${dy}px)`;
 });
-const endJoy = e => { if (e.pointerId !== joy.id) return; joy.on = false; joy.x = joy.y = 0; $('joy').style.display = 'none'; };
+const endJoy = e => { if (e.pointerId !== joy.id) return; if (joy.on && performance.now() - joy.t0 < 300 && (joy.moved || 0) < 8) tapAt(joy.ox, joy.oy); joy.on = false; joy.x = joy.y = 0; $('joy').style.display = 'none'; };
 stage.addEventListener('pointerup', endJoy); stage.addEventListener('pointercancel', endJoy);
 
 // ------------------------------------------------------------------ save
@@ -3196,7 +3319,7 @@ const WEST_PATH = () => [[BR.x1 - .2, BR.z], [-1, 4.6], [5.6, 4.6], [7.2, 2.4]];
 function updBridge(dt) {
   if (!W.bridge) return;
   if (!walkers.length) for (let i = 0; i < 4; i++) {
-    const c = makeChar({body:CLOTHES[(i*3) % 8], hat:i % 2 ? 'hood' : 'beanie', hatCol:CLOTHES[(i*3 + 2) % 8], skin:SKINS[i % 5], pants:0x3a3a4a});
+    const c = makeChar({civ:true});
     walkers.push({c, x:-26 + i*4, dir:i % 2 ? -1 : 1, sp:1.5 + R()*.6, ph:R()*6});
   }
   const top = DECK[W.bridge];
@@ -3351,16 +3474,16 @@ function trainArrives(T) {
 const strollers = [];
 const STROLL = [[1, -3.4], [6.4, -1.8], [10.6, 2.4], [7.2, 8.4], [-1.2, 4.4], [-7.4, -1.6], [2.4, -9.6], [10.6, -10.2]];
 function updStrollers(dt) {
-  const want = Math.min(8, Math.floor(W.era * .8) + (W.water || 0));
+  const want = Math.min(12, Math.floor(W.era * .9) + (W.water || 0) + Math.min(3, (W.decor || []).length));
   while (strollers.length < want) {
-    const s = entity({body:CLOTHES[R()*CLOTHES.length|0], hat:R() < .5 ? 'hood' : 'straw', skin:SKINS[R()*SKINS.length|0], pants:0x3a3a4a}, ...STROLL[R()*STROLL.length|0], 1.4 + R()*.6, 0);
+    const s = entity({civ:true}, ...STROLL[R()*STROLL.length|0], 1.4 + R()*.6, 0);
     s.goal = STROLL[R()*STROLL.length|0]; s.rest = 0; strollers.push(s);
   }
   for (const s of strollers) {
     if (s.rest > 0) { s.rest -= dt; s.vel.set(0, 0, 0); }
     else {
       const px = s.pos.x, pz = s.pos.z;
-      if (moveTo(s, s.goal[0], s.goal[1], dt)) { s.rest = 1.5 + R()*4; s.goal = STROLL[R()*STROLL.length|0]; }
+      if (moveTo(s, s.goal[0], s.goal[1], dt)) { s.rest = 1.5 + R()*4; if (s.plan) { s.doing = s.plan; s.plan = null; s.rest = 2.5 + R()*2; } s.goal = STROLL[R()*STROLL.length|0]; }
       collide(s.pos, {x:px, z:pz});
       // blocked by a building: wander somewhere else
       if (Math.hypot(s.pos.x - px, s.pos.z - pz) < s.speed*dt*.3 && (s.stuck = (s.stuck || 0) + dt) > .8) { s.stuck = 0; s.goal = STROLL[R()*STROLL.length|0]; }
@@ -3687,6 +3810,7 @@ function makeWagon(g, cars) {
 // ------------------------------------------------------------------ footbridges over the railway, so nobody walks in front of a train
 const OV_H = 2.35, OVERPASS = [{x0:30.8, x1:32.4, x2:34.8, x3:36.4, z0:.15, z1:4.95}, {x0:30.8, x1:32.4, x2:34.8, x3:36.4, z0:28.9, z1:30.3}];
 function elevAt(x, z) {
+  if (x < -10.25 && x > -14.8 && z > .1 && z < 1.9) return .29;   // the fishing dock
   if (W.bridge && x > BR.x0 && x < BR.x1 && Math.abs(z - BR.z) < 1) return DECK[W.bridge];
   if (railsG) for (const o of OVERPASS) if (z > o.z0 && z < o.z1 && x > o.x0 && x < o.x3)
     return x < o.x1 ? OV_H * (x - o.x0) / (o.x1 - o.x0) : x > o.x2 ? OV_H * (o.x3 - x) / (o.x3 - o.x2) : OV_H;
@@ -3849,11 +3973,385 @@ function renderFinal(night) {
   pass(mComp, null);
 }
 
+// ------------------------------------------------------------------ seasons and weather
+const SEASONS = [
+  {n:'Spring', icon:'🌸', farm:1.1, leaf:[0x5ec04c, 0x8ad86a], grass:[1, 1.05, .95], ground:0x5aa83a},
+  {n:'Summer', icon:'☀️', farm:1.3, leaf:[0x3b9a3a, 0x5ec04c], grass:[1, 1, 1], ground:0x4f9e32},
+  {n:'Autumn', icon:'🍂', farm:1.5, leaf:[0xd9772a, 0xe8b23a], grass:[1.25, .95, .55], ground:0x8a8a3a},
+  {n:'Winter', icon:'❄️', farm:.6, leaf:[0xdfe8ee, 0xf4f8fa], grass:[1.7, 1.75, 1.85], ground:0xdfe6ea},
+];
+const YEAR = 480;
+const seasonIdx = () => Math.floor((W.playT % YEAR) / (YEAR/4));
+const seasonFarm = () => SEASONS[seasonIdx()].farm * (W.weather === 'rain' ? 1.2 : 1);
+const WX = {t:15, cur:new THREE.Color(), tmp:new THREE.Color()};
+const precip = (() => {
+  const n = MOBILE ? 500 : 1400, pos = new Float32Array(n*3);
+  for (let i = 0; i < n; i++) { pos[i*3] = (R() - .5)*44; pos[i*3 + 1] = R()*18; pos[i*3 + 2] = (R() - .5)*44; }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const p = new THREE.Points(geo, new THREE.PointsMaterial({color:0xcfe4ff, size:.09, transparent:true, opacity:0, depthWrite:false}));
+  p.frustumCulled = false; scene.add(p); return p;
+})();
+function updSeasons(dt) {
+  const si = seasonIdx(), S = SEASONS[si], k = Math.min(1, dt*.5);
+  if (W.lastSeason !== si) {
+    if (W.lastSeason != null && started) banner(`${S.icon} ${S.n}`, ['Blossoms everywhere. Floods can come with the spring rains.', 'Long days: the farms grow fast.', 'Harvest time! Fields grow fastest of the year.', 'Snow falls. Farms slow down until spring.'][si]);
+    W.lastSeason = si;
+  }
+  FOREST.meshes[1].material.color.lerp(WX.tmp.set(S.leaf[0]), k); FOREST.meshes[2].material.color.lerp(WX.tmp.set(S.leaf[1]), k);
+  if (FX.blades) FX.blades.material.color.lerp(WX.tmp.setRGB(...S.grass), k);
+  if (FX.grass) FX.grass.material.color.lerp(WX.tmp.set(S.ground), k);
+  if (FX.flowers) FX.flowers.visible = si < 2;
+  // the weather turns every half minute or so
+  if ((WX.t -= dt) <= 0) {
+    WX.t = 25 + R()*30;
+    const was = W.weather;
+    W.weather = si === 3 ? (R() < .6 ? 'snow' : 'clear') : (R() < [.4, .15, .35][si] ? 'rain' : 'clear');
+    if (was !== W.weather && W.weather !== 'clear' && started) popText(W.weather === 'snow' ? '❄️ Snow' : '🌧️ Rain: crops grow faster', player.pos.clone().setY(3.2), '#e0f0ff');
+  }
+  const snow = W.weather === 'snow', on = W.weather !== 'clear';
+  precip.material.opacity += ((on ? (snow ? .9 : .55) : 0) - precip.material.opacity) * k;
+  precip.material.size = snow ? .32 : .12; precip.material.color.set(snow ? 0xffffff : 0xa8c8ff);
+  if (precip.material.opacity > .01) {
+    const a = precip.geometry.attributes.position, fall = snow ? 2.2 : 16, cx = player.pos.x, cz = player.pos.z;
+    for (let i = 0; i < a.count; i++) {
+      let y = a.getY(i) - fall*dt; if (y < 0) y += 18;
+      a.setY(i, y); if (snow) a.setX(i, a.getX(i) + Math.sin(time + i)*dt*.4);
+    }
+    a.needsUpdate = true; precip.position.set(cx, 0, cz);
+  }
+  sun.intensity *= on ? .7 : 1;
+}
+
+// ------------------------------------------------------------------ build mode: place parks, statues and rides anywhere
+const DECOR = {
+  bench:{n:'Bench', icon:'🪑', cost:200, appeal:2, r:.5}, flowers:{n:'Flower bed', icon:'🌷', cost:300, appeal:3, r:.5},
+  tree:{n:'Shade tree', icon:'🌳', cost:250, appeal:3, r:.5}, lamp:{n:'Lamp post', icon:'💡', cost:400, appeal:2, r:.25},
+  fountain:{n:'Fountain', icon:'⛲', cost:2000, appeal:10, r:1}, statue:{n:'Statue', icon:'🗿', cost:5000, appeal:15, r:.6},
+  gazebo:{n:'Gazebo', icon:'🛖', cost:3500, appeal:12, r:1.1}, carousel:{n:'Carousel', icon:'🎠', cost:15000, appeal:30, r:1.3, ride:true},
+  ferris:{n:'Ferris wheel', icon:'🎡', cost:25000, appeal:45, r:1.4, ride:true}, coaster:{n:'Roller coaster', icon:'🎢', cost:60000, appeal:80, r:1.9, ride:true},
+};
+const decorObjs = [], rides = [];
+const appeal = () => (W.decor || []).reduce((a, d) => a + DECOR[d.k].appeal, 0);
+const appealMult = () => 1 + Math.min(.5, appeal() * .004);
+function decorMesh(k, x, z, ry = 0) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = k === 'coaster' ? 0 : ry; scene.add(g); g.updateMatrixWorld(true);
+  const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
+  if (k === 'bench') { P(G.box, 0x8a5a2b, [1, .07, .35], [0, .42, 0]); P(G.box, 0x8a5a2b, [1, .3, .06], [0, .62, -.16]); for (const x of [-.4, .4]) P(G.box, 0x2a2a2e, [.06, .42, .3], [x, .21, 0]); }
+  if (k === 'flowers') { P(G.box, 0x7a5a3a, [1, .25, .7], [0, .12, 0]); P(G.box, 0x4a3020, [.92, .02, .62], [0, .25, 0]); for (let i = 0; i < 12; i++) P(G.sph, [0xff6a8a, 0xffd84a, 0xffffff, 0xb78cff][i % 4], [.08, .08, .08], [-.38 + (i % 6)*.15, .32, i < 6 ? -.15 : .15]); }
+  if (k === 'tree') { P(G.cyl, 0x6b4526, [.12, 1.2, .12], [0, .6, 0]); P(G.ico, 0x4a9a3a, [.75, .7, .75], [0, 1.6, 0]); P(G.ico, 0x5ec04c, [.5, .5, .5], [.25, 2, .1]); }
+  if (k === 'lamp') { P(G.cyl, 0x2a2e36, [.05, 2.2, .05], [0, 1.1, 0], {metalness:.6}); P(G.box, 0x2a2e36, [.22, .3, .22], [0, 2.25, 0]); bulb(g, 0, 2.25, 0, 0xfff2c8, .1); }
+  if (k === 'fountain') { P(G.cyl, 0xe8e2d6, [1, .4, 1], [0, .2, 0]); P(G.cyl, 0x3a9ad0, [.88, .03, .88], [0, .4, 0], {roughness:.1}); P(G.cyl, 0xe8e2d6, [.12, 1, .12], [0, .8, 0]); P(G.cyl, 0xe8e2d6, [.4, .08, .4], [0, 1.3, 0]); rides.push({k:'spray', g}); }
+  if (k === 'statue') { P(G.box, 0xd8d2c4, [.8, .8, .8], [0, .4, 0]); P(G.cap, 0xc8a24a, [.55, .7, .55], [0, 1.25, 0], {metalness:.7, roughness:.3}); P(G.sph, 0xc8a24a, [.17, .17, .17], [0, 1.78, 0], {metalness:.7, roughness:.3}); const a = P(G.box, 0xc8a24a, [.08, .5, .08], [.2, 1.85, 0], {metalness:.7}); a.rotation.z = -.4; }
+  if (k === 'gazebo') { P(G.cyl, 0xe8e2d6, [1.1, .15, 1.1], [0, .07, 0]); for (let i = 0; i < 6; i++) { const a = i/6*Math.PI*2; P(G.cyl, 0xf4f0e6, [.05, 1.6, .05], [Math.cos(a)*.95, .9, Math.sin(a)*.95]); } P(G.cone, 0x2f8a5a, [1.3, .8, 1.3], [0, 2.1, 0]); }
+  if (k === 'carousel') {
+    P(G.cyl, 0xf4f0e6, [1.3, .2, 1.3], [0, .1, 0]); P(G.cyl, 0xd9a52a, [.1, 2.2, .1], [0, 1.2, 0], {metalness:.6});
+    const top = new THREE.Group(); top.position.y = 2.3; g.add(top); mesh(G.cone, 0xd9443a, [1.45, .7, 1.45], [0, 0, 0], top); for (let i = 0; i < 12; i++) bulb(top, Math.cos(i/12*Math.PI*2)*1.4, -.3, Math.sin(i/12*Math.PI*2)*1.4, 0xffd36b, .05);
+    const spin = new THREE.Group(); g.add(spin);
+    for (let i = 0; i < 6; i++) { const a = i/6*Math.PI*2, h = new THREE.Group(); h.position.set(Math.cos(a)*.95, .7, Math.sin(a)*.95); h.rotation.y = -a; spin.add(h); mesh(G.box, [0xffffff, 0xd9a050, 0x6a4226][i % 3], [.16, .26, .5], [0, 0, 0], h); mesh(G.box, 0xffffff, [.12, .22, .12], [0, .18, .22], h); mesh(G.cyl, 0xd9a52a, [.02, 1.4, .02], [0, .3, 0], h, {metalness:.6}); }
+    rides.push({k:'carousel', o:spin});
+  }
+  if (k === 'ferris') {
+    for (const x of [-.5, .5]) for (const s of [-1, 1]) { const l = P(G.box, 0xdfe4ea, [.1, 3.2, .1], [x, 1.5, s*.7], {metalness:.5}); l.rotation.x = s*.22; }
+    const w = new THREE.Group(); w.position.y = 2.9; g.add(w);
+    for (const x of [-.45, .45]) { const r = new THREE.Mesh(new THREE.TorusGeometry(2.1, .05, 6, 32), mat(0xdfe4ea, {metalness:.5})); r.rotation.y = Math.PI/2; r.position.x = x; w.add(r); }
+    const cabins = [];
+    for (let i = 0; i < 10; i++) {
+      const a = i/10*Math.PI*2, s = new THREE.Group(); s.rotation.x = a; w.add(s); mesh(G.box, 0xdfe4ea, [.04, 2.1, .04], [0, 1.05, 0], s);
+      const c = new THREE.Group(); c.position.set(0, Math.sin(a)*2.1, Math.cos(a)*2.1); w.parent.add(c); c.userData.a = a;
+      mesh(G.box, [0xd9443a, 0x3f7cc0, 0xf2c200, 0x3f9a6a][i % 4], [.5, .4, .4], [0, -.25, 0], c); bulb(c, 0, .05, 0, 0xfff2c8, .05); cabins.push(c);
+    }
+    rides.push({k:'ferris', o:w, cabins});
+  }
+  if (k === 'coaster') {
+    // a loop of track on stilts, with a train of cars running round it
+    const pts = []; for (let i = 0; i < 48; i++) { const a = i/48*Math.PI*2; pts.push([Math.cos(a)*2, 1.2 + Math.sin(a*2)*.8 + Math.sin(a*3)*.4, Math.sin(a)*1.2]); }
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1, z1] = pts[i], [x2, y2, z2] = pts[(i + 1) % pts.length], len = Math.hypot(x2 - x1, y2 - y1, z2 - z1);
+      const seg = new THREE.Mesh(G.box, mat(0xd9443a, {metalness:.4})); seg.scale.set(.32, .06, len + .02); seg.position.set((x1 + x2)/2, (y1 + y2)/2, (z1 + z2)/2);
+      seg.lookAt(x2 + g.position.x, y2, z2 + g.position.z); g.add(seg);
+      if (i % 4 === 0) P(G.cyl, 0xdfe4ea, [.04, y1, .04], [x1, y1/2, z1]);
+    }
+    const cars = []; for (let i = 0; i < 4; i++) { const c = new THREE.Group(); g.add(c); mesh(G.box, 0x3f7cc0, [.3, .2, .36], [0, .12, 0], c); bulb(c, 0, .26, 0, 0xffd36b, .04); cars.push(c); }
+    rides.push({k:'coaster', pts, cars, g});
+  }
+  decorObjs.push(g);
+  return g;
+}
+const BUILD = {on:false, k:null, ghost:null};
+function decorSpot() {
+  const s = Math.sin(player.yaw), c = Math.cos(player.yaw);
+  return [player.pos.x + s*1.8, player.pos.z + c*1.8];
+}
+// roads and queues where travelers, recruits and soldiers walk stay clear
+const NO_BUILD = [{x0:5, x1:31, z0:-.4, z1:3.3}, {x0:19.5, x1:31, z0:3, z1:5.4}, {x0:22, x1:31, z0:28.2, z1:31}, {x0:-10.4, x1:7.6, z0:3.7, z1:5.5},
+  {x0:-10.4, x1:2.8, z0:23.2, z1:25.2}, {x0:-10.4, x1:-8.4, z0:23, z1:31}, {x0:4.2, x1:6.2, z0:23, z1:31}];
+function decorFits(k, x, z) {
+  const r = DECOR[k].r;
+  if (NO_BUILD.some(a => x + r > a.x0 && x - r < a.x1 && z + r > a.z0 && z - r < a.z1)) return false;
+  if (!AREAS.slice(0, 1).concat(Object.values(REGIONS).filter(rg => regionOpen(Object.keys(REGIONS).find(id => REGIONS[id] === rg))).map(rg => rg.rect)).some(a => x - r > a.x0 && x + r < a.x1 && z - r > a.z0 && z + r < a.z1)) return false;
+  if (boxes.some(b => x + r > b.x0 && x - r < b.x1 && z + r > b.z0 && z - r < b.z1)) return false;
+  if (circles.some(c => Math.hypot(c.x - x, c.z - z) < c.r + r)) return false;
+  return !zones.some(q => Math.abs(q.x - x) < q.w/2 + r && Math.abs(q.z - z) < q.d/2 + r);
+}
+function openBuild() {
+  const m = $('modal'); m.hidden = false;
+  m.innerHTML = `<div class="card"><h1 style="font-size:26px">🏗️ Build</h1><p>Parks, statues and rides make your town nicer: guests pay more and stay happy. Pick one, then walk to where you want it.</p>
+    <div class="palette">${Object.entries(DECOR).map(([k, d]) => `<button data-k="${k}" ${W.coins < d.cost ? 'disabled' : ''}><span>${d.icon}</span>${d.n}<small>${d.cost.toLocaleString()} 💵</small></button>`).join('')}</div>
+    <p class="keys">Appeal ${appeal()} · guests pay +${Math.round((appealMult() - 1)*100)}%</p>
+    ${(W.decor || []).length ? '<button class="ghost" id="bdUndo">Sell the last one (half back)</button>' : ''}<button class="ghost" id="bdClose">Close</button></div>`;
+  m.querySelectorAll('.palette button').forEach(b => b.onclick = () => { m.hidden = true; startPlacing(b.dataset.k); });
+  $('bdClose').onclick = () => { m.hidden = true; };
+  if ($('bdUndo')) $('bdUndo').onclick = () => {
+    const d = W.decor.pop(), back = Math.floor(DECOR[d.k].cost / 2), g = decorObjs.pop();
+    scene.remove(g); const ci = circles.findIndex(c => c.decor === g); if (ci >= 0) circles.splice(ci, 1);
+    for (let i = rides.length; i--;) if (rides[i].g === g || rides[i].o?.parent === g || rides[i].o?.parent?.parent === g) rides.splice(i, 1);
+    W.coins += back; W.upSpent -= back; m.hidden = true; save();
+  };
+}
+function startPlacing(k) {
+  BUILD.on = true; BUILD.k = k;
+  if (BUILD.ghost) scene.remove(BUILD.ghost);
+  BUILD.ghost = decorMesh(k, 0, 0); decorObjs.pop();
+  BUILD.ghost.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .55; o.castShadow = false; } });
+  $('placeBar').hidden = false; $('placeName').textContent = `${DECOR[k].icon} ${DECOR[k].n}`;
+}
+function endPlacing() { BUILD.on = false; if (BUILD.ghost) scene.remove(BUILD.ghost); BUILD.ghost = null; $('placeBar').hidden = true; }
+function placeDecor() {
+  const k = BUILD.k, d = DECOR[k], [x, z] = decorSpot();
+  if (W.coins < d.cost) { popText('Not enough 💵', player.pos.clone().setY(2.8), '#ffcdb8'); return; }
+  if (!decorFits(k, x, z)) { popText('No room here', player.pos.clone().setY(2.8), '#ffcdb8'); return; }
+  W.coins -= d.cost; W.upSpent += d.cost;
+  (W.decor ||= []).push({k, x:+x.toFixed(2), z:+z.toFixed(2), ry:+player.yaw.toFixed(2)});
+  const g = decorMesh(k, x, z, player.yaw); popIn(g); puff(x, z);
+  circles.push({x, z, r:d.r, decor:g});
+  snd(523, .1, 'triangle', .05); setTimeout(() => snd(784, .14, 'triangle', .05), 90);
+  popText(`${d.icon} +${d.appeal} appeal`, new THREE.Vector3(x, 2.6, z), '#b8f59a');
+  save(); endPlacing();
+}
+function updBuild(dt) {
+  if (BUILD.ghost) {
+    const [x, z] = decorSpot(), ok = decorFits(BUILD.k, x, z) && W.coins >= DECOR[BUILD.k].cost;
+    BUILD.ghost.position.set(x, 0, z); BUILD.ghost.rotation.y = player.yaw;
+    BUILD.ghost.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setHex(ok ? 0x103a10 : 0x5a1010); });
+  }
+  for (const r of rides) {
+    if (r.k === 'carousel') r.o.rotation.y += dt*.8;
+    if (r.k === 'ferris') { r.o.rotation.x += dt*.25; for (const c of r.cabins) { const a = c.userData.a + r.o.rotation.x; c.position.set(0, 2.9 + Math.sin(a)*2.1, Math.cos(a)*2.1); } }
+    if (r.k === 'coaster') r.cars.forEach((c, i) => {
+      const t = ((time*.18 - i*.02) % 1 + 1) % 1, n = r.pts.length, f = t*n, a = r.pts[f|0], b = r.pts[((f|0) + 1) % n], u = f % 1;
+      c.position.set(a[0] + (b[0] - a[0])*u, a[1] + (b[1] - a[1])*u + .06, a[2] + (b[2] - a[2])*u); c.lookAt(b[0] + r.g.position.x, b[1], b[2] + r.g.position.z);
+    });
+    if (r.k === 'spray' && R() < dt*10) particle(0xcfefff, r.g.position.clone().setY(1.35), new THREE.Vector3((R() - .5)*1.2, 1.4 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
+  }
+}
+
+// ------------------------------------------------------------------ citizens with names, homes, jobs and needs, like little sims
+const FIRST = ['Ada', 'Bo', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus', 'Hal', 'Ivy', 'Jo', 'Kai', 'Lu', 'Max', 'Nia', 'Oz', 'Pip', 'Quin', 'Rae', 'Sol', 'Tess', 'Uma', 'Vic', 'Wren', 'Xan', 'Yara', 'Zed'];
+const LAST = ['Fisher', 'Miller', 'Baker', 'Stone', 'Smith', 'Brewer', 'Rivers', 'Woods', 'Hill', 'Marsh', 'Fields', 'Ford'];
+const JOBS = [['grill', 'Cook'], ['field', 'Farmer'], ['smelter', 'Smelter'], ['library', 'Scholar'], ['brewery', 'Brewer'], ['smith', 'Blacksmith'], ['workshop', 'Tinkerer'], ['oven', 'Baker']];
+function citizenNeeds(s) {
+  if (!s.name) {
+    s.name = `${FIRST[R()*FIRST.length|0]} ${LAST[R()*LAST.length|0]}`;
+    const jobs = JOBS.filter(([id]) => ST[id]); const j = jobs[R()*jobs.length|0] || ['grill', 'Cook']; s.job = j[1]; s.jobAt = j[0];
+    s.need = {food:50 + R()*50, fun:50 + R()*50, social:50 + R()*50};
+    s.el = document.createElement('div'); s.el.className = 'bub mood'; $('labels').appendChild(s.el);
+  }
+}
+function needSpot(s) {
+  const low = Object.entries(s.need).sort((a, b) => a[1] - b[1])[0];
+  if (low[1] > 55) { const st = ST[s.jobAt]; if (st && st.body && R() < .5) return {at:[st.body.position.x + 1.6, st.body.position.z + 1.6], act:'work'}; return null; }
+  if (low[0] === 'food') return {at:[7.4, 3.4], act:'food'};
+  if (low[0] === 'fun') { const d = (W.decor || [])[R()*(W.decor || []).length|0]; return {at:d ? [d.x + 1.2, d.z + 1.2] : [9, -4.6], act:'fun'}; }
+  const o = strollers.find(o => o !== s && !o.meet); return o ? {at:[o.pos.x + .8, o.pos.z], act:'social', who:o} : null;
+}
+function updCitizens(dt) {
+  let sum = 0;
+  for (const s of strollers) {
+    citizenNeeds(s);
+    for (const k in s.need) s.need[k] = Math.max(0, s.need[k] - dt * (k === 'food' ? .4 : .28));
+    if (s.doing && s.rest <= 0) {
+      const d = s.doing; s.doing = null;
+      if (d.act === 'food') { s.need.food = 100; addCash(cash, 4 + W.era, s.pos); }
+      if (d.act === 'fun') s.need.fun = Math.min(100, s.need.fun + 50 + appeal()*.3);
+      if (d.act === 'social') { s.need.social = 100; if (d.who && d.who.need) d.who.need.social = Math.min(100, d.who.need.social + 40); }
+    }
+    if (!s.doing && s.rest <= 0) { s.plan = s.plan || needSpot(s); if (s.plan) s.goal = s.plan.at; }
+    const mood = 12 + (s.need.food + s.need.fun + s.need.social) / 3 + (W.water || 0)*4 + (W.ground || 0)*3 + Math.min(20, appeal()*.15);
+    s.mood = clamp(mood, 0, 100); sum += s.mood;
+    const face = s.mood > 75 ? '😄' : s.mood > 55 ? '🙂' : s.mood > 35 ? '😐' : '😟';
+    const extra = s.doing ? {food:'🍽️', fun:'🎉', social:'💬', work:'🔨'}[s.doing.act] : '';
+    const html = face + (extra || '');
+    if (s.el._h !== html) { s.el._h = html; s.el.innerHTML = html; }
+  }
+  W.happy = strollers.length ? Math.round(sum / strollers.length) : 70;
+}
+function happyMult() { return .9 + (W.happy ?? 70) / 500; }
+// tap a citizen to see who they are and follow them around
+let follow = null;
+const ray = new THREE.Raycaster();
+function tapAt(px, py) {
+  const r = stage.getBoundingClientRect(), v = new THREE.Vector2(px / r.width * 2 - 1, -(py / r.height) * 2 + 1);
+  ray.setFromCamera(v, camera);
+  let best = null, bd = 1e9;
+  for (const s of strollers) {
+    const p = s.pos.clone().setY(1), d = ray.ray.distanceToPoint(p);
+    if (d < .8 && d < bd) { bd = d; best = s; }
+  }
+  if (best) showCitizen(best);
+}
+function showCitizen(s) {
+  citizenNeeds(s);
+  const bar = (n, v) => `<div class="need"><span>${n}</span><i><b style="width:${Math.round(v)}%;background:${v > 60 ? '#5ac85a' : v > 30 ? '#f2b22a' : '#e05a3a'}"></b></i></div>`;
+  const m = $('modal'); m.hidden = false;
+  m.innerHTML = `<div class="card"><h1 style="font-size:24px">${s.mood > 75 ? '😄' : s.mood > 55 ? '🙂' : s.mood > 35 ? '😐' : '😟'} ${s.name}</h1>
+    <p>${s.job} · lives in town · mood ${Math.round(s.mood)}%</p>${bar('🍽️ Food', s.need.food)}${bar('🎉 Fun', s.need.fun)}${bar('💬 Friends', s.need.social)}
+    <p class="keys">Build parks and rides, clean water and better streets to make everyone happier.</p>
+    <button class="big" id="cFollow">Follow ${s.name.split(' ')[0]}</button> <button class="ghost" id="cClose">Close</button></div>`;
+  $('cFollow').onclick = () => { follow = s; m.hidden = true; };
+  $('cClose').onclick = () => { m.hidden = true; };
+}
+
+// ------------------------------------------------------------------ real battles: armies close in, duel and volley
+const ENEMY_LOOKS = [
+  {body:0x6a4a2a, hat:'beanie', hatCol:0x3a2a1a, pants:0x3a2a1a, axe:true},
+  {body:0x5a6a3a, hat:'helmet', hatCol:0x6a6a5a, pants:0x3a3a2a, sword:true, shield:'round'},
+  {body:0x2a2420, hat:'tricorne', pants:0x5a4a3a, sword:true},
+  {body:0x7a5a3a, hat:'viking', pants:0x4a3a2a, axe:true, shield:'round', fur:true},
+  {body:0x9a1a1a, trim:0x1a1a1a, hat:'greathelm', pants:0x1a1a1a, sword:true, shield:'heater', tabard:0x1a1a1a, metal:true},
+  {body:0x4a4a52, hat:'tactical', pants:0x3a3a42, gun:true, vest:true},
+  {body:0x3a3a42, hat:'tactical', pants:0x2a2a32, gun:true, scope:true, vest:true},
+];
+function updFight(dt) {
+  if (!enemies.length) return;
+  const C = W.camp || W.raid, ph = C ? C.t : -1, fighting = ph > 9 && ph <= 22, guns = W.unlocked.has('guns');
+  const out = soldiers.filter(s => s.pos.z > 34);
+  enemies.forEach((e, i) => {
+    if (!e.alive) return;
+    if (fighting) {
+      const s = out[i % Math.max(1, out.length)];
+      const tz = s ? s.pos.z + (guns ? 3.2 : 1.1) : 38.8, tx = s ? s.pos.x : e.pos.x;
+      const dz = tz - e.pos.z, dx = tx - e.pos.x;
+      if (Math.hypot(dx, dz) > .15) { e.pos.x += Math.sign(dx)*Math.min(Math.abs(dx), dt*2.2); e.pos.z += Math.sign(dz)*Math.min(Math.abs(dz), dt*2.6); e.walk += dt*7; }
+      else if (s && R() < dt*3) {
+        // a clash of steel, or a volley across the field
+        if (guns) {
+          const from = new THREE.Vector3(s.pos.x, 1.25, s.pos.z + .6), to = new THREE.Vector3(e.pos.x, 1.1, e.pos.z);
+          const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xffe08a, toneMapped:false})); b.scale.setScalar(.05); b.position.copy(from); scene.add(b);
+          flyers.push({m:b, from, to, t:0, dur:.12});
+        } else particle(0xfff3a0, new THREE.Vector3((e.pos.x + s.pos.x)/2, 1.2, (e.pos.z + s.pos.z)/2), new THREE.Vector3((R() - .5)*3, 2.5, (R() - .5)*2), .3, .07, {grav:1});
+      }
+      e.char.legL.rotation.x = Math.sin(e.walk)*.6; e.char.legR.rotation.x = -Math.sin(e.walk)*.6;
+      e.char.g.position.set(e.pos.x, 0, e.pos.z);
+    }
+  });
+}
+
+// ------------------------------------------------------------------ events: festivals, floods and a rival empire
+const EV = {t:150, rival:null, rivalG:null};
+function rivalCity() {
+  if (EV.rivalG) scene.remove(EV.rivalG);
+  const g = new THREE.Group(); scene.add(g); EV.rivalG = g;
+  clearForest({x0:-9, x1:14, z0:51, z1:62});
+  slab(0x8a7a5a, 22, 9, 3, 56.5, .002);
+  const lv = W.rival || 0; seed = 41;
+  for (let i = 0; i < 6 + lv*3; i++) {
+    const x = -7 + (i % 8)*2.6 + rnd()*.5, z = 53.5 + Math.floor(i / 8)*2.6, h = 1 + rnd()*1.4 + lv*.4;
+    mesh(G.box, [0x5a3a3a, 0x4a4a5a, 0x3a2a2a][i % 3], [1.5, h, 1.4], [x, h/2, z], g); mesh(G.cone4, 0x2a1a1a, [1.2, .7, 1.1], [x, h + .35, z], g).rotation.y = Math.PI/4;
+  }
+  for (const x of [-8, 14]) { mesh(G.cyl, 0x3a3a3e, [.5, 3 + lv*.5, .5], [x, 1.5 + lv*.25, 52.4], g); mesh(G.cone, 0x6a1a1a, [.6, 1, .6], [x, 3.6 + lv*.5, 52.4], g); }
+  mesh(G.cyl, 0x2a2a2e, [.05, 3, .05], [3, 1.5, 52], g); mesh(G.box, W.rivalAlly ? 0xf2c200 : 0x6a1a1a, [.9, .5, .03], [3.47, 2.7, 52], g);
+}
+function updEvents(dt) {
+  if (!started) return;
+  // a festival: lanterns, confetti and guests who pay double
+  if (W.festival > 0) {
+    W.festival -= dt;
+    if (R() < dt*25) particle([0xff6a8a, 0xffd84a, 0x5ac8ff, 0xb78cff][R()*4|0], new THREE.Vector3(player.pos.x + (R() - .5)*14, 6, player.pos.z + (R() - .5)*14), new THREE.Vector3((R() - .5)*2, -1.5, (R() - .5)*2), 3, .07);
+    if (W.festival <= 0) banner('🎉 The festival is over', 'What a party. Everyone is a little happier.');
+  }
+  // floods in spring, unless the medieval water works hold the river back
+  if (W.flood > 0) {
+    W.flood -= dt; water.position.y = -.2 + Math.min(.12, W.flood*.02) ;
+    if (W.flood <= 0) { water.position.y = -.2; fishZone.active = true; banner('🌊 The river is back in its banks', 'Fishing is open again.'); }
+  }
+  if (W.raid) {
+    W.raid.t -= dt;
+    if (W.raid.t <= 0) {
+      W.raid = null; setTimeout(endBattle, 2500);
+      W.rivalWins = (W.rivalWins || 0) + 1;
+      const loot = 400 + 250*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:24.8});
+      if (W.rivalWins >= 4 && !W.rivalAlly) { W.rivalAlly = true; banner('🤝 The rival empire surrenders!', 'They join you and pay tribute every season.'); rivalCity(); }
+      else banner('🛡️ Raid beaten off!', `Your army takes ${loot} 💵 from the raiders.`);
+      save();
+    }
+  }
+  if (W.rivalAlly && (EV.tribT = (EV.tribT ?? 30) - dt) <= 0) { EV.tribT = 30; addCash(CASH.spoils || cash, 200 + 100*W.era, {x:12.3, z:24.8}); }
+  if ((EV.t -= dt) > 0) return;
+  EV.t = 120 + R()*90;
+  const si = seasonIdx(), roll = R();
+  if (W.era >= 2 && roll < .4) { W.festival = 40; banner('🎉 Festival!', 'Lanterns, music and confetti. Guests pay double for 40 seconds.'); [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*120)); }
+  else if (si === 0 && W.era >= 2 && roll < .75) {
+    if ((W.water || 0) >= 3) banner('🌊 Spring flood!', 'Your water works hold the river back.');
+    else { W.flood = 25; fishZone.active = false; banner('🌊 Spring flood!', 'The river floods its banks. No fishing for a little while. Build the medieval water works to stop this.'); }
+  } else if (W.conquests >= 3 && !W.rivalAlly && !W.camp && !W.raid && soldiers.length >= 5) {
+    if (!EV.rivalG) rivalCity();
+    W.rival = Math.min(4, (W.rival || 0) + 1); rivalCity();
+    banner('⚔️ Rival raiders!', 'A rival empire to the south attacks. Your army rides out to meet them.');
+    W.raid = {t:30, dur:30, type:'land', raid:true};
+    startBattle({army:6 + W.rival*2});
+  }
+}
+
+// ------------------------------------------------------------------ the space age
+let rocket = null;
+function launchPadFx(anim) {
+  const g = new THREE.Group(); g.position.set(-31, 0, 8); scene.add(g);
+  mesh(G.box, 0xb8bcc2, [4, .3, 4], [0, .15, 0], g);
+  for (const [x, z] of [[-1.3, -1.3], [1.3, -1.3]]) mesh(G.box, 0xd9443a, [.25, 7, .25], [x, 3.5, z], g, {metalness:.4});
+  for (let y = 1; y < 7; y += 1.2) mesh(G.box, 0xd9443a, [2.6, .1, .1], [0, y, -1.3], g, {metalness:.4});
+  const mc = new THREE.Group(); mc.position.set(-28.5, 0, 12); scene.add(mc);
+  mesh(G.box, 0xeef1f4, [2.4, 1.4, 1.6], [0, .7, 0], mc); mesh(G.box, 0x8fc6e8, [2.42, .4, 1.62], [0, .9, 0], mc, {metalness:.5, roughness:.12});
+  mesh(G.cyl, 0x9aa0a8, [.04, 1.2, .04], [.8, 2, 0], mc); mesh(G.sph, 0xeef0f4, [.4, .14, .4], [.8, 2.6, 0], mc).rotation.x = -.6;
+  boxes.push({x0:-33, x1:-29, z0:6, z1:10}, {x0:-29.7, x1:-27.3, z0:11.2, z1:12.8});
+  if (anim) { popIn(g); popIn(mc); }
+  makeRocket();
+}
+function makeRocket() {
+  const g = new THREE.Group(); g.position.set(-31, .3, 8); scene.add(g);
+  mesh(G.cyl, 0xf4f6f8, [.5, 4.4, .5], [0, 2.5, 0], g, {metalness:.3, roughness:.3});
+  mesh(G.cone, 0xf4f6f8, [.5, 1.2, .5], [0, 5.3, 0], g, {metalness:.3, roughness:.3});
+  mesh(G.cyl, 0x1f5fb8, [.51, .4, .51], [0, 3.6, 0], g); mesh(G.cyl, 0x2a2a2e, [.38, .5, .38], [0, .1, 0], g, {metalness:.6});
+  for (let i = 0; i < 4; i++) { const a = i*Math.PI/2, f = mesh(G.box, 0xd9443a, [.06, .9, .5], [Math.cos(a)*.55, .7, Math.sin(a)*.55], g); f.rotation.y = -a; }
+  const flame = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0xffb040, toneMapped:false})); flame.scale.set(.4, 1.6, .4); flame.rotation.x = Math.PI; flame.position.y = -.9; flame.visible = false; g.add(flame);
+  rocket = {g, flame, t:-1};
+}
+function launch(mission) {
+  if (!rocket) makeRocket();
+  rocket.t = 0; rocket.mission = mission;
+  banner(mission === 'moon' ? '🚀 Liftoff! Next stop: the Moon' : '🚀 Liftoff!', mission === 'moon' ? 'Watch it go.' : 'A satellite heads for orbit.');
+  snd(80, 2.4, 'sawtooth', .06, .4);
+}
+function updSpace(dt) {
+  if (W.unlocked.has('satellite') && (EV.satT = (EV.satT ?? 20) - dt) <= 0) { EV.satT = 20; addCash(CASH.space || cash, 1500, {x:-31, z:4}); }
+  if (!rocket || rocket.t < 0) return;
+  const r = rocket; r.t += dt;
+  const t = Math.max(0, r.t - 1.2);
+  r.flame.visible = true; r.flame.scale.y = 1.4 + Math.sin(time*40)*.3;
+  r.g.position.y = .3 + t*t*2.2;
+  if (R() < dt*30) particle(0xdcdcdc, new THREE.Vector3(-31 + (R() - .5), Math.max(.3, r.g.position.y - 1), 8 + (R() - .5)), new THREE.Vector3((R() - .5)*3, -1 + R(), (R() - .5)*3), 2.5, .5, {grow:.9, op:.6});
+  if (r.t < 3) shakeCam(.08);
+  if (r.g.position.y > 70) {
+    scene.remove(r.g); rocket = null;
+    if (r.mission === 'moon') { setEra(11, true); W.flags.moon = true; banner('🌕 One small step!', 'Your empire has landed on the Moon. You built it all from one campfire.'); save(); }
+    setTimeout(makeRocket, 4000);
+  }
+}
+
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
       cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
-      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
+      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
@@ -3875,6 +4373,9 @@ function load() {
       c.value = v;
       for (let i = 0; i < Math.min(v, 45); i++) { const m = itemMesh('coin'); m.position.set(c.x, .1, c.z); c.stack.push({type:'coin', mesh:m}); }
     }
+    W.decor = s.decor || []; W.rival = s.rival || 0; W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
+    for (const d of W.decor) circles.push({x:d.x, z:d.z, r:DECOR[d.k].r, decor:decorMesh(d.k, d.x, d.z, d.ry)});
+    if (W.rival || W.rivalAlly) rivalCity();
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
     for (let i = 0; i < W.conquests; i++) outpost(i, false);
     if (W.conquests >= 5) setEra(7, false);
@@ -3960,7 +4461,7 @@ ripples.forEach(r => { r.material.opacity = .22; });
         transformed.z += cos(uT * 1.7 + ip.x * .3) * position.y * .3;`);
   };
   blades.receiveShadow = true; flowers.receiveShadow = true;
-  scene.add(blades, flowers);
+  scene.add(blades, flowers); FX.blades = blades; FX.flowers = flowers; FX.grass = grassPlane;
 }
 
 // clouds overhead: never seen, only their shadows drifting across the land
@@ -4070,7 +4571,7 @@ function update(dt) {
     else { player.tick = .3; full(); }
   }
   for (const s of Object.values(ST)) {
-    const speed = (s.group ? BOOST[s.group] : 1) * (UPG[s.id] ? lvlMult(s.id) : 1);
+    const speed = (s.group ? BOOST[s.group] * (s.group === 'farm' ? seasonFarm() : 1) : 1) * (UPG[s.id] ? lvlMult(s.id) : 1);
     if (s.broken) { if (R() < dt*6) particle(R() < .5 ? 0xff7a2a : 0x555555, new THREE.Vector3(s.inZ[0] + (R() - .5), .8, s.inZ[1] + (R() - .5)), new THREE.Vector3(0, 2.5, 0), 1, .25, {grow:.4, op:.7}); continue; }
     if (s.in) {
       if (!s.busy && s.inStack.length && s.outStack.length < s.outStack.cap) {
@@ -4106,7 +4607,7 @@ function update(dt) {
   }
   soldiers.forEach((s, i) => {
     // land: march to the battlefield and fight. sea: walk to the harbor and board the fleet.
-    const C = W.camp, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
+    const C = W.camp || W.raid, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
     s.speed = C ? 6 : 3.4;
     let tx = s.slot[0], tz = s.slot[1];
     if (out) { tx = BF.x - 4.4 + (i % 8)*1.25; tz = 37.6 - Math.floor(i / 8)*1.2; }
@@ -4123,6 +4624,7 @@ function update(dt) {
   });
   updBattle(dt); updSea(dt); updAir(dt);
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
+  updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updFight(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -4175,7 +4677,7 @@ function render(dt) {
   // standing on the war table during a campaign shows the battlefield
   const watching = W.camp && player.zone && player.zone.kind === 'war';
   const wf = watching ? warFocus() : null;
-  const fx = wf ? wf[0] : player.pos.x, fz = wf ? wf[1] : player.pos.z;
+  const fx = wf ? wf[0] : (follow || player).pos.x, fz = wf ? wf[1] : (follow || player).pos.z;
   camWant.set(fx + ox + .6, 16*k, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, 0, camera.position.z - oz);
@@ -4183,7 +4685,12 @@ function render(dt) {
   sun.position.set(fx + 8, 18, fz + 6); sun.target.position.set(fx, 0, fz);
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);
-  updFx(dt, dk);
+  updFx(dt, dk); updSeasons(dt);
+  if (follow && (Math.hypot(player.vel.x, player.vel.z) > .5 || !strollers.includes(follow))) follow = null;
+  for (const s of strollers) if (s.el) {
+    const [x, y, vis] = project(new THREE.Vector3(s.pos.x, 2.25 + elevAt(s.pos.x, s.pos.z), s.pos.z));
+    s.el.style.display = vis && Math.hypot(s.pos.x - player.pos.x, s.pos.z - player.pos.z) < 22 ? '' : 'none'; s.el.style.left = x + 'px'; s.el.style.top = y + 'px';
+  }
   updAddons(dt, clamp((.5 - dk) * 2.4, 0, 1)); updShips(dt);
   sun.intensity = 3.4 * (.35 + .65*dk); hemi.intensity = 1.25 * (.55 + .45*dk);
   scene.background.setRGB(.12 + .5*dk, .17 + .67*dk, .3 + .65*dk, THREE.SRGBColorSpace); scene.fog.color.copy(scene.background);
@@ -4221,7 +4728,9 @@ function render(dt) {
     pointerG.visible = Math.hypot(o.z.x - player.pos.x, o.z.z - player.pos.z) > 3.2;
     pointerG.position.set(player.pos.x + dx/d*1.4, .08, player.pos.z + dz/d*1.4); pointerG.rotation.y = Math.atan2(dx, dz);
   } else { arrow.visible = false; pointerG.visible = false; }
-  const hl = `<span class="chip">${ERA_ICON[W.era]} ${ERAS[W.era]}</span><span class="chip">😋 ${W.fed} <small>fed</small></span>`
+  const SZ = SEASONS[seasonIdx()];
+  const hl = `<span class="chip">${ERA_ICON[W.era]} ${ERAS[W.era]}</span><span class="chip">${SZ.icon} ${SZ.n}${W.weather === 'rain' ? ' 🌧️' : W.weather === 'snow' ? ' 🌨️' : ''}</span>`
+    + (strollers.length ? `<span class="chip">${(W.happy ?? 70) > 70 ? '😄' : (W.happy ?? 70) > 45 ? '🙂' : '😟'} ${W.happy ?? 70}%</span>` : '') + (W.festival > 0 ? '<span class="chip">🎉 Festival</span>' : '') + `<span class="chip">😋 ${W.fed} <small>fed</small></span>`
     + (W.unlocked.has('southGate') ? `<span class="chip">🛡️ ${W.army}</span>` : '')
     + (warZone ? `<span class="chip">⚔️ ${W.conquests}/${CAMPAIGNS.length}</span>` : '')
     + (W.unrest ? `<span class="chip angry">😠 ${W.unrest}/3</span>` : '');
@@ -4269,6 +4778,8 @@ $('bPlay').onclick = () => {
   startMusic(); showOffline();
 };
 $('bBoard').onclick = openBoard;
+$('bBuild').onclick = openBuild; $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
+addEventListener('keydown', e => { if (BUILD.on && e.key === 'Enter') placeDecor(); if (BUILD.on && e.key === 'Escape') endPlacing(); });
 refreshUpgrades();
 const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
 $('bNew').onclick = wipe;
@@ -4279,7 +4790,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
