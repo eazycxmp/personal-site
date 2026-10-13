@@ -63,6 +63,22 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
   box-shadow:0 5px 0 #2b7a34;cursor:pointer;margin-top:8px}
 .big:active{transform:translateY(3px);box-shadow:0 2px 0 #2b7a34}
 .ghost{background:none;border:0;color:#8a7a6a;text-decoration:underline;cursor:pointer;font-size:13px;margin-top:10px}
+#goals{position:absolute;top:30%;left:10px;z-index:3;display:flex;flex-direction:column;gap:5px;pointer-events:none;width:210px}
+.goal{background:#fffaf0ee;color:var(--ink);border-radius:10px;padding:5px 10px 6px;font-weight:800;font-size:12.5px;box-shadow:0 3px 0 #0002;line-height:1.25}
+.goal small{display:block;font-weight:700;opacity:.65;font-size:11px}
+.goal i{display:block;height:5px;border-radius:9px;background:#0001;margin-top:4px;overflow:hidden}
+.goal i b{display:block;height:100%;background:linear-gradient(90deg,#5fd068,#2f9e44)}
+#modal{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
+#modal[hidden]{display:none}
+#modal .card{max-height:92%;overflow:auto}
+.board{display:flex;gap:16px;text-align:left;font-size:14px;margin:8px 0;justify-content:center}
+.board ol{margin:4px 0;padding-left:22px;line-height:1.6;min-width:130px}
+.board h3{margin:0;font-size:14px}
+.card input{font:inherit;padding:8px 10px;border-radius:10px;border:2px solid #d8cbb5;width:170px}
+.flycash{position:absolute;z-index:5;font-size:22px;pointer-events:none;transition:transform .65s cubic-bezier(.5,-.3,.7,1),opacity .65s}
+.chip.money{transition:transform .15s}
+.chip.money.bump{transform:scale(1.18)}
+@media (max-width:700px){#goals{width:160px;top:26%}#goals .goal{font-size:11.5px;padding:4px 8px 5px}#goals .goal:nth-child(n+2){display:none}}
 </style>
 </head>
 <body>
@@ -74,7 +90,9 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="banner"></div>
     <div id="labels"></div>
     <div id="joy"><div id="knob"></div></div>
-    <div id="btns"><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="goals"></div>
+    <div id="modal" hidden></div>
+    <div id="btns"><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="overlay">
       <div class="card">
         <h1>🔥 River Feast</h1>
@@ -97,7 +115,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ------------------------------------------------------------------ renderer
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
+renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 stage.prepend(renderer.domElement);
@@ -111,10 +130,10 @@ scene.fog = new THREE.Fog(0x9fd6f2, 42, 82);
 // the camera looks at the camp diagonally, for the diorama look
 const CAM_YAW = Math.PI / 4;
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 220);
-scene.add(new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25));
+const hemi = new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
 Object.assign(sun.shadow.camera, {left:-20, right:20, top:20, bottom:-20, near:1, far:70});
 sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
@@ -181,6 +200,7 @@ const ITEM = {
   roast:  {h:.34, icon:'🍗', dish:1, price:6, sell:6, n:'Roast'},
   wheat:  {h:.26, icon:'🌾', sell:1, n:'Wheat'},
   bread:  {h:.3,  icon:'🍞', dish:1, price:8, sell:8, n:'Bread'},
+  beer:   {h:.24, icon:'🍺', price:7, sell:4, n:'Beer'},
   stone:  {h:.3,  icon:'🪨', sell:2, n:'Stone'},
   ore:    {h:.28, icon:'⛏️', sell:2, n:'Iron ore'},
   ingot:  {h:.16, icon:'🔩', sell:5, n:'Iron bars'},
@@ -212,7 +232,7 @@ function recolorFish(g, sp) {
   u.fins.forEach(m => m.material = mat(sp.fin));
   u.spots.forEach(m => { m.visible = !!sp.spots; if (sp.spots) m.material = mat(sp.spots); });
 }
-function itemMesh(type) {
+function buildItem(type) {
   const g = new THREE.Group();
   switch (type) {
     case 'log': { const m = mesh(G.cyl, logMats, [.15, .9, .15], [0, 0, 0], g); m.rotation.z = Math.PI/2; break; }
@@ -220,6 +240,8 @@ function itemMesh(type) {
     case 'grilled': fishShape(g, 0xc8742a, 0xe7a35a, 0x9a5420);
       for (let i = -1; i <= 1; i++) mesh(G.box, 0x4a2410, [.03, .02, .2], [i*.09, .11, 0], g); break;
     case 'meat': mesh(G.sph, 0xc0463a, [.22, .16, .19], [0, 0, 0], g); mesh(G.cyl, 0xf3eadb, [.04, .3, .04], [.25, 0, 0], g).rotation.z = Math.PI/2; break;
+    case 'beer': mesh(G.cyl, 0xe0a030, [.1, .2, .1], [0, 0, 0], g, {roughness:.3}); mesh(G.sph, 0xfffbe8, [.11, .06, .11], [0, .11, 0], g);
+      mesh(G.box, 0xd8d0b8, [.05, .12, .03], [.12, 0, 0], g); break;
     case 'roast': mesh(G.sph, 0x8e4a1c, [.22, .16, .19], [0, 0, 0], g); mesh(G.cyl, 0xf3eadb, [.04, .3, .04], [.25, 0, 0], g).rotation.z = Math.PI/2; break;
     case 'wheat': for (let i = 0; i < 3; i++) { const m = mesh(G.cyl, 0xe4bf55, [.06, .7, .06], [0, (i%2)*.06, (i-1)*.09], g); m.rotation.z = Math.PI/2; }
       mesh(G.cyl, 0x9a6a2a, [.13, .05, .13], [0, .03, 0], g).rotation.z = Math.PI/2; break;
@@ -234,8 +256,40 @@ function itemMesh(type) {
     case 'scroll': { const r = mesh(G.cyl, 0xf1e2b8, [.08, .42, .08], [0, 0, 0], g); r.rotation.z = Math.PI/2; mesh(G.box, 0xc0392b, [.05, .17, .17], [0, 0, 0], g); break; }
     case 'coin': mesh(G.box, 0x2fa84a, [.38, .065, .2], [0, 0, 0], g); mesh(G.box, 0x86e08f, [.34, .012, .16], [0, .034, 0], g); mesh(G.box, 0xf2f8ea, [.07, .072, .206], [0, 0, 0], g); break;
   }
-  scene.add(g);
   return g;
+}
+// Each item type (and fish species) is merged once into a single mesh with vertex colours,
+// so a pile of forty fish is forty draw calls instead of six hundred.
+const itemCache = {};
+const itemMat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:.6});
+function bake(group) {
+  group.updateMatrixWorld(true);
+  const pos = [], nor = [], col = [];
+  group.traverse(o => {
+    if (!o.isMesh || !o.visible) return;
+    const geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    geo.applyMatrix4(o.matrixWorld);
+    const p = geo.attributes.position, n = geo.attributes.normal, mats = [].concat(o.material);
+    const colorAt = i => { if (mats.length === 1) return mats[0].color; const gr = geo.groups.find(g => i >= g.start && i < g.start + g.count); return mats[gr ? gr.materialIndex : 0].color; };
+    for (let i = 0; i < p.count; i++) { const c = colorAt(i); pos.push(p.getX(i), p.getY(i), p.getZ(i)); nor.push(n.getX(i), n.getY(i), n.getZ(i)); col.push(c.r, c.g, c.b); }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+function itemMesh(type, species = null) {
+  const key = type + (species ?? '');
+  if (!itemCache[key]) {
+    const grp = buildItem(type);
+    if (species != null) recolorFish(grp, SPECIES[species]);
+    itemCache[key] = bake(grp);
+  }
+  const m = new THREE.Mesh(itemCache[key], itemMat);
+  m.castShadow = true;
+  scene.add(m);
+  return m;
 }
 
 // A stack of item meshes laid out by a function; items fly into their slot.
@@ -265,9 +319,9 @@ class Stack {
 const stacks = new Set();
 function newStack(layout, cap) { const s = new Stack(layout, cap); stacks.add(s); return s; }
 function spawnItem(type, pos, stack, species = null, size = null) {
-  const m = itemMesh(type);
+  const m = itemMesh(type, species);
   let sz = size;
-  if (species != null) { const sp = SPECIES[species]; recolorFish(m, sp); sz = sp.size; }
+  if (species != null) sz = SPECIES[species].size;
   if (sz && sz !== 1) m.scale.setScalar(sz);
   m.position.copy(pos); stack.push({type, mesh:m, size:sz || 1});
 }
@@ -405,7 +459,10 @@ function drawTile(g, icon, opt = {}) {
   // turn the icon and text to face the diagonal camera; the tile itself stays square to the ground
   g.save(); g.translate(128, 128); g.rotate(-CAM_YAW); g.translate(-128, -128);
   if (opt.cost != null) {
-    g.font = `88px ${EMO}`; g.fillText(icon, 128, 94);
+    if (opt.title) {
+      g.font = '900 54px ui-rounded,"Trebuchet MS",sans-serif'; g.lineWidth = 9; g.strokeStyle = 'rgba(20,24,36,.85)'; g.fillStyle = '#b8f59a';
+      g.strokeText(opt.title, 128, 94); g.fillText(opt.title, 128, 94);
+    } else { g.font = `88px ${EMO}`; g.fillText(icon, 128, 94); }
     g.font = NUMF; const tw = g.measureText(String(opt.cost)).width, iw = 48, x0 = 128 - (iw + 8 + tw)/2;
     g.font = `44px ${EMO}`; g.fillText(opt.cur, x0 + iw/2, 184);
     g.font = NUMF; g.lineWidth = 9; g.strokeStyle = 'rgba(20,24,36,.85)'; g.fillStyle = '#fff';
@@ -432,7 +489,7 @@ function removeZone(z) { scene.remove(z.mesh); z.tc.t.dispose(); zones.splice(zo
 const zoneAt = (x, z) => { const hit = zones.filter(zn => zn.active && Math.abs(x - zn.x) < zn.w/2 && Math.abs(z - zn.z) < zn.d/2); return hit.find(z => z.kind === 'repair') || hit[0]; };
 
 // ------------------------------------------------------------------ stations
-const fires = [], smokers = [], popIns = [];
+const fires = [], smokers = [], popIns = [], fireLights = [];
 function fire(parent, x, y, z, s = 1) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s); parent.add(g);
   [0xff5a1f, 0xff9d2e, 0xffd75e].forEach((c, i) => {
@@ -440,14 +497,14 @@ function fire(parent, x, y, z, s = 1) {
     m.scale.set(.35 - i*.09, .9 - i*.2, .35 - i*.09); m.position.y = .4 - i*.08; g.add(m);
     fires.push({m, base:.9 - i*.2, ph:R()*6});
   });
-  const light = new THREE.PointLight(0xff9a3c, 3, 6, 1.5); light.position.y = .8; g.add(light);
+  const light = new THREE.PointLight(0xff9a3c, 3, 6, 1.5); light.position.y = .8; g.add(light); fireLights.push(light);
   return g;
 }
 // Tall buildings fade out while the player walks behind them, so the camera never loses you.
 const FADERS = [];
 function fader(g, w, h) {
   const mats = [];
-  g.traverse(o => { if (o.isMesh) { o.material = Array.isArray(o.material) ? o.material.map(m => m.clone()) : o.material.clone(); [].concat(o.material).forEach(m => mats.push(m)); } });
+  g.traverse(o => { if (o.isMesh) { const orig = o.material; o.material = Array.isArray(orig) ? orig.map(m => m.clone()) : orig.clone(); if (orig === WIN) winMats.push(o.material); [].concat(o.material).forEach(m => mats.push(m)); } });
   FADERS.push({g, w, h, mats, op:1});
 }
 function updFaders(dt) {
@@ -565,6 +622,7 @@ function hut(x, z, anim) {
   mesh(G.box, 0x4a3020, [.5, .8, .1], [0, .4, 1.03], g);
   circles.push({x, z, r:1.15});
   fader(g, 2.4, 2.5);
+  addHome(x, z, 'hut');
   if (anim) popIn(g);
 }
 // The palisade is rebuilt whenever a region opens, leaving a gate in that side.
@@ -663,12 +721,24 @@ function makeChar(o) {
   if (o.hat === 'hood') {
     mesh(G.sph, o.hatCol || o.body, [.3, .3, .3], [0, 1.65, -.06], g); mesh(G.sph, skin, [.21, .21, .1], [0, 1.6, .2], g);
     mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [-.08, 1.64, .29], g); mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [.08, 1.64, .29], g);
+  } else if (o.hero) {
+    // a bigger head with a face, and a backpack, so you can spot yourself in a crowd
+    mesh(G.sph, skin, [.31, .3, .3], [0, 1.66, 0], g);
+    for (const x of [-.11, .11]) {
+      mesh(G.sph, 0xffffff, [.065, .072, .04], [x, 1.71, .26], g); mesh(G.sph, 0x1a1a1a, [.036, .042, .03], [x, 1.7, .29], g);
+      mesh(G.sph, 0xff9a8a, [.05, .03, .02], [x*1.65, 1.58, .25], g);
+    }
+    mesh(G.box, 0x7a2a1a, [.12, .028, .02], [0, 1.55, .295], g);
+    mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g);
+    c.crown = new THREE.Group(); c.crown.position.y = 2.12; g.add(c.crown); c.crown.visible = false;
+    mesh(G.cyl, 0xf2c200, [.21, .13, .21], [0, 0, 0], c.crown, {metalness:.7, roughness:.3});
+    for (let i = 0; i < 5; i++) { const a = i/5*Math.PI*2; mesh(G.cone, 0xf2c200, [.05, .14, .05], [Math.cos(a)*.17, .13, Math.sin(a)*.17], c.crown, {metalness:.7, roughness:.3}); }
   } else {
     mesh(G.sph, skin, [.25, .25, .25], [0, 1.6, 0], g);
     mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [-.09, 1.64, .22], g); mesh(G.sph, 0x1a1a1a, [.035, .035, .035], [.09, 1.64, .22], g);
   }
   switch (o.hat) {
-    case 'fur': mesh(G.cyl, o.hatCol || 0x7a4a2a, [.28, .26, .28], [0, 1.8, 0], g); mesh(G.cyl, 0xf3eadb, [.3, .08, .3], [0, 1.69, 0], g); break;
+    case 'fur': { const hy = o.hero ? .1 : 0; mesh(G.cyl, o.hatCol || 0x7a4a2a, [.3, .26, .3], [0, 1.8 + hy, 0], g); mesh(G.cyl, 0xf3eadb, [.32, .08, .32], [0, 1.69 + hy, 0], g); break; }
     case 'straw': mesh(G.cyl, 0xe0c070, [.45, .04, .45], [0, 1.78, 0], g); mesh(G.cyl, 0xe0c070, [.22, .2, .22], [0, 1.88, 0], g); break;
     case 'chef': mesh(G.cyl, 0xffffff, [.22, .35, .22], [0, 1.95, 0], g); mesh(G.sph, 0xffffff, [.26, .14, .26], [0, 2.12, 0], g); break;
     case 'beanie': mesh(G.sph, o.hatCol || 0xd9443a, [.27, .2, .27], [0, 1.75, 0], g); mesh(G.sph, 0xffffff, [.07, .07, .07], [0, 1.96, 0], g); break;
@@ -678,6 +748,15 @@ function makeChar(o) {
     mesh(G.box, o.hatCol || 0x9aa0a8, [.05, .18, .05], [0, 1.62, .25], g, {metalness:.5});
   }
   if (o.sword) mesh(G.box, 0xe4e8ee, [.05, .62, .1], [0, -.82, .06], armR, {metalness:.7, roughness:.25});
+  if (o.hero || o.rod) {
+    // rod held out over the water, with a line and bobber hanging straight down
+    c.rod = new THREE.Group(); c.rod.position.set(.36, 1.0, .25); c.rod.rotation.x = .9; c.rod.visible = false; g.add(c.rod);
+    mesh(G.cyl, 0x6b4526, [.028, 2.2, .028], [0, 1.1, 0], c.rod);
+    mesh(G.cyl, 0x3a2a1a, [.05, .3, .05], [0, .15, 0], c.rod);
+    const tip = new THREE.Group(); tip.position.y = 2.2; tip.rotation.x = -.9; c.rod.add(tip);
+    const line = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xf4f4f4})); line.scale.set(.008, 2.35, .008); line.position.y = -1.18; tip.add(line);
+    mesh(G.sph, 0xe03a2a, [.07, .07, .07], [0, -2.35, 0], tip); mesh(G.sph, 0xffffff, [.05, .04, .05], [0, -2.29, 0], tip);
+  }
   Object.assign(c, {legL, legR, armL, armR});
   scene.add(g);
   return c;
@@ -727,16 +806,17 @@ function collide(p, prev) {
 }
 
 // ------------------------------------------------------------------ game state
-const W = {coins:0, earned:0, fed:0, army:0, conquests:0, unrest:0, era:0, cap:8, unlocked:new Set(), paid:{}, tut:0, flags:{}};
-const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire'];
-const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍'];
+const W = {coins:0, earned:0, fed:0, army:0, conquests:0, unrest:0, levels:{}, upPaid:{}, upSpent:0, goals:[], caught:0, playT:0, rate:0, era:0, cap:8, unlocked:new Set(), paid:{}, tut:0, flags:{}};
+const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity'];
+const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨'];
 const ERA_TXT = ['', 'Word is spreading. More hungry travelers are coming.', 'Word is spreading. More hungry travelers are coming.',
   'Your camp is a town. New land waits beyond the palisade.', 'Stone streets and scholars. Your town is a city.',
-  'Soldiers guard the roads and pay tribute.', 'You built a kingdom from one campfire. Now take your army to war.', 'Every land around the river is yours. Thanks for playing!'];
+  'Soldiers guard the roads and pay tribute.', 'You built a kingdom from one campfire. Now take your army to war.', 'Every land around the river is yours. Now raise a skyline downtown.',
+  'Your first skyscraper towers over the river.', 'Six skyscrapers. Your campfire became a megacity. Thanks for playing!'];
 // boosts bought with research
 const BOOST = {fishRate:1, bigFish:.15, farm:1, metal:1, patience:1, tactics:1};
 const WORKER = {speed:3.8, cap:6};
-const player = entity({body:0xd23c2c, trim:0xf3eadb, hat:'fur', pants:0x4a3a2a}, 0, 2, 5.6, 8);
+const player = entity({body:0xd23c2c, trim:0xf3eadb, hat:'fur', pants:0x4a3a2a, hero:true}, 0, 2, 5.6, 8);
 player.isPlayer = true;
 
 const waterPt = () => new THREE.Vector3(-13 + R()*1.5, -.1, 1 + (R() - .5)*2.5);
@@ -804,11 +884,13 @@ const REGIONS = {
   east:{name:'the Market Quarter', rect:{x0:13.4, x1:30.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [15.4, 1.6]], ground:0xcfae78},
   south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:13.9, z1:30.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 15.8]], ground:0xc4a070},
   farm:{name:'the Farmlands', rect:{x0:13.4, x1:30.6, z0:13.9, z1:30.6}, ground:0xb9a865},
+  downtown:{name:'Downtown', rect:{x0:13.4, x1:30.6, z0:-29.6, z1:-12.9}, ground:0x9ea3ad},
 };
 // how regions connect, with the waypoints to cross between them
 const EDGES = [
   ['camp', 'north', [[-7.7, -12.1], [-7.7, -14.9]]], ['camp', 'east', [[12.6, 1.6], [15.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 15.8]]],
-  ['east', 'farm', [[22.5, 12.9], [22.5, 15]]], ['south', 'farm', [[12.4, 22.8], [14.6, 22.8]]],
+  ['east', 'farm', [[19.6, 12.9], [19.6, 15]]], ['south', 'farm', [[12.4, 22.8], [14.6, 22.8]]],
+  ['east', 'downtown', [[15, -12.2], [15, -14]]], ['north', 'downtown', [[12.8, -22.5], [14.4, -22.5]]],
 ];
 const regionOpen = id => id === 'camp' || W.unlocked.has(id + 'Gate');
 function regionOf(x, z) {
@@ -833,6 +915,7 @@ function openRegion(id, anim) {
   fence(false);
   if (id === 'north') spawnRocks();
   if (id === 'farm') windmill();
+  if (id === 'downtown') downtownStreets();
   if (anim) {
     banner('🗺️ New land!', `You opened ${r.name}.`);
     for (let i = 0; i < 10; i++) puff(R0.x0 + R()*(R0.x1 - R0.x0), R0.z0 + R()*(R0.z1 - R0.z0));
@@ -866,7 +949,7 @@ function goTo(e, x, z, dt) {
 const rocks = [];
 function spawnRocks() {
   seed = 23;
-  const avoid = [[-7.7, -14.5], [-7.7, -17], [0, -27.2], [6.5, -22], [4.1, -22], [8.9, -22], [-6, -17.5], [-6, -19.2], [-2.5, -23], [-2.6, -17.4], [9.6, -16.6], [7.2, -16.6], [12, -16.6], [10, -26.5], [10, -24.1], [12, -20]];
+  const avoid = [[-7.7, -14.5], [-7.7, -17], [0, -27.2], [6.5, -22], [4.1, -22], [8.9, -22], [-6, -17.5], [-6, -19.2], [-2.5, -23], [-2.6, -17.4], [9.6, -16.6], [7.2, -16.6], [12, -16.6], [10, -26.5], [10, -24.1], [12, -20], [6.5, -19.4], [9.6, -14.4], [12.4, -26.5]];
   for (let n = 0; n < 3000 && rocks.length < 10; n++) {
     const x = -9 + rnd()*21, z = -26.5 + rnd()*11.5;
     if (avoid.some(([ax, az]) => Math.hypot(ax - x, az - z) < 2.7)) continue;
@@ -1015,8 +1098,109 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
 });
+// ------------------------------------------------------------------ brewery and beer garden
+function brewery(anim) {
+  const g = new THREE.Group(); g.position.set(23.5, 0, 15.5); scene.add(g);
+  mesh(G.box, 0x8a5a3a, [2.4, 1.6, 1.9], [0, .8, 0], g); roofOn(g, 2.8, 2.4, .8, 2, 0x6a3a2a);
+  for (const x of [-.6, .6]) { mesh(G.cyl, 0xc87a3a, [.42, .9, .42], [x, .45, 1.2], g, {metalness:.6, roughness:.3}); mesh(G.sph, 0xc87a3a, [.42, .2, .42], [x, .9, 1.2], g, {metalness:.6, roughness:.3}); }
+  mesh(G.cyl, 0x7a7a7e, [.12, .8, .12], [.7, 2.4, -.4], g);
+  smokers.push({x:24.2, y:2.9, z:15.1});
+  fader(g, 2.6, 2.4);
+  if (anim) popIn(g);
+}
+const SEATS = [...Array(6)].map((_, i) => [23.75 + i*.9, 28.95]);
+function beerGardenFx(anim) {
+  const g = new THREE.Group(); g.position.set(26, 0, 27.5); scene.add(g);
+  mesh(G.box, 0x6b4526, [5.4, .9, 1.2], [0, .45, 0], g); mesh(G.box, 0x9a6a3a, [5.6, .1, 1.4], [0, .95, 0], g);
+  mesh(G.box, 0x8a5a2b, [5.6, .12, .45], [0, .44, 1.75], g);
+  for (const x of [-2.6, 2.6]) mesh(G.box, 0x5e3f22, [.1, .44, .4], [x, .22, 1.75], g);
+  for (const x of [-2.9, 2.9]) mesh(G.cyl, 0x5e3f22, [.06, 2.6, .06], [x, 1.3, -.5], g);
+  mesh(G.box, 0x5e3f22, [5.8, .05, .05], [0, 2.5, -.5], g);
+  for (let i = 0; i < 12; i++) { const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:[0xffd36b, 0xff9a5a, 0xfff2b0][i % 3], toneMapped:false})); b.scale.setScalar(.07); b.position.set(-2.7 + i*.49, 2.4, -.5); g.add(b); }
+  for (const x of [-4.3, 4.3]) { mesh(G.cyl, 0x5e3f22, [.05, 2, .05], [x, 1, 1.6], g); mesh(G.cone, 0xd9443a, [1, .5, 1], [x, 2.1, 1.6], g); }
+  boxes.push({x0:23.4, x1:28.6, z0:26.8, z1:28.2});
+  fader(g, 5.6, 2.6);
+  if (anim) popIn(g);
+}
+function gardenUpdate(L, dt) {
+  if ((L.spawnT -= dt) <= 0) { L.spawnT = 3.2 * (.7 + R()*.6); if (L.q.length < SEATS.length) spawnIn(L); }
+  for (const c of [...L.q]) {
+    if (c.seat == null) {
+      c.seat = SEATS.findIndex((_, i) => !L.q.some(o => o !== c && o.seat === i));
+      c.mug = mesh(G.cyl, 0xe0a030, [.09, .18, .09], [0, -.55, .08], c.char.armR); c.mug.visible = false;
+    }
+    const [sx, sz] = SEATS[c.seat];
+    if (!moveTo(c, sx, sz, dt)) continue;
+    c.waitT += dt; c.sip = Math.max(0, (c.sip || 0) - dt);
+    const w = c.wants[0];
+    if (w.need > 0) {
+      if ((c.eatT -= dt) <= 0 && L.table.stack.count(['beer'])) {
+        c.eatT = 1.4; c.waitT = 0; c.sip = 1.2;
+        const it = L.table.stack.take(['beer']); flyAway(it.mesh, () => new THREE.Vector3(c.pos.x, 1.4, c.pos.z), .3);
+        w.need--; snd(440 + R()*80, .08, 'triangle', .03);
+      }
+    } else if (!c.sip && (c.drinkT = (c.drinkT ?? 2) - dt) <= 0) payOut(c, L);
+  }
+  for (const c of [...L.leaving]) {
+    if (!c.route) c.route = L.exit.map(p => [...p]);
+    if (moveTo(c, c.route[0][0], c.route[0][1], dt)) {
+      c.route.shift();
+      if (!c.route.length) { scene.remove(c.char.g); c.el.remove(); L.leaving.splice(L.leaving.indexOf(c), 1); stacks.delete(c.stack); }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ downtown: six lots that grow into skyscrapers
+const LOTS = [[17.5, -17.5], [22.5, -17.5], [27.5, -17.5], [17.5, -24.5], [22.5, -24.5], [27.5, -24.5]];
+const LOT_STAGES = [null, {n:'Townhouse', icon:'🏠', rent:30}, {n:'Apartments', icon:'🏢', rent:80}, {n:'Tower', icon:'🏬', rent:200}, {n:'Skyscraper', icon:'🏙️', rent:600}];
+const lotStage = [0, 0, 0, 0, 0, 0], lotG = [];
+const WIN = new THREE.MeshStandardMaterial({color:0x2a3a4a, emissive:0xffd890, emissiveIntensity:0, roughness:.4});
+const winMats = [WIN];
+const lampMats = [];
+function windows(g, w, d, y0, floors, fh, cols) {
+  for (let f = 0; f < floors; f++) for (let c = 0; c < cols; c++) {
+    const x = -w/2 + (c + .5) * w/cols, y = y0 + (f + .5)*fh;
+    const a = new THREE.Mesh(G.box, WIN); a.scale.set(w/cols*.55, fh*.5, .04); a.position.set(x, y, d/2 + .01); g.add(a);
+    const b = new THREE.Mesh(G.box, WIN); b.scale.set(.04, fh*.5, w/cols*.55); b.position.set(w/2 + .01, y, x); g.add(b);
+  }
+}
+function buildLot(i, stage, anim) {
+  const [x, z] = LOTS[i];
+  if (lotG[i]) { scene.remove(lotG[i]); FADERS.splice(FADERS.findIndex(f => f.g === lotG[i]), 1); }
+  else boxes.push({x0:x - 1.6, x1:x + 1.6, z0:z - 1.6, z1:z + 1.6});
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  let h = 2;
+  if (stage === 1) {
+    mesh(G.box, 0xa8553a, [3, 2.2, 3], [0, 1.1, 0], g); roofOn(g, 3.4, 3.4, 1.1, 2.75, 0x5a3a2a); windows(g, 3, 3, .3, 2, .9, 3); h = 3.3;
+  } else if (stage === 2) {
+    mesh(G.box, 0xd9c9a8, [3.1, 5, 3.1], [0, 2.5, 0], g); mesh(G.box, 0xbfae8c, [3.3, .2, 3.3], [0, 5.1, 0], g); windows(g, 3.1, 3.1, .3, 5, .92, 3); h = 5.2;
+  } else if (stage === 3) {
+    mesh(G.box, 0x8a96a6, [3, 9, 3], [0, 4.5, 0], g); mesh(G.box, 0x6a7686, [3.2, .3, 3.2], [0, 9.1, 0], g);
+    mesh(G.cyl, 0x9aa0a8, [.05, 1.6, .05], [.8, 10, .8], g); windows(g, 3, 3, .4, 9, .95, 3); h = 10;
+  } else if (stage === 4) {
+    mesh(G.box, 0x7fb6e0, [3, 15, 3], [0, 7.5, 0], g, {metalness:.6, roughness:.15});
+    for (let f = 1; f < 15; f += 1.25) mesh(G.box, 0xdfe6ee, [3.06, .08, 3.06], [0, f, 0], g, {metalness:.4, roughness:.3});
+    mesh(G.box, 0x6f9ec4, [2.2, 2, 2.2], [0, 16, 0], g, {metalness:.6, roughness:.15});
+    mesh(G.cyl, 0xd0d6de, [.06, 3, .06], [0, 18.4, 0], g, {metalness:.6});
+    const beacon = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xff3a2a, toneMapped:false})); beacon.scale.setScalar(.14); beacon.position.y = 19.9; g.add(beacon);
+    windows(g, 3, 3, .5, 11, 1.25, 2); h = 20;
+  }
+  fader(g, 3.4, h);
+  lotG[i] = g; lotStage[i] = stage;
+  if (anim) { popIn(g); shakeCam(.5); }
+  if (stage === 4) setEra(lotStage.every(s => s === 4) ? 9 : 8, anim);
+}
+function downtownStreets() {
+  for (const x of [20, 25]) slab(0x6e737c, 1.4, 16.7, x, -21.25, .004);
+  slab(0x6e737c, 17.2, 1.4, 22, -20.6, .006);
+  for (const [x, z] of [[20, -14], [25, -14], [20, -27.6], [25, -27.6], [15, -20.6], [30, -20.6]]) {
+    mesh(G.cyl, 0x3a3f46, [.06, 2.8, .06], [x + .9, 1.4, z], scene, {metalness:.5});
+    const lamp = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xfff2c0, toneMapped:false})); lamp.scale.setScalar(.18); lamp.position.set(x + .9, 2.85, z); scene.add(lamp); lampMats.push(lamp.material);
+  }
+}
+
 function windmill() {
-  const g = new THREE.Group(); g.position.set(27.6, 0, 28); scene.add(g);
+  const g = new THREE.Group(); g.position.set(29.3, 0, 15.6); scene.add(g);
   mesh(G.cyl, 0xe8dcc0, [1, 3.2, 1], [0, 1.6, 0], g); mesh(G.cone, 0x8a4a2a, [1.25, 1.2, 1.25], [0, 3.8, 0], g);
   const blades = new THREE.Group(); blades.position.set(0, 3.2, 1.05); g.add(blades);
   for (let i = 0; i < 4; i++) { const b = mesh(G.box, 0xf4ecd8, [.35, 2.2, .05], [0, 1.15, 0], new THREE.Group()); const arm = b.parent; arm.rotation.z = i*Math.PI/2; blades.add(arm); }
@@ -1061,6 +1245,7 @@ function house(x, z, anim) {
   mesh(G.box, 0x8a6a4a, [.3, .7, .3], [.6, 2.3, -.4], g);
   circles.push({x, z, r:1.3});
   fader(g, 2.8, 2.8);
+  addHome(x, z, 'house');
   if (anim) popIn(g);
 }
 
@@ -1120,8 +1305,8 @@ function updBoats(dt) {
 let leapT = 1;
 function leapingFish(dt) {
   if ((leapT -= dt) > 0) return; leapT = .9 + R()*1.4;
-  const sp = SPECIES[fishSpecies()], m = itemMesh('fish');
-  recolorFish(m, sp); m.scale.setScalar(sp.size*1.2);
+  const si = fishSpecies(), sp = SPECIES[si], m = itemMesh('fish', si);
+  m.scale.setScalar(sp.size*1.2);
   const x = -15.6 + R()*4.4, z = player.pos.z + (R() - .5)*22;
   m.position.set(x, -.2, z);
   const dir = R() < .5 ? 1 : -1;
@@ -1132,7 +1317,7 @@ function leapingFish(dt) {
 // ------------------------------------------------------------------ helpers (workers)
 const workers = [];
 const LOOKS = {
-  fisher:{body:0x3f6fb5, hat:'straw', pants:0x5a4a3a},
+  fisher:{body:0x3f6fb5, hat:'straw', pants:0x5a4a3a, rod:true},
   waiter:{body:0x5a7a5a, apron:0xffffff, hat:'beanie', hatCol:0x3a5a3a},
   butcher:{body:0x7a2a22, apron:0xe8e0d0, hat:'beanie', hatCol:0x222222},
   baker:{body:0xe8d8b8, apron:0xffffff, hat:'chef'},
@@ -1144,7 +1329,10 @@ const LOOKS = {
   quartermaster:{body:0x3a4a7a, hat:'helmet'},
   porter:{body:0xb05a3a, apron:0xf0e0c0, hat:'beanie', hatCol:0xb05a3a},
   treasurer:{body:0x6a3a8a, trim:0xf0c030, hat:'beanie', hatCol:0xf0c030},
+  builder:{body:0xe0a020, trim:0x6a6a6e, hat:'helmet', hatCol:0xf2c200},
   tinker:{body:0x5a4a3a, apron:0x8a6a3a, hat:'helmet', hatCol:0x8a8f96},
+  brewer:{body:0x8a5a2b, apron:0xd9c89a, hat:'beanie', hatCol:0x5a3a1a},
+  barkeep:{body:0x2f6a4a, apron:0xffffff, hat:'beanie', hatCol:0x1f4a3a},
   scholar:{body:0x2a3a6a, trim:0xe8e0d0, hat:'beanie', hatCol:0x1a1a3a},
 };
 function addWorker(kind, x, z, anim) {
@@ -1170,6 +1358,8 @@ const ROUTES = {
   baker:{src:() => [outZone('field')], dst:() => inZone('oven')},
   baker2:{src:() => [outZone('field2')], dst:() => inZone('oven2')},
   baker3:{src:() => [outZone('field3')], dst:() => inZone('oven2')},
+  brewer:{src:() => [outZone('field2'), outZone('field3'), outZone('field')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('brewery')},
+  barkeep:{src:() => [outZone('brewery')], dst:() => TB.garden?.zone, line:'garden'},
   scholar:{src:() => [outZone('oven2'), outZone('oven')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('library')},
   miner:{src:() => [oreZone], dst:() => inZone('smelter')},
   hauler:{src:() => [outZone('smelter')], dst:() => inZone('smith')},
@@ -1202,6 +1392,7 @@ function updWorker(w, dt) {
     }
     return;
   }
+  if (w.kind === 'builder') { updBuilder(w, dt); return; }
   if (w.kind === 'treasurer') {
     const c = w.pile && w.pile.value > 0 ? w.pile : Object.values(CASH).filter(c => c.value > 0).sort((a, b) => b.value - a.value)[0];
     w.pile = c;
@@ -1255,7 +1446,7 @@ const LINES = {};
 const CLOTHES = [0x3f7cc0, 0xd08a2b, 0x7c4fb0, 0x3f9a6a, 0xb04f86, 0x5a6a7a, 0xc0533f, 0x2a8a9a];
 const SKINS = [0xf1c9a5, 0xd9a47a, 0xb07a52, 0x8a5a3a, 0xe8b892];
 const count = ids => ids.filter(h => W.unlocked.has(h)).length;
-const huts = () => count(['hut1', 'hut2', 'hut3']), houses = () => count(['house1', 'house2', 'house3']);
+const huts = () => count(['hut1', 'hut2', 'hut3']), houses = () => count(['house1', 'house2', 'house3']) + lotStage.reduce((a, b) => a + b, 0)*.5;
 function availableDishes() {
   const d = ['grilled'];
   if (ST.spit && ST.lodge) d.push('roast');
@@ -1263,7 +1454,11 @@ function availableDishes() {
   return d;
 }
 const travelerOrder = (min, spread) => { const d = availableDishes(); return [{type:d[R()*d.length|0], need:min + (R()*(spread + Math.min(W.era, 3)*1.5)|0)}]; };
-function makeLine(id, o) { return LINES[id] = {id, q:[], leaving:[], spawnT:2, mult:1, ...o}; }
+function stool(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  mesh(G.cyl, 0x8a5a2b, [.26, .08, .26], [0, .44, 0], g); mesh(G.cyl, 0x5e3f22, [.07, .42, .07], [0, .21, 0], g);
+}
+function makeLine(id, o) { if (!o.noStool) { const [sx, sz] = o.slot(0); stool(sx, sz); } return LINES[id] = {id, q:[], leaving:[], spawnT:2, mult:1, ...o}; }
 makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[40, 1],
   slot:k => k === 0 ? [5.75, 1] : [6.5 + k*1.3, 1], exit:[[7, 2.4], [42, 2.4]],
   active:() => W.tut >= 1, interval:() => 7 / (1 + .45*huts() + .3*W.era + .35*houses()), order:() => travelerOrder(2, 2)});
@@ -1276,6 +1471,7 @@ function spawnIn(L) {
   L.q.push(c);
 }
 function updLine(L, dt) {
+  if (L.custom) return L.custom(L, dt);
   if ((L.spawnT -= dt) <= 0) { L.spawnT = L.interval() * (.7 + R()*.6); if (L.active() && L.q.length < L.max) spawnIn(L); }
   for (const c of [...L.q]) {
     const k = L.q.indexOf(c), [x, z] = L.slot(k), arrived = moveTo(c, x, z, dt);
@@ -1371,6 +1567,7 @@ function warAct(zn, e) {
   if (W.army < campNeed(c)) { popText(`Need ${campNeed(c)} 🛡️ soldiers`, e.pos.clone().setY(2.8), '#ffcdb8'); return; }
   if (c.ships && !W.unlocked.has('warship')) { popText('Needs a warship ⛵', e.pos.clone().setY(2.8), '#ffcdb8'); return; }
   W.camp = {t:30, ships:!!c.ships};
+  startBattle(c);
   banner(`⚔️ Your army marches on the ${c.name}`, c.ships ? 'The warship sails with them.' : 'They will be back soon.');
   snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
 }
@@ -1379,10 +1576,16 @@ function updWar(dt) {
   if (!W.camp || (W.camp.t -= dt) > 0) return;
   const c = CAMPAIGNS[W.conquests];
   W.camp = null; W.conquests++;
+  outpost(W.conquests - 1, true);
+  setTimeout(endBattle, 2500);
   addCash(CASH.spoils, c.reward, {x:12.3, z:24.8});
   banner(`🏆 Victory over the ${c.name}!`, `Your army brings home ${c.reward} 💵 in spoils.`);
   [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));
-  if (W.conquests >= CAMPAIGNS.length) setEra(7, true);
+  if (W.conquests >= CAMPAIGNS.length) {
+    setEra(7, true);
+    W.flags.empireMin = Math.max(1, Math.round(W.playT / 60));
+    setTimeout(() => banner(`🌍 Empire in ${W.flags.empireMin} minutes!`, 'Post your time on the 🏆 leaderboard.'), 4200);
+  }
   save();
 }
 
@@ -1396,7 +1599,8 @@ function zoneAct(e, zn, dt) {
         spawnItem(zn.item, zn.from(), e.stack, zn.item === 'fish' ? fishSpecies() : null);
         e.tick = (e.isPlayer ? zn.rate : zn.wrate) * (zn.item === 'fish' ? BOOST.fishRate : 1);
         if (zn.item === 'fish') splash(); else particle(0x8a7a6a, zn.from(), new THREE.Vector3(0, 1.5, 1), .5, .15);
-        if (e.isPlayer) pickSnd(e);
+        if (e.char.rod) e.rodJerk = .3;
+        if (e.isPlayer) { pickSnd(e); if (zn.item === 'fish') W.caught++; }
       } else { e.tick = .25; if (e.isPlayer) full(); }
       break;
     case 'in': {
@@ -1420,6 +1624,7 @@ function zoneAct(e, zn, dt) {
     case 'cash': {
       const c = zn.cash;
       if (e.isPlayer && c.value > 0) {
+        const [fx0, fy0] = project(new THREE.Vector3(c.x, .5, c.z)); flyCash(fx0, fy0, Math.min(8, 2 + Math.floor(c.value / 40)));
         W.coins += c.value; popText(`+${c.value}`, e.pos.clone().setY(2.6), '#ffe06b'); c.value = 0; W.flags.collected = true;
         c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => e.pos.clone().setY(1.4), .25 + i*.015));
         snd(1046, .08, 'triangle', .05); setTimeout(() => snd(1318, .1, 'triangle', .05), 60);
@@ -1444,6 +1649,7 @@ function zoneAct(e, zn, dt) {
       break;
     }
     case 'war': if (e.isPlayer) warAct(zn, e); break;
+    case 'upgrade': if (e.isPlayer) payUpgrade(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;
@@ -1468,6 +1674,7 @@ const PADS = [
   {id:'palisade', x:8.6, z:-3.4, cost:20, cur:'log', icon:'🪵', label:'Palisade', after:['hut1', 'fisher']},
   {id:'bigGrill', x:-4.2, z:3.7, cost:70, cur:'coin', icon:'🔥', label:'Big grill', after:['waiter']},
   {id:'waiter2', x:6.4, z:-2.2, cost:110, cur:'coin', icon:'🧑‍🍳', label:'2nd waiter', after:['bigGrill']},
+  {id:'builder', x:8.6, z:-3.4, cost:250, cur:'coin', icon:'👷', label:'Builder', after:['palisade', 'village']},
   {id:'lodge', x:-4.2, z:-10.6, cost:60, cur:'coin', icon:'🏹', label:"Hunter's lodge", after:['palisade']},
   {id:'spit', x:-4.2, z:-5, cost:50, cur:'coin', icon:'🍖', label:'Roasting spit', after:['palisade']},
   {id:'hut2', x:11.4, z:6.2, cost:16, cur:'log', icon:'🛖', label:'Hut', after:['palisade']},
@@ -1497,6 +1704,7 @@ const PADS = [
   {id:'house1', x:25, z:-3, cost:20, cur:'stone', icon:'🏠', label:'Stone house', after:['hall', 'northGate'], region:'east'},
   {id:'house2', x:28.5, z:-3, cost:25, cur:'stone', icon:'🏠', label:'Stone house', after:['house1'], region:'east'},
   {id:'house3', x:28, z:10, cost:30, cur:'stone', icon:'🏠', label:'Stone house', after:['house2'], region:'east'},
+  {id:'builder2', x:12.3, z:-5.6, cost:900, cur:'coin', icon:'👷', label:'2nd builder', after:['builder', 'house1']},
   {id:'bag3', x:.2, z:4.6, cost:900, cur:'coin', icon:'🎒', label:'Giant pack', after:['bag2', 'house1']},
   {id:'mason2', x:-2.6, z:-17.4, cost:600, cur:'coin', icon:'🧱', label:'2nd stonemason', after:['mason', 'house1'], region:'north'},
   {id:'library', x:25.5, z:-9.6, cost:30, cur:'stone', icon:'📚', label:'Library', after:['house1'], region:'east'},
@@ -1515,7 +1723,7 @@ const PADS = [
   {id:'oven2', x:25.5, z:20, cost:600, cur:'coin', icon:'🥖', label:'Big bakery', after:['farmGate'], region:'farm'},
   {id:'baker2', x:22, z:22.4, cost:600, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field2', 'oven2'], region:'farm'},
   {id:'field3', x:18.5, z:26.5, cost:700, cur:'coin', icon:'🌾', label:'Wheat field', after:['field2'], region:'farm'},
-  {id:'baker3', x:26.5, z:24.5, cost:900, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field3', 'baker2'], region:'farm'},
+  {id:'baker3', x:23, z:24.6, cost:900, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field3', 'baker2'], region:'farm'},
   // iron becomes tools, tools become machines
   {id:'workshop', x:9.6, z:-16.6, cost:30, cur:'stone', icon:'🔨', label:'Workshop', after:['smelter'], region:'north'},
   {id:'tinker', x:12, z:-20, cost:600, cur:'coin', icon:'🧰', label:'Tinker', after:['workshop'], region:'north'},
@@ -1526,6 +1734,11 @@ const PADS = [
   {id:'boatyard', x:-9.4, z:-7.2, cost:40, cur:'log', icon:'⛵', label:'Boatyard', after:['sciNav']},
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
   {id:'tradeShip', x:-9.3, z:-9.75, cost:2500, cur:'coin', icon:'🚢', label:'Merchant ship', after:['boatyard']},
+  {id:'brewery', x:23.5, z:15.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
+  {id:'brewer', x:16.2, z:15.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
+  {id:'beerGarden', x:26, z:27.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
+  {id:'barkeep', x:29.4, z:25.4, cost:900, cur:'coin', icon:'🧑‍🍳', label:'Barkeep', after:['beerGarden'], region:'farm'},
+  {id:'downtownGate', x:14.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
   {id:'warship', x:-9.4, z:-4.6, cost:10, cur:'tools', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
   // the military grounds, south
   {id:'southGate', x:3, z:12.6, cost:1000, cur:'coin', icon:'🛡️', label:'South gate', after:['townhall']},
@@ -1538,8 +1751,17 @@ const PADS = [
   {id:'warTable', x:12.3, z:22.6, cost:1200, cur:'coin', icon:'⚔️', label:'War table', after:['barracks'], region:'south'},
   {id:'castle', x:-5.5, z:27.6, cost:6000, cur:'coin', icon:'🏰', label:'Castle', after:['barracks', 'armorer'], army:10, region:'south'},
 ];
+LOTS.forEach(([x, z], i) => {
+  const m = 1 + .3*i, tz = z + (z > -20 ? 2.6 : 2.8);
+  const costs = [[Math.round(25*m), 'stone'], [Math.round(50*m), 'stone'], [Math.round(10*m), 'tools'], [Math.round(25000*m), 'coin']];
+  for (let n = 1; n <= 4; n++) {
+    PADS.push({id:`lot${i}s${n}`, x, z:tz, cost:costs[n-1][0], cur:costs[n-1][1], icon:LOT_STAGES[n].icon, label:LOT_STAGES[n].n,
+      after:n === 1 ? ['downtownGate'] : n === 3 ? [`lot${i}s2`, 'workshop'] : [`lot${i}s${n-1}`], region:'downtown'});
+  }
+});
 const UNLOCK = {
   tut0() {},
+  ...Object.fromEntries(LOTS.flatMap((_, i) => [1, 2, 3, 4].map(n => [`lot${i}s${n}`, a => buildLot(i, n, a)]))),
   fisher(a) { addWorker('fisher', -9.4, 4.4, a); },
   hut1(a) { hut(8.6, 6.2, a); }, hut2(a) { hut(11.4, 6.2, a); }, hut3(a) { hut(12, 9, a); },
   bag1() { W.cap = 14; }, bag2() { W.cap = 22; },
@@ -1606,6 +1828,8 @@ const UNLOCK = {
   },
   scholar(a) { addWorker('scholar', 22.4, -4, a); },
   tinker(a) { addWorker('tinker', 12, -20, a); },
+  builder(a) { addWorker('builder', 8.6, -3.4, a); },
+  builder2(a) { addWorker('builder', 12.3, -5.6, a); },
   sciMedicine() { BOOST.patience = 1.6; },
   sciTactics() { BOOST.tactics = .7; },
   stoneRoads() {
@@ -1627,7 +1851,7 @@ const UNLOCK = {
     ovenAt(25.5, 20, a); circles.push({x:25.5, z:20, r:1.05});
   },
   baker2(a) { addWorker('baker2', 22, 22.4, a); },
-  baker3(a) { addWorker('baker3', 26.5, 24.5, a); },
+  baker3(a) { addWorker('baker3', 23, 24.6, a); },
   workshop(a) {
     station('workshop', {name:'workshop', in:'ingot', out:'tools', t:1.4, group:'metal', inZ:[7.2, -16.6], outZ:[12, -16.6], fireAt:[9.6, 1.2, -16.6]});
     workshopFx(a); boxes.push({x0:8.6, x1:10.6, z0:-17.6, z1:-15.6});
@@ -1639,6 +1863,21 @@ const UNLOCK = {
   plow() { BOOST.farm *= 1.5; },
   carts() { WORKER.cap += 4; for (const w of workers) w.cap = WORKER.cap; },
   warship() { makeBoat('war'); },
+  brewery(a) {
+    station('brewery', {name:'brewery', in:'wheat', out:'beer', t:1.8, inZ:[21.1, 15.5], outZ:[25.9, 15.5], fireAt:[23.5, 1.2, 16.7]});
+    brewery(a); boxes.push({x0:22.3, x1:24.7, z0:14.55, z1:16.45});
+  },
+  brewer(a) { addWorker('brewer', 16.2, 15.2, a); },
+  barkeep(a) { addWorker('barkeep', 29.4, 25.4, a); },
+  beerGarden(a) {
+    beerGardenFx(a);
+    makeTable('garden', ['beer'], alongX(23.75, 27.5), {x:26, z:25.6, w:3, d:1.4, icon:'🍺'});
+    makeCash('garden', 21.9, 29.3);
+    slab(0xb98f5c, 12, 1.6, 36.6, 29.6, .012);
+    makeLine('garden', {table:TB.garden, cash:CASH.garden, face:Math.PI, max:6, spawn:[42, 29.6], seats:SEATS, noStool:true, custom:gardenUpdate,
+      slot:k => SEATS[k], exit:[[31, 29.6], [42, 29.6]], active:() => true, interval:() => 3.2, order:() => [{type:'beer', need:1 + (R()*3|0)}]});
+  },
+  downtownGate(a) { openRegion('downtown', a); },
   warTable(a) {
     warTableFx(a); makeCash('spoils', 12.3, 24.8);
     warZone = addZone({kind:'war', x:12.3, z:22.6, w:2.1, d:2.1, icon:'⚔️', tile:{alpha:1, size:84, label:'War table'}});
@@ -1739,6 +1978,7 @@ function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id); UNLOCK[id](anim);
   if (anim) {
+    shakeCam(.35);
     const p = PADS.find(q => q.id === id);
     if (p.x != null) { puff(p.x, p.z); popText(`${p.icon} ${p.label}!`, new THREE.Vector3(p.x, 3, p.z), '#fff'); }
     if (p.sci) banner(`🔬 ${p.label}`, {sciNets:'Fishing is faster and big salmon bite more often.', sciFarming:'Fields and hunters produce twice as fast.',
@@ -1747,12 +1987,13 @@ function unlock(id, anim) {
     snd(392, .12, 'triangle', .05, 1.5); setTimeout(() => snd(784, .2, 'triangle', .05), 120);
     save();
   }
-  refreshPads();
+  refreshPads(); refreshUpgrades();
 }
 
 // ------------------------------------------------------------------ fx
 const parts = [];
 function particle(color, pos, v, life, s, o = {}) {
+  if (parts.length > 160) return;   // keep effects cheap on slow devices
   const m = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color, transparent:true, opacity:o.op || .9, depthWrite:false}));
   m.position.copy(pos); m.scale.setScalar(s); scene.add(m);
   parts.push({m, v, t:0, life, s, op:o.op || .9, ...o});
@@ -1860,6 +2101,7 @@ function objective() {
   const broken = Object.values(ST).find(s => s.broken);
   if (broken) return {txt:`🔥 Angry guests set the ${broken.name} on fire. Repair it!`, z:broken.repairZone};
   const camp = CAMPAIGNS[W.conquests];
+  if (W.camp && warZone && zdist(warZone) < 14) return {txt:`⚔️ Battle at the ${camp.name}! Stand on the war table to watch`, z:warZone};
   if (warZone && camp && !W.camp && W.army >= campNeed(camp) && (!camp.ships || W.unlocked.has('warship')))
     return {txt:`⚔️ Lead your army against the ${camp.name}`, z:warZone};
   const pads = Object.values(padZones).filter(z => !z.locked);
@@ -1874,6 +2116,10 @@ function objective() {
   const piled = Object.values(CASH).reduce((a, c) => a + c.value, 0);
   // picking up cash that already buys something beats any errand
   if (pile && needCoins && W.coins + piled >= cheapest) return {txt:'Collect your cash', z:pile.zone};
+  // spare cash goes into building levels
+  const up = Object.values(upZones).map(z => ({z, rem:upCost(z.st) - (W.upPaid[z.st] || 0)})).sort((a, b) => a.rem - b.rem)[0];
+  if (up && W.coins >= up.rem && (!coinPads.length || W.coins - up.rem >= cheapest))
+    return {txt:`Upgrade the ${ST[up.z.st].name} to Lv ${lvl(up.z.st) + 1}`, z:up.z};
   // gather for the material unlock whose chain is quickest right now
   const TIER = {log:0, stone:1, scroll:2, tools:3, ingot:3};
   const mats = pads.filter(z => z.pad.cur !== 'coin').sort((a, b) => (TIER[a.pad.cur] - TIER[b.pad.cur]) || (rem(a) - rem(b)));
@@ -1895,6 +2141,310 @@ function objective() {
   }
   const next = pads.filter(z => z.pad.cur === 'coin').sort((a, b) => rem(a) - rem(b))[0];
   return {txt:next ? `Feed travelers to earn 💵 for ${next.pad.icon} ${next.pad.label}` : 'Feed the travelers', z:null};
+}
+
+// ------------------------------------------------------------------ fishing pose
+function poseRod(e, on, dt) {
+  const r = e.char.rod; if (!r) return;
+  r.visible = on;
+  if (!on) return;
+  if (Math.hypot(e.vel.x, e.vel.z) < .1) {   // face the river while fishing
+    let d = -Math.PI/2 - e.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); e.yaw += d * Math.min(1, dt*8); e.char.g.rotation.y = e.yaw;
+  }
+  e.rodJerk = Math.max(0, (e.rodJerk || 0) - dt);
+  r.rotation.x = .9 + Math.sin(time*2.2 + e.pos.z)*.06 - e.rodJerk*1.2;
+  e.char.armR.rotation.x = -1.15 - e.rodJerk*.8; e.char.armL.rotation.x = -.9;
+}
+
+// ------------------------------------------------------------------ homes: residents who pay rent
+const HOMES = [];
+function addHome(x, z, kind) {
+  const r = entity({body:CLOTHES[HOMES.length*3 % CLOTHES.length], hat:kind === 'house' ? 'beanie' : 'hood', hatCol:CLOTHES[(HOMES.length*5 + 2) % CLOTHES.length],
+    skin:SKINS[HOMES.length % SKINS.length], pants:0x3a3a4a}, x + .95, z + 1.45, 2, 0);
+  r.yaw = 0.3;
+  HOMES.push({x, z, kind, r, t:6 + HOMES.length*3});
+  smokers.push({x:x + .1, y:kind === 'house' ? 2.9 : 2.6, z:kind === 'house' ? z - .4 : z});
+}
+let lotRentT = 20;
+function updHomes(dt) {
+  if (started && lotStage.some(s => s) && (lotRentT -= dt) <= 0) {
+    lotRentT = 20;
+    lotStage.forEach((st, i) => {
+      if (!st) return;
+      const rent = LOT_STAGES[st].rent + 10*W.era;
+      W.coins += rent; W.earned += rent;
+      popText(`+${rent} rent`, new THREE.Vector3(LOTS[i][0], 3 + st*2, LOTS[i][1]), '#ffe06b');
+    });
+  }
+  for (const h of HOMES) {
+    h.r.vel.set(0, 0, 0); animEntity(h.r, dt); h.r.char.g.rotation.y = h.r.yaw;
+    const wave = Math.max(0, Math.sin(time*1.3 + h.x));
+    h.r.char.armR.rotation.x = wave > .85 ? -2.6 + Math.sin(time*14)*.3 : 0;
+    if (!started || (h.t -= dt) > 0) continue;
+    h.t = 20;
+    const rent = h.kind === 'house' ? 10 + 4*W.era : 4 + 2*W.era;
+    W.coins += rent; W.earned += rent;
+    popText(`+${rent} rent`, new THREE.Vector3(h.x, 3, h.z), '#ffe06b');
+  }
+}
+
+// ------------------------------------------------------------------ building levels
+// A small upgrade tile next to each producer: every level works 30% faster and keeps a bigger pile.
+const UPG = {
+  grill:{base:60, at:[-4.2, -1.7]}, spit:{base:100, at:[.4, -5]}, oven:{base:150, at:[-1.8, 4.95]}, lodge:{base:120, at:[-7.6, -9.3]},
+  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -19.4]}, workshop:{base:400, at:[9.6, -14.4]}, digger:{base:400, at:[12.4, -26.5]},
+  smith:{base:400, at:[-5, 16.2]}, library:{base:500, at:[25.6, -5.2]}, field2:{base:250, at:[14.8, 19.5]}, field3:{base:250, at:[14.8, 26.5]},
+  oven2:{base:300, at:[25.5, 17.6]}, brewery:{base:400, at:[23.5, 13.2]},
+};
+const MAXLV = 10;
+const lvl = id => W.levels[id] || 1;
+const lvlMult = id => 1 + .3*(lvl(id) - 1);
+const upCost = id => Math.round(UPG[id].base * Math.pow(1.9, lvl(id) - 1));
+const upZones = {};
+function refreshUpgrades() {
+  for (const [id, u] of Object.entries(UPG)) {
+    const st = ST[id]; if (!st) continue;
+    st.baseCap ??= st.outStack.cap;
+    st.outStack.cap = st.baseCap + 6*(lvl(id) - 1);
+    let z = upZones[id];
+    if (lvl(id) >= MAXLV) { if (z) { removeZone(z); delete upZones[id]; } continue; }
+    if (!z) { z = upZones[id] = addZone({kind:'upgrade', st:id, x:u.at[0], z:u.at[1], w:1.5, d:1.5, icon:'⬆️', tile:{}}); z.key = ''; }
+    const paid = W.upPaid[id] || 0, cost = upCost(id), key = lvl(id) + ':' + paid;
+    if (z.key !== key) { z.key = key; drawTile(z.tc.g, '⬆️', {cost:cost - paid, cur:'💵', prog:paid/cost, title:`Lv ${lvl(id) + 1}`}); z.tc.t.needsUpdate = true; }
+  }
+}
+function payUpgrade(zn, e) {
+  const id = zn.st, cost = upCost(id), paid = W.upPaid[id] || 0;
+  if (W.coins <= 0) { e.tick = .3; return; }
+  const amt = Math.min(cost - paid, W.coins, Math.max(1, Math.ceil(cost / 24)));
+  W.coins -= amt; W.upSpent += amt; W.upPaid[id] = paid + amt; e.tick = .045;
+  const m = itemMesh('coin'); m.position.set(e.pos.x, 1.6, e.pos.z); flyAway(m, new THREE.Vector3(zn.x, .1, zn.z), .25);
+  snd(800 + paid/cost*500, .03, 'triangle', .025);
+  if (W.upPaid[id] >= cost) {
+    W.upPaid[id] = 0; W.levels[id] = lvl(id) + 1; W.flags.upgrades = (W.flags.upgrades || 0) + 1;
+    puff(zn.x, zn.z); popText(`${ST[id].name} Lv ${lvl(id)}!`, new THREE.Vector3(zn.x, 2.8, zn.z), '#b8f0a0');
+    shakeCam(.25); snd(523, .12, 'triangle', .05); setTimeout(() => snd(1046, .15, 'triangle', .05), 90);
+    save();
+  }
+  refreshUpgrades();
+}
+
+// ------------------------------------------------------------------ builders
+// Builders carry stone, logs, tools and scrolls from the piles to whatever unlock is waiting for them.
+function updBuilder(w, dt) {
+  const pileOf = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur])).sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
+  if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
+    w.job = Object.values(padZones).map(z => z.pad).find(p => !padZones[p.id].locked && p.cur !== 'coin' && (w.stack.count([p.cur]) || pileOf(p.cur))) || null;
+    if (!w.job) { goTo(w, ...w.home, dt); return; }
+  }
+  const p = w.job, cur = p.cur, pz = padZones[p.id], rem = p.cost - (W.paid[p.id] || 0);
+  // anything else in the pack is set down
+  while (w.stack.length > w.stack.count([cur])) { const it = w.stack.take(Object.keys(ITEM).filter(k => k !== cur)); flyAway(it.mesh, w.pos.clone().setY(0), .3); }
+  const carried = w.stack.count([cur]), pile = pileOf(cur);
+  if (carried && (carried >= Math.min(rem, w.cap) || !pile)) {
+    if (goTo(w, pz.x, pz.z, dt) && (w.tick -= dt) <= 0) {
+      w.tick = .1;
+      const it = w.stack.take([cur]);
+      flyAway(it.mesh, new THREE.Vector3(pz.x, .1, pz.z), .25);
+      W.paid[p.id] = (W.paid[p.id] || 0) + 1; snd(200, .04, 'square', .02);
+      if (W.paid[p.id] >= p.cost) { w.job = null; unlock(p.id, true); } else refreshPads();
+    }
+  } else if (pile) {
+    if (goTo(w, pile.x, pile.z, dt) && (w.tick -= dt) <= 0) {
+      w.tick = .08;
+      if (w.stack.length < w.cap) transfer(pile.stack, w.stack, [cur]);
+    }
+  } else w.job = null;
+}
+
+// ------------------------------------------------------------------ the battlefield, south of the military grounds
+const BF = {x:3, z:40};
+clearForest({x0:-6, x1:12, z0:31, z1:48});
+slab(0x9a8a5a, 18, 17.6, 3, 39.8, 0);
+const enemies = [];
+let enemyCamp = null;
+function startBattle(c) {
+  enemyCamp = new THREE.Group(); scene.add(enemyCamp);
+  for (const [x, z] of [[-2, 45.5], [1.5, 46.5], [5, 45.6], [8, 46.6]]) { mesh(G.cone, 0x7a2a22, [1, 1.5, 1], [x, .75, z], enemyCamp); mesh(G.box, 0x2a1408, [.3, .5, .05], [x, .25, z + .7], enemyCamp); }
+  mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [3, 1.5, 47.3], enemyCamp);
+  enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [3.47, 2.7, 47.3], enemyCamp);
+  const n = Math.min(10, campNeed(c));
+  for (let i = 0; i < n; i++) {
+    const e = entity({body:0x8a2a22, hat:'helmet', hatCol:0x5a3a3a, pants:0x2a1a1a, sword:true}, BF.x - 3.6 + (i % 5)*1.8, 42.4 + Math.floor(i / 5)*1.2, 3, 0);
+    e.yaw = Math.PI; e.alive = true; e.fall = 0; enemies.push(e);
+  }
+}
+function updBattle(dt) {
+  if (!enemies.length) return;
+  const ph = W.camp ? W.camp.t : -1, fighting = ph > 9 && ph <= 22;
+  if (fighting && (W.battleT = (W.battleT || 0) - dt) <= 0) {
+    W.battleT = 12 / Math.max(1, enemies.length);
+    const alive = enemies.filter(e => e.alive);
+    if (alive.length) { alive[R()*alive.length|0].alive = false; snd(220 + R()*100, .08, 'square', .03); }
+  }
+  if (fighting && R() < dt*10) particle(0xfff3a0, new THREE.Vector3(BF.x - 4 + R()*8, 1.2, 39.6 + R()*1.4), new THREE.Vector3((R() - .5)*3, 3, (R() - .5)*2), .35, .08, {grav:1});
+  if (ph >= 0 && ph <= 9) enemies.forEach(e => e.alive = false);
+  for (const e of enemies) {
+    e.vel.set(0, 0, 0); animEntity(e, dt); e.char.g.rotation.y = Math.PI;
+    if (e.alive) e.char.armR.rotation.x = fighting ? -1.6 + Math.sin(time*11 + e.pos.x)*1.1 : -.3;
+    else { e.fall = Math.min(1, e.fall + dt*2); e.char.g.rotation.x = -e.fall*Math.PI/2; e.char.g.position.y = -e.fall*.2; }
+  }
+  if (enemyCamp && ph >= 0 && ph <= 9) enemyCamp.flag.material = mat(0xf2c200);
+}
+function endBattle() {
+  for (const e of enemies) { scene.remove(e.char.g); stacks.delete(e.stack); }
+  enemies.length = 0;
+  if (enemyCamp) { scene.remove(enemyCamp); enemyCamp = null; }
+}
+// soldiers walk a corridor past the mess table instead of through it
+function soldierGo(s, tx, tz, dt) {
+  const goingOut = tz > 30 && s.pos.z < 30.5, goingHome = tz < 24 && s.pos.z > 24.5;
+  if (goingOut) { if (s.pos.z < 24.3) return moveTo(s, 5.2, 24.5, dt) && false; return moveTo(s, 5.2, 31, dt) && false; }
+  if (goingHome && s.pos.z > 30.5) return moveTo(s, 5.2, 31, dt) && false;
+  if (goingHome) return moveTo(s, 5.2, 24.5, dt) && false;
+  return moveTo(s, tx, tz, dt);
+}
+// every conquered land leaves a watchtower flying your colours
+const OUTPOSTS = [[-4.4, 44.6], [10.4, 44.6], [-4.4, 34.2], [10.4, 34.2], [3, 47.6]];
+function outpost(i, anim) {
+  const [x, z] = OUTPOSTS[i]; if (x == null) return;
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  for (const [a, b] of [[-.5, -.5], [.5, -.5], [-.5, .5], [.5, .5]]) mesh(G.box, 0x6b4526, [.16, 3, .16], [a, 1.5, b], g);
+  mesh(G.box, 0x8a5a2b, [1.4, .2, 1.4], [0, 3, 0], g); roofOn(g, 1.6, 1.6, .9, 3.6, 0x9a3a2a);
+  mesh(G.cyl, 0x5e3f22, [.04, 1.4, .04], [0, 4.6, 0], g); mesh(G.box, 0xf2c200, [.7, .42, .03], [.36, 5, 0], g);
+  if (anim) popIn(g);
+}
+
+// ------------------------------------------------------------------ goals
+const GOAL_TXT = {fed:n => `Feed ${n} guests`, earned:n => `Earn ${n} 💵`, unlocks:n => `Build ${n} new things`, upgrades:n => `Upgrade buildings ${n}×`,
+  fish:n => `Catch ${n} fish yourself`, army:n => `Train ${n} more soldiers`, conquest:() => 'Win a campaign'};
+const goalCount = type => ({fed:W.fed, earned:W.earned, unlocks:W.unlocked.size, upgrades:W.flags.upgrades || 0, fish:W.caught, army:W.army, conquest:W.conquests})[type];
+function newGoal() {
+  const k = 1 + W.era, have = W.goals.map(g => g.type);
+  const pool = [['fed', 8*k], ['earned', Math.round(150*k*k/50)*50], ['fish', 15 + 5*k]];
+  if (PADS.some(p => !p.hidden && !W.unlocked.has(p.id))) pool.push(['unlocks', 2]);
+  if (Object.keys(upZones).length) pool.push(['upgrades', 2]);
+  if (W.unlocked.has('mess')) pool.push(['army', 5]);
+  if (warZone && W.conquests < CAMPAIGNS.length) pool.push(['conquest', 1]);
+  const opts = pool.filter(([t]) => !have.includes(t));
+  const [type, n] = opts[R()*opts.length|0];
+  const reward = Math.round(30 * Math.pow(k, 1.7) * (type === 'conquest' ? 4 : type === 'army' ? 2 : 1) / 5) * 5;
+  return {type, n, base:goalCount(type), reward};
+}
+let goalT = 0, goalsHtml = '';
+function updGoals(dt) {
+  if (W.tut < TUT.length || (goalT -= dt) > 0) return;
+  goalT = .5;
+  while (W.goals.length < 3) W.goals.push(newGoal());
+  for (const g of [...W.goals]) {
+    if (goalCount(g.type) - g.base < g.n) continue;
+    W.coins += g.reward; W.earned += g.reward;
+    banner(`🎯 ${GOAL_TXT[g.type](g.n)}!`, `Goal complete: +${g.reward} 💵`);
+    flyCash(110, stage.clientHeight * .35, 6);
+    [659, 880, 1175].forEach((f, i) => setTimeout(() => snd(f, .12, 'triangle', .045), i*90));
+    W.goals.splice(W.goals.indexOf(g), 1, newGoal());
+    save();
+  }
+}
+function renderGoals() {
+  const html = W.tut < TUT.length ? '' : W.goals.map(g => {
+    const prog = Math.min(g.n, goalCount(g.type) - g.base);
+    return `<div class="goal">🎯 ${GOAL_TXT[g.type](g.n)}<small>${prog}/${g.n} · reward ${g.reward} 💵</small><i><b style="width:${Math.round(prog/g.n*100)}%"></b></i></div>`;
+  }).join('');
+  if (html !== goalsHtml) { goalsHtml = html; $('goals').innerHTML = html; }
+}
+
+// ------------------------------------------------------------------ juice: flying cash, camera shake, music
+function flyCash(x, y, n) {
+  const chip = document.querySelector('.chip.money'); if (!chip) return;
+  const sr = stage.getBoundingClientRect(), cr = chip.getBoundingClientRect();
+  const tx = cr.left - sr.left + 12, ty = cr.top - sr.top + 6;
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div'); el.className = 'flycash'; el.textContent = '💵';
+    const sx = x + (R() - .5)*36, sy = y + (R() - .5)*24;
+    el.style.left = sx + 'px'; el.style.top = sy + 'px'; stage.appendChild(el);
+    setTimeout(() => { el.style.transform = `translate(${tx - sx}px, ${ty - sy}px) scale(.6)`; el.style.opacity = '.4'; }, 30 + i*45);
+    setTimeout(() => { el.remove(); chip.classList.add('bump'); setTimeout(() => chip.classList.remove('bump'), 140); }, 720 + i*45);
+  }
+}
+let camShake = 0;
+const shakeCam = a => { camShake = Math.max(camShake, a); };
+// a gentle generated tune: a bass note per bar, pentatonic plucks on top
+let musicT = null;
+function startMusic() {
+  if (musicT) return;
+  const N = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3, 784];
+  const BARS = [[0, 2, 4], [4, 6, 8], [3, 5, 7], [1, 3, 5]];
+  let beat = 0;
+  musicT = setInterval(() => {
+    if (muted || document.hidden || !started) return;
+    const ch = BARS[Math.floor(beat / 8) % 4], step = beat % 8;
+    if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022);
+    if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012);
+    beat++;
+  }, 280);
+}
+
+// ------------------------------------------------------------------ earnings while you were away
+let offline = 0, awayS = 0, rateT = 0, rateBase = 0;
+function trackRate(dt) {
+  if ((rateT += dt) < 15) return;
+  const d = (W.earned - rateBase) / rateT;
+  W.rate = W.rate ? W.rate*.7 + d*.3 : d;
+  rateT = 0; rateBase = W.earned;
+}
+const fmtAway = s => s >= 3600 ? `${Math.floor(s/3600)}h ${Math.floor(s % 3600 / 60)}m` : `${Math.floor(s/60)}m`;
+function showOffline() {
+  if (offline <= 0) return;
+  const m = $('modal'); m.hidden = false;
+  m.innerHTML = `<div class="card"><h1 style="font-size:28px">🌙 Welcome back!</h1>
+    <p>While you were away for <b>${fmtAway(awayS)}</b>, your helpers kept cooking and serving.</p>
+    <p style="font-size:30px;font-weight:900;color:#2f9e44;margin:6px 0">+${offline} 💵</p>
+    <button class="big" id="bCollect">Collect</button></div>`;
+  $('bCollect').onclick = () => {
+    W.coins += offline; W.earned += offline; offline = 0; m.hidden = true;
+    flyCash(stage.clientWidth/2, stage.clientHeight/2, 8); snd(1046, .1, 'triangle', .05); save();
+  };
+}
+
+// ------------------------------------------------------------------ leaderboard
+const LB_URL = '/api/river-feast/leaderboard';
+function lbList(el, rows, unit) {
+  el.textContent = '';
+  if (!rows.length) { const li = document.createElement('li'); li.textContent = 'No scores yet'; el.appendChild(li); return; }
+  for (const r of rows) { const li = document.createElement('li'); li.textContent = `${r.name} · ${r.value} ${unit}`; el.appendChild(li); }
+}
+async function lbLoad() {
+  try {
+    const res = await fetch(LB_URL); if (!res.ok) throw 0;
+    const d = await res.json(); lbList($('lbFed'), d.fed || [], 'fed'); lbList($('lbEmp'), d.empire || [], 'min');
+  } catch (e) { $('lbMsg').textContent = 'The leaderboard only works on espencampbell.com.'; }
+}
+async function lbPost(board, value) {
+  const name = $('lbName').value.trim() || 'Anon';
+  try { localStorage.setItem('riverfeast.name', name); } catch (e) {}
+  $('lbMsg').textContent = 'Posting…';
+  try {
+    const res = await fetch(LB_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, board, value})});
+    if (!res.ok) throw 0;
+    const d = await res.json(); lbList($('lbFed'), d.fed || [], 'fed'); lbList($('lbEmp'), d.empire || [], 'min');
+    $('lbMsg').textContent = 'Posted!';
+  } catch (e) { $('lbMsg').textContent = 'Could not post right now.'; }
+}
+function openBoard() {
+  const m = $('modal'); m.hidden = false;
+  m.innerHTML = `<div class="card"><h1 style="font-size:26px">🏆 Leaderboard</h1>
+    <div class="board"><div><h3>😋 Most guests fed</h3><ol id="lbFed"><li>Loading…</li></ol></div>
+    <div><h3>🌍 Fastest to Empire</h3><ol id="lbEmp"><li>Loading…</li></ol></div></div>
+    <p><input id="lbName" maxlength="12" placeholder="Your name"></p>
+    <button class="big" id="lbPostFed">Post ${W.fed} fed</button>
+    ${W.flags.empireMin ? `<button class="big" id="lbPostEmp">Post ${W.flags.empireMin} min</button>` : ''}
+    <p id="lbMsg" class="keys"></p><button class="ghost" id="lbClose">Close</button></div>`;
+  try { $('lbName').value = localStorage.getItem('riverfeast.name') || ''; } catch (e) {}
+  $('lbPostFed').onclick = () => lbPost('fed', W.fed);
+  if ($('lbPostEmp')) $('lbPostEmp').onclick = () => lbPost('empire', W.flags.empireMin);
+  $('lbClose').onclick = () => { m.hidden = true; };
+  lbLoad();
 }
 
 // ------------------------------------------------------------------ input
@@ -1928,7 +2478,8 @@ const SAVE_KEY = 'riverfeast.v2';
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
-      cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags}));
+      cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
+      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
@@ -1936,6 +2487,13 @@ function load() {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s) return false;
     W.coins = s.coins || 0; W.earned = s.earned || 0; W.fed = s.fed || 0; W.paid = s.paid || {}; W.tut = s.tut || 0; W.flags = s.flags || {};
     W.army = s.army || 0; W.conquests = s.conquests || 0; W.unrest = s.unrest || 0;
+    W.levels = s.levels || {}; W.upPaid = s.upPaid || {}; W.upSpent = s.upSpent || 0; W.goals = s.goals || []; W.caught = s.caught || 0;
+    W.playT = s.playT || 0; W.rate = s.rate || 0; rateBase = W.earned;
+    if (s.savedAt && W.rate > 0) {
+      awayS = Math.min((Date.now() - s.savedAt) / 1000, 4*3600);
+      // a tenth of what the camp earns while you play, and never more than 15 minutes of live play
+      if (awayS > 60) offline = Math.floor(Math.min(W.rate * awayS * .1, W.rate * 900));
+    }
     for (const p of PADS) if ((s.unlocked || []).includes(p.id)) unlock(p.id, false);
     const piles = typeof s.cash === 'number' ? {main:s.cash} : (s.cash || {});
     for (const [id, v] of Object.entries(piles)) {
@@ -1944,6 +2502,9 @@ function load() {
       for (let i = 0; i < Math.min(v, 45); i++) { const m = itemMesh('coin'); m.position.set(c.x, .1, c.z); c.stack.push({type:'coin', mesh:m}); }
     }
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
+    for (let i = 0; i < W.conquests; i++) outpost(i, false);
+    if (W.conquests >= CAMPAIGNS.length) setEra(7, false);
+    if (player.speed < 7 && W.flags.roads) player.speed = 7;
     return true;
   } catch (e) { console.error(e); return false; }
 }
@@ -1982,7 +2543,7 @@ function update(dt) {
     else { player.tick = .3; full(); }
   }
   for (const s of Object.values(ST)) {
-    const speed = s.group ? BOOST[s.group] : 1;
+    const speed = (s.group ? BOOST[s.group] : 1) * (UPG[s.id] ? lvlMult(s.id) : 1);
     if (s.broken) { if (R() < dt*6) particle(R() < .5 ? 0xff7a2a : 0x555555, new THREE.Vector3(s.inZ[0] + (R() - .5), .8, s.inZ[1] + (R() - .5)), new THREE.Vector3(0, 2.5, 0), 1, .25, {grow:.4, op:.7}); continue; }
     if (s.in) {
       if (!s.busy && s.inStack.length && s.outStack.length < s.outStack.cap) {
@@ -1999,28 +2560,50 @@ function update(dt) {
     }
   }
   if (ST.spit) ST.spit.meat.rotation.x += dt * (ST.spit.busy ? 4 : 1);
-  for (const w of workers) { updWorker(w, dt); animEntity(w, dt); }
-  for (const L of Object.values(LINES)) { updLine(L, dt); for (const c of L.q) animEntity(c, dt); for (const c of L.leaving) animEntity(c, dt); }
+  for (const w of workers) { updWorker(w, dt); animEntity(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
+  for (const L of Object.values(LINES)) {
+    updLine(L, dt);
+    const [fx, fz] = L.slot(0);
+    for (const c of L.q) {
+      animEntity(c, dt);
+      const seated = L.seats ? c.seat != null && Math.hypot(c.pos.x - L.seats[c.seat][0], c.pos.z - L.seats[c.seat][1]) < .3
+        : c === L.q[0] && Math.hypot(c.pos.x - fx, c.pos.z - fz) < .3;
+      if (seated) c.char.legL.rotation.x = c.char.legR.rotation.x = -1.45;
+      if (seated && L.seats) {
+        c.char.g.rotation.y = c.yaw = Math.PI;
+        if (c.mug) c.mug.visible = (c.sip || 0) > 0;
+        c.char.armR.rotation.x = (c.sip || 0) > 0 ? -2.3 + Math.sin(time*3)*.15 : -.2;
+      }
+    }
+    for (const c of L.leaving) animEntity(c, dt);
+  }
   soldiers.forEach((s, i) => {
-    const away = W.camp && W.camp.t < 29.5;
-    const at = away ? (moveTo(s, 2.4 + (i % 4)*.6, 46 + Math.floor(i / 4)*.8, dt), false) : moveTo(s, s.slot[0], s.slot[1], dt);
+    // during a campaign the army marches to the battlefield, fights, then comes home
+    const ph = W.camp ? W.camp.t : -1, out = ph > 9;
+    const tx = out ? BF.x - 4.4 + (i % 8)*1.25 : s.slot[0], tz = out ? 37.6 - Math.floor(i / 8)*1.2 : s.slot[1];
+    const at = soldierGo(s, tx, tz, dt);
     animEntity(s, dt);
     if (at) {
-      let d = Math.PI - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
-      s.char.armR.rotation.x = -1.3 + Math.sin(time*3 + s.drill)*.9;
+      const face = out ? 0 : Math.PI;
+      let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
+      s.char.armR.rotation.x = out && ph <= 22 ? -1.6 + Math.sin(time*12 + i)*1.1 : -1.3 + Math.sin(time*3 + s.drill)*.9;
     }
   });
+  updBattle(dt);
   updWar(dt);
   if ((W.unrestT = (W.unrestT || 0) + dt) > 90) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
   if (ST.mill) ST.mill.rotation.z += dt * 1.2;
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;
   if (W.unlocked.has('barracks') && W.army > 0 && (tributeT -= dt) <= 0) {
     tributeT = 12; addCash(CASH.tribute, W.army * 2, {x:9.5, z:25.6});
+    if (W.conquests && CASH.spoils) addCash(CASH.spoils, W.conquests * 30, {x:12.3, z:24.8});   // conquered lands pay tribute too
     popText(`+${W.army*2} tribute`, new THREE.Vector3(9.5, 3.5, 25.6), '#ffe06b');
   }
   updBoats(dt);
   leapingFish(dt);
   animEntity(player, dt);
+  poseRod(player, started && player.zone === fishZone, dt);
+  updHomes(dt);
   for (const t of nodes()) {
     if (t.shake > 0) { t.shake -= dt; t.g.rotation.z = Math.sin(t.shake * 50) * .06; } else t.g.rotation.z = 0;
     if (t.logs <= 0 && (t.regrow -= dt) <= 0) { t.logs = t.item === 'stone' ? 5 : 4; setNode(t, true); popIn(t.top); }
@@ -2044,6 +2627,7 @@ function update(dt) {
   smoke(dt); updParts(dt); updFaders(dt);
   for (const p of [...pops]) if ((p.t += dt) > 1.2) { p.el.remove(); pops.splice(pops.indexOf(p), 1); }
   if (pops.length > 40) pops.splice(0, pops.length - 40).forEach(p => p.el.remove());
+  if (started) { W.playT += dt; trackRate(dt); updGoals(dt); }
   if ((saveT -= dt) <= 0) { saveT = 5; if (started) save(); }
 }
 const camWant = new THREE.Vector3();
@@ -2051,10 +2635,23 @@ function render(dt) {
   // camera follows the player; pull back further on tall (portrait) screens
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : 1;
   const D = 13*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
-  camWant.set(player.pos.x + ox + .6, 16*k, player.pos.z + oz + .6);
-  camera.position.lerp(camWant, Math.min(1, dt*6));
+  // standing on the war table during a campaign shows the battlefield
+  const watching = W.camp && player.zone && player.zone.kind === 'war';
+  const fx = watching ? BF.x - 1 : player.pos.x, fz = watching ? BF.z + 1.5 : player.pos.z;
+  camWant.set(fx + ox + .6, 16*k, fz + oz + .6);
+  camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, 0, camera.position.z - oz);
-  sun.position.set(player.pos.x + 8, 18, player.pos.z + 6); sun.target.position.set(player.pos.x, 0, player.pos.z);
+  if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
+  sun.position.set(fx + 8, 18, fz + 6); sun.target.position.set(fx, 0, fz);
+  // day and night: a four-minute cycle that never gets too dark to play
+  const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);
+  sun.intensity = 3.4 * (.35 + .65*dk); hemi.intensity = 1.25 * (.55 + .45*dk);
+  scene.background.setRGB(.12 + .5*dk, .17 + .67*dk, .3 + .65*dk, THREE.SRGBColorSpace); scene.fog.color.copy(scene.background);
+  for (const l of fireLights) l.intensity = 3 + (1 - dk)*7;
+  for (const m of winMats) m.emissiveIntensity = (1 - dk) * 1.4;
+  for (const m of lampMats) m.color.setRGB(.5 + (1 - dk)*.5, .48 + (1 - dk)*.47, .4 + (1 - dk)*.35);
+  if (player.char.crown) player.char.crown.visible = W.era >= 6;
+  renderGoals();
 
   for (const L of Object.values(LINES)) for (const c of L.q.concat(L.leaving)) {
     const [x, y, vis] = project(new THREE.Vector3(c.pos.x, 2.35, c.pos.z));
@@ -2062,7 +2659,7 @@ function render(dt) {
     c.el.style.display = vis && !far ? '' : 'none';
     c.el.style.left = x + 'px'; c.el.style.top = y + 'px';
     if (L.q.includes(c)) {
-      const mad = L.id !== 'mess' && c.waitT > PATIENCE * BOOST.patience * .55;
+      const mad = L.id !== 'mess' && !L.custom && c.waitT > PATIENCE * BOOST.patience * .55;
       const html = (mad ? '😠 ' : '') + c.wants.filter(w => w.need > 0).map(w => `<span>${ITEM[w.type].icon}</span>${w.need}`).join(' ');
       c.el.classList.toggle('mad', mad);
       if (c.el._h !== html) { c.el._h = html; c.el.innerHTML = html; }
@@ -2097,8 +2694,22 @@ function render(dt) {
   if ($('hudR')._h !== hr) { $('hudR')._h = hr; $('hudR').innerHTML = hr; }
   renderer.render(scene, camera);
 }
+// If frames come in slowly, drop to low quality once: lower resolution and no shadows.
+const perf = {t:0, n:0, low:false};
+function adapt(real) {
+  if (perf.low || !started || document.hidden || real > .25) return;
+  perf.t += real; perf.n++;
+  if (perf.t < 4) return;
+  const fps = perf.n / perf.t; perf.t = perf.n = 0;
+  if (fps >= 38) return;
+  perf.low = true;
+  renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sun.castShadow = false;
+  scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+  fit();
+}
 function frame(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const real = (now - last) / 1000, dt = Math.min(.05, real); last = now;
+  adapt(real);
   update(dt); render(dt);
   requestAnimationFrame(frame);
 }
@@ -2112,7 +2723,12 @@ new ResizeObserver(fit).observe(stage);
 const hadSave = load();
 refreshPads();
 if (hadSave) { $('bPlay').textContent = 'Continue'; $('bNew').hidden = false; }
-$('bPlay').onclick = () => { $('overlay').hidden = true; started = true; snd(523, .15, 'triangle', .05, 1.5); renderer.domElement.focus({preventScroll:true}); };
+$('bPlay').onclick = () => {
+  $('overlay').hidden = true; started = true; snd(523, .15, 'triangle', .05, 1.5); renderer.domElement.focus({preventScroll:true});
+  startMusic(); showOffline();
+};
+$('bBoard').onclick = openBoard;
+refreshUpgrades();
 const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
 $('bNew').onclick = wipe;
 $('bReset').onclick = () => { if (confirm('Start a new camp? Your progress will be lost.')) wipe(); };
@@ -2122,7 +2738,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

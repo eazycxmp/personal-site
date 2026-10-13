@@ -24,9 +24,10 @@ export default function RiverFeastPage() {
             Start with a campfire by the river: catch fish, cook them and carry the stack on your
             back to the travelers at your table. Stand on a tile to use it. Cash from every meal
             unlocks the next part of the map: helpers, a quarry and iron mine, farmlands, a market
-            quarter with a library for research, boats on the river, and military grounds where
-            soldiers train for five campaigns. Keep everyone fed or they get angry. Drag to walk on a
-            phone, or use WASD. Progress saves in your browser.
+            quarter with a library for research, a brewery and beer garden, boats on the river,
+            military grounds where soldiers train for five campaigns, and a downtown where townhouses
+            grow into skyscrapers. Upgrade every building, chase goals, and keep everyone fed or they
+            get angry. Drag to walk on a phone, or use WASD. Progress saves in your browser.
           </p>
         </div>
         <RiverFeastFrame />

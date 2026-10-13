@@ -23,7 +23,7 @@ const GAMES = [
     slug: "river-feast",
     title: "River Feast",
     tag: "3D · Build & Conquer",
-    body: "Catch fish, cook over the fire and carry stacks of food to hungry travelers. Grow a riverside camp into an empire: open a quarry and iron mine, farmlands, a market and a library, hire helpers, launch boats, and send your army to war.",
+    body: "Catch fish, cook over the fire and carry stacks of food to hungry travelers. Grow a riverside camp into an empire and then a skyline: quarry, iron mine, farmlands, a brewery and beer garden, boats, an army that goes to war, and a downtown of skyscrapers.",
     status: "Live",
   },
   {
