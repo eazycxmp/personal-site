@@ -20,8 +20,8 @@ const GAMES = [
     status: "Live",
   },
   {
-    slug: "river-feast",
-    title: "River Feast",
+    slug: "build-your-empire",
+    title: "Build Your Empire",
     tag: "3D · Build & Conquer",
     body: "Catch fish, cook over the fire and carry stacks of food to hungry travelers. Grow a riverside camp into an empire and then a skyline: quarry, iron mine, farmlands, a brewery and beer garden, boats, an army that goes to war, and a downtown of skyscrapers.",
     status: "Live",

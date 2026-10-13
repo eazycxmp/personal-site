@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/* River Feast is a self-contained canvas page in /public/river-feast, framed the
+/* Build Your Empire is a self-contained canvas page in /public/build-your-empire, framed the
    same way as the blackjack trainer. It posts its content height so the frame
    grows with it and never nests a scrollbar. */
-export function RiverFeastFrame() {
+export function BuildYourEmpireFrame() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(820);
 
@@ -23,8 +23,8 @@ export function RiverFeastFrame() {
   return (
     <iframe
       ref={frameRef}
-      src="/river-feast/index.html"
-      title="River Feast"
+      src="/build-your-empire/index.html"
+      title="Build Your Empire"
       style={{ height }}
       className="w-full block rounded-lg border border-[var(--color-border)] bg-[#1c1814]"
     />

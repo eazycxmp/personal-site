@@ -5,12 +5,14 @@ type Entry = { name: string; value: number; date: string };
 type Boards = { fed: Entry[]; empire: Entry[] };
 type Board = keyof Boards;
 
-const KEY = "riverfeast:leaderboard";
+const KEY = "buildyourempire:leaderboard";
+// scores posted while the game was still called River Feast
+const OLD_KEY = "riverfeast:leaderboard";
 // guests fed counts up; minutes to reach Empire counts down
 const LIMITS: Record<Board, [number, number]> = { fed: [1, 10_000_000], empire: [5, 100_000] };
 
 async function read(): Promise<Boards> {
-  const data = await kv.get<Boards>(KEY);
+  const data = (await kv.get<Boards>(KEY)) ?? (await kv.get<Boards>(OLD_KEY));
   return { fed: data?.fed ?? [], empire: data?.empire ?? [] };
 }
 

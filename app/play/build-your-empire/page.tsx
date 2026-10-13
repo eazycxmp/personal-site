@@ -1,11 +1,11 @@
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
-import { RiverFeastFrame } from "@/components/river-feast-frame";
+import { BuildYourEmpireFrame } from "@/components/build-your-empire-frame";
 import Link from "next/link";
 
-export const metadata = { title: "River Feast — Espen Campbell" };
+export const metadata = { title: "Build Your Empire — Espen Campbell" };
 
-export default function RiverFeastPage() {
+export default function BuildYourEmpirePage() {
   return (
     <>
       <Nav />
@@ -18,7 +18,7 @@ export default function RiverFeastPage() {
             ← Play
           </Link>
           <h1 className="serif-display text-[44px] md:text-[56px] leading-[1.05] mt-6 mb-4">
-            River Feast
+            Build Your Empire
           </h1>
           <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
             Start with a campfire by the river: catch fish, cook them and carry the stack on your
@@ -30,7 +30,7 @@ export default function RiverFeastPage() {
             get angry. Drag to walk on a phone, or use WASD. Progress saves in your browser.
           </p>
         </div>
-        <RiverFeastFrame />
+        <BuildYourEmpireFrame />
       </main>
       <Footer />
     </>
