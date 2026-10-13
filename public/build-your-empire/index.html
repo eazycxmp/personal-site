@@ -2159,7 +2159,7 @@ const PADS = [
   {id:'police', x:29.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
   {id:'fireStation', x:29.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
   {id:'hospital', x:29.2, z:6, cost:30000, cur:'coin', icon:'🏥', label:'Hospital', after:['fireStation', 'library'], region:'east'},
-  {id:'traffic', x:14.6, z:-27.8, cost:20000, cur:'coin', icon:'🚗', label:'Cars & buses', after:['lot0s2'], region:'downtown'},
+  {id:'traffic', x:14.6, z:-27.8, cost:20000, cur:'coin', icon:'🛣️', label:'Roads & traffic', after:['lot0s2'], region:'downtown'},
   {id:'stadium', x:29.2, z:24, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
@@ -2367,7 +2367,7 @@ const UNLOCK = {
   police(a) { civicBlock('police', a); if (a) banner('🚓 Police station!', 'Officers chase robbers and keep the peace: unrest fades twice as fast.'); },
   fireStation(a) { civicBlock('fire', a); if (a) banner('🚒 Fire station!', 'Fire trucks put out fires for you.'); },
   hospital(a) { civicBlock('hospital', a); if (a) banner('🏥 Hospital!', 'Healthier guests wait longer, and an ambulance tends the battlefield.'); },
-  traffic(a) { trafficFx(); if (a) banner('🚗 Cars and buses!', 'Traffic lights, a bus line and cars fill your downtown streets.'); },
+  traffic(a) { trafficFx(); if (a) banner('🛣️ Roads and traffic!', 'Asphalt streets, traffic lights, a bus line and cars downtown.'); },
   stadium(a) { stadiumFx(a); if (a) banner('🏉 Rugby stadium!', 'Matchdays every few minutes, with a full house paying at the gate.'); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
@@ -5020,6 +5020,9 @@ const GIG = {at:[21, 34.2], t:40, on:0, band:[], lights:[], noteT:0, beat:0};
 function concertFx(anim) {
   clearForest({x0:14, x1:28, z0:31, z1:41});
   slab(0x8a8478, 13, 8.6, GIG.at[0], 36.4, .004);
+  slab(0x8a8478, 3, 2.2, GIG.at[0] + 4, 31.5, .004);   // a path down from the farms
+  AREAS.push({x0:14.6, x1:27.4, z0:30.4, z1:40.6});
+  boxes.push({x0:GIG.at[0] - 3.6, x1:GIG.at[0] + 3.6, z0:GIG.at[1] - 1.6, z1:GIG.at[1] + 1.6}, {x0:GIG.at[0] - 4.4, x1:GIG.at[0] - 3.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4}, {x0:GIG.at[0] + 3.4, x1:GIG.at[0] + 4.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4});
   const g = new THREE.Group(); g.position.set(GIG.at[0], 0, GIG.at[1]); scene.add(g); GIG.g = g;
   mesh(G.box, 0x2a2a30, [7, .8, 3], [0, .4, 0], g); mesh(G.box, 0x3a3a42, [7.2, .08, 3.2], [0, .82, 0], g);
   // the shell: a curved backdrop and a roof truss of lights
@@ -5314,6 +5317,14 @@ function modernShip(g, kind) {
 const TRAFFIC = {cars:[], lights:[], bus:null};
 const LOOP = [[14.9, -13.6], [29.9, -13.6], [29.9, -28.9], [14.9, -28.9]];
 function trafficFx() {
+  // asphalt with lane markings and kerbs, round the block and across the middle
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = LOOP[i], [bx, bz] = LOOP[(i + 1) % 4], alongX = az === bz, len = Math.hypot(bx - ax, bz - az) + 1.5;
+    slab(0x3a3d42, alongX ? len : 1.5, alongX ? 1.5 : len, (ax + bx)/2, (az + bz)/2, .012);
+    for (let t = -len/2 + .6; t < len/2 - .4; t += 1.1) slab(0xf2f2f2, alongX ? .55 : .07, alongX ? .07 : .55, (ax + bx)/2 + (alongX ? t : 0), (az + bz)/2 + (alongX ? 0 : t), .016);
+    for (const k of [-1, 1]) slab(0xbdb8ae, alongX ? len : .12, alongX ? .12 : len, (ax + bx)/2 + (alongX ? 0 : k*.81), (az + bz)/2 + (alongX ? k*.81 : 0), .03);
+  }
+  for (const [x, z] of LOOP) for (let k = -2; k <= 2; k++) slab(0xf4f4f4, .7, .14, x + (x < 20 ? 1.4 : -1.4), z + k*.28, .017);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a];
   const per = LOOP.reduce((a, p, i) => a + Math.hypot(LOOP[(i + 1) % 4][0] - p[0], LOOP[(i + 1) % 4][1] - p[1]), 0);
   for (let i = 0; i < 6; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.s = i/6*per; v.per = per; v.speed = 4 + R(); TRAFFIC.cars.push(v); }
@@ -5360,6 +5371,9 @@ function stadiumFx(anim) {
   const [cx, cz] = RUGBY.at;
   clearForest({x0:35, x1:48.5, z0:14, z1:30});
   slab(0x8a8478, 13, 15, cx, cz, .004);
+  AREAS.push({x0:30.4, x1:36.6, z0:29.0, z1:30.2}, {x0:35, x1:48, z0:14.6, z1:30.2});
+  for (const sx of [-1, 1]) boxes.push({x0:cx + Math.min(sx*4, sx*6.5), x1:cx + Math.max(sx*4, sx*6.5), z0:cz - 5, z1:cz + 5});
+  boxes.push({x0:cx - 7.2, x1:cx - 6.8, z0:cz - 1.6, z1:cz + 1.6});
   const g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); RUGBY.g = g;
   // the pitch with stripes, lines and H posts at each end
   for (let i = 0; i < 8; i++) mesh(G.box, i % 2 ? 0x3f9a3a : 0x4aa844, [7.2, .02, 1.2], [0, .03, -4.2 + i*1.2], g);
@@ -6146,7 +6160,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
