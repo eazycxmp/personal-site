@@ -88,6 +88,20 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 #placeBar{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800}
 #placeBar[hidden]{display:none}
 #placeBar button{border:0;border-radius:10px;padding:7px 12px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}#placeBar #bCancel{background:#fffaf0;color:#2b2118}
+#ticker{position:absolute;left:0;right:0;bottom:0;height:22px;background:#1c1814e0;color:#ffe9b8;font:700 12px/22px ui-rounded,"Trebuchet MS",sans-serif;overflow:hidden;white-space:nowrap;z-index:3;pointer-events:none}
+#ticker[hidden]{display:none}
+#tickerText{display:inline-block;padding-left:100%;animation:tick 45s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+#stage.news #hudL,#stage.news #btns{bottom:30px}
+#stage.photo .hud,#stage.photo #obj,#stage.photo #labels,#stage.photo #goals,#stage.photo #btns,#stage.photo #ticker,#stage.photo #banner{display:none}
+#stage.space #labels,#stage.space #goals,#stage.space #obj{display:none}
+#photoBar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800;font-size:13px}
+#photoBar[hidden]{display:none}
+#photoBar button{border:0;border-radius:10px;padding:7px 12px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}#photoBar #bPhotoX{background:#fffaf0;color:#2b2118}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:12px 0;text-align:center}
+.shelf div{background:#efe6d6;border-radius:12px;padding:8px 6px;opacity:.55;display:flex;flex-direction:column;gap:2px}
+.shelf div.won{background:linear-gradient(#fff6d8,#f2d27a);opacity:1;box-shadow:0 3px 0 #0002}
+.shelf span{font-size:28px}.shelf b{font-size:12px}.shelf small{font-size:10.5px;opacity:.7}
 </style>
 </head>
 <body>
@@ -102,7 +116,9 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="goals"></div>
     <div id="modal" hidden></div>
     <div id="placeBar" hidden><span id="placeName"></span><button id="bPlace">Place here ✓</button><button id="bCancel">✕</button></div>
-    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="ticker" hidden><div id="tickerText"></div></div>
+    <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
+    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="overlay">
       <div class="card">
         <h1>🏰 Build Your Empire</h1>
@@ -1040,13 +1056,14 @@ const TROOPS = [
   {n:'Special forces', o:{body:0x5a6448, trim:0x2a2e26, hat:'tactical', pants:0x4e5640, gun:true, scope:true, vest:true}},
 ];
 const ARMS = () => TROOPS[W.troop || 0].o;
-const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower', 'Space Empire'];
-const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀', '🪐'];
+const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower', 'Space Empire', 'Interplanetary'];
+const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀', '🪐', '🔴'];
 const ERA_TXT = ['', 'Word is spreading. More hungry travelers are coming.', 'Word is spreading. More hungry travelers are coming.',
   'Your camp is a town. New land waits beyond the palisade.', 'Stone streets and scholars. Your town is a city.',
   'Soldiers guard the roads and pay tribute.', 'You built a kingdom from one campfire. Now take your army to war.', 'Every land around the river is yours. Now raise a skyline downtown.',
   'Your first skyscraper towers over the river.', 'Six skyscrapers. Your campfire became a megacity.', 'Land, sea and sky are yours. Thanks for playing!',
-  'Your empire reaches the Moon.'];
+  'Your empire reaches the Moon.',
+  'Two planets, one empire.'];
 // boosts bought with research
 const BOOST = {fishRate:1, bigFish:.15, farm:1, metal:1, patience:1, tactics:1};
 const WORKER = {speed:3.8, cap:6};
@@ -1208,9 +1225,33 @@ function setNode(t, full) {
   if (t.item === 'stone') { t.top.visible = full; t.rubble.visible = !full; }
   else { t.top.visible = t.trunk.visible = full; t.stump.visible = !full; }
 }
+// a swing of the axe for trees, a pickaxe for rock
+function chopTool(e, stone) {
+  const key = stone ? 'pick' : 'axe';
+  if (!e.tools) e.tools = {};
+  if (!e.tools[key]) {
+    const g = new THREE.Group(); g.position.set(0, -.48, .04); e.char.armR.add(g);
+    mesh(G.cyl, 0x6b4526, [.025, .62, .025], [0, -.05, .18], g).rotation.x = Math.PI/2.4;
+    if (stone) { const h = mesh(G.box, 0x8a8f96, [.04, .05, .42], [0, .1, .42], g, {metalness:.6}); h.rotation.x = .2; }
+    else { mesh(G.box, 0x9aa0a8, [.04, .2, .16], [0, .02, .44], g, {metalness:.7, roughness:.3}); mesh(G.box, 0xdfe4ea, [.045, .2, .03], [0, .02, .53], g, {metalness:.8, roughness:.2}); }
+    e.tools[key] = g;
+  }
+  for (const k in e.tools) e.tools[k].visible = k === key;
+}
+function poseChop(e, dt) {
+  if (!(e.chopT > 0)) { if (e.tools) for (const k in e.tools) e.tools[k].visible = false; return; }
+  if (e.char.armR !== e.toolArm) { e.tools = null; e.toolArm = e.char.armR; }
+  chopTool(e, e.chopItem === 'stone');
+  e.chopT -= dt;
+  const u = 1 - Math.max(0, e.chopT) / e.chopDur, swing = u < .55 ? u/.55 : 1 - (u - .55)/.45;
+  e.char.armR.rotation.x = -2.8 + Math.min(1, swing*1.1)*2.4; e.char.armL.rotation.x = e.char.armR.rotation.x + .15;
+  e.yaw = Math.atan2(e.chopAt[0] - e.pos.x, e.chopAt[1] - e.pos.z); e.char.g.rotation.y = e.yaw;
+  if (u > .5 && u < .58) e.char.g.position.y -= .03;
+}
 function harvest(t, e) {
   if (t.logs <= 0 || e.stack.length >= e.cap) return false;
   t.logs--; t.shake = .3;
+  e.chopT = e.chopDur = e === player ? (t.item === 'stone' ? .4 : .32) : .45; e.chopAt = [t.x, t.z]; e.chopItem = t.item;
   spawnItem(t.item, new THREE.Vector3(t.x, 1.2, t.z), e.stack);
   if (t.item === 'stone') snd(300 + R()*80, .05, 'square', .03); else snd(170 + R()*50, .06, 'square', .035);
   if (t.logs <= 0) { t.regrow = t.item === 'stone' ? 30 : 25; setNode(t, false); }
@@ -1493,7 +1534,7 @@ const boats = [];
 function makeBoat(kind) {
   const g = new THREE.Group(); scene.add(g);
   const big = kind !== 'fish', war = kind === 'war';
-  galleon(g, SHIPS[kind]());
+  if (kind === 'cargo' || kind === 'cruise') modernShip(g, kind); else galleon(g, SHIPS[kind]());
   const sailor = makeChar({body:big ? 0x3a5a8a : 0x3f6fb5, hat:big ? 'beanie' : 'straw', hatCol:0x2a2a4a});
   sailor.g.scale.setScalar(.7); sailor.g.position.set(0, .53, big ? -.2 : -.6); g.add(sailor.g);
   const sail = null;
@@ -1526,7 +1567,11 @@ function updBoats(dt) {
       }
     } else {
       if (b.state === 'dock') { if ((b.t -= dt) <= 0) b.state = 'in'; }
-      else if (b.state === 'in') { if (sail(-9.6, 3)) { b.state = 'trade'; b.t = 2.5; addCash(CASH.harbor, 40 + 15*W.era, {x:-9.3, z:-9.75}); popText('+💵 trade', new THREE.Vector3(b.x, 4, b.z), '#ffe06b'); snd(880, .12, 'triangle', .05); } }
+      else if (b.state === 'in') { if (sail(-9.6, 3)) { b.state = 'trade'; b.t = 2.5;
+        const pay = b.kind === 'cargo' ? 900 + 150*W.era : b.kind === 'cruise' ? 1500 + 200*W.era : 40 + 15*W.era;
+        addCash(CASH.harbor, pay, {x:-9.3, z:-9.75}); popText(b.kind === 'cruise' ? `🛳️ +${pay} cruise` : b.kind === 'cargo' ? `📦 +${pay} cargo` : '+💵 trade', new THREE.Vector3(b.x, 4, b.z), '#ffe06b');
+        // cruise passengers come ashore hungry
+        if (b.kind === 'cruise') for (let i = 0; i < 3; i++) { const L = LINES.main; if (!L || L.q.length >= L.max) break; spawnIn(L); L.q[L.q.length - 1].pos.set(-9.4, 0, -9 + i*.4); L.q[L.q.length - 1].pre = null; } snd(880, .12, 'triangle', .05); } }
       else if (b.state === 'trade') { if ((b.t -= dt) <= 0) b.state = 'out'; }
       else if (b.state === 'out') { if (sail(-85, 3)) { b.state = 'dock'; b.t = 30; } }
     }
@@ -1599,11 +1644,88 @@ const ROUTES = {
   hauler:{src:() => [outZone('smelter')], dst:() => inZone('smith')},
   tinker:{src:() => [outZone('smelter')], dst:() => inZone('workshop')},
 };
+// ------------------------------------------------------------------ walking around things: a grid of where people can't go, and A* paths around it
+const NAV = {x0:-40, z0:-34, cs:.5, nx:180, nz:196, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
+function navGrid() {
+  const k = boxes.length*10000 + circles.length; if (k === NAV.key) return; NAV.key = k; NAV.ver++;
+  const {x0, z0, cs, nx, nz} = NAV, g = NAV.grid = new Uint8Array(nx*nz), r = .3;
+  const mark = (i, j) => { if (i >= 0 && j >= 0 && i < nx && j < nz) g[j*nx + i] = 1; };
+  for (const b of boxes) {
+    for (let j = Math.floor((b.z0 - r - z0)/cs); j <= Math.floor((b.z1 + r - z0)/cs); j++)
+      for (let i = Math.floor((b.x0 - r - x0)/cs); i <= Math.floor((b.x1 + r - x0)/cs); i++) mark(i, j);
+  }
+  for (const c of circles) {
+    const R0 = c.r + r;
+    for (let j = Math.floor((c.z - R0 - z0)/cs); j <= Math.floor((c.z + R0 - z0)/cs); j++)
+      for (let i = Math.floor((c.x - R0 - x0)/cs); i <= Math.floor((c.x + R0 - x0)/cs); i++) {
+        const cx = x0 + (i + .5)*cs, cz = z0 + (j + .5)*cs; if (Math.hypot(cx - c.x, cz - c.z) < R0) mark(i, j);
+      }
+  }
+  if (!NAV.g) { NAV.g = new Float32Array(nx*nz); NAV.from = new Int32Array(nx*nz); NAV.seen = new Int32Array(nx*nz); NAV.stamp = 0; }
+}
+function navBlocked(x, z) {
+  const i = Math.floor((x - NAV.x0)/NAV.cs), j = Math.floor((z - NAV.z0)/NAV.cs);
+  return i >= 0 && j >= 0 && i < NAV.nx && j < NAV.nz && NAV.grid[j*NAV.nx + i] === 1;
+}
+function clearLine(ax, az, bx, bz) {
+  const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / .3);
+  for (let k = 1; k < n; k++) { const t = k/n; if (navBlocked(ax + (bx - ax)*t, az + (bz - az)*t)) return false; }
+  return true;
+}
+// the nearest open cell to a point, for starts and goals that sit inside something
+function openNear(i, j) {
+  const {nx, nz, grid} = NAV;
+  for (let r = 0; r < 8; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+    if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+    const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < nx && b < nz && !grid[b*nx + a]) return [a, b];
+  }
+  return [i, j];
+}
+function findPath(ax, az, bx, bz) {
+  const {x0, z0, cs, nx, nz, grid} = NAV, cell = (x, z) => [clamp(Math.floor((x - x0)/cs), 0, nx - 1), clamp(Math.floor((z - z0)/cs), 0, nz - 1)];
+  const [si, sj] = openNear(...cell(ax, az)), [ti, tj] = openNear(...cell(bx, bz)), goal = tj*nx + ti, start = sj*nx + si;
+  const stamp = ++NAV.stamp, G0 = NAV.g, from = NAV.from, seen = NAV.seen;
+  // a small binary heap keyed on f = g + h
+  const heap = [], f = [];
+  const push = (n, pr) => { heap.push(n); f.push(pr); let k = heap.length - 1; while (k) { const p = (k - 1) >> 1; if (f[p] <= f[k]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; [f[p], f[k]] = [f[k], f[p]]; k = p; } };
+  const pop = () => { const top = heap[0], ln = heap.length - 1; heap[0] = heap[ln]; f[0] = f[ln]; heap.pop(); f.pop(); let k = 0; for (;;) { const a = 2*k + 1, b = a + 1; let m = k; if (a < heap.length && f[a] < f[m]) m = a; if (b < heap.length && f[b] < f[m]) m = b; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; [f[m], f[k]] = [f[k], f[m]]; k = m; } return top; };
+  const h = n => Math.hypot((n % nx) - ti, ((n / nx) | 0) - tj);
+  seen[start] = stamp; G0[start] = 0; from[start] = -1; push(start, h(start));
+  let found = false, it = 0;
+  while (heap.length && it++ < 9000) {
+    const n = pop(); if (n === goal) { found = true; break; }
+    const i = n % nx, j = (n / nx) | 0, gn = G0[n];
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= nx || b >= nz) continue;
+      const m = b*nx + a; if (grid[m]) continue;
+      if (di && dj && (grid[j*nx + a] || grid[b*nx + i])) continue;
+      const ng = gn + (di && dj ? 1.414 : 1);
+      if (seen[m] !== stamp || ng < G0[m]) { seen[m] = stamp; G0[m] = ng; from[m] = n; push(m, ng + h(m)); }
+    }
+  }
+  if (!found) return [];
+  const pts = []; for (let n = goal; n !== -1 && n !== start; n = from[n]) pts.push([x0 + ((n % nx) + .5)*cs, z0 + (((n / nx) | 0) + .5)*cs]);
+  pts.reverse();
+  // pull the string tight so people walk in straight lines between corners
+  const out = []; let cx = ax, cz = az, k = 0;
+  while (k < pts.length) { let far = k; for (let q = pts.length - 1; q > k; q--) if (clearLine(cx, cz, pts[q][0], pts[q][1])) { far = q; break; } out.push(pts[far]); [cx, cz] = pts[far]; k = far + 1; }
+  return out;
+}
+
 function moveTo(e, x, z, dt) {
-  const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz);
-  if (d < .25) { e.vel.set(0, 0, 0); return true; }
-  const s = Math.min(e.speed, d / dt);
-  e.vel.set(dx/d*s, 0, dz/d*s); e.pos.x += e.vel.x*dt; e.pos.z += e.vel.z*dt;
+  const d = Math.hypot(x - e.pos.x, z - e.pos.z);
+  if (d < .25) { e.vel.set(0, 0, 0); e.nav = null; return true; }
+  // walk around tables and buildings: follow a path when the way ahead is blocked
+  let tx = x, tz = z;
+  if (NAV.grid && !clearLine(e.pos.x, e.pos.z, x, z)) {
+    let n = e.nav;
+    if (!n || n.ver !== NAV.ver || Math.hypot(n.tx - x, n.tz - z) > .8 || (!n.pts.length && (n.t -= dt) <= 0)) n = e.nav = {tx:x, tz:z, ver:NAV.ver, pts:findPath(e.pos.x, e.pos.z, x, z), t:1};
+    while (n.pts.length && Math.hypot(n.pts[0][0] - e.pos.x, n.pts[0][1] - e.pos.z) < .3) n.pts.shift();
+    if (n.pts.length) [tx, tz] = n.pts[0];
+  } else e.nav = null;
+  const dx = tx - e.pos.x, dz = tz - e.pos.z, dd = Math.max(1e-6, Math.hypot(dx, dz)), s = Math.min(e.speed, dd / dt);
+  e.vel.set(dx/dd*s, 0, dz/dd*s); e.pos.x += e.vel.x*dt; e.pos.z += e.vel.z*dt;
   return false;
 }
 const dist2 = (e, x, z) => Math.hypot(x - e.pos.x, z - e.pos.z);
@@ -1717,7 +1839,7 @@ function updLine(L, dt) {
     if (k !== 0 || !arrived) continue;
     c.waitT += dt;
     // guests who wait too long storm off; enough of them start a revolt
-    if (L.id !== 'mess' && c.waitT > PATIENCE * BOOST.patience * (1 + .1*(W.water || 0))) { stormOff(c, L); continue; }
+    if (L.id !== 'mess' && c.waitT > PATIENCE * BOOST.patience * (1 + .1*(W.water || 0) + (W.unlocked.has('hospital') ? .15 : 0))) { stormOff(c, L); continue; }
     let d = L.face - c.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); c.yaw += d * Math.min(1, dt*8);
     const w = c.wants.find(w => w.need > 0);
     if (w && (c.eatT -= dt) <= 0 && L.table.stack.count([w.type])) {
@@ -2032,9 +2154,18 @@ const PADS = [
   {id:'airport', x:-31.5, z:-9.6, cost:40, cur:'tools', icon:'🛫', label:'Passenger airport', after:['hangar', 'downtownGate'], region:'airfield'},
   {id:'jumbo', x:-31.5, z:-9.6, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
   {id:'concert', x:25, z:30.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
+  {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'workshop']},
+  {id:'cruisePort', x:-9.2, z:-11.8, cost:60000, cur:'coin', icon:'🛳️', label:'Cruise ships', after:['cargoPort', 'hall']},
+  {id:'police', x:29.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
+  {id:'fireStation', x:29.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
+  {id:'hospital', x:29.2, z:6, cost:30000, cur:'coin', icon:'🏥', label:'Hospital', after:['fireStation', 'library'], region:'east'},
+  {id:'traffic', x:14.6, z:-27.8, cost:20000, cur:'coin', icon:'🚗', label:'Cars & buses', after:['lot0s2'], region:'downtown'},
+  {id:'stadium', x:29.2, z:24, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'launchPad', x:-31, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-31, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
   {id:'moonLanding', x:-31, z:3.6, cost:500000, cur:'coin', icon:'🚀', label:'Moon landing', after:['satellite'], region:'airfield'},
+  {id:'moonBase', x:-31, z:3.6, cost:1000000, cur:'coin', icon:'🧑‍🚀', label:'Moon base', after:['moonLanding'], region:'airfield'},
+  {id:'mars', x:-31, z:3.6, cost:3000000, cur:'coin', icon:'🪐', label:'Mars colony', after:['moonBase'], region:'airfield'},
   {id:'mineRail', x:-2.4, z:-21.6, cost:8, cur:'tools', icon:'🚃', label:'Mine railway', after:['miner', 'workshop'], region:'north'},
   {id:'railway', x:29.3, z:15.4, cost:90, cur:'stone', icon:'🐎', label:'Stagecoach line', after:['farmGate', 'workshop'], region:'farm'},
   {id:'steamTrain', x:29.3, z:15.4, cost:15, cur:'tools', icon:'🚂', label:'Steam train', after:['railway'], region:'farm'},
@@ -2231,6 +2362,15 @@ const UNLOCK = {
   airport(a) { terminalFx(a); makeCash('airport', -31.5, -12.4); makeJet(false); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },
   jumbo(a) { makeJet(true); if (a) banner('🛬 Jumbo jets!', 'Bigger planes, more passengers, much bigger fares.'); },
   concert(a) { concertFx(a); makeCash('concert', 27.6, 30.1); if (a) banner('🎸 Concert hall!', 'Every couple of minutes a band plays. Fans pay for tickets.'); },
+  cargoPort(a) { cargoYard(a); makeBoat('cargo'); if (a) banner('🏗️ Cargo port!', 'Container ships unload at your harbor and pay well.'); },
+  cruisePort(a) { makeBoat('cruise'); if (a) banner('🛳️ Cruise ships!', 'Liners bring hungry tourists to your tables.'); },
+  police(a) { civicBlock('police', a); if (a) banner('🚓 Police station!', 'Officers chase robbers and keep the peace: unrest fades twice as fast.'); },
+  fireStation(a) { civicBlock('fire', a); if (a) banner('🚒 Fire station!', 'Fire trucks put out fires for you.'); },
+  hospital(a) { civicBlock('hospital', a); if (a) banner('🏥 Hospital!', 'Healthier guests wait longer, and an ambulance tends the battlefield.'); },
+  traffic(a) { trafficFx(); if (a) banner('🚗 Cars and buses!', 'Traffic lights, a bus line and cars fill your downtown streets.'); },
+  stadium(a) { stadiumFx(a); if (a) banner('🏉 Rugby stadium!', 'Matchdays every few minutes, with a full house paying at the gate.'); },
+  moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
+  mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
   launchPad(a) { launchPadFx(a); makeCash('space', -27.5, 3.6); if (a) banner('🚀 The space age!', 'Launch satellites for income, then land on the Moon.'); },
   satellite(a) { if (a) launch('sat'); },
   moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
@@ -2354,6 +2494,7 @@ function popText(txt, pos, color) {
   $('labels').appendChild(el); pops.push({el, pos, t:0});
 }
 function banner(title, sub) {
+  try { if (started) news(title); } catch (e) {}
   const b = $('banner'); b.innerHTML = `${title}<small>${sub}</small>`; b.classList.add('show');
   clearTimeout(banner.t); banner.t = setTimeout(() => b.classList.remove('show'), 3800);
 }
@@ -4256,10 +4397,10 @@ function blur(src, tmp, k) {
   mBlur.uniforms.t.value = src.texture; mBlur.uniforms.d.value.set(k / src.width, 0); pass(mBlur, tmp);
   mBlur.uniforms.t.value = tmp.texture; mBlur.uniforms.d.value.set(0, k / src.height); pass(mBlur, src);
 }
-function renderFinal(night) {
-  if (!POST.on) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; }
+function renderFinal(night, sc = scene, cam = camera) {
+  if (!POST.on) { renderer.setRenderTarget(null); renderer.render(sc, cam); return; }
   if (!rtS) postSize();
-  renderer.setRenderTarget(rtS); renderer.render(scene, camera);
+  renderer.setRenderTarget(rtS); renderer.render(sc, cam);
   mCopy.uniforms.t.value = rtS.texture; pass(mCopy, rtA);
   blur(rtA, rtB, 1.3);
   mBright.uniforms.t.value = rtA.texture; pass(mBright, rtC);
@@ -4370,6 +4511,7 @@ function decorMesh(k, x, z, ry = 0) {
     const cars = []; for (let i = 0; i < 4; i++) { const c = new THREE.Group(); g.add(c); mesh(G.box, 0x3f7cc0, [.3, .2, .36], [0, .12, 0], c); bulb(c, 0, .26, 0, 0xffd36b, .04); cars.push(c); }
     rides.push({k:'coaster', pts, cars, g});
   }
+  if (k === 'carousel' || k === 'ferris' || k === 'coaster') riders(k, g);
   decorObjs.push(g);
   return g;
 }
@@ -4602,11 +4744,15 @@ function makeRocket() {
 function launch(mission) {
   if (!rocket) makeRocket();
   rocket.t = 0; rocket.mission = mission;
-  banner(mission === 'moon' ? '🚀 Liftoff! Next stop: the Moon' : '🚀 Liftoff!', mission === 'moon' ? 'Watch it go.' : 'A satellite heads for orbit.');
+  banner(mission === 'moon' ? '🚀 Liftoff! Next stop: the Moon' : mission === 'mars' ? '🚀 Liftoff! Next stop: Mars' : '🚀 Liftoff!', mission === 'sat' ? 'A satellite heads for orbit.' : 'Watch it go.');
   snd(80, 2.4, 'sawtooth', .06, .4);
 }
 function updSpace(dt) {
-  if (W.unlocked.has('satellite') && (EV.satT = (EV.satT ?? 20) - dt) <= 0) { EV.satT = 20; addCash(CASH.space || cash, 1500, {x:-31, z:4}); }
+  // cutscenes and short tours run with the game clock, then bring you home
+  if (SPACE.cut) updCut(dt);
+  else if (SPACE.tour > 0 && (SPACE.tour -= dt) <= 0) { SPACE.view = null; stage.classList.remove('space'); }
+  if (W.unlocked.has('satellite') && (EV.satT = (EV.satT ?? 20) - dt) <= 0) { EV.satT = 20; addCash(CASH.space || cash, 1500 + (W.unlocked.has('moonBase') ? 6000 : 0) + (W.flags.mars ? 15000 : 0), {x:-31, z:4}); }
+  $('bSpace').hidden = !W.flags.moon;
   if (!rocket || rocket.t < 0) return;
   const r = rocket; r.t += dt;
   const t = Math.max(0, r.t - 1.2);
@@ -4616,7 +4762,8 @@ function updSpace(dt) {
   if (r.t < 3) shakeCam(.08);
   if (r.g.position.y > 70) {
     scene.remove(r.g); rocket = null;
-    if (r.mission === 'moon') { setEra(11, true); W.flags.moon = true; banner('🌕 One small step!', 'Your empire has landed on the Moon. You built it all from one campfire.'); save(); }
+    if (r.mission === 'moon') { setEra(11, true); W.flags.moon = true; save(); startCut('moon'); }
+    if (r.mission === 'mars') { setEra(12, true); W.flags.mars = true; save(); startCut('mars'); }
     setTimeout(makeRocket, 4000);
   }
 }
@@ -4695,7 +4842,7 @@ function updResidents(dt) {
 const BROKER = {top:'suit', body:0xf4f4f4, body2:0x1e1e26, pants:0x1e1e26, hair:'sidepart', hairCol:0x2a1a10, acc:'sunglasses', shoe:0x111114, skin:0xe8b892};
 const MKT = {t:2, idx:[100], ex:null, led:null, ledT:0};
 const brokers = () => workers.filter(w => w.kind === 'broker');
-const exchangeAt = () => W.unlocked.has('downtownGate') ? [20, -21] : [6.4, -1.6];
+const exchangeAt = () => W.unlocked.has('downtownGate') ? [20, -21.8] : [6.4, -1.6];
 function buildingDone() { return PADS.every(p => p.cur === 'coin' || W.unlocked.has(p.id)); }
 function exchangeFx() {
   const [x, z] = exchangeAt(), g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); MKT.ex = g;
@@ -4940,6 +5087,583 @@ function updConcert(dt) {
   }
 }
 
+// ------------------------------------------------------------------ workers move goods like a real business: trays, wheelbarrows, carts, then trucks
+const TRAY_KINDS = new Set(['waiter', 'armorer', 'quartermaster', 'barkeep', 'treasurer', 'porter', 'butcher', 'fisher']);
+const CARRY = {
+  tray:{z:.42, y:1.02, nx:3, nz:2, sx:.15, sz:.13, step:.5, speed:1},
+  barrow:{z:.9, y:.48, nx:3, nz:2, sx:.16, sz:.14, step:.45, speed:1},
+  cart:{z:1.1, y:.66, nx:3, nz:3, sx:.19, sz:.17, step:.42, speed:1.15},
+  truck:{z:-.62, y:.74, nx:3, nz:3, sx:.22, sz:.2, step:.4, speed:1.6},
+};
+const carryMode = w => TRAY_KINDS.has(w.kind) ? 'tray' : W.era >= 7 ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
+function equip(w) {
+  if (w.kind === 'broker') return;
+  const mode = carryMode(w), C = CARRY[mode];
+  w.speed = WORKER.speed * C.speed;
+  if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
+  if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
+  w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);
+  const M = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
+  if (mode === 'tray') M(G.cyl, 0xb8bcc2, [.3, .03, .25], [0, .99, .42], {metalness:.6});
+  else if (mode === 'barrow') {
+    M(G.box, 0x3f7cc0, [.56, .22, .5], [0, .4, .92], {metalness:.3}); M(G.box, 0x2f5c90, [.6, .04, .54], [0, .52, .92]);
+    M(G.cyl, 0x1a1a1a, [.16, .06, .16], [0, .16, 1.25]).rotation.z = Math.PI/2;
+    for (const sx of [-1, 1]) { const h = M(G.box, 0x6b4526, [.04, .04, .7], [sx*.2, .62, .52]); h.rotation.x = .25; M(G.box, 0x6b4526, [.04, .3, .04], [sx*.2, .2, .74]); }
+  } else if (mode === 'cart') {
+    M(G.box, 0x8a5d36, [.8, .1, .74], [0, .58, 1.1]);
+    for (const sx of [-1, 1]) { M(G.box, 0x7a5232, [.05, .2, .74], [sx*.4, .7, 1.1]); M(G.cyl, 0x5e3f22, [.3, .06, .3], [sx*.46, .3, 1.1]).rotation.z = Math.PI/2; M(G.box, 0x6b4526, [.04, .04, .8], [sx*.22, .62, .45]); }
+    M(G.box, 0x7a5232, [.8, .2, .05], [0, .7, 1.47]);
+  } else {
+    // a small delivery truck, the driver at the wheel
+    const col = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4][(w.kind.length*7 + workers.indexOf(w)) % 5];
+    M(G.box, col, [.9, .75, .78], [0, .62, .5]); M(G.box, 0x8fc6e8, [.82, .3, .04], [0, .82, .9], {metalness:.5, roughness:.1});
+    M(G.box, 0x3a3e44, [.92, .12, 1.95], [0, .22, -.05]); M(G.box, col, [.92, .06, 1.15], [0, .32, -.58]);
+    for (const sx of [-1, 1]) M(G.box, col, [.04, .26, 1.15], [sx*.45, .48, -.58]);
+    M(G.box, col, [.92, .26, .04], [0, .48, -1.15]);
+    for (const [x, z] of [[-.47, .45], [.47, .45], [-.47, -.75], [.47, -.75]]) M(G.cyl, 0x1a1a1a, [.19, .14, .19], [x, .19, z]).rotation.z = Math.PI/2;
+    for (const sx of [-.3, .3]) bulb(g, sx, .5, .9, 0xfff2c8, .06);
+    M(G.sph, 0xe8b892, [.15, .15, .15], [0, .92, .45]); M(G.cyl, LOOKS[w.kind]?.hatCol || 0x3a3a3a, [.16, .08, .16], [0, 1.06, .45]);
+  }
+  // in a truck the walking figure is tucked away; the driver sits in the cab
+  w.char.g.children.forEach(o => { if (o !== g) o.visible = mode !== 'truck'; });
+  w.stack.layout = (i, it) => {
+    const per = C.nx*C.nz, l = Math.floor(i / per), k = i % per;
+    const lx = ((k % C.nx) - (C.nx - 1)/2)*C.sx*1.8, lz = C.z + (Math.floor(k / C.nx) - (C.nz - 1)/2)*C.sz*1.8;
+    const s = Math.sin(w.yaw), c = Math.cos(w.yaw), h = ITEM[it.type].h;
+    return {x:w.pos.x + lx*c + lz*s, y:C.y + l*h*C.step + h/2 + w.char.g.position.y, z:w.pos.z - lx*s + lz*c, ry:w.yaw};
+  };
+}
+function poseCarry(w) {
+  if (w.carry === 'barrow' || w.carry === 'cart') w.char.armL.rotation.x = w.char.armR.rotation.x = -.95;
+  else if (w.carry === 'tray' && w.stack.length) w.char.armL.rotation.x = w.char.armR.rotation.x = -1.3;
+}
+
+// ------------------------------------------------------------------ robbers, and the police and soldiers who chase them
+let robber = null, lastRobCaught = false;
+const ROB = {t:600};
+function robberLook() { return {body:0x1e1e22, body2:0xf4f4f4, top:'stripes', pants:0x1e1e22, hair:'buzz', hairCol:0x1a1410, acc:'sunglasses', hat:'beanie', hatCol:0x1e1e22}; }
+function startRobbery() {
+  const piles = Object.values(CASH).filter(c => c.value > 60 && inRect(BOUNDS, c.x, c.z) || (c.value > 60 && regionOf(c.x, c.z) !== 'camp' && regionOpen(regionOf(c.x, c.z))));
+  const pile = piles.sort((a, b) => b.value - a.value)[0]; if (!pile) return;
+  const e = entity(robberLook(), 40, 0, 4.4, 0);
+  mesh(G.sph, 0xd8c8a0, [.22, .26, .2], [0, .9, -.35], e.char.g);   // the swag bag
+  robber = e; e.pile = pile; e.state = 'in'; e.loot = 0; lastRobCaught = false;
+  banner('🦹 A robber is after your cash!', W.unlocked.has('police') || W.army ? 'Your police and soldiers give chase.' : 'Hire police or raise an army to catch robbers.');
+  snd(880, .2, 'square', .04); setTimeout(() => snd(660, .3, 'square', .04), 200);
+  // the chase: police from the station, soldiers from the yard
+  const chasers = [];
+  if (W.unlocked.has('police')) for (let i = 0; i < 2; i++) chasers.push(entity({body:0x1f3a7a, body2:0x1f3a7a, top:'shirt', pants:0x1a2440, hat:'helmet', hatCol:0x1f3a7a, hair:'short'}, 36.5 + i*.6, 4, 6.4, 0));
+  if (W.army) for (let i = 0; i < 2; i++) chasers.push(entity(ARMS(), 7 + i*1.2, 17.5, 5.6, 0));
+  e.chasers = chasers;
+}
+function updRobber(dt) {
+  if (!started) return;
+  if (!robber) {
+    if (W.era >= 2 && Object.values(CASH).some(c => c.value > 60) && (ROB.t -= dt) <= 0) { ROB.t = 480 + R()*420; startRobbery(); }
+    return;
+  }
+  const e = robber;
+  if (e.state === 'in') {
+    if (moveTo(e, e.pile.x, e.pile.z, dt)) {
+      const take = Math.min(e.pile.value, 120 + 60*W.era);
+      e.pile.value -= take; W.earned -= take; e.loot = take;
+      for (let i = 0; i < 6 && e.pile.stack.items.length; i++) { const it = e.pile.stack.items.pop(); scene.remove(it.mesh); }
+      popText(`💸 -${take}`, e.pos.clone().setY(2.6), '#ffb0a0');
+      e.state = 'out'; e.speed = 4.8;
+    }
+  } else if (e.state === 'out') {
+    if (moveTo(e, 44, 1.6, dt) || e.pos.x > 41) { endRobbery(false); return; }
+  } else if (e.state === 'caught') {
+    e.vel.set(0, 0, 0); e.char.armL.rotation.x = e.char.armR.rotation.x = -2.9;
+    if ((e.t -= dt) <= 0) { endRobbery(true); return; }
+  }
+  animEntity(e, dt);
+  for (const c of e.chasers) {
+    if (e.state !== 'caught') {
+      moveTo(c, e.pos.x, e.pos.z, dt);
+      if (Math.hypot(c.pos.x - e.pos.x, c.pos.z - e.pos.z) < .75 && e.state === 'out') {
+        e.state = 'caught'; e.t = 2.5;
+        if (e.loot) { e.pile.value += e.loot; W.earned += e.loot; popText(`🚓 +${e.loot} back`, e.pos.clone().setY(2.8), '#b8f0a0'); }
+        W.flags.caught = true; banner('🚓 Robber caught!', 'Your cash is back where it belongs.'); snd(523, .15, 'triangle', .05); setTimeout(() => snd(784, .2, 'triangle', .05), 150);
+      }
+    } else c.vel.set(0, 0, 0);
+    animEntity(c, dt);
+  }
+}
+function endRobbery(caught) {
+  const e = robber; robber = null; lastRobCaught = caught;
+  if (!caught && e.loot) banner(`💸 The robber got away with ${e.loot}!`, W.unlocked.has('police') ? 'Your police were too slow this time.' : 'Build a police station to stop the next one.');
+  for (const c of [e, ...e.chasers]) { scene.remove(c.char.g); stacks.delete(c.stack); }
+}
+
+// ------------------------------------------------------------------ civic services: police, fire and a hospital, east of the railway
+const CIVIC = {fire:null, truck:null, amb:null, patrol:null};
+function civicBlock(kind, anim) {
+  clearForest({x0:35.5, x1:46, z0:-.5, z1:10.5});
+  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 41, 1.6, .007); }
+  const at = {police:[38.2, 4.8], fire:[41.4, 4.8], hospital:[44.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
+  const sign = (t, bg, fg, y) => { const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(t, bg, fg), toneMapped:false})); s.scale.set(1.7, .5, 1); s.position.set(0, y, 1.33); g.add(s); };
+  if (kind === 'police') {
+    mesh(G.box, 0xeef1f4, [2.6, 1.8, 2.6], [0, .9, 0], g); mesh(G.box, 0x1f3a7a, [2.62, .35, 2.62], [0, 1.6, 0], g);
+    for (const x of [-.7, .7]) mesh(G.box, WIN, [.5, .5, .05], [x, .85, 1.31], g);
+    mesh(G.box, 0x1f3a7a, [.6, .9, .05], [0, .45, 1.31], g); sign('POLICE', '#1f3a7a', '#ffffff', 2.05);
+    A_SIREN.push(bulb(g, -.3, 1.95, 0, 0xff3030, .1), bulb(g, .3, 1.95, 0, 0x3060ff, .1));
+  } else if (kind === 'fire') {
+    mesh(G.box, 0xb8322a, [2.8, 2, 2.6], [0, 1, 0], g); mesh(G.box, 0x8a2a22, [2.82, .2, 2.62], [0, 2.05, 0], g);
+    for (const x of [-.65, .65]) mesh(G.box, 0xdfe4ea, [1, 1.2, .05], [x, .6, 1.31], g);
+    mesh(G.box, 0xb8322a, [.6, 2.8, .6], [1.1, 1.4, -.9], g); sign('FIRE', '#8a1a14', '#ffffff', 1.55);
+  } else {
+    mesh(G.box, 0xf4f6f8, [3, 2.6, 2.8], [0, 1.3, 0], g); for (let f = 0; f < 2; f++) for (const x of [-1, -.35, .35, 1]) mesh(G.box, WIN, [.4, .4, .05], [x, .7 + f*1, 1.41], g);
+    mesh(G.box, 0xd9443a, [.6, .18, .05], [0, 2.25, 1.42], g); mesh(G.box, 0xd9443a, [.18, .6, .05], [0, 2.25, 1.42], g);
+    mesh(G.cyl, 0x5a5e66, [.9, .04, .9], [0, 2.63, 0], g); mesh(G.box, 0xf4f4f4, [.12, .01, .6], [-.2, 2.66, 0], g); mesh(G.box, 0xf4f4f4, [.12, .01, .6], [.2, 2.66, 0], g); mesh(G.box, 0xf4f4f4, [.4, .01, .12], [0, 2.66, 0], g);
+  }
+  fader(g, 3, 2.6);
+  if (anim) popIn(g);
+  if (kind === 'fire') CIVIC.truck = vehicle(0xd9443a, 41.4, 6.7, 'fire');
+  if (kind === 'hospital') CIVIC.amb = vehicle(0xf4f6f8, 44.6, 7.4, 'amb');
+  if (kind === 'police') CIVIC.patrol = vehicle(0xf4f6f8, 38.2, 6.7, 'police');
+}
+const A_SIREN = [];
+function vehicle(col, x, z, kind) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const long = kind === 'fire' || kind === 'bus';
+  mesh(G.box, col, [.9, .6, long ? 2.4 : 1.6], [0, .5, 0], g); mesh(G.box, kind === 'police' ? 0x1f3a7a : col, [.86, .4, long ? 1.2 : .8], [0, .95, long ? .5 : -.1], g);
+  mesh(G.box, 0x8fc6e8, [.8, .26, .04], [0, .98, long ? 1.12 : .32], g, {metalness:.5, roughness:.1});
+  for (const [wx, wz] of [[-.46, .55], [.46, .55], [-.46, -.55], [.46, -.55]]) mesh(G.cyl, 0x1a1a1a, [.18, .12, .18], [wx, .18, wz*(long ? 1.5 : 1)], g).rotation.z = Math.PI/2;
+  if (kind === 'amb') { mesh(G.box, 0xd9443a, [.92, .12, 1.62], [0, .55, 0], g); }
+  if (kind === 'fire') { mesh(G.box, 0xdfe4ea, [.15, .12, 2], [.25, 1.25, -.3], g, {metalness:.6}); }
+  const lights = kind === 'fire' || kind === 'amb' || kind === 'police' ? [bulb(g, -.2, 1.2, 0, 0xff3030, .07), bulb(g, .2, 1.2, 0, 0x3060ff, .07)] : [];
+  for (const sx of [-.3, .3]) bulb(g, sx, .55, long ? 1.22 : .82, 0xfff2c8, .05);
+  return {g, x, z, home:[x, z], path:[], lights, busy:false, speed:kind === 'bus' ? 3.5 : 7, wait:0};
+}
+function driveTo(v, pts, onArrive) { v.path = pts.slice(); v.onArrive = onArrive; v.busy = true; }
+function updVehicle(v, dt) {
+  if (!v) return;
+  if (v.wait > 0) { v.wait -= dt; return; }
+  if (v.path.length) {
+    const [tx, tz] = v.path[0], dx = tx - v.g.position.x, dz = tz - v.g.position.z, d = Math.hypot(dx, dz);
+    if (d < .2) { v.path.shift(); if (!v.path.length && v.onArrive) { const f = v.onArrive; v.onArrive = null; f(); } }
+    else { const s = Math.min(d, v.speed*dt); v.g.position.x += dx/d*s; v.g.position.z += dz/d*s; v.g.rotation.y = Math.atan2(dx, dz); }
+  }
+  const on = v.busy && v.lights.length;
+  v.lights.forEach((l, i) => { l.visible = on ? Math.sin(time*12 + i*Math.PI) > 0 : false; });
+}
+// the road in from the east, then straight to the job
+const TOWN_ROUTE = (x, z) => [[38, 1.6], [14, 1.6], [12.6, 1.6], [x, z]];
+function updCivic(dt) {
+  if (!started) return;
+  // fire trucks put out fires so you don't have to
+  const T = CIVIC.truck;
+  if (T && !T.busy) {
+    const st = Object.values(ST).find(s => s.broken && !s.truckOn);
+    if (st) {
+      st.truckOn = true; const [x, z] = st.inZ || [st.body.position.x, st.body.position.z];
+      banner('🚒 The fire brigade is on its way!', `Heading to the ${st.name}.`);
+      driveTo(T, TOWN_ROUTE(x + 1.2, z + 1.2), () => {
+        T.wait = 3;
+        for (let i = 0; i < 30; i++) setTimeout(() => particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((x - T.g.position.x)*.8 + (R() - .5), 2, (z - T.g.position.z)*.8 + (R() - .5)), .6, .08, {grav:1}), i*90);
+        setTimeout(() => {
+          if (st.broken) { st.broken = false; if (st.repairZone) removeZone(st.repairZone); st.repairZone = null; puff(x, z); popText(`🚒 Fire out at the ${st.name}`, new THREE.Vector3(x, 2.8, z), '#b8f0a0'); }
+          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [38, 1.6], T.home], () => { T.busy = false; });
+        }, 3000);
+      });
+    }
+  }
+  updVehicle(T, dt);
+  // the ambulance goes out to the battlefield after every land battle
+  const Am = CIVIC.amb;
+  if (Am && !Am.busy && W.camp && W.camp.type === 'land' && W.camp.t < 9 && W.camp.t > 8) driveTo(Am, [[38, 1.6], [31, 1.6], [31, 31.5], [BF.x + 2, 33]], () => { Am.wait = 4; driveTo(Am, [[31, 31.5], [31, 1.6], [38, 1.6], Am.home], () => { Am.busy = false; }); });
+  updVehicle(Am, dt);
+  // a patrol car loops through town
+  const Pc = CIVIC.patrol;
+  if (Pc && !Pc.busy) driveTo(Pc, [[38, 1.6], [16, 1.6], [16, 3.4], [38, 3.4], Pc.home], () => { Pc.busy = false; Pc.wait = 8; });
+  updVehicle(Pc, dt);
+  A_SIREN.forEach((b, i) => { b.visible = Math.sin(time*6 + i*Math.PI) > 0; });
+}
+
+// ------------------------------------------------------------------ the port: a container yard, cargo ships and cruise liners
+function cargoYard(anim) {
+  clearForest({x0:-24, x1:-17, z0:-15, z1:-10});
+  const g = new THREE.Group(); scene.add(g);
+  slab(0x8a8f96, 4.4, 3.6, -20, -12.3, .005);
+  const cols = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0x8a3a8a, 0xf4f4f4];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 1 + ((i + j) % 3); k++)
+    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-21.4 + i*1, .25 + k*.5, -13.4 + j*.6], g);
+  // a gantry crane on the bank
+  for (const z of [-13.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-18.2, 1.5, z], g, {metalness:.4});
+  mesh(G.box, 0xf2a21a, [.2, .2, 2.8], [-18.2, 3, -12.3], g, {metalness:.4}); const jib = mesh(G.box, 0xf2a21a, [4, .18, .25], [-16.6, 3.1, -12.3], g, {metalness:.4});
+  if (anim) popIn(g);
+}
+function modernShip(g, kind) {
+  if (kind === 'cargo') {
+    mesh(G.box, 0x7a1e1a, [1.4, .5, 5.2], [0, .25, 0], g); mesh(G.box, 0x1e1e22, [1.42, .1, 5.22], [0, .02, 0], g);
+    const prow = mesh(G.cone4, 0x7a1e1a, [.7, 1.2, .25], [0, .25, 3.1], g); prow.rotation.x = Math.PI/2; prow.rotation.y = Math.PI/4;
+    const cols = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4];
+    for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) mesh(G.box, cols[(i + k*2) % 5], [1.2, .38, .7], [0, .7 + k*.38, 1.9 - i*.72], g);
+    mesh(G.box, 0xf4f4f4, [1.2, 1.2, .8], [0, 1.1, -2.2], g); mesh(G.box, 0x1a2a3a, [1.22, .2, .82], [0, 1.45, -2.2], g); mesh(G.cyl, 0x2a2a2e, [.16, .6, .16], [0, 1.9, -2.4], g);
+  } else {
+    mesh(G.box, 0xf4f6f8, [1.5, .6, 5.8], [0, .3, 0], g); mesh(G.box, 0x1f3a7a, [1.52, .14, 5.82], [0, .06, 0], g);
+    const prow = mesh(G.cone4, 0xf4f6f8, [.75, 1.4, .3], [0, .3, 3.5], g); prow.rotation.x = Math.PI/2; prow.rotation.y = Math.PI/4;
+    for (let d = 0; d < 3; d++) { mesh(G.box, 0xf4f6f8, [1.3 - d*.15, .42, 4.6 - d*.9], [0, .8 + d*.42, -.2 - d*.15], g); for (let i = 0; i < 8 - d*2; i++) for (const sx of [-1, 1]) mesh(G.box, WIN, [.02, .12, .22], [sx*(.66 - d*.075), .82 + d*.42, -2.2 + d*.6 + i*.55], g); }
+    mesh(G.cyl, 0x1f5fb8, [.25, .6, .25], [0, 2.3, -1.2], g); mesh(G.cyl, 0x1a1a1a, [.26, .1, .26], [0, 2.6, -1.2], g);
+    mesh(G.box, 0x3a9ad0, [.6, .02, .9], [0, 2.04, .6], g);
+  }
+}
+
+// ------------------------------------------------------------------ downtown traffic: cars, a bus and traffic lights
+const TRAFFIC = {cars:[], lights:[], bus:null};
+const LOOP = [[14.9, -13.6], [29.9, -13.6], [29.9, -28.9], [14.9, -28.9]];
+function trafficFx() {
+  const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a];
+  const per = LOOP.reduce((a, p, i) => a + Math.hypot(LOOP[(i + 1) % 4][0] - p[0], LOOP[(i + 1) % 4][1] - p[1]), 0);
+  for (let i = 0; i < 6; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.s = i/6*per; v.per = per; v.speed = 4 + R(); TRAFFIC.cars.push(v); }
+  const b = vehicle(0xf2a21a, 0, 0, 'bus'); b.s = .5*per; b.per = per; b.speed = 2.6; b.bus = true; TRAFFIC.bus = b; TRAFFIC.cars.push(b);
+  // traffic lights at each corner
+  for (const [x, z] of LOOP) {
+    const g = new THREE.Group(); g.position.set(x + (x < 20 ? -.7 : .7), 0, z + (z > -20 ? .7 : -.7)); scene.add(g);
+    mesh(G.cyl, 0x2a2e36, [.04, 1.8, .04], [0, .9, 0], g, {metalness:.5}); mesh(G.box, 0x1a1a1e, [.18, .5, .14], [0, 1.85, 0], g);
+    const l = [bulb(g, 0, 2.02, .08, 0xff3030, .05), bulb(g, 0, 1.86, .08, 0xffc030, .05), bulb(g, 0, 1.7, .08, 0x30ff60, .05)];
+    TRAFFIC.lights.push({l, x, z});
+  }
+  // a bus shelter
+  const sh = new THREE.Group(); sh.position.set(22, 0, -29.6); scene.add(sh);
+  mesh(G.box, 0x8fc6e8, [1.6, 1.2, .05], [0, .8, -.3], sh, {metalness:.4, roughness:.1, transparent:true, opacity:.6}); mesh(G.box, 0x3a3e44, [1.8, .08, .7], [0, 1.45, 0], sh);
+}
+function loopAt(s) {
+  let r = ((s % TRAFFIC.cars[0].per) + TRAFFIC.cars[0].per) % TRAFFIC.cars[0].per;
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = LOOP[i], [bx, bz] = LOOP[(i + 1) % 4], l = Math.hypot(bx - ax, bz - az);
+    if (r <= l) { const t = r / l; return [ax + (bx - ax)*t, az + (bz - az)*t, Math.atan2(bx - ax, bz - az), i]; }
+    r -= l;
+  }
+  return [...LOOP[0], 0, 0];
+}
+function updTraffic(dt) {
+  if (!TRAFFIC.cars.length) return;
+  const phase = Math.floor(time / 7) % 2;   // corners 0 and 2 go together, then 1 and 3
+  TRAFFIC.lights.forEach((t, i) => { const green = (i % 2) === phase, amber = (time % 7) > 5.8; t.l[0].visible = !green; t.l[1].visible = green && amber; t.l[2].visible = green && !amber; });
+  for (const v of TRAFFIC.cars) {
+    if (v.wait > 0) { v.wait -= dt; continue; }
+    const [x, z, a, seg] = loopAt(v.s), next = (seg + 1) % 4, [nx, nz] = LOOP[next], toCorner = Math.hypot(nx - x, nz - z);
+    const red = (next % 2) !== phase || (time % 7) > 5.8;
+    const ahead = TRAFFIC.cars.some(o => o !== v && ((o.s - v.s + v.per) % v.per) > 0 && ((o.s - v.s + v.per) % v.per) < 1.6);
+    if (!(red && toCorner < 1.4 && toCorner > .4) && !ahead) v.s += v.speed*dt;
+    v.g.position.set(x, 0, z); v.g.rotation.y = a;
+    if (v.bus && Math.abs(x - 22) < .1 && seg === 2 && !v.stopped) { v.wait = 3; v.stopped = true; for (let i = 0; i < 2 && movers.length < MAX_MOVERS; i++) spawnMover([[22 + i*.4, -29.8], [22, -29.2]], null, false); }
+    if (v.bus && seg !== 2) v.stopped = false;
+  }
+}
+
+// ------------------------------------------------------------------ the rugby stadium: matchdays with two teams, a ball and a roaring crowd
+const RUGBY = {at:[41.5, 22], t:60, on:0, players:[], ball:null, score:[0, 0], crowd:null, board:null};
+function stadiumFx(anim) {
+  const [cx, cz] = RUGBY.at;
+  clearForest({x0:35, x1:48.5, z0:14, z1:30});
+  slab(0x8a8478, 13, 15, cx, cz, .004);
+  const g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); RUGBY.g = g;
+  // the pitch with stripes, lines and H posts at each end
+  for (let i = 0; i < 8; i++) mesh(G.box, i % 2 ? 0x3f9a3a : 0x4aa844, [7.2, .02, 1.2], [0, .03, -4.2 + i*1.2], g);
+  for (const z of [-4.6, 0, 4.6]) mesh(G.box, 0xf4f4f4, [7.2, .03, .05], [0, .045, z], g);
+  for (const x of [-3.6, 3.6]) mesh(G.box, 0xf4f4f4, [.05, .03, 9.6], [x, .045, 0], g);
+  for (const z of [-4.8, 4.8]) { for (const x of [-.45, .45]) mesh(G.cyl, 0xf4f4f4, [.04, 2.6, .04], [x, 1.3, z], g); mesh(G.box, 0xf4f4f4, [.9, .05, .05], [0, .9, z], g); }
+  // stands on both long sides, full of fans
+  const fans = [];
+  for (const sx of [-1, 1]) for (let r = 0; r < 4; r++) {
+    mesh(G.box, 0x9aa0a8, [1, .35, 10], [sx*(4.4 + r*.6), .18 + r*.35, 0], g);
+    for (let k = 0; k < 16; k++) fans.push([sx*(4.4 + r*.6), .55 + r*.35, -4.6 + k*.6]);
+  }
+  const crowd = RUGBY.crowd = new THREE.InstancedMesh(G.box, new THREE.MeshStandardMaterial({color:0xffffff, roughness:.8}), fans.length), o = new THREE.Object3D(), c = new THREE.Color();
+  fans.forEach(([x, y, z], i) => { o.position.set(x, y, z); o.scale.set(.25, .4, .25); o.updateMatrix(); crowd.setMatrixAt(i, o.matrix); crowd.setColorAt(i, c.set(R() < .5 ? 0xd9443a : 0x1f5fb8).offsetHSL(0, 0, (R() - .5)*.2)); });
+  crowd.userData.fans = fans; g.add(crowd);
+  for (const [x, z] of [[-6.4, -6], [6.4, -6], [-6.4, 6], [6.4, 6]]) { mesh(G.cyl, 0x8a8f96, [.08, 5, .08], [x, 2.5, z], g, {metalness:.5}); mesh(G.box, 0x2a2e36, [.9, .5, .2], [x, 5.1, z], g); bulb(g, x, 5.1, z + .12*Math.sign(-z), 0xffffff, .2); }
+  // the scoreboard
+  const sc = document.createElement('canvas'); sc.width = 256; sc.height = 96; RUGBY.board = {c:sc, t:new THREE.CanvasTexture(sc)};
+  const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:RUGBY.board.t, toneMapped:false})); s.scale.set(3, 1.1, 1); s.rotation.y = -Math.PI/2; s.position.set(-6.9, 3.4, 0); g.add(s);
+  mesh(G.box, 0x1a1a1e, [.15, 1.3, 3.2], [-7, 3.4, 0], g); mesh(G.cyl, 0x3a3e44, [.08, 2.8, .08], [-7, 1.4, 0], g);
+  drawBoard();
+  fader(g, 13, 5);
+  if (anim) popIn(g);
+}
+function drawBoard() {
+  const b = RUGBY.board; if (!b) return; const g = b.c.getContext('2d');
+  g.fillStyle = '#0a0f18'; g.fillRect(0, 0, 256, 96); g.font = '900 44px ui-monospace,monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#ff6a5a'; g.fillText(String(RUGBY.score[0]), 64, 52); g.fillStyle = '#ffffff'; g.fillText('–', 128, 50); g.fillStyle = '#6ab0ff'; g.fillText(String(RUGBY.score[1]), 192, 52);
+  b.t.needsUpdate = true;
+}
+function kickoff() {
+  for (const p of RUGBY.players) scene.remove(p.c.g); RUGBY.players = [];
+  const [cx, cz] = RUGBY.at;
+  for (let t = 0; t < 2; t++) for (let i = 0; i < 6; i++) {
+    const c = makeChar({civ:0, top:'stripes', body:t ? 0x1f5fb8 : 0xd9443a, body2:0xf4f4f4, pants:0xf4f4f4, shorts:true, hair:'short', hairCol:HAIRC[(i + t*3) % 8], skin:SKINS[(i*2 + t) % 5]});
+    const p = {c, t, x:cx - 2.4 + (i % 3)*2.4, z:cz + (t ? 1.2 : -1.2) + Math.floor(i / 3)*(t ? 1 : -1)}; c.g.position.set(p.x, 0, p.z); RUGBY.players.push(p);
+  }
+  if (!RUGBY.ball) { RUGBY.ball = mesh(G.sph, 0x8a5a2b, [.14, .1, .1], [0, 0, 0], scene); }
+  RUGBY.carrier = RUGBY.players[R()*12|0];
+}
+function updRugby(dt) {
+  if (!RUGBY.g || !started) return;
+  if (RUGBY.on <= 0 && (RUGBY.t -= dt) <= 0) { RUGBY.on = 35; RUGBY.t = 140 + R()*80; RUGBY.score = [0, 0]; drawBoard(); kickoff(); banner('🏉 Matchday at the stadium!', 'Two teams, one ball and a sold-out crowd.'); }
+  const crowd = RUGBY.crowd, live = RUGBY.on > 0;
+  if (crowd && (live || RUGBY.cheer > 0)) {
+    RUGBY.cheer = Math.max(0, (RUGBY.cheer || 0) - dt);
+    const o = new THREE.Object3D(), f = crowd.userData.fans;
+    for (let i = 0; i < f.length; i += 1) { const [x, y, z] = f[i]; o.position.set(x, y + Math.max(0, Math.sin(time*(RUGBY.cheer > 0 ? 14 : 4) + i))*(RUGBY.cheer > 0 ? .2 : .05), z); o.scale.set(.25, .4, .25); o.updateMatrix(); crowd.setMatrixAt(i, o.matrix); }
+    crowd.instanceMatrix.needsUpdate = true;
+  }
+  if (!live) { for (const p of RUGBY.players) p.c.g.visible = false; if (RUGBY.ball) RUGBY.ball.visible = false; return; }
+  RUGBY.on -= dt;
+  const [cx, cz] = RUGBY.at, car = RUGBY.carrier, goalZ = cz + (car.t ? -4.6 : 4.6);
+  for (const p of RUGBY.players) {
+    p.c.g.visible = true;
+    let tx, tz;
+    if (p === car) { tx = clamp(p.x + Math.sin(time*2 + p.t)*.5, cx - 3.3, cx + 3.3); tz = goalZ; }
+    else if (p.t === car.t) { tx = car.x + (p.x > car.x ? 1.4 : -1.4); tz = car.z - (car.t ? -1 : 1)*.8; }
+    else { tx = car.x; tz = car.z + (car.t ? -1 : 1)*.2; }
+    const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz), sp = p === car ? 3.2 : 3.5;
+    if (d > .05) { p.x += dx/d*Math.min(d, sp*dt); p.z += dz/d*Math.min(d, sp*dt); p.c.g.rotation.y = Math.atan2(dx, dz); }
+    const s = Math.sin(time*13 + p.x*3); p.c.legL.rotation.x = s*.8; p.c.legR.rotation.x = -s*.8; p.c.armL.rotation.x = -s*.6; p.c.armR.rotation.x = p === car ? -1.2 : s*.6;
+    p.c.g.position.set(p.x, Math.abs(s)*.05, p.z);
+    // a tackle turns the ball over
+    if (p.t !== car.t && Math.hypot(p.x - car.x, p.z - car.z) < .45 && R() < dt*2.5) { RUGBY.carrier = p; snd(140, .08, 'square', .03); break; }
+  }
+  RUGBY.ball.position.set(RUGBY.carrier.x + .15, 1, RUGBY.carrier.z + .1); RUGBY.ball.visible = true;
+  if (Math.abs(RUGBY.carrier.z - goalZ) < .3) {
+    RUGBY.score[RUGBY.carrier.t] += 5; drawBoard(); RUGBY.cheer = 2.5;
+    popText('🏉 TRY!', new THREE.Vector3(RUGBY.carrier.x, 3, RUGBY.carrier.z), '#ffe06b'); [523, 659, 784].forEach((f, i) => setTimeout(() => snd(f, .15, 'triangle', .04), i*90));
+    kickoff();
+  }
+  if (RUGBY.on <= 0) {
+    const pay = 2500 + 300*W.era; W.coins += pay; W.earned += pay;
+    popText(`🎟️ +${pay} gate takings`, new THREE.Vector3(30, 3, 22), '#ffe06b');
+    news(`Rugby: ${RUGBY.score[0]}–${RUGBY.score[1]} in front of a full house`);
+  }
+}
+
+// ------------------------------------------------------------------ riders on the rides, and ticket money
+function riders(k, g) {
+  const add = (parent, x, y, z) => { const c = makeChar({civ:true}); scene.remove(c.g); c.g.scale.setScalar(.5); c.g.position.set(x, y, z); c.legL.rotation.x = c.legR.rotation.x = -1.4; c.armL.rotation.x = c.armR.rotation.x = -2.6; parent.add(c.g); };
+  const r = rides[rides.length - 1];
+  if (k === 'carousel') r.o.children.forEach(h => add(h, 0, .05, 0));
+  if (k === 'ferris') r.cabins.forEach(c => add(c, 0, -.35, 0));
+  if (k === 'coaster') r.cars.forEach(c => add(c, 0, .1, 0));
+}
+const RIDE_PAY = {carousel:250, ferris:450, coaster:900};
+let rideT = 20;
+function updRideIncome(dt) {
+  if (!started || (rideT -= dt) > 0) return; rideT = 20;
+  for (const d of (W.decor || [])) {
+    const p = RIDE_PAY[d.k]; if (!p) continue;
+    const pay = p + 40*W.era; W.coins += pay; W.earned += pay;
+    popText(`🎢 +${pay} rides`, new THREE.Vector3(d.x, 3.6, d.z), '#ffe06b');
+    if (movers.length < MAX_MOVERS) spawnMover([[d.x + 3, d.z + 2.5], [d.x + 1.6, d.z + 1.6], [d.x + 3, d.z + 2.5]], null, false);
+  }
+}
+
+// ------------------------------------------------------------------ the Riverside Times: a news ticker
+const NEWS = [];
+function news(t) { NEWS.unshift(t.replace(/<[^>]+>/g, '')); if (NEWS.length > 10) NEWS.pop(); drawTicker(); }
+function drawTicker() {
+  const el = $('tickerText'); if (!el) return;
+  $('ticker').hidden = !NEWS.length; stage.classList.toggle('news', NEWS.length > 0);
+  el.textContent = '📰 THE RIVERSIDE TIMES  •  ' + NEWS.join('  •  ') + '  •  ';
+}
+
+// ------------------------------------------------------------------ achievements and the trophy shelf
+const ACH = [
+  ['fish', '🎣', 'First catch', 'Catch a fish', () => W.caught >= 1],
+  ['fed100', '😋', 'Busy kitchen', 'Feed 100 travelers', () => W.fed >= 100],
+  ['fed1k', '🍽️', 'Famous kitchen', 'Feed 1,000 travelers', () => W.fed >= 1000],
+  ['fed5k', '👨‍🍳', 'Legendary kitchen', 'Feed 5,000 travelers', () => W.fed >= 5000],
+  ['win1', '⚔️', 'First victory', 'Win a campaign', () => W.conquests >= 1],
+  ['winAll', '🌍', 'World conqueror', 'Win every campaign', () => W.conquests >= CAMPAIGNS.length],
+  ['army50', '🛡️', 'Standing army', 'Train 50 soldiers', () => W.army >= 50],
+  ['castle', '🏰', 'Stronghold', 'Build the bunker complex', () => (W.castle || 0) >= 4],
+  ['water', '💧', 'Clean water', 'Build the modern water plant', () => (W.water || 0) >= 5],
+  ['bridge', '🌁', 'Golden gate', 'Build the suspension bridge', () => (W.bridge || 0) >= 4],
+  ['train', '🚄', 'Bullet time', 'Run a bullet train', () => (W.train || 0) >= 3],
+  ['sky', '🏙️', 'Skyline', 'Build a skyscraper', () => lotStage.some(s => s === 4)],
+  ['pop100', '🏠', 'Big city', 'Reach 100 residents', () => population() >= 100],
+  ['rich', '💰', 'Millionaire', 'Earn 1,000,000 in total', () => W.earned >= 1e6],
+  ['tycoon', '🤑', 'Tycoon', 'Earn 10,000,000 in total', () => W.earned >= 1e7],
+  ['fund', '📈', 'Investor', 'Grow your fund past 100,000', () => (W.fund || 0) >= 1e5],
+  ['coaster', '🎢', 'Thrill seeker', 'Build a roller coaster', () => (W.decor || []).some(d => d.k === 'coaster')],
+  ['cop', '🚓', 'Law and order', 'Catch a robber', () => W.flags.caught],
+  ['moon', '🌕', 'One small step', 'Land on the Moon', () => W.flags.moon],
+  ['mars', '🔴', 'Red planet', 'Found a colony on Mars', () => W.flags.mars],
+];
+let achT = 2;
+function updAch(dt) {
+  if (!started || (achT -= dt) > 0) return; achT = 2;
+  const got = W.flags.ach ||= {};
+  for (const [id, icon, name, , test] of ACH) if (!got[id] && test()) {
+    got[id] = true; banner(`${icon} Trophy: ${name}!`, 'It is on your trophy shelf now.'); news(`Trophy unlocked: ${name}`);
+    [659, 784, 988].forEach((f, i) => setTimeout(() => snd(f, .15, 'triangle', .05), i*100));
+  }
+}
+function openTrophies() {
+  const got = W.flags.ach || {}, m = $('modal'); m.hidden = false; m.dataset.panel = '';
+  m.innerHTML = `<div class="card"><h1 style="font-size:26px">🏆 Trophy shelf</h1><p>${Object.keys(got).length} of ${ACH.length} won</p>
+    <div class="shelf">${ACH.map(([id, icon, name, how]) => `<div class="${got[id] ? 'won' : ''}" title="${how}"><span>${got[id] ? icon : '🔒'}</span><b>${name}</b><small>${how}</small></div>`).join('')}</div>
+    <button class="ghost" id="trClose">Close</button></div>`;
+  $('trClose').onclick = () => { m.hidden = true; };
+}
+
+// ------------------------------------------------------------------ photo mode: hide the HUD, orbit the camera, save a picture
+const PHOTO = {on:false, yaw:CAM_YAW, pitch:.85, dist:22};
+function togglePhoto(on) {
+  PHOTO.on = on; stage.classList.toggle('photo', on); $('photoBar').hidden = !on;
+  if (on) { PHOTO.yaw = CAM_YAW; PHOTO.pitch = .85; PHOTO.dist = 22; }
+}
+function photoCamera(dt, fx, fz) {
+  const sx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + joy.x, sy = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0) + joy.y;
+  PHOTO.yaw -= sx*dt*1.4; PHOTO.pitch = clamp(PHOTO.pitch + sy*dt*.8, .18, 1.35);
+  const h = Math.sin(PHOTO.pitch)*PHOTO.dist, r = Math.cos(PHOTO.pitch)*PHOTO.dist;
+  camera.position.set(fx + Math.sin(PHOTO.yaw)*r, h, fz + Math.cos(PHOTO.yaw)*r); camera.lookAt(fx, 1, fz);
+}
+function savePhoto() {
+  renderFinal(0); const url = renderer.domElement.toDataURL('image/png');
+  const a = document.createElement('a'); a.href = url; a.download = 'my-empire.png'; a.click();
+  snd(1200, .05, 'square', .04);
+}
+
+// ------------------------------------------------------------------ space: a Moon landing you can watch, a base on the Moon, then a colony on Mars
+const SPACE = {view:null, scenes:{}, cut:null, orbit:0};
+function planetTex(kind) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+  let sd = kind === 'earth' ? 5 : 9; const r = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  g.fillStyle = kind === 'earth' ? '#2f6fc0' : '#a8a49c'; g.fillRect(0, 0, 256, 128);
+  for (let i = 0; i < (kind === 'earth' ? 14 : 30); i++) {
+    g.fillStyle = kind === 'earth' ? ['#3f9a4a', '#6aa84a', '#c8b078'][i % 3] : ['#8a867e', '#b8b4ac'][i % 2];
+    g.beginPath(); g.ellipse(r()*256, 20 + r()*88, 8 + r()*30, 6 + r()*16, r()*3, 0, 7); g.fill();
+  }
+  if (kind === 'earth') { g.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 20; i++) { g.beginPath(); g.ellipse(r()*256, r()*128, 10 + r()*24, 3 + r()*5, 0, 0, 7); g.fill(); } }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function spaceScene(planet) {
+  if (SPACE.scenes[planet]) return SPACE.scenes[planet];
+  const sc = new THREE.Scene(), mars = planet === 'mars';
+  sc.background = new THREE.Color(mars ? 0x1a0c08 : 0x02030a);
+  const sun = new THREE.DirectionalLight(mars ? 0xffe0c0 : 0xffffff, 3.2); sun.position.set(30, 40, 20); sc.add(sun, new THREE.HemisphereLight(mars ? 0xd08060 : 0x8090b0, 0x201812, .7));
+  // stars all round
+  const n = 1600, pos = new Float32Array(n*3);
+  for (let i = 0; i < n; i++) { const u = R()*2 - 1, a = R()*Math.PI*2, s = Math.sqrt(1 - u*u); pos.set([Math.cos(a)*s*180, Math.abs(u)*180 + 5, Math.sin(a)*s*180], i*3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  sc.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xffffff, size:1.6, sizeAttenuation:false})));
+  // home, hanging in the sky
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(mars ? 2 : 11, 32, 20), new THREE.MeshStandardMaterial({map:planetTex('earth'), roughness:.7}));
+  earth.position.set(-50, mars ? 60 : 38, -110); sc.add(earth);
+  if (mars) for (const [x, y, s] of [[40, 50, 2.5], [70, 35, 1.6]]) { const m = new THREE.Mesh(G.ico, mat(0x8a7a6a, {flatShading:true})); m.position.set(x, y, -120); m.scale.setScalar(s); sc.add(m); }
+  // the ground: craters on the Moon, red dunes and rocks on Mars
+  seed = mars ? 61 : 47; const craters = [];
+  for (let i = 0; i < 28; i++) craters.push([(rnd() - .5)*100, (rnd() - .5)*100, 1.5 + rnd()*5]);
+  const H = (x, z) => {
+    let h = Math.sin(x*.08)*Math.cos(z*.07)*(mars ? 1.6 : .8) + Math.sin(x*.31 + z*.2)*.25;
+    for (const [cx, cz, r] of craters) { const d = Math.hypot(x - cx, z - cz) / r; if (d < 1.4) h += d < 1 ? -(1 - d*d)*r*.25 : (1.4 - d)*r*.18; }
+    if (Math.hypot(x, z) < 9) h *= Math.hypot(x, z) / 9;   // a flat landing zone
+    return h;
+  };
+  const geo = new THREE.PlaneGeometry(130, 130, 130, 130); geo.rotateX(-Math.PI/2);
+  const p = geo.attributes.position, col = [], c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), h = H(x, z); p.setY(i, h); c.setHex(mars ? 0xb8562a : 0x9a9894).offsetHSL(0, 0, h*.03 + (R() - .5)*.03); col.push(c.r, c.g, c.b); }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+  sc.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({vertexColors:true, roughness:1, flatShading:true})));
+  if (mars) for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(G.ico, mat(0x7a3a1e, {flatShading:true})); const x = (R() - .5)*90, z = (R() - .5)*90; if (Math.hypot(x, z) < 10) continue; m.position.set(x, H(x, z), z); m.scale.setScalar(.3 + R()*1.2); sc.add(m); }
+  const base = new THREE.Group(); sc.add(base);
+  const cam = new THREE.PerspectiveCamera(40, 1, .1, 500);
+  return SPACE.scenes[planet] = {sc, cam, base, H, planet, built:-1};
+}
+// the base grows with your empire: domes, labs, solar farms and a rover
+function buildBase(S) {
+  const mars = S.planet === 'mars', level = mars ? (W.flags.mars ? 2 : 0) : (W.unlocked.has('moonBase') ? 2 : W.flags.moon ? 1 : 0);
+  if (S.built === level) return; S.built = level;
+  S.base.clear();
+  const P = (geo, cl, s, pos, o) => mesh(geo, cl, s, pos, S.base, o);
+  if (level >= 1) {
+    // where we landed: the lander, footprints of a flag and our banner
+    const l = new THREE.Group(); l.position.set(0, S.H(0, 0), 0); S.base.add(l); lander(l);
+    P(G.cyl, 0xdfe4ea, [.04, 2.2, .04], [2.6, S.H(2.6, 1.4) + 1.1, 1.4]); P(G.box, 0xd9443a, [1, .6, .03], [3.1, S.H(2.6, 1.4) + 1.9, 1.4]); P(G.box, 0xf2c200, [.3, .3, .035], [2.9, S.H(2.6, 1.4) + 1.95, 1.4]);
+  }
+  if (level >= 2) {
+    const glass = mat(mars ? 0xd8f0e0 : 0xdfeaf4, {metalness:.3, roughness:.15, transparent:true, opacity:.85});
+    for (const [x, z, r] of [[-6, -3, 2.2], [-2, -7, 1.6], [4, -6, 2.6], [8, -1, 1.5]]) {
+      const d = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 12, 0, Math.PI*2, 0, Math.PI/2), glass); d.position.set(x, S.H(x, z), z); S.base.add(d);
+      P(G.cyl, 0xb8bcc2, [r, .3, r], [x, S.H(x, z) + .15, z], {metalness:.5});
+      if (mars) for (let i = 0; i < 6; i++) P(G.sph, 0x3f9a3a, [.4, .3, .4], [x + Math.cos(i)*r*.5, S.H(x, z) + .5, z + Math.sin(i)*r*.5]);
+      else bulb(S.base, x, S.H(x, z) + r*.7, z, 0xfff2c8, .2);
+    }
+    for (const [ax, az, bx, bz] of [[-6, -3, -2, -7], [-2, -7, 4, -6], [4, -6, 8, -1]]) { const t = P(G.cyl, 0xdfe4ea, [.35, Math.hypot(bx - ax, bz - az), .35], [(ax + bx)/2, S.H((ax + bx)/2, (az + bz)/2) + .4, (az + bz)/2], {metalness:.4}); t.rotation.order = 'YXZ'; t.rotation.set(Math.PI/2, Math.atan2(bx - ax, bz - az), 0); }
+    for (let i = 0; i < 8; i++) { const x = -12 + (i % 4)*2.2, z = 5 + Math.floor(i / 4)*2; P(G.box, 0x1e3a6a, [1.8, .05, 1.2], [x, S.H(x, z) + .8, z], {metalness:.6, roughness:.2}).rotation.x = -.4; P(G.cyl, 0x9aa0a8, [.05, .8, .05], [x, S.H(x, z) + .4, z]); }
+    const rover = new THREE.Group(); rover.position.set(6, S.H(6, 6), 6); S.base.add(rover); S.rover = rover;
+    mesh(G.box, 0xdfe4ea, [1, .4, 1.6], [0, .55, 0], rover); for (const [x, z] of [[-.55, .55], [.55, .55], [-.55, -.55], [.55, -.55]]) mesh(G.cyl, 0x2a2a2e, [.28, .2, .28], [x, .28, z], rover).rotation.z = Math.PI/2;
+    mesh(G.sph, 0xeef0f4, [.4, .12, .4], [0, 1.2, -.3], rover).rotation.x = -.6;
+    for (let i = 0; i < 3; i++) { const a = astronaut(); a.g.position.set(-3 + i*2.5, S.H(-3 + i*2.5, 3), 3 + (i % 2)); S.base.add(a.g); (S.walkers ||= []).push(a); }
+  }
+}
+function lander(l) {
+  mesh(G.box, 0xc8a24a, [1.6, 1, 1.6], [0, 1.4, 0], l, {metalness:.8, roughness:.3}); mesh(G.box, 0xdfe4ea, [1.1, .9, 1.1], [0, 2.3, 0], l);
+  mesh(G.box, 0x1a2a3a, [.4, .3, .05], [0, 2.4, .56], l);
+  for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const g = mesh(G.cyl, 0xb8bcc2, [.05, 1.4, .05], [x*.8, .7, z*.8], l, {metalness:.6}); g.rotation.z = -x*.3; g.rotation.x = z*.3; mesh(G.cyl, 0xb8bcc2, [.22, .05, .22], [x*1.05, .03, z*1.05], l); }
+}
+function astronaut() {
+  const c = makeChar({body:0xf4f4f4, body2:0xf4f4f4, pants:0xeeeeee, hair:'bald', skin:0xe8b892, hat:'helmet', hatCol:0xf4f4f4, shoe:0xb8bcc2});
+  scene.remove(c.g); mesh(G.sph, 0xd9a52a, [.2, .16, .1], [0, 1.62, .2], c.g, {metalness:.9, roughness:.1}); mesh(G.box, 0xdfe4ea, [.4, .5, .22], [0, 1.05, -.3], c.g);
+  return c;
+}
+function startCut(planet) {
+  const S = spaceScene(planet); buildBase(S);
+  const l = new THREE.Group(); lander(l); S.sc.add(l);
+  const flame = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0xffb040, toneMapped:false})); flame.scale.set(.5, 1.6, .5); flame.rotation.x = Math.PI; flame.position.y = .2; l.add(flame);
+  SPACE.cut = {planet, t:0, l, flame, astros:[], dust:[]}; SPACE.view = planet; stage.classList.add('space');
+}
+function updCut(dt) {
+  const C = SPACE.cut, S = spaceScene(C.planet); C.t += dt;
+  const t = C.t, gy = S.H(0, 0);
+  // descend, kick up dust, open the hatch, step out and plant the flag
+  const y = t < 6 ? gy + 1 + Math.pow(1 - t/6, 2)*26 : gy;
+  C.l.position.set(Math.max(0, 6 - t)*2, y, 0); C.flame.visible = t < 6; C.flame.scale.y = 1.4 + Math.sin(time*40)*.3;
+  if (t > 4 && t < 6.5 && R() < .6) { const d = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:C.planet === 'mars' ? 0xc87a4a : 0xc8c4bc, transparent:true, opacity:.6, depthWrite:false})); d.position.set((R() - .5)*2, gy + .2, (R() - .5)*2); d.scale.setScalar(.3); S.sc.add(d); C.dust.push({m:d, v:new THREE.Vector3((R() - .5)*6, .5 + R(), (R() - .5)*6), t:0}); }
+  for (const d of C.dust) { d.t += dt; d.m.position.addScaledVector(d.v, dt); d.m.scale.setScalar(.3 + d.t*1.5); d.m.material.opacity = Math.max(0, .6 - d.t*.25); }
+  if (t > 7 && !C.astros.length) for (let i = 0; i < 2; i++) { const a = astronaut(); a.g.position.set(.8, gy + .2, 1); S.sc.add(a.g); C.astros.push(a); }
+  C.astros.forEach((a, i) => {
+    const u = clamp((t - 7 - i*.6) / 3, 0, 1), x = .8 + u*(1.6 + i*1.4), z = 1 + u*(1.2 - i*1.6);
+    a.g.position.set(x, S.H(x, z) + Math.abs(Math.sin(t*4 + i))*.15, z); a.g.rotation.y = Math.atan2(1.6 + i*1.4, 1.2 - i*1.6);
+    const s = Math.sin(t*4 + i); a.legL.rotation.x = s*.4; a.legR.rotation.x = -s*.4;
+    if (i === 0 && t > 10.5) { a.armR.rotation.x = -2.6; }
+  });
+  if (t > 10.5 && !C.flag) {
+    C.flag = new THREE.Group(); C.flag.position.set(3.6, S.H(3.6, 2.2), 2.2); S.sc.add(C.flag);
+    mesh(G.cyl, 0xdfe4ea, [.04, 2.2, .04], [0, 1.1, 0], C.flag); mesh(G.box, 0xd9443a, [1, .6, .03], [.5, 1.9, 0], C.flag); mesh(G.box, 0xf2c200, [.3, .3, .035], [.3, 1.95, 0], C.flag);
+    banner(C.planet === 'mars' ? '🔴 A colony on Mars!' : '🌕 One small step!', C.planet === 'mars' ? 'Your empire now spans two planets.' : 'Your astronauts plant the flag of your empire on the Moon.');
+    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => snd(f, .25, 'triangle', .05), i*150));
+  }
+  if (C.flag) C.flag.scale.y = Math.min(1, (t - 10.5)*1.5);
+  // the camera rides down with the lander, then circles the landing site
+  const cam = S.cam;
+  if (t < 6) { cam.position.set(C.l.position.x + 9, C.l.position.y + 4, C.l.position.z + 12); cam.lookAt(C.l.position.x, C.l.position.y, C.l.position.z); }
+  else { const a = .6 + (t - 6)*.12; cam.position.set(Math.sin(a)*13, gy + 5, Math.cos(a)*13); cam.lookAt(1.5, gy + 1, 1); }
+  if (t > 15) endCut();
+}
+function endCut() {
+  const C = SPACE.cut, S = spaceScene(C.planet);
+  for (const o of [C.l, C.flag, ...C.astros.map(a => a.g), ...C.dust.map(d => d.m)]) if (o) S.sc.remove(o);
+  S.built = -1; buildBase(S);
+  SPACE.cut = null; SPACE.view = null; stage.classList.remove('space');
+}
+function toggleSpace() {
+  if (SPACE.cut) return;
+  const places = ['moon', ...(W.flags.mars ? ['mars'] : [])], i = places.indexOf(SPACE.view);
+  SPACE.view = i < 0 ? places[0] : places[i + 1] || null;
+  stage.classList.toggle('space', !!SPACE.view);
+  if (SPACE.view) { const S = spaceScene(SPACE.view); buildBase(S); }
+}
+function updSpaceView(dt) {
+  if (SPACE.cut) return;
+  const S = spaceScene(SPACE.view); SPACE.orbit += dt*.08;
+  S.cam.position.set(Math.sin(SPACE.orbit)*20, S.H(0, 0) + 9, Math.cos(SPACE.orbit)*20); S.cam.lookAt(0, S.H(0, 0) + 1, -1);
+  if (S.rover) { S.rover.position.x = 6 + Math.sin(time*.3)*4; S.rover.position.y = S.H(S.rover.position.x, 6); S.rover.rotation.y = Math.cos(time*.3) > 0 ? Math.PI/2 : -Math.PI/2; }
+  (S.walkers || []).forEach((a, i) => { const x = -3 + i*2.5 + Math.sin(time*.4 + i)*1.5, z = 3 + Math.cos(time*.3 + i); a.g.position.set(x, S.H(x, z) + Math.abs(Math.sin(time*3 + i))*.12, z); const s = Math.sin(time*3 + i); a.legL.rotation.x = s*.4; a.legR.rotation.x = -s*.4; });
+}
+
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
@@ -5177,7 +5901,7 @@ function update(dt) {
   const cy = Math.cos(CAM_YAW), sy2 = Math.sin(CAM_YAW);
   let ix = sx*cy + sy*sy2 + testIn.x, iz = -sx*sy2 + sy*cy + testIn.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
-  if (!started) ix = iz = 0;
+  if (!started || PHOTO.on || SPACE.view) ix = iz = 0;
   player.vel.set(ix * player.speed, 0, iz * player.speed);
   prevPos.copy(player.pos);
   player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos);
@@ -5210,7 +5934,7 @@ function update(dt) {
     }
   }
   if (ST.spit) ST.spit.meat.rotation.x += dt * (ST.spit.busy ? 4 : 1);
-  for (const w of workers) { updWorker(w, dt); animEntity(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
+  for (const w of workers) { equip(w); updWorker(w, dt); animEntity(w, dt); poseCarry(w); poseChop(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
   for (const L of Object.values(LINES)) {
     updLine(L, dt);
     const [fx, fz] = L.slot(0);
@@ -5247,14 +5971,16 @@ function update(dt) {
       s.char.armR.rotation.x = out && ph <= 22 ? (gun ? -1.5 : -1.6 + Math.sin(time*12 + i)*1.1) : -1.3 + Math.sin(time*3 + s.drill)*.9;
     }
   });
+  navGrid();
   updBattle(dt); updSea(dt); updAir(dt);
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
+  updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
   updWar(dt);
-  if ((W.unrestT = (W.unrestT || 0) + dt) > 90) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
+  if ((W.unrestT = (W.unrestT || 0) + dt) > (W.unlocked.has('police') ? 45 : 90)) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
   if (ST.mill) ST.mill.rotation.z += dt * 1.2;
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;
   if (W.unlocked.has('barracks') && W.army > 0 && (tributeT -= dt) <= 0) {
@@ -5265,7 +5991,7 @@ function update(dt) {
   }
   updBoats(dt);
   leapingFish(dt);
-  animEntity(player, dt);
+  animEntity(player, dt); poseChop(player, dt);
   poseRod(player, started && player.zone === fishZone, dt);
   updHomes(dt);
   for (const t of nodes()) {
@@ -5307,6 +6033,7 @@ function render(dt) {
   camWant.set(fx + ox + .6, 16*k + fy, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - 16*k, camera.position.z - oz);
+  if (PHOTO.on) photoCamera(dt, fx, fz);
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);
@@ -5333,7 +6060,7 @@ function render(dt) {
     c.el.style.display = vis && !far ? '' : 'none';
     c.el.style.left = x + 'px'; c.el.style.top = y + 'px';
     if (L.q.includes(c)) {
-      const mad = L.id !== 'mess' && !L.custom && c.waitT > PATIENCE * BOOST.patience * (1 + .1*(W.water || 0)) * .55;
+      const mad = L.id !== 'mess' && !L.custom && c.waitT > PATIENCE * BOOST.patience * (1 + .1*(W.water || 0) + (W.unlocked.has('hospital') ? .15 : 0)) * .55;
       const html = (mad ? '😠 ' : '') + c.wants.filter(w => w.need > 0).map(w => `<span>${ITEM[w.type].icon}</span>${w.need}`).join(' ');
       c.el.classList.toggle('mad', mad);
       if (c.el._h !== html) { c.el._h = html; c.el.innerHTML = html; }
@@ -5368,7 +6095,8 @@ function render(dt) {
     + `<span class="chip">🎒 ${player.stack.length}/${W.cap}</span>`;
   if ($('hudL')._h !== hl) { $('hudL')._h = hl; $('hudL').innerHTML = hl; }
   if ($('hudR')._h !== hr) { $('hudR')._h = hr; $('hudR').innerHTML = hr; }
-  renderFinal(clamp((.5 - dk) * 2.4, 0, 1));
+  if (SPACE.view) { updSpaceView(dt); const S = spaceScene(SPACE.view); S.cam.aspect = camera.aspect; S.cam.updateProjectionMatrix(); renderFinal(0, S.sc, S.cam); }
+  else renderFinal(clamp((.5 - dk) * 2.4, 0, 1));
 }
 // If frames come in slowly, drop to low quality once: lower resolution and no shadows.
 const perf = {t:0, n:0, low:false};
@@ -5406,7 +6134,7 @@ $('bPlay').onclick = () => {
   startMusic(); showOffline();
 };
 $('bBoard').onclick = openBoard;
-$('bBuild').onclick = openBuild; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
+$('bBuild').onclick = openBuild; $('bTrophy').onclick = openTrophies; $('bPhoto').onclick = () => togglePhoto(true); $('bPhotoX').onclick = () => togglePhoto(false); $('bSnap').onclick = savePhoto; $('bSpace').onclick = toggleSpace; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
 addEventListener('keydown', e => { if (BUILD.on && e.key === 'Enter') placeDecor(); if (BUILD.on && e.key === 'Escape') endPlacing(); });
 refreshUpgrades();
 const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
@@ -5418,7 +6146,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
