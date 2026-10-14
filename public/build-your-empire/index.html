@@ -55,6 +55,8 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 #btns button{border:0;background:#fffaf0dd;border-radius:10px;padding:6px 10px;font-size:15px;cursor:pointer;box-shadow:0 3px 0 #0002}
 #overlay{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
 #overlay[hidden]{display:none}
+#pauseOv{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
+#pauseOv[hidden]{display:none}
 .card{background:var(--panel);color:var(--ink);border-radius:20px;padding:22px 26px;max-width:430px;text-align:center;box-shadow:0 10px 0 #0003}
 .card h1{margin:0 0 6px;font-size:34px}
 .card p{margin:8px 0;line-height:1.5;color:#5a4a3a}
@@ -131,7 +133,14 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="pauseOv" hidden>
+      <div class="card">
+        <h1>⏸️ Paused</h1>
+        <p>Your empire is on hold: no time passes, nobody earns and nothing attacks until you come back.</p>
+        <button class="big" id="bResume">Resume</button>
+      </div>
+    </div>
     <div id="overlay">
       <div class="card">
         <h1>🏰 Build Your Empire</h1>
@@ -3487,7 +3496,7 @@ function startMusic() {
   const BARS = [[0, 2, 4], [4, 6, 8], [3, 5, 7], [1, 3, 5]];
   let beat = 0;
   musicT = setInterval(() => {
-    if (muted || document.hidden || !started) return;
+    if (muted || document.hidden || !started || paused) return;
     const ch = BARS[Math.floor(beat / 8) % 4], step = beat % 8;
     if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022);
     if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012);
@@ -8080,7 +8089,7 @@ function lightAt(fx, fz, dk) {
 }
 // ------------------------------------------------------------------ main loop
 const testIn = {x:0, y:0};
-let started = false, last = performance.now(), saveT = 5, time = 0;
+let started = false, paused = false, last = performance.now(), saveT = 5, time = 0;
 const v3 = new THREE.Vector3();
 function project(pos) {
   v3.copy(pos).project(camera);
@@ -8451,6 +8460,7 @@ function adapt(real) {
 }
 function frame(now) {
   const real = (now - last) / 1000, dt = Math.min(.05, real); last = now;
+  if (paused) { requestAnimationFrame(frame); return; }      // the last frame stays on screen; no time passes
   adapt(real);
   update(dt); render(dt); BAKE.tick(real);
   requestAnimationFrame(frame);
@@ -8478,6 +8488,19 @@ refreshUpgrades();
 const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
 $('bNew').onclick = wipe;
 $('bReset').onclick = () => { if (confirm('Start a new camp? Your progress will be lost.')) wipe(); };
+// pause: the ⏸️ button, P, or Esc; nothing moves, earns or attacks until you resume
+function setPause(v) {
+  if (!started || v === paused) return;
+  paused = v; $('pauseOv').hidden = !v; $('bPause').textContent = v ? '▶️' : '⏸️';
+  for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
+  if (v) save(); else renderer.domElement.focus({preventScroll:true});
+}
+$('bPause').onclick = () => setPause(!paused); $('bResume').onclick = () => setPause(false);
+addEventListener('keydown', e => {
+  if (e.repeat || e.target.closest?.('input, textarea')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'p' || (k === 'escape' && !BUILD.on && (paused || $('overlay').hidden))) setPause(!paused);
+});
 $('bMute').onclick = () => { muted = !muted; $('bMute').textContent = muted ? '🔇' : '🔊'; };
 fit();
 camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
