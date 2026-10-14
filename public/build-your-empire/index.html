@@ -1037,7 +1037,13 @@ function makeChar(o) {
     const P = {g:new THREE.Group(), legL:new THREE.Group(), legR:new THREE.Group(), armL:new THREE.Group(), armR:new THREE.Group()};
     buildBody(o, P);
     const {g, armL, armR} = P;
-    if (o.hero) { mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g); }
+    if (o.hero && !o.noPack) { mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g); }
+    // finery for the hero as the empire grows
+    if (o.hat === 'feather') { mesh(G.cyl, o.hatCol, [.4, .04, .4], [0, 1.86, 0], g); mesh(G.cyl, o.hatCol, [.24, .16, .24], [0, 1.95, 0], g); mesh(G.cyl, 0xf2c200, [.245, .03, .245], [0, 1.9, 0], g, {metalness:.7, roughness:.3}); const f = mesh(G.box, 0xf4f4f4, [.04, .42, .1], [.17, 2.06, -.06], g); f.rotation.z = -.5; }
+    if (o.hat === 'tophat') { mesh(G.cyl, 0x1a1a1e, [.38, .04, .38], [0, 1.86, 0], g); mesh(G.cyl, 0x1a1a1e, [.24, .42, .24], [0, 2.08, 0], g); mesh(G.cyl, 0xb8322a, [.245, .06, .245], [0, 1.93, 0], g); }
+    if (o.cape) { const cp = mesh(G.box, o.cape, [.6, 1.05, .05], [0, .86, -.25], g); cp.rotation.x = .14; mesh(G.box, o.capeIn || 0xf2c200, [.62, .07, .08], [0, 1.36, -.2], g); mesh(G.box, o.capeIn || 0xf2c200, [.6, .04, .06], [0, .34, -.32], g); }
+    if (o.chain) { const n = mesh(G2.ring, 0xf2c200, [.15, .15, .15], [0, 1.2, .1], g, {metalness:.8, roughness:.25}); n.rotation.x = Math.PI/2.4; mesh(G2.sphS, 0xf2c200, [.055, .055, .025], [0, 1.07, .24], g, {metalness:.8, roughness:.25}); }
+    if (o.watch) mesh(G.box, 0xf2c200, [.13, .05, .14], [0, -.42, 0], armL, {metalness:.8, roughness:.2});
   switch (o.hat) {
     case 'fur': { const hy = o.hero ? .1 : 0; mesh(G.cyl, o.hatCol || 0x7a4a2a, [.3, .26, .3], [0, 1.8 + hy, 0], g); mesh(G.cyl, 0xf3eadb, [.32, .08, .32], [0, 1.69 + hy, 0], g); break; }
     case 'straw': mesh(G.cyl, 0xe0c070, [.45, .04, .45], [0, 1.78, 0], g); mesh(G.cyl, 0xe0c070, [.22, .2, .22], [0, 1.88, 0], g); break;
@@ -1080,9 +1086,10 @@ function makeChar(o) {
     const m = new THREE.Mesh(gm, i ? CHAR_METAL : CHAR_MAT); m.castShadow = true; m.receiveShadow = true; part.add(m);
   });
   if (o.hero) {
-    c.crown = new THREE.Group(); c.crown.position.y = 2.16; g.add(c.crown); c.crown.visible = false;
+    c.crown = new THREE.Group(); c.crown.position.y = 2.16; g.add(c.crown); c.crown.visible = !!o.crown; c.wantCrown = !!o.crown;
     mesh(G.cyl, 0xf2c200, [.21, .13, .21], [0, 0, 0], c.crown, {metalness:.7, roughness:.3});
     for (let i = 0; i < 5; i++) { const a = i/5*Math.PI*2; mesh(G.cone, 0xf2c200, [.05, .14, .05], [Math.cos(a)*.17, .13, Math.sin(a)*.17], c.crown, {metalness:.7, roughness:.3}); }
+    if (o.glow) { c.halo = new THREE.Mesh(new THREE.TorusGeometry(.3, .025, 6, 32), new THREE.MeshBasicMaterial({color:0x8fe8ff, toneMapped:false})); c.halo.rotation.x = Math.PI/2.2; c.halo.position.y = 2.42; g.add(c.halo); }
   }
   if (o.gun) c.gun = rifle(armR, o.scope);
   if (o.hero || o.rod) {
@@ -1860,7 +1867,7 @@ function updWorker(w, dt) {
   if (w.kind === 'broker') { updBroker(w, dt); return; }
   if (w.kind === 'oilman') return;   // moved by the oil field
   if (w.kind === 'treasurer') {
-    const c = w.pile && w.pile.value > 0 ? w.pile : Object.values(CASH).filter(c => c.value > 0).sort((a, b) => b.value - a.value)[0];
+    const c = w.pile && w.pile.value > 0 ? w.pile : treasurerPile(w);
     w.pile = c;
     if (!c) { goTo(w, ...w.home, dt); return; }
     if (goTo(w, c.x, c.z, dt)) {
@@ -2178,6 +2185,7 @@ const PADS = [
   {id:'townhall', x:9, z:11, cost:300, cur:'coin', icon:'🏛️', label:'Town hall', after:['baker', 'hut3']},
   {id:'senate', x:9, z:13.3, cost:20000, cur:'coin', icon:'🏛️', label:'Senate', after:['townhall', 'warTable'], need:() => W.conquests >= 1},
   {id:'treasurer', x:.4, z:7.4, cost:300, cur:'coin', icon:'🧾', label:'Treasurer', after:['townhall']},
+  {id:'treasurer2', x:2.8, z:7.4, cost:4000, cur:'coin', icon:'🧾', label:'2nd treasurer', after:['treasurer', 'hall']},
   // the quarry, north
   {id:'northGate', x:-7.7, z:-11.8, cost:35, cur:'log', icon:'⛰️', label:'North gate', after:['village']},
   {id:'mine', x:0, z:-27.2, cost:20, cur:'log', icon:'⛏️', label:'Iron mine', after:['northGate'], region:'north'},
@@ -2379,6 +2387,7 @@ const UNLOCK = {
   },
   baker(a) { addWorker('baker', -.6, 9.7, a); },
   treasurer(a) { addWorker('treasurer', .4, 7.4, a); },
+  treasurer2(a) { addWorker('treasurer', 2.8, 7.4, a); if (a) banner('🧾 A second treasurer!', 'Two of them now split the cash piles between them, nearest money first.'); },
   bag3() { W.cap = 32; },
   townhall(a) { hall(a); setEra(3, a); },
   senate(a) { senateFx(a); },
@@ -2578,6 +2587,7 @@ function setEra(e, anim) {
   }
 }
 const padZones = {};
+const OBJ = {z:null, t:0};   // what the guide is pointing at, so helpers can pitch in
 const CUR_ICON = {coin:'💵', log:'🪵', stone:'🪨', ingot:'🔩', tools:'🔨', scroll:'📜'};
 function refreshPads() {
   for (const p of PADS) {
@@ -2959,11 +2969,38 @@ function payUpgrade(zn, e) {
 
 // ------------------------------------------------------------------ builders
 // Builders carry stone, logs, tools and scrolls from the piles to whatever unlock is waiting for them.
+// builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
+// they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
+const BSTAT = {items:0, dist:0, loads:0, goal:0};
+function builderJob(w) {
+  const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
+  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  if (!open.length) return null;
+  const others = workers.filter(o => o !== w && o.kind === 'builder' && o.job);
+  const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
+  const goal = OBJ.z && OBJ.z.pad ? OBJ.z : null;
+  const score = z => {
+    const rem = z.pad.cost - (W.paid[z.pad.id] || 0), dPlayer = Math.hypot(z.x - player.pos.x, z.z - player.pos.z), dMe = Math.hypot(z.x - w.pos.x, z.z - w.pos.z);
+    return (z === goal ? -1000 : 0) + dPlayer*2 + dMe + rem*.5;
+  };
+  const free = open.filter(z => need(z) > 0);
+  const pick = (free.length ? free : open).sort((a, b) => score(a) - score(b))[0];
+  return pick ? pick.pad : null;
+}
+function builderPile(w, cur, want, pz) {
+  const piles = zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
+  const taken = new Set(workers.filter(o => o !== w && o.kind === 'builder' && o.pile).map(o => o.pile));
+  // the shortest walk there and on to the tile, but a pile that can fill the whole load is worth a detour
+  return piles.map(z => ({z, cost:Math.hypot(z.x - w.pos.x, z.z - w.pos.z) + Math.hypot(z.x - pz.x, z.z - pz.z) + (z.stack.count([cur]) >= want ? 0 : 6) + (taken.has(z) && z.stack.count([cur]) < want*2 ? 5 : 0)}))
+    .sort((a, b) => a.cost - b.cost)[0]?.z || null;
+}
 function updBuilder(w, dt) {
-  // fill up at the fullest pile, then unload the whole stack at the unlock tile
-  const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur])).sort((a, b) => b.stack.count([cur]) - a.stack.count([cur]));
+  if (w.lastP) BSTAT.dist += Math.hypot(w.pos.x - w.lastP.x, w.pos.z - w.lastP.z); else w.lastP = new THREE.Vector3();
+  w.lastP.copy(w.pos);
+  // look again every few seconds in case you moved on to something else
+  if ((w.rethink = (w.rethink || 0) - dt) <= 0 && w.mode === 'fetch' && !w.stack.length) { w.rethink = 4; w.job = null; }
   if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
-    w.job = Object.values(padZones).map(z => z.pad).find(p => !padZones[p.id].locked && p.cur !== 'coin' && (w.stack.count([p.cur]) || piles(p.cur).length)) || null;
+    w.job = builderJob(w);
     w.mode = 'fetch'; w.wait = 0; w.pile = null;
     if (!w.job) { goTo(w, ...w.home, dt); return; }
   }
@@ -2972,12 +3009,13 @@ function updBuilder(w, dt) {
   const carried = w.stack.count([cur]), want = Math.max(1, Math.min(rem, w.cap));
   if (w.mode === 'fetch') {
     if (carried >= want) { w.mode = 'deliver'; return; }
-    if (!w.pile || !zones.includes(w.pile) || (!w.pile.stack.count([cur]) && !carried)) { w.pile = piles(cur)[0] || null; w.wait = 0; }
+    if (!w.pile || !zones.includes(w.pile) || (!w.pile.stack.count([cur]) && !carried)) { w.pile = builderPile(w, cur, want - carried, pz); w.wait = 0; }
     if (!w.pile) { if (carried) w.mode = 'deliver'; else w.job = null; return; }
     if (goTo(w, w.pile.x, w.pile.z, dt) && (w.tick -= dt) <= 0) {
       w.tick = .05;
       if (w.pile.stack.count([cur])) { transfer(w.pile.stack, w.stack, [cur]); w.wait = 0; }
-      else if ((w.wait += .05) > 2.5) w.mode = 'deliver';   // the pile ran dry: bring what we have
+      // the pile ran dry: try the next nearest, or bring what we have
+      else if ((w.wait += .05) > 1) { const nx = builderPile(w, cur, want - carried, pz); if (nx && nx !== w.pile) { w.pile = nx; w.wait = 0; } else w.mode = 'deliver'; }
     }
   } else {
     if (!carried) { w.mode = 'fetch'; w.pile = null; return; }
@@ -2985,10 +3023,16 @@ function updBuilder(w, dt) {
       w.tick = .04;
       const it = w.stack.take([cur]);
       flyAway(it.mesh, new THREE.Vector3(pz.x, .1, pz.z), .25);
-      W.paid[p.id] = (W.paid[p.id] || 0) + 1; snd(200 + carried*15, .04, 'square', .02);
+      W.paid[p.id] = (W.paid[p.id] || 0) + 1; BSTAT.items++; if (OBJ.z && OBJ.z.pad === p) BSTAT.goal++; snd(200 + carried*15, .04, 'square', .02);
+      if (!w.stack.count([cur])) BSTAT.loads++;
       if (W.paid[p.id] >= p.cost) { w.job = null; unlock(p.id, true); } else refreshPads();
     }
   }
+}
+// treasurers split the cash piles between them, going for the most money per step
+function treasurerPile(w) {
+  const taken = new Set(workers.filter(o => o !== w && o.kind === 'treasurer' && o.pile).map(o => o.pile));
+  return Object.values(CASH).filter(c => c.value > 0 && !taken.has(c)).sort((a, b) => b.value/(Math.hypot(b.x - w.pos.x, b.z - w.pos.z) + 4) - a.value/(Math.hypot(a.x - w.pos.x, a.z - w.pos.z) + 4))[0] || null;
 }
 
 // ------------------------------------------------------------------ the battlefield, south of the military grounds
@@ -7559,6 +7603,35 @@ function updInvestTile() {
   if (investZone && player.zone !== investZone) investZone.open = false;
 }
 
+// ------------------------------------------------------------------ the hero dresses the part: villager, merchant, noble, king, tycoon, then galactic emperor
+const HERO_STAGES = [
+  {era:0, n:'Villager', o:{body:0xd23c2c, trim:0xf3eadb, hat:'fur', pants:0x4a3a2a}},
+  {era:2, n:'Merchant', o:{body:0x2f8a7a, body2:0xf2c200, top:'shirt', trim:0xf2c200, hat:'beanie', hatCol:0x8a3a8a, pants:0x5a4030}},
+  {era:4, n:'Noble', o:{body:0xf4ecd8, body2:0x2d4fa8, top:'jacket', trim:0xf2c200, hat:'feather', hatCol:0x1e2a5a, pants:0xf4ecd8, shoe:0x1a1a1e, cape:0xb8322a, noPack:true}},
+  {era:6, n:'King', o:{body:0x6a2a8a, trim:0xf2c200, pants:0x3a1e4a, shoe:0x1a1a1e, cape:0xb8322a, capeIn:0xf4f4f4, fur:true, chain:true, noPack:true, crown:true}},
+  {era:8, n:'Tycoon', o:{body:0xf4f4f4, top:'suit', pants:0x1e1e26, shoe:0x111114, hat:'tophat', acc:'sunglasses', chain:true, watch:true, noPack:true}},
+  {era:10, n:'Galactic emperor', o:{body:0xeef0f4, trim:0xf2c200, metal:true, pants:0xd8dce2, shoe:0xd8dce2, cape:0x1f2a6a, capeIn:0xf2c200, chain:true, noPack:true, crown:true, glow:true}}];
+const HERO = {i:0, t:0};
+const heroStage = () => HERO_STAGES.reduce((k, s, i) => W.era >= s.era ? i : k, 0);
+function swapHero(i, anim) {
+  HERO.i = i;
+  const S = HERO_STAGES[i], old = player.char, c = makeChar({hero:true, ...S.o});
+  c.g.position.copy(old.g.position); c.g.rotation.copy(old.g.rotation);
+  if (typeof mountG !== 'undefined' && mountG && mountG.parent === old.g) { old.g.remove(mountG); c.g.add(mountG); }
+  scene.remove(old.g); player.char = c;
+  if (anim) {
+    puff(player.pos.x, player.pos.z);
+    for (let k = 0; k < 24; k++) particle([0xffd84a, 0xffffff, 0xff9ec0][k % 3], player.pos.clone().setY(1.2), new THREE.Vector3((R() - .5)*4, 2 + R()*3, (R() - .5)*4), 1, .08, {grav:1});
+    banner(`✨ You dress as a ${S.n}!`, ['', 'A merchant\'s colours for a growing town.', 'A noble\'s jacket, feathered hat and cape.', 'Robes, ermine and the crown of a king.', 'A white suit, a top hat and a gold watch: business is booming.', 'White and gold armour and a halo crown: ruler of the stars.'][i]);
+    [523, 659, 784, 1046].forEach((f, k) => setTimeout(() => snd(f, .18, 'triangle', .05), k*110));
+  }
+}
+function updHero(dt) {
+  if (player.char.halo) player.char.halo.rotation.y += dt*1.5;
+  if ((HERO.t -= dt) > 0) return; HERO.t = 1;
+  const i = heroStage(); if (i !== HERO.i) swapHero(i, started);
+}
+
 function save() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
@@ -7873,7 +7946,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -7949,7 +8022,7 @@ function render(dt) {
   for (const l of fireLights) l.intensity = 3 + (1 - dk)*7;
   updGfx3(dt, dk);
   for (const m of lampMats) m.color.setRGB(.5 + (1 - dk)*.5, .48 + (1 - dk)*.47, .4 + (1 - dk)*.35);
-  if (player.char.crown) player.char.crown.visible = W.era >= 6;
+  if (player.char.crown) player.char.crown.visible = !!player.char.wantCrown;
   renderGoals();
 
   for (const L of Object.values(LINES)) for (const c of L.q.concat(L.leaving)) {
@@ -8044,7 +8117,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
