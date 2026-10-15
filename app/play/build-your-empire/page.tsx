@@ -10,7 +10,7 @@ export default function BuildYourEmpirePage() {
   return (
     <>
       <Nav />
-      <main className="max-w-screen-xl mx-auto px-5 md:px-8 pt-12 md:pt-16 pb-16">
+      <main className="max-w-screen-xl mx-auto px-5 md:px-8 pt-12 md:pt-16 pb-0">
         <div className="mb-10">
           <Link
             href="/play"
@@ -31,8 +31,11 @@ export default function BuildYourEmpirePage() {
             get angry. Drag to walk on a phone, or use WASD. Progress saves in your browser.
           </p>
         </div>
-        <BuildYourEmpireFrame />
       </main>
+      {/* the game gets nearly the whole screen on a computer; on a phone it keeps its usual size */}
+      <div className="mx-auto max-w-[1920px] px-5 md:px-6 pb-16">
+        <BuildYourEmpireFrame />
+      </div>
       <Footer />
     </>
   );

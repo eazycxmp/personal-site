@@ -14,6 +14,7 @@ html,body{margin:0;background:#1c1814;font-family:ui-rounded,"SF Pro Rounded","T
   user-select:none;-webkit-user-select:none;touch-action:none}
 /* standalone only: when framed, the host sizes us from our reported height */
 html:not(.framed) #stage{max-height:100vh;max-height:100svh}
+@media (min-width:701px){html.framed #app{max-width:none}html.framed #stage{aspect-ratio:auto;height:100vh}}
 @media (max-width:700px){#stage{aspect-ratio:3/4;border-radius:0}}
 @media (max-width:560px){
   #hudL{top:auto;bottom:10px}
@@ -39,6 +40,15 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
   box-shadow:0 8px 0 #0003;pointer-events:none;max-width:88%}
 #banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 #banner small{display:block;font-weight:600;font-size:14px;opacity:.7;margin-top:4px}
+/* news stacks quietly down the right side: a few cards at most, repeats fold into one, each fades on its own */
+#feed{position:absolute;right:10px;top:54px;z-index:4;display:flex;flex-direction:column;gap:6px;width:250px;pointer-events:none}
+.note{background:#fffaf0f2;color:var(--ink);border-radius:12px;padding:7px 11px 8px;font-weight:800;font-size:13.5px;line-height:1.25;box-shadow:0 3px 0 #0002;
+  border-left:4px solid #6ad66f;opacity:0;transform:translateX(18px);transition:opacity .35s,transform .35s}
+.note.in{opacity:1;transform:none}
+.note small{display:block;font-weight:600;font-size:11.5px;opacity:.7;margin-top:2px}
+.note.urgent{border-left-color:#e0483a;background:#fff1ec}
+.note i{font-style:normal;background:#2b2118;color:#fff;border-radius:999px;padding:0 6px;font-size:11px;margin-left:6px;vertical-align:1px}
+@media (max-width:700px){#feed{width:168px;top:26%}.note{font-size:12px;padding:5px 9px 6px}.note small{display:none}}
 #labels{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}
 .bub{position:absolute;transform:translate(-50%,-100%);background:#fff;color:var(--ink);border-radius:999px;padding:2px 8px 2px 5px;
   font-weight:900;font-size:13px;display:flex;gap:3px;align-items:center;box-shadow:0 3px 0 #0002;white-space:nowrap}
@@ -95,7 +105,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 #tickerText{display:inline-block;padding-left:100%;animation:tick 45s linear infinite}
 @keyframes tick{to{transform:translateX(-100%)}}
 #stage.news #hudL,#stage.news #btns{bottom:30px}
-#stage.photo .hud,#stage.photo #obj,#stage.photo #labels,#stage.photo #goals,#stage.photo #btns,#stage.photo #ticker,#stage.photo #banner{display:none}
+#stage.photo .hud,#stage.photo #obj,#stage.photo #labels,#stage.photo #goals,#stage.photo #btns,#stage.photo #ticker,#stage.photo #banner,#stage.photo #feed{display:none}
 #stage.space #labels,#stage.space #goals,#stage.space #obj{display:none}
 #photoBar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800;font-size:13px}
 #photoBar[hidden]{display:none}
@@ -125,6 +135,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div class="hud" id="hudR"></div>
     <div id="obj"></div>
     <div id="banner"></div>
+    <div id="feed"></div>
     <div id="labels"></div>
     <div id="joy"><div id="knob"></div></div>
     <div id="goals"></div>
@@ -2709,16 +2720,35 @@ function updParts(dt) {
 }
 const pops = [];
 function popText(txt, pos, color) {
-  if (MOBILE && (pops.length > 4 || (/^[^A-Za-z]*\+|tribute|tolls|tickets|rides|takings/.test(txt) && pops.length > 1))) return;
+  const income = /^[^A-Za-z]*\+|tribute|tolls|tickets|rides|takings/.test(txt);
+  if (pops.length > (MOBILE ? 4 : 7) || income && pops.length > (MOBILE ? 1 : 3)) return;
   const el = document.createElement('div'); el.className = 'pop'; el.textContent = txt; el.style.color = color;
   $('labels').appendChild(el); pops.push({el, pos, t:0});
 }
 const URGENT = /⚔️|🏰|🔥|🐉|🦖|🏳️|🏴|💔|🏆|siege|declares|revolts|breaks|overran|Victory/;
 function banner(title, sub) {
   try { if (started) news(title); } catch (e) {}
-  if (MOBILE && started && !URGENT.test(title)) { const now = performance.now(); if (now - (banner.last || -1e9) < 9000) return; banner.last = now; }
-  const b = $('banner'); b.innerHTML = `${title}<small>${sub}</small>`; b.classList.add('show');
-  clearTimeout(banner.t); banner.t = setTimeout(() => b.classList.remove('show'), 3800);
+  note(title, sub, URGENT.test(title));
+}
+// the side feed: newest on top, a repeat bumps a counter instead of adding a card, and when it is full the
+// oldest everyday card makes room (wars, sieges and monsters stay up longer and are the last to go)
+const FEED = {max:MOBILE ? 2 : 4, items:[]};
+function note(title, sub = '', urgent = false) {
+  const key = String(title).replace(/<[^>]+>/g, '').replace(/[\d,.]+/g, '#');
+  const same = FEED.items.find(n => n.key === key);
+  if (same) {
+    same.n++; same.el.innerHTML = `${title}<i>×${same.n}</i><small>${sub}</small>`;
+    clearTimeout(same.timer); same.timer = setTimeout(() => dropNote(same), same.urgent ? 9000 : 5000); return;
+  }
+  const el = document.createElement('div'); el.className = 'note' + (urgent ? ' urgent' : ''); el.innerHTML = `${title}<small>${sub}</small>`;
+  $('feed').prepend(el); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+  const it = {key, el, n:1, urgent}; FEED.items.unshift(it);
+  it.timer = setTimeout(() => dropNote(it), urgent ? 9000 : 5000);
+  while (FEED.items.length > FEED.max) dropNote([...FEED.items].reverse().find(n => !n.urgent) || FEED.items[FEED.items.length - 1]);
+}
+function dropNote(it) {
+  const i = FEED.items.indexOf(it); if (i < 0) return;
+  FEED.items.splice(i, 1); clearTimeout(it.timer); it.el.classList.remove('in'); setTimeout(() => it.el.remove(), 400);
 }
 
 // guidance: a bouncing arrow over the goal and a pointer at the player's feet
@@ -5724,7 +5754,7 @@ const NEWS = [];
 function news(t) { NEWS.unshift(t.replace(/<[^>]+>/g, '')); if (NEWS.length > 10) NEWS.pop(); drawTicker(); }
 function drawTicker() {
   const el = $('tickerText'); if (!el) return;
-  $('ticker').hidden = MOBILE || !NEWS.length; stage.classList.toggle('news', !MOBILE && NEWS.length > 0);
+  $('ticker').hidden = true; stage.classList.remove('news');   // the side feed shows the news now
   el.textContent = '📰 THE RIVERSIDE TIMES  •  ' + NEWS.join('  •  ') + '  •  ';
 }
 
@@ -8230,7 +8260,11 @@ function update(dt) {
 const camWant = new THREE.Vector3();
 function render(dt) {
   // camera follows the player; pull back further on tall (portrait) screens
-  const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : 1;
+  const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
+  if (k !== render.k) {   // fog and the sun's shadow reach out as far as the view does
+    render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
+    Object.assign(sun.shadow.camera, {left:-19*k, right:19*k, top:19*k, bottom:-19*k}); sun.shadow.camera.updateProjectionMatrix();
+  }
   const D = (watchingWar() && W.camp.type === 'land' ? 8.5 : 13)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
   // standing on the war table during a campaign shows the battlefield
   const watching = W.camp && player.zone && player.zone.kind === 'war';
@@ -8507,7 +8541,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {renderer, POST, BAKE, sun, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
