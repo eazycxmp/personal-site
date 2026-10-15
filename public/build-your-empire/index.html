@@ -144,7 +144,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
@@ -190,7 +190,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb'};
   const TL = new THREE.TextureLoader(), texJobs = PH_IDS.flatMap(id => ['diff', 'nor_gl', 'rough'].map(k => TL.loadAsync(`./tex/${id}_${k}_1k.jpg`).then(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (k === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     const T = TEX[id] ||= {}; T[{diff:'map', nor_gl:'normalMap', rough:'roughnessMap'}[k]] = t;
@@ -212,7 +212,7 @@ await (async () => {
     g.translate(-c.x, -c.y, -c.z); g.scale(1/(s.x || 1), 1/(s.y || 1), 1/(s.z || 1)); g.computeVertexNormals();
     PART[o.name] = g;
   });
-  if (MODELS.trees) for (const k of ['pineR', 'spruceR', 'oakR']) { const o = MODELS.trees.getObjectByName((matchMedia('(pointer: coarse)').matches || innerWidth < 700) && k === 'oakR' ? 'oakL' : k); if (o) MODELS[k] = o; }
+  if (MODELS.trees) { for (const k of ['pineR', 'spruceR', 'oakR']) { const o = MODELS.trees.getObjectByName((matchMedia('(pointer: coarse)').matches || innerWidth < 700) && k === 'oakR' ? 'oakL' : k); if (o) MODELS[k] = o; } const l = MODELS.trees.getObjectByName('oakL'); if (l) MODELS.oakL = l; }
 })();
 const MODEL_BB = {};
 // a copy of a model, scaled so its size along one axis is `size`, standing on its base and centred
@@ -334,6 +334,38 @@ function groundTex(rep) {
   const t = groundTex.base.clone(); t.repeat.set(...rep); return t;
 }
 const SLAB_TOPS = [];
+const WORLD = {w:960, cx0:-330, cx1:330, cz0:-91.6, cz1:230, islands:[{x:410, z:50, r:30}, {x:-410, z:50, r:30}],
+  roads:[{x0:78.6, x1:322, z0:.4, z1:3.4}, {x0:-322, x1:-94, z0:10.6, z1:13.6}]};
+const wrapX = x => ((x + WORLD.w/2) % WORLD.w + WORLD.w) % WORLD.w - WORLD.w/2;
+const FOG = {cell:6, nx:160, nz:100, z0:-320, data:new Uint8Array(160*100), dirty:false, t:0, tex:null};
+FOG.tex = new THREE.DataTexture(FOG.data, FOG.nx, FOG.nz, THREE.RedFormat); FOG.tex.magFilter = FOG.tex.minFilter = THREE.LinearFilter; FOG.tex.wrapS = THREE.RepeatWrapping; FOG.tex.needsUpdate = true;
+function fogCell(x, z) { const i = Math.floor((wrapX(x) + 480) / FOG.cell), j = Math.floor((z - FOG.z0) / FOG.cell); return j < 0 || j >= FOG.nz ? -1 : ((i % FOG.nx) + FOG.nx) % FOG.nx + j*FOG.nx; }
+function seen(x, z) { const k = fogCell(x, z); return k >= 0 && FOG.data[k] > 0; }
+function reveal(x, z, r) {
+  const c = FOG.cell, n = Math.ceil(r / c);
+  for (let dj = -n; dj <= n; dj++) for (let di = -n; di <= n; di++) {
+    if (Math.hypot(di, dj)*c > r) continue;
+    const k = fogCell(x + di*c, z + dj*c); if (k >= 0 && !FOG.data[k]) { FOG.data[k] = 255; FOG.dirty = true; }
+  }
+}
+function fogLoad() {
+  const f = W.flags.fog;
+  if (f) { const bin = atob(f); for (let k = 0; k < FOG.data.length; k++) FOG.data[k] = (bin.charCodeAt(k >> 3) >> (k & 7)) & 1 ? 255 : 0; }
+  else for (let x = -112; x <= 96; x += 6) for (let z = -96; z <= 130; z += 6) reveal(x, z, 6);   // the home country is known from the start
+  FOG.tex.needsUpdate = true;
+}
+function fogSave() {
+  let bin = ''; for (let b = 0; b < FOG.data.length; b += 8) { let v = 0; for (let k = 0; k < 8; k++) if (FOG.data[b + k]) v |= 1 << k; bin += String.fromCharCode(v); }
+  W.flags.fog = btoa(bin);
+}
+function updFog(dt) {
+  if ((FOG.t -= dt) > 0) return; FOG.t = .25;
+  if (!FOG.loaded) { FOG.loaded = true; fogLoad(); }
+  reveal(player.pos.x, player.pos.z, TRIP.on && TRIP.g && TRIP.g.position.y > 3 ? 40 : 24);
+  if (typeof WATCH !== 'undefined' && WATCH.on && W.camp) { const f = warFocus(); if (f) reveal(f[0], f[1], 20); }
+  if (FOG.dirty) { FOG.dirty = false; FOG.tex.needsUpdate = true; fogSave(); }
+}
+const onIsland = (x, z, pad = 0) => WORLD.islands.some(I => Math.hypot(wrapX(x - I.x), z - I.z) < I.r + pad);
 const phOk = id => TEX[id] && TEX[id].map && TEX[id].normalMap && TEX[id].roughnessMap && TEX[id].inv;
 function phPick(color) {
   const h = {}; new THREE.Color(color).getHSL(h, THREE.SRGBColorSpace); const deg = h.h*360;
@@ -351,7 +383,7 @@ function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   // pull the photo's contrast toward its own average, so tiles don't read as a repeating pattern
   const avg = T.avg.clone(), k = contrast.toFixed(2);
   m.onBeforeCompile = sh => { sh.uniforms.phAvg = {value:avg};
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 phAvg;').replace('#include <map_fragment>', `#include <map_fragment>\n  diffuseColor.rgb = mix(diffuse * phAvg, diffuseColor.rgb, ${k});`); };
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 phAvg;').replace('#include <map_fragment>', `#include <map_fragment>\n  ${contrast < .6 ? 'diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * texture2D(map, vMapUv * .37 + vec2(.31, .17)).rgb, .5);' : ''}\n  diffuseColor.rgb = mix(diffuse * phAvg, diffuseColor.rgb, ${k});`); };
   m.customProgramCacheKey = () => 'ph' + k;
   return m;
 }   // every ground top, so rain can make them shine
@@ -554,6 +586,8 @@ function pileLayout(x, z, perRow = 2) {
 const BOUNDS = {x0:-10.3, x1:13.4, z0:-12.9, z1:13.9};
 // The player may walk anywhere inside the camp or an opened region.
 const AREAS = [BOUNDS, {x0:-14.2, x1:-10.2, z0:.4, z1:1.6}];   // the camp, and the fishing dock
+for (const r of WORLD.roads) AREAS.push(r);
+for (const I of WORLD.islands) AREAS.push({x0:I.x - 21, x1:I.x + 21, z0:I.z - 21, z1:I.z + 21, island:true});
 const inRect = (r, x, z) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
 const inArea = (x, z) => AREAS.some(r => inRect(r, x, z));
 const boxes = [], circles = [];
@@ -577,9 +611,9 @@ const DETAIL_N = (() => {
   }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t;
 })();
-const grassPlane = ground(0x5f7a38, 420, 420, 0, -10, GY); grassPlane.material.map = groundTex([68, 68]);
+const grassPlane = ground(0x5f7a38, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, (WORLD.cx0 + WORLD.cx1)/2, (WORLD.cz0 + WORLD.cz1)/2, GY); grassPlane.material.map = groundTex([68, 68]);
 if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
-phDress(grassPlane.material, 0x557133, 420, 420, 'aerial_grass_rock', 8, .45);
+phDress(grassPlane.material, 0x557133, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, 'aerial_grass_rock', 8, .45);
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
 slab(0xb98f5c, 40, 2.4, 55, 1.6, .012);
 slab(0xb98f5c, 16, 1.8, 68, 3.6, .012);
@@ -600,7 +634,7 @@ for (let i = 0; i < 9; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1
 [[-14.7, .2], [-14.7, 1.8], [-12.4, .2], [-12.4, 1.8]].forEach(([x, z]) => mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [x, .1, z], scene));
 
 // open land in the spread-out world: every region, the roads between them and the plots kept for later growth
-const OPEN_LAND = [{x0:-9.5, x1:-5.9, z0:-44.9, z1:-12.1}, {x0:12.6, x1:45.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:75.8}, {x0:47.8, x1:51.4, z0:12.9, z1:75}, {x0:12.4, x1:44.6, z0:81, z1:84.6}, {x0:43.2, x1:46.8, z0:-44, z1:-12.2}, {x0:-78.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:44.4, z0:-54.3, z1:-50.7}, {x0:-78.4, x1:-9.8, z0:-52.8, z1:-49.2}];
+const OPEN_LAND = [...WORLD.roads.map(r => ({x0:r.x0, x1:r.x1, z0:r.z0 - 1, z1:r.z1 + 1})), {x0:-9.5, x1:-5.9, z0:-44.9, z1:-12.1}, {x0:12.6, x1:45.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:75.8}, {x0:47.8, x1:51.4, z0:12.9, z1:75}, {x0:12.4, x1:44.6, z0:81, z1:84.6}, {x0:43.2, x1:46.8, z0:-44, z1:-12.2}, {x0:-78.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:44.4, z0:-54.3, z1:-50.7}, {x0:-78.4, x1:-9.8, z0:-52.8, z1:-49.2}];
 // decorative forest (instanced) outside the camp
 const FOREST = {};
 // tree colours: bright, warm greens and a soft brown bark
@@ -611,13 +645,15 @@ function treeMat(m) {
 }
 {
   const spots = []; seed = 11;
-  for (let n = 0; n < 40000 && spots.length < (MOBILE ? 900 : 1600); n++) {
-    const x = -105 + rnd()*195, z = -80 + rnd()*200;
+  const GRIDF = new Map(), gk = (x, z) => (Math.floor(x/1.65) + 1000)*4000 + Math.floor(z/1.65) + 1000;
+  for (let n = 0; n < 120000 && spots.length < (MOBILE ? 1700 : 3800); n++) {
+    const x = WORLD.cx0 + 10 + rnd()*(WORLD.cx1 - WORLD.cx0 - 20), z = -84 + rnd()*(WORLD.cz1 + 76);
+    if (!(x > -106 && x < 92 && z < 122) && rnd() < .6) continue;      // thick woods at home, thinner wilds beyond
+    { let near = false; for (let dx = -1; dx <= 1 && !near; dx++) for (let dz = -1; dz <= 1 && !near; dz++) for (const q of GRIDF.get(gk(x + dx*1.65, z + dz*1.65)) || []) if (Math.hypot(q[0] - x, q[1] - z) < 1.65) { near = true; break; } if (near) continue; }
     if (x > -11 && x < 15 && z > -14 && z < 15.2) continue;          // the camp
     if (x > -18 && x < -9.6) continue;                                // the river
     if (OPEN_LAND.some(r => x > r.x0 - 1.4 && x < r.x1 + 1.4 && z > r.z0 - 1.4 && z < r.z1 + 1.4)) continue;   // regions, roads and plots
-    if (spots.some(s => Math.hypot(s[0]-x, s[1]-z) < 1.65)) continue;
-    spots.push([x, z, .8 + rnd()*.6]);
+    const sp = [x, z, .8 + rnd()*.6]; spots.push(sp); const kk = gk(x, z); if (!GRIDF.has(kk)) GRIDF.set(kk, []); GRIDF.get(kk).push(sp);
   }
   const KN = ['pineR', 'spruceR', 'oakR'].every(k => MODELS[k]);
   if (KN) {
@@ -625,28 +661,36 @@ function treeMat(m) {
     const LEAFC = new THREE.MeshStandardMaterial({color:0x2f6e2c, vertexColors:true, roughness:.88}), LEAFB = new THREE.MeshStandardMaterial({color:0x4a8a3a, vertexColors:true, roughness:.85});
     const BARKM = new THREE.MeshStandardMaterial({color:0xc8a27a, vertexColors:true, roughness:.95});
     FOREST.matFor = m => /leafBroad/.test(m.name) ? LEAFB : /leaf/i.test(m.name) ? LEAFC : BARKM;
-    const KINDS = [['pineR', 3.7], ['spruceR', 3.3], ['oakR', 3.1]], kindOf = i => { const h = (i*2654435761 >>> 0) % 10; return h < 4 ? 0 : h < 7 ? 1 : 2; };
-    const local = KINDS.map(() => []); FOREST.where = spots.map((sp, i) => { const k = kindOf(i); local[k].push(i); return [k, local[k].length - 1]; });
+    const KINDS = [['pineR', 3.7], ['spruceR', 3.3], ['oakR', 3.1], ['oakL', 3.1]].filter(k => MODELS[k[0]]);
+    // the detailed broadleaf at home, its lighter twin out in the wilds where you only pass by
+    const kindOf = i => { const h = (i*2654435761 >>> 0) % 10, x = spots[i][0], z = spots[i][1]; return h < 4 ? 0 : h < 7 ? 1 : (KINDS[3] && !(x > -106 && x < 92 && z < 122)) ? 3 : 2; };
+    // one instanced mesh per kind per east-west strip of the map, so whole strips off screen are skipped
+    // blocks of 44 x 44 so the camera only draws the woods near it
+    const NBX = 16, NBZ = 8, NCH = NBX*NBZ, chunkOf = (x, z) => Math.max(0, Math.min(NBX - 1, Math.floor((x + 352) / 44))) + NBX*Math.max(0, Math.min(NBZ - 1, Math.floor((z + 92) / 44)));
+    const local = KINDS.map(() => Array.from({length:NCH}, () => []));
+    FOREST.where = spots.map((sp, i) => { const k = kindOf(i), c = chunkOf(sp[0], sp[1]); local[k][c].push(i); return [k, c, local[k][c].length - 1]; });
     const o = new THREE.Object3D(), m4 = new THREE.Matrix4(); FOREST.byKind = [];
     const leafC = [], leafB = [], barks = [];
     KINDS.forEach(([k, H], ki) => {
       const src = MODELS[k], bb = new THREE.Box3().setFromObject(src), h = bb.max.y - bb.min.y; src.updateMatrixWorld(true);
-      const list = []; FOREST.byKind.push(list);
+      const lists = Array.from({length:NCH}, () => []); FOREST.byKind.push(lists);
       src.traverse(c => {
         if (!c.isMesh) return;
-        const im = new THREE.InstancedMesh(c.geometry, FOREST.matFor(c.material), Math.max(1, local[ki].length));
-        local[ki].forEach((i, j) => {
-          const [x, z, sz] = spots[i], sc = H * sz / h;
-          o.position.set(x, GY - bb.min.y*sc, z); o.rotation.set(0, (x*7 + z*3) % 6.28, 0); o.scale.set(sc*(.9 + (i % 7)*.03), sc, sc*(.9 + (i % 5)*.04)); o.updateMatrix();
-          im.setMatrixAt(j, m4.multiplyMatrices(o.matrix, c.matrixWorld));
-        });
-        if (!local[ki].length) im.count = 0;
-        im.castShadow = true; im.receiveShadow = true; scene.add(im); list.push(im);
-        (im.material === LEAFC ? leafC : im.material === LEAFB ? leafB : barks).push(im);
+        for (let ci = 0; ci < NCH; ci++) {
+          const ids = local[ki][ci]; if (!ids.length) continue;
+          const im = new THREE.InstancedMesh(c.geometry, FOREST.matFor(c.material), ids.length);
+          ids.forEach((i, j) => {
+            const [x, z, sz] = spots[i], sc = H * sz / h;
+            o.position.set(x, GY - bb.min.y*sc, z); o.rotation.set(0, (x*7 + z*3) % 6.28, 0); o.scale.set(sc*(.9 + (i % 7)*.03), sc, sc*(.9 + (i % 5)*.04)); o.updateMatrix();
+            im.setMatrixAt(j, m4.multiplyMatrices(o.matrix, c.matrixWorld));
+          });
+          im.computeBoundingSphere(); im.castShadow = true; im.receiveShadow = true; scene.add(im); lists[ci].push(im);
+          (im.material === LEAFC ? leafC : im.material === LEAFB ? leafB : barks).push(im);
+        }
       });
     });
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-    FOREST.hideAt = i => { const [k, j] = FOREST.where[i]; FOREST.byKind[k].forEach(m => { m.setMatrixAt(j, zero); m.instanceMatrix.needsUpdate = true; }); };
+    FOREST.hideAt = i => { const [k, c, j] = FOREST.where[i]; FOREST.byKind[k][c].forEach(m => { m.setMatrixAt(j, zero); m.instanceMatrix.needsUpdate = true; }); };
     FOREST.spots = spots; FOREST.meshes = [barks[0], leafC[0], leafB[0], ...barks.slice(1), ...leafC.slice(1), ...leafB.slice(1)];
   } else {
   const KT = ['pineA', 'pineC', 'pineE', 'treeD'].filter(k => MODELS[k]);
@@ -721,6 +765,7 @@ const trees = [];
   }
 }
 
+for (const r of WORLD.roads) { slab(0xb98f5c, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .01); for (let x = r.x0 + 12; x < r.x1; x += 24) { const p = mesh(G.cyl, 0x6a4a2a, [.07, 1.1, .07], [x, .55, r.z0 - .4], scene); } }
 // ------------------------------------------------------------------ zones (dashed tiles)
 function roundRect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r); g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath(); }
 function tileCanvas(draw) {
@@ -1481,6 +1526,35 @@ function travelSpots() {
   }
   if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -90.4]);
   return out;
+}
+function openWorldMap() {
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'map';
+  const Wd = Math.min(880, innerWidth - 40), Hd = Math.round(Wd * .625);
+  m.innerHTML = `<div class="card" style="max-width:${Wd + 40}px"><h1 style="font-size:24px">🌍 The world</h1><canvas id="wmap" width="${Wd*2}" height="${Hd*2}" style="width:${Wd}px;height:${Hd}px;border-radius:10px;display:block"></canvas>
+    <p style="font-size:13px;margin:8px 0 0">Clouds hide what you have not explored. Sail east far enough and you come back from the west.</p><button class="ghost" id="wmClose">Close</button></div>`;
+  $('wmClose').onclick = () => { m.hidden = true; };
+  const cv = $('wmap'), g = cv.getContext('2d'), sx = cv.width/960, sz = cv.height/600, X = x => (wrapX(x) + 480)*sx, Z = z => (z + 320)*sz;
+  g.fillStyle = '#2a6fa8'; g.fillRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#e2cf98'; g.fillRect(X(WORLD.cx0) - 6, Z(WORLD.cz0) - 6, (WORLD.cx1 - WORLD.cx0)*sx + 12, (WORLD.cz1 - WORLD.cz0)*sz + 12);
+  g.fillStyle = '#5f8a3e'; g.fillRect(X(WORLD.cx0), Z(WORLD.cz0), (WORLD.cx1 - WORLD.cx0)*sx, (WORLD.cz1 - WORLD.cz0)*sz);
+  for (const I of WORLD.islands) { g.fillStyle = '#e2cf98'; g.beginPath(); g.arc(X(I.x), Z(I.z), (I.r + 4)*sx, 0, 7); g.fill(); g.fillStyle = '#5f8a3e'; g.beginPath(); g.arc(X(I.x), Z(I.z), (I.r - 1)*sx, 0, 7); g.fill(); }
+  g.fillStyle = '#4a8fd0'; g.fillRect(X(-16.6), Z(WORLD.cz0), 6*sx, (WORLD.cz1 - WORLD.cz0)*sz);   // the river
+  g.fillStyle = '#c9a26a'; for (const r of [...WORLD.roads, ...Object.values(GAP_ROADS)]) g.fillRect(X(r.x0), Z(r.z0), (r.x1 - r.x0)*sx, Math.max(2, (r.z1 - r.z0)*sz));
+  for (const [id, r] of Object.entries(REGIONS)) if (regionOpen(id)) { g.fillStyle = 'rgba(240,220,160,.85)'; g.fillRect(X(r.rect.x0), Z(r.rect.z0), (r.rect.x1 - r.rect.x0)*sx, (r.rect.z1 - r.rect.z0)*sz); }
+  g.fillStyle = 'rgba(250,235,190,.95)'; g.fillRect(X(BOUNDS.x0), Z(BOUNDS.z0), (BOUNDS.x1 - BOUNDS.x0)*sx, (BOUNDS.z1 - BOUNDS.z0)*sz);
+  const pin = (x, z, t, size = 26) => { if (!seen(x, z)) return; g.font = `${size}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, X(x), Z(z)); };
+  pin(1.5, .5, '🏠', 30);
+  for (const [style, S] of Object.entries(STYLE_SPOTS)) if (DISTRICT.built[style]) { const c = S.centre || (S.site ? [COAST.sites[S.site].x, -84] : [0, 0]); pin(c[0], c[1], S.flag); }
+  if (typeof RTOWN !== 'undefined') for (const r of EMP.list) { const T = RTOWN[r.id], c = r.at || (STYLE_SPOTS[RT_STYLE[r.id]] || {}).centre; if (T && T.lvl >= 0 && c && seen(c[0], c[1])) { pin(c[0], c[1], r.icon, 30); g.font = '20px system-ui'; g.fillStyle = '#fff'; g.fillText(`${r.n} (${TIERS[T.lvl][1]})`, X(c[0]), Z(c[1]) + 26); } }
+  if (typeof AIRSTRIPS !== 'undefined') for (const A of Object.values(AIRSTRIPS)) pin(A.tile[0], A.tile[1], '✈️', 18);
+  if (BOAT.docked) for (const d of DOCKS) pin(d.land[0], d.land[1], '⚓', 18);
+  if (BOAT.g && !BOAT.on) pin(BOAT.pos.x, BOAT.pos.z, '🛥️', 20);
+  // the cloud over everything unexplored
+  { const fc = document.createElement('canvas'); fc.width = FOG.nx; fc.height = FOG.nz; const fg = fc.getContext('2d'), im = fg.createImageData(FOG.nx, FOG.nz);
+    for (let k = 0; k < FOG.data.length; k++) { const v = 214 + ((k*37) % 17); im.data[k*4] = v; im.data[k*4 + 1] = v + 4; im.data[k*4 + 2] = v + 12; im.data[k*4 + 3] = FOG.data[k] ? 0 : 250; }
+    fg.putImageData(im, 0, 0); g.save(); g.imageSmoothingEnabled = true; g.filter = 'blur(5px)'; g.drawImage(fc, 0, 0, cv.width, cv.height); g.filter = 'none'; g.drawImage(fc, 0, 0, cv.width, cv.height); g.restore(); }
+  // where you are
+  g.fillStyle = '#ff3b30'; g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.arc(X(player.pos.x), Z(player.pos.z), 10, 0, 7); g.fill(); g.stroke();
 }
 function openTravel() {
   const m = $('modal'); m.hidden = false; m.dataset.panel = 'travel';
@@ -2435,6 +2509,7 @@ function zoneAct(e, zn, dt) {
     }
     case 'war': if (e.isPlayer) warAct(zn, e); break;
     case 'ferry': if (e.isPlayer && player.zoneT > .6) { takeFerry(zn); player.zoneT = 0; } e.tick = .2; break;
+    case 'dock': if (e.isPlayer && player.zoneT > .6 && !BOAT.on && W.unlocked.has('speedboat')) { boatOn(zn.dock); player.zoneT = -2; } e.tick = .2; break;
     case 'fly': if (e.isPlayer && player.zoneT > .6 && !TRIP.on && $('modal').hidden) { openFlights(zn); player.zoneT = -2; } e.tick = .2; break;
     case 'invest': if (e.isPlayer && !zn.open && $('modal').hidden) { zn.open = true; openInvest(); } e.tick = .3; break;
     case 'upgrade': if (e.isPlayer) payUpgrade(zn, e); break;
@@ -2527,6 +2602,7 @@ const PADS = [
   // the river
   {id:'boatyard', x:-9.4, z:-7.2, cost:40, cur:'log', icon:'⛵', label:'Boatyard', after:['sciNav']},
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
+  {id:'speedboat', x:-9.4, z:7.6, cost:50000, cur:'coin', icon:'🛥️', label:'Speed boat', after:['boat2', 'mount4']},
   {id:'tradeShip', x:-9.3, z:-9.75, cost:2500, cur:'coin', icon:'🚢', label:'Merchant ship', after:['boatyard']},
   {id:'brewery', x:53.5, z:75.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
   {id:'brewer', x:46.2, z:75.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
@@ -2855,6 +2931,7 @@ const UNLOCK = {
   refinery(a) { refineryFx(a); if (a) banner('🏭 Oil refinery!', 'The quarry now refines its own oil. Fuel sells for four times as much as crude.'); },
   gasStation(a) { gasStationFx(a); if (a) banner('⛽ Gas station!', 'A pipe runs from the refinery to a gas station at the highway exit. Every car that fills up pays.'); },
   aiLab(a) { aiFx(1, a); }, superAI(a) { aiFx(2, a); },
+  speedboat(a) { boatDocks(); if (a) banner('🛥️ Your own speed boat!', 'Step on a ⚓ dock to take the helm. Rivers, the ocean, the islands: go anywhere there is water.'); },
   mount1(a) { mountStage(1, a); }, mount2(a) { mountStage(2, a); }, mount3(a) { mountStage(3, a); }, mount4(a) { mountStage(4, a); }, mount5(a) { mountStage(5, a); }, mount6(a) { if (W.mount !== 5 || a) mountStage(6, a); },
   wStone(a) { wonderFx('wStone', a); }, wPyramid(a) { wonderFx('wPyramid', a); }, wColosseum(a) { wonderFx('wColosseum', a); },
   wCathedral(a) { wonderFx('wCathedral', a); }, wTower(a) { wonderFx('wTower', a); }, wNeedle(a) { wonderFx('wNeedle', a); },
@@ -4940,10 +5017,23 @@ const mAO = postShader({tD:{value:null}, projInv:{value:new THREE.Matrix4()}, py
     ao = clamp(1. - ao / 14. * 2.4, 0., 1.);
     gl_FragColor = vec4(vec3(ao), 1.);
   }`);
-const mComp = postShader({tS:{value:null}, tB:{value:null}, tG:{value:null}, tAO:{value:null}, aoOn:{value:0}, bloom:{value:.5}, night:{value:0}}, `uniform sampler2D tS, tB, tG, tAO; uniform float bloom, night, aoOn; varying vec2 vUv;
+const mComp = postShader({tS:{value:null}, tB:{value:null}, tG:{value:null}, tAO:{value:null}, aoOn:{value:0}, bloom:{value:.5}, night:{value:0}, tDep:{value:null}, tFog:{value:null}, fogOn:{value:0}, pInv:{value:new THREE.Matrix4()}, cW:{value:new THREE.Matrix4()}, fT:{value:0}}, `uniform sampler2D tS, tB, tG, tAO, tDep, tFog; uniform float bloom, night, aoOn, fogOn, fT; uniform mat4 pInv, cW; varying vec2 vUv;
+  float fh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float fn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f*f*(3. - 2.*f); return mix(mix(fh(i), fh(i + vec2(1, 0)), f.x), mix(fh(i + vec2(0, 1)), fh(i + vec2(1, 1)), f.x), f.y); }
   void main(){
     vec3 c = texture2D(tS, vUv).rgb;
     c *= mix(1., texture2D(tAO, vUv).r, aoOn * .85);
+    if (fogOn > .5) {
+      float dd = texture2D(tDep, vUv).r;
+      if (dd < .9999) {
+        vec4 vp = pInv * vec4(vUv*2. - 1., dd*2. - 1., 1.); vp /= vp.w; vec3 wp = (cW * vec4(vp.xyz, 1.)).xyz;
+        float cl = fn(wp.xz*.045 + vec2(fT*.03, fT*.012))*.6 + fn(wp.xz*.13 - vec2(fT*.05, 0.))*.4;
+        float sn = texture2D(tFog, vec2((wp.x + 480.)/960., (wp.z + 320.)/600.)).r;
+        float k = smoothstep(.25, .85, sn + (cl - .5)*.45);
+        vec3 fogc = mix(vec3(.58, .62, .68), vec3(.86, .88, .92), cl) * (1. - .55*night);
+        c = mix(fogc, c, k);
+      }
+    }
     float f = smoothstep(.2, .5, abs(vUv.y - .5));
     c = mix(c, texture2D(tB, vUv).rgb, f * .85);
     c += texture2D(tG, vUv).rgb * (bloom + night * .7);
@@ -4989,6 +5079,8 @@ function renderFinal(night, sc = scene, cam = camera) {
     pass(mAO, rtE); blur(rtE, rtF, 1.2);
   }
   mComp.uniforms.tAO.value = rtE.texture; mComp.uniforms.aoOn.value = aoOn ? 1 : 0;
+  { const u = mComp.uniforms, on = sc === scene && FOG.loaded && !SPACE.view; u.fogOn.value = on ? 1 : 0;
+    if (on) { u.tDep.value = rtS.depthTexture; u.tFog.value = FOG.tex; u.pInv.value.copy(cam.projectionMatrixInverse); u.cW.value.copy(cam.matrixWorld); u.fT.value = time; } }
   mComp.uniforms.tS.value = rtS.texture; mComp.uniforms.tB.value = rtA.texture; mComp.uniforms.tG.value = rtC.texture; mComp.uniforms.night.value = night;
   pass(mComp, null);
 }
@@ -7173,8 +7265,19 @@ const COAST = {z:-89.6, sites:{
   cove:{x:4, n:'Pirate cove'}, empire:{x:-92, n:'The old empire'}, azul:{x:52, n:'Port Azul'}, kumo:{x:72, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
 clearForest({x0:-150, x1:150, z0:-130, z1:-87});
 {
-  const sea = ground(0x2fb0e2, 320, 40, 0, -112.3, -.2); sea.material = water.material; self.SEA_MESH = sea;
-  ground(0xe8d49a, 320, 4.6, 0, -90.1, -.215);
+  const sea = ground(0x2fb0e2, 3000, 1408, 0, -796, -.2); sea.material = water.material; self.SEA_MESH = sea;
+  self.SEA_MORE = [ground(0x2fb0e2, 3000, 1270, 0, WORLD.cz1 + 635, -.2), ground(0x2fb0e2, 1170, WORLD.cz1 + 92, WORLD.cx1 + 585, (WORLD.cz1 - 92)/2, -.2), ground(0x2fb0e2, 1170, WORLD.cz1 + 92, WORLD.cx0 - 585, (WORLD.cz1 - 92)/2, -.2)];
+  for (const m of self.SEA_MORE) m.material = water.material;
+  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 4.6, 0, -90.1, -.215);
+  for (const sx of [-1, 1]) ground(0xe8d49a, 8, WORLD.cz1 + 92, sx*(WORLD.cx1 - 4), (WORLD.cz1 - 92)/2, -.215);
+  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 5, 0, WORLD.cz1 - 2.5, -.215);
+  for (const I of WORLD.islands) for (const dx of [0, I.x > 0 ? -WORLD.w : WORLD.w]) {
+    const sand = new THREE.Mesh(new THREE.CircleGeometry(I.r + 4, 48), new THREE.MeshStandardMaterial({color:0xe8d49a, roughness:1}));
+    phDress(sand.material, 0xe8d49a, (I.r + 4)*2, (I.r + 4)*2, 'coast_sand_01', 5); sand.rotation.x = -Math.PI/2; sand.position.set(I.x + dx, -.17, I.z); sand.receiveShadow = true; scene.add(sand);
+    const turf = new THREE.Mesh(new THREE.CircleGeometry(I.r - 1, 48), new THREE.MeshStandardMaterial({color:0x557133, roughness:1}));
+    phDress(turf.material, 0x557133, I.r*2, I.r*2, 'aerial_grass_rock', 8, .45); turf.rotation.x = -Math.PI/2; turf.position.set(I.x + dx, -.14, I.z); turf.receiveShadow = true; scene.add(turf);
+    for (let k = 0; k < 9; k++) { const a = k/9*Math.PI*2 + .3, p = model('palm', 3.6 + (k % 3)*.6, 'y'); if (p) { p.position.set(I.x + dx + Math.cos(a)*(I.r - 3), -.14, I.z + Math.sin(a)*(I.r - 3)); p.rotation.y = a*2; scene.add(p); } }
+  }
   const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -92.5); scene.add(foam); COAST.foam = foam;
   for (let i = 0; i < 26; i++) { const r = mesh(G.ico, 0x8a8478, [.5 + R()*.6, .3 + R()*.3, .5 + R()*.5], [-150 + i*11.6 + R()*2, -.1, -88.4 - R()*.6], scene); r.rotation.y = R()*3; }
 }
@@ -8455,6 +8558,8 @@ function buildDistrict(style, anim) {
 }
 function styleFor(r) { return {ostberg:'austria', azul:'brazil', kumo:'china'}[r.id]; }
 function updDistricts(dt) {
+  updFog(dt);
+  if (W.unlocked.has('speedboat') && !BOAT.docked) boatDocks();
   updAirstrips();
   updMarkets(dt);
   if ((DISTRICT.t = (DISTRICT.t || 0) - dt) > 0) return; DISTRICT.t = .3;
@@ -8579,6 +8684,85 @@ function flightTo(from, to) {
   const mid = [(a[0] + b[0])/2, 22, (a[2] + b[2])/2];
   const pts = [...dep, mid, ...arr];
   return startTrip(to.sea || from.sea ? 'sea' : 'plane', pts, {at:to.off, title:`🛬 Landed: ${to.n}`, sub:'Step off and look around.'}, `✈️ Flying to ${to.n.replace(/^\S+ /, '')}`);
+}
+// ------------------------------------------------------------------ the speed boat
+const BOAT = {on:false, g:null, pos:new THREE.Vector3(), yaw:0, speed:0, wake:0, near:null};
+const boatIn = new THREE.Vector2();
+// every dock: where you stand to board (land) and where the boat waits (water)
+const DOCKS = [
+  {n:'the harbour', land:[-9.2, -2.6], water:[-13.6, -2.6], off:[-8.2, -1.3]},
+  {n:'the coast', land:[-5.6, -89.6], water:[-5.6, -95], off:[-5.6, -88.4]},
+  {n:'the east coast', land:[318, 1.9], water:[338, 1.9], off:[315.6, 1.9]},
+  {n:'the west coast', land:[-318, 12.1], water:[-338, 12.1], off:[-315.6, 12.1]},
+  {n:'the east island', land:[410 - 19, 50], water:[410 - 40, 50], off:[410 - 16.5, 50]},
+  {n:'the west island', land:[-410 + 19, 50], water:[-410 + 40, 50], off:[-410 + 16.5, 50]}];
+function isWater(x, z) {
+  const wx = wrapX(x);
+  if (onIsland(wx, z, 3.6)) return false;
+  if (z < -314 || z > 274) return false;                                                                    // the edge of the known world
+  if (wx < WORLD.cx0 - .8 || wx > WORLD.cx1 + .8 || z < WORLD.cz0 - 1 || z > WORLD.cz1 + .8) return true;   // the open ocean
+  return wx > -16.1 && wx < -11.1;                                                                           // the river
+}
+function boatDocks() {
+  if (BOAT.docked) return; BOAT.docked = true;
+  for (const d of DOCKS) {
+    d.zone = addZone({kind:'dock', dock:d, x:d.land[0], z:d.land[1], icon:'⚓', tile:{alpha:1, size:84, label:'Speed boat', fill:'rgba(20,60,110,.7)'}});
+    // a little jetty out to where the boat ties up
+    const [lx, lz] = d.land, [wx, wz] = d.water, len = Math.hypot(wx - lx, wz - lz) - 1, a = Math.atan2(wx - lx, wz - lz);
+    const j = new THREE.Group(); j.position.set((lx + wx)/2, 0, (lz + wz)/2); j.rotation.y = a; scene.add(j);
+    mesh(G.box, 0x8a6a46, [1.3, .1, len], [0, .02, 0], j); for (let k = -len/2 + .6; k < len/2; k += 2.2) for (const sx of [-.6, .6]) mesh(G.cyl, 0x5e4630, [.08, .9, .08], [sx, -.3, k], j);
+  }
+  if (!BOAT.g) { BOAT.g = boatMesh(); BOAT.pos.set(DOCKS[0].water[0], 0, DOCKS[0].water[1]); BOAT.g.position.copy(BOAT.pos); BOAT.g.rotation.y = Math.PI; }
+}
+function boatMesh() {
+  const g = new THREE.Group(), src = MODELS.speedboat && MODELS.speedboat.getObjectByName('speedboat');
+  if (src) { const m = src.clone(true); const bb = new THREE.Box3().setFromObject(m); const k = 3.4 / (bb.max.z - bb.min.z || 1); m.scale.setScalar(k); m.rotation.y = Math.PI; /* the model's bow faces -z; ours sails +z */ m.position.y = .1; m.traverse(o => { if (o.isMesh) { o.castShadow = true; if (/glass/.test(o.name)) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .4; } } }); g.add(m); }
+  else { mesh(G.box, 0xf4f4f4, [1.3, .5, 3.4], [0, .2, 0], g); mesh(G.box, 0x1f3f7a, [1.32, .1, 3.42], [0, .35, 0], g); mesh(G.box, 0x111111, [.4, .5, .4], [0, .5, -1.8], g); }
+  scene.add(g); return g;
+}
+function boatOn(d) {
+  if (!BOAT.g) boatDocks();
+  BOAT.on = true; BOAT.speed = 0; BOAT.pos.set(d.water[0], 0, d.water[1]); BOAT.yaw = Math.atan2(d.water[0] - d.land[0], d.water[1] - d.land[1]);
+  player.char.g.visible = false; player.stack.items.forEach(it => { it.mesh.visible = false; });
+  note('🛥️ At the helm', 'Steer anywhere there is water. Pull in at a ⚓ dock and tap "Step ashore" (or Q).');
+  snd(150, .4, 'sawtooth', .03, .5);
+}
+function boatOff(d) {
+  BOAT.on = false; BOAT.speed = 0; BOAT.pos.set(d.water[0], 0, d.water[1]); BOAT.g.position.copy(BOAT.pos);
+  player.char.g.visible = true; player.stack.items.forEach(it => { it.mesh.visible = true; });
+  player.pos.set(d.off[0], 0, d.off[1]); player.zoneT = -2; $('bBoat').hidden = true;
+  banner(`⚓ Ashore at ${d.n}`, 'The boat waits here. Step on any ⚓ dock to sail again.');
+}
+function boatStep(dt) {
+  const B = BOAT, want = Math.min(1, boatIn.length());
+  if (want > .1) { const yt = Math.atan2(boatIn.x, boatIn.y); let d = yt - B.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); B.yaw += clamp(d, -2.4*dt, 2.4*dt); }
+  B.speed += ((want > .1 ? 26*want : 0) - B.speed) * Math.min(1, dt*(want > .1 ? .7 : 1.4));
+  const vx = Math.sin(B.yaw)*B.speed*dt, vz = Math.cos(B.yaw)*B.speed*dt;
+  if (isWater(B.pos.x + vx, B.pos.z + vz)) { B.pos.x += vx; B.pos.z += vz; }
+  else if (isWater(B.pos.x + vx, B.pos.z)) { B.pos.x += vx; B.speed *= .97; }
+  else if (isWater(B.pos.x, B.pos.z + vz)) { B.pos.z += vz; B.speed *= .97; }
+  else B.speed *= .3;
+  // across the date line: wrap, and count the lap
+  if (Math.abs(B.pos.x) > WORLD.w/2) { const d = B.pos.x > 0 ? -WORLD.w : WORLD.w; B.pos.x += d; camera.position.x += d; W.flags.lap = (W.flags.lap || 0) - Math.sign(d); }
+  const prevX = player.pos.x;
+  B.g.position.set(B.pos.x, Math.sin(time*2.3)*.05 - .02, B.pos.z); B.g.rotation.set(-Math.min(.12, B.speed*.005), B.yaw, Math.sin(time*1.7)*.03, 'YXZ');
+  player.pos.set(B.pos.x, 0, B.pos.z);
+  // round the world: one full lap, back past home longitude
+  if (Math.abs(W.flags.lap || 0) >= 1 && Math.sign(prevX) !== Math.sign(B.pos.x) && Math.abs(B.pos.x) < 60) {
+    W.flags.lap = 0; W.flags.circumnav = (W.flags.circumnav || 0) + 1; const pay = 25000 + 5000*W.era;
+    addCash(CASH.spoils || cash, pay, {x:12.3, z:84.8});
+    banner('🌍 You sailed around the world!', `The whole empire cheers. ${pay} 💵 in prize money${W.flags.circumnav > 1 ? ` (lap ${W.flags.circumnav})` : ''}.`);
+    [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110)); save();
+  }
+  // spray off the bow and a wake behind, more the faster you go
+  if ((B.wake -= dt) <= 0 && B.speed > 2) {
+    B.wake = .04;
+    const bx = Math.sin(B.yaw), bz = Math.cos(B.yaw);
+    for (const sd of [-1, 1]) particle(0xf4fbff, new THREE.Vector3(B.pos.x - bx*1.7 + bz*sd*.5, .05, B.pos.z - bz*1.7 - bx*sd*.5), new THREE.Vector3(bz*sd*.8, .3 + B.speed*.02, -bx*sd*.8), .7, .06, {grow:.3, op:.6});
+  }
+  B.near = DOCKS.find(d => Math.hypot(wrapX(d.water[0] - B.pos.x), d.water[1] - B.pos.z) < 7) || null;
+  $('bBoat').hidden = !B.near;
+  if (B.near && keys.q) boatOff(B.near);
 }
 function takeFerry(zn) {
   const down = [[-12.3, -.26, .9], [-13.6, -.26, -6], [-13.4, -.26, -40], [-13.7, -.26, -75], [-13.2, -.26, -93], [-10.5, -.26, -95.2], [-8.6, -.26, -94.4]];
@@ -8741,10 +8925,13 @@ water.material.onBeforeCompile = sh => {
     .replace('#include <color_fragment>', `#include <color_fragment>
       float edge = abs(vWP.x + 13.6);
       // a dark channel in the middle, teal shallows over sand at the banks; out at sea, deeper the further from the beach
-      float deep = vWP.z < -91. ? smoothstep(-.5, 16., -91.6 - vWP.z) : 1. - smoothstep(.5, 2.7, edge);
+      vec2 cq = vWP.xz; float wrapx = mod(cq.x + 480., 960.) - 480.;
+      float rectD = max(max(-91.6 - cq.y, cq.y - 230.), max(cq.x - 330., -330. - cq.x));
+      float islD = min(length(vec2(wrapx - 410., cq.y - 50.)) - 34., length(vec2(wrapx + 410., cq.y - 50.)) - 34.);
+      float shoreD = min(rectD, islD); bool seaW = shoreD > -.5;   // the open sea: outside the continent and the islands
+      float deep = seaW ? smoothstep(-.5, 16., shoreD) : 1. - smoothstep(.5, 2.7, edge);
       diffuseColor.rgb = mix(vec3(.24, .62, .62), vec3(.03, .2, .34), deep);
-      bool seaW = vWP.z < -91.;
-      float foam = seaW ? (1. - smoothstep(0., .9 + .35*sin(vWP.x*.9 + uT*1.1), -91.6 - vWP.z)) * (.6 + .4*sin(vWP.x*2.7 - uT*1.6)) : smoothstep(2.35, 2.95, edge) * (.55 + .45 * sin(vWP.z * 2.7 + uT * 2.2 + sin(vWP.z * .7) * 2.));
+      float foam = seaW ? (1. - smoothstep(0., .9 + .35*sin((vWP.x + vWP.z)*.9 + uT*1.1), shoreD)) * (.6 + .4*sin((vWP.x - vWP.z)*2.7 - uT*1.6)) : smoothstep(2.35, 2.95, edge) * (.55 + .45 * sin(vWP.z * 2.7 + uT * 2.2 + sin(vWP.z * .7) * 2.));
       float streak = smoothstep(.93, 1., sin(vWP.z * 1.3 - uT * 3.1 + sin(vWP.x * 2.3) * 1.5)) * (1. - smoothstep(.5, 2.4, edge)) * .35;
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.92, .96, 1.), clamp(foam * .5 + streak * .4, 0., 1.));`)
     .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
@@ -8762,7 +8949,7 @@ water.material.onBeforeCompile = sh => {
       #include <opaque_fragment>`);
 };
 ripples.forEach(r => { r.material.opacity = .22; });
-if (self.SEA_MESH) self.SEA_MESH.material = water.material;
+if (self.SEA_MESH) self.SEA_MESH.material = water.material; for (const m of self.SEA_MORE || []) m.material = water.material;
 
 // grass that sways in the wind, and wildflowers
 {
@@ -8960,17 +9147,19 @@ function update(dt) {
   const cy = Math.cos(CAM_YAW), sy2 = Math.sin(CAM_YAW);
   let ix = sx*cy + sy*sy2 + testIn.x, iz = -sx*sy2 + sy*cy + testIn.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
-  if (!started || PHOTO.on || SPACE.view || TRIP.on) ix = iz = 0;
+  if (BOAT.on) boatIn.set(ix, iz);
+  if (!started || PHOTO.on || SPACE.view || TRIP.on || BOAT.on) ix = iz = 0;
   const ps = player.speed * (W.mount ? MOUNTS[W.mount].speed : 1) * (policy('speed') || 1);
   player.vel.set(ix * ps, 0, iz * ps);
   prevPos.copy(player.pos);
-  if (TRIP.on) tripStep(dt); else { player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8); }
+  if (TRIP.on) tripStep(dt); else if (BOAT.on) boatStep(dt); else { player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8); }
+  if (Math.abs(player.pos.x) > WORLD.w/2) { const d = player.pos.x > 0 ? -WORLD.w : WORLD.w; player.pos.x += d; prevPos.x += d; camera.position.x += d; W.flags.lap = (W.flags.lap || 0) - Math.sign(d); }
   player.cap = W.cap;
   // a tile works once you stop on it (or linger), so running straight across one does nothing
-  const zn = TRIP.on ? null : zoneAt(player.pos.x, player.pos.z);
+  const zn = TRIP.on || BOAT.on ? null : zoneAt(player.pos.x, player.pos.z);
   player.zoneT = zn && zn === player.zone ? player.zoneT + dt : 0; player.zone = zn;
   if (zn) { if (player.zoneT > .6 || Math.hypot(player.vel.x, player.vel.z) < .5) zoneAct(player, zn, dt); }
-  else if (!TRIP.on && (player.tick -= dt) <= 0) {
+  else if (!TRIP.on && !BOAT.on && (player.tick -= dt) <= 0) {
     const t = nodes().find(t => t.logs > 0 && Math.hypot(t.x - player.pos.x, t.z - player.pos.z) < (t.item === 'stone' ? 1.7 : 1.55));
     if (!t) player.tick = 0;
     else if (harvest(t, player)) player.tick = t.item === 'stone' ? .4 : .32;
@@ -9365,12 +9554,13 @@ function setPause(v) {
   for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
   if (v) save(); else renderer.domElement.focus({preventScroll:true});
 }
-$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
+$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bBoat').onclick = () => { if (BOAT.on && BOAT.near) boatOff(BOAT.near); }; $('bWorld').onclick = () => { if (started) openWorldMap(); }; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
 addEventListener('keydown', e => {
   if (e.repeat || e.target.closest?.('input, textarea')) return;
   const k = e.key.toLowerCase();
   if (k === 'c' && started && !paused) nextCam();
   if (k === 'f' && started && !paused) { setWatch(!WATCH.on); return; }
+  if (k === 'g' && started && !paused) { if ($('modal').hidden) openWorldMap(); else if ($('modal').dataset.panel === 'map') $('modal').hidden = true; return; }
   if (k === 'm' && started && !paused) { const own = [1, 2, 3, 4, 5, 6].filter(i => W.unlocked.has('mount' + i)); if (own.length > 1) mountStage(own[(own.indexOf(W.mount) + 1) % own.length], true); }
   if (k === 't' && started && !paused) openTravel();
   if (k === 'e' && started && !paused) openEmpire();
@@ -9382,7 +9572,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
