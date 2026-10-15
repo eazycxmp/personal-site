@@ -2599,6 +2599,10 @@ const PADS = [
   {id:'digger', x:10, z:-56.5, cost:5, cur:'tools', icon:'🚜', label:'Stone digger', after:['workshop'], region:'north'},
   {id:'plow', x:-8.4, z:11.6, cost:4, cur:'tools', icon:'⚙️', label:'Iron plows', after:['workshop', 'field']},
   {id:'carts', x:-7.4, z:-1.8, cost:6, cur:'tools', icon:'🛒', label:'Hand carts', after:['workshop']},
+  {id:'fleet1', x:45.6, z:5, cost:30000, cur:'coin', icon:'🚐', label:'Delivery vans', after:['downtownGate'], region:'east'},
+  {id:'fleet2', x:45.6, z:5, cost:80000, cur:'coin', icon:'🚚', label:'Box trucks', after:['fleet1'], region:'east'},
+  {id:'fleet3', x:45.6, z:5, cost:200000, cur:'coin', icon:'🚛', label:'Semi-trucks', after:['fleet2', 'highway'], region:'east'},
+  {id:'fleet4', x:45.6, z:5, cost:500000, cur:'coin', icon:'🔋', label:'Electric fleet', after:['fleet3', 'aiLab'], region:'east'},
   // the river
   {id:'boatyard', x:-9.4, z:-7.2, cost:40, cur:'log', icon:'⛵', label:'Boatyard', after:['sciNav']},
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
@@ -2828,6 +2832,7 @@ const UNLOCK = {
     digger(a); boxes.push({x0:8.9, x1:11.1, z0:-57.4, z1:-55.6});
   },
   plow() { BOOST.farm *= 1.5; },
+  fleet1(a) { fleetUp(1, a); }, fleet2(a) { fleetUp(2, a); }, fleet3(a) { fleetUp(3, a); }, fleet4(a) { fleetUp(4, a); },
   carts() { WORKER.cap += 4; for (const w of workers) w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); },
   warship() { makeBoat('war'); },
   brewery(a) {
@@ -2954,7 +2959,7 @@ const UNLOCK = {
   satellite(a) { if (a) launch('sat'); },
   moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
   mineRail(a) { buildMineRail(a); if (a) banner('🚃 Mine railway!', 'Ore carts run from the mine straight into the smelter.'); },
-  railway(a) { W.train = 1; railStage(1, a); makeCash('rail', 59.3, 73); makeTrain(0); if (a) banner('🐎 Stagecoach line!', 'Horses and wagons bring travelers from the next towns.'); },
+  railway(a) { W.train = 1; railStage(1, a); makeCash('rail', 61.7, 73); makeTrain(0); if (a) banner('🐎 Stagecoach line!', 'Horses and wagons bring travelers from the next towns.'); },
   steamTrain(a) { W.train = 2; railStage(2, a); overpasses(a); makeTrain(1); if (a) banner('🚂 Steam train!', 'Trains bring travelers and fares from the next towns.'); },
   bulletTrain(a) { W.train = 3; railStage(3, a); makeTrain(2); if (a) banner('🚄 Bullet train!', 'Faster trains, more passengers, bigger fares.'); },
 };
@@ -5891,11 +5896,18 @@ const CARRY = {
   cart:{z:1.1, y:.66, nx:3, nz:3, sx:.19, sz:.17, step:.42, speed:1.15},
   truck:{z:-.62, y:.74, nx:3, nz:3, sx:.22, sz:.2, step:.4, speed:1.6},
 };
-const carryMode = w => TRAY_KINDS.has(w.kind) ? 'tray' : W.era >= 7 ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
+const fleetLvl = () => ['fleet1', 'fleet2', 'fleet3', 'fleet4'].filter(id => W.unlocked.has(id)).length;
+const FLEET_N = ['', '🚐 Delivery vans', '🚚 Box trucks', '🚛 Semi-trucks', '🔋 Electric fleet'];
+function fleetUp(n, anim) {
+  WORKER.cap += [0, 4, 6, 8, 10][n];
+  for (const w of workers) { w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); w.carry = null; equip(w); }
+  if (anim) banner(`${FLEET_N[n]}!`, `Every hauler drives now: ${Math.round((1.6 + .4*n)/1.6*100 - 100)}% faster than the old trucks, and carrying more.`);
+}
+const carryMode = w => TRAY_KINDS.has(w.kind) ? 'tray' : W.era >= 7 || fleetLvl() ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
 function equip(w) {
   if (w.kind === 'broker' || w.kind === 'oilman') return;
   const mode = carryMode(w), C = CARRY[mode];
-  w.speed = WORKER.speed * C.speed;
+  w.speed = WORKER.speed * (mode === 'truck' ? C.speed + .4*fleetLvl() : C.speed);
   if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
   if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
   w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);
@@ -5911,13 +5923,15 @@ function equip(w) {
     M(G.box, 0x7a5232, [.8, .2, .05], [0, .7, 1.47]);
   } else {
     // a small delivery truck, the driver at the wheel
-    const col = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4][(w.kind.length*7 + workers.indexOf(w)) % 5];
+    const fl = fleetLvl(), col = fl >= 4 ? 0xf4f6f8 : [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4][(w.kind.length*7 + workers.indexOf(w)) % 5];
+    g.scale.setScalar(1 + .12*fl);   // bigger trucks as the fleet grows
     M(G.box, col, [.9, .75, .78], [0, .62, .5]); M(G.box, 0x8fc6e8, [.82, .3, .04], [0, .82, .9], {metalness:.5, roughness:.1});
     M(G.box, 0x3a3e44, [.92, .12, 1.95], [0, .22, -.05]); M(G.box, col, [.92, .06, 1.15], [0, .32, -.58]);
     for (const sx of [-1, 1]) M(G.box, col, [.04, .26, 1.15], [sx*.45, .48, -.58]);
     M(G.box, col, [.92, .26, .04], [0, .48, -1.15]);
     for (const [x, z] of [[-.47, .45], [.47, .45], [-.47, -.75], [.47, -.75]]) M(G.cyl, 0x1a1a1a, [.19, .14, .19], [x, .19, z]).rotation.z = Math.PI/2;
     for (const sx of [-.3, .3]) bulb(g, sx, .5, .9, 0xfff2c8, .06);
+    if (fl >= 4) for (const sx of [-1, 1]) M(G.box, 0x2fbf6a, [.02, .08, 1.9], [sx*.47, .4, -.05]);   // the electric fleet's green stripe
     M(G.sph, 0xe8b892, [.15, .15, .15], [0, .92, .45]); M(G.cyl, LOOKS[w.kind]?.hatCol || 0x3a3a3a, [.16, .08, .16], [0, 1.06, .45]);
   }
   // in a truck the walking figure is tucked away; the driver sits in the cab
@@ -7634,7 +7648,12 @@ function conquer(r) {
   addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8});
   if (r.id === 'ostberg') rivalCity();
   W.flags.conqueredRivals = (W.flags.conqueredRivals || 0) + 1;
-  banner(`🏴 ${r.icon} ${r.n} is yours!`, `Their whole realm joins your empire, with ${loot} 💵 in treasure. Win them over or they will revolt.`);
+  const ownedN = EMP.list.filter(q => es(q).owned).length;
+  if (ownedN >= EMP.list.length && !W.flags.worldEmperor) {
+    W.flags.worldEmperor = true; const prize = 1000000;
+    setTimeout(() => { banner('👑 The whole world is yours!', `All ${EMP.list.length} rivals have joined your empire. ${prize} 💵 in tribute from every corner of the globe.`); addCash(CASH.spoils || cash, prize, {x:12.3, z:84.8}); [523, 659, 784, 1046, 1318, 1568, 2093].forEach((f, i) => setTimeout(() => snd(f, .25, 'triangle', .05), i*120)); }, 4500);
+  }
+  banner(`🏴 ${r.icon} ${r.n} is yours! (${ownedN} of ${EMP.list.length} rivals)`, `Their whole realm joins your empire, with ${loot} 💵 in treasure. Win them over or they will revolt.`);
   [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));
 }
 
@@ -9691,7 +9710,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
