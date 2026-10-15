@@ -182,7 +182,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb'};
   const all = Promise.all(Object.entries(list).map(([k, u]) => L.loadAsync('./models/' + u).then(g => {
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     MODELS[k] = g.scene;
@@ -198,6 +198,7 @@ await (async () => {
     g.translate(-c.x, -c.y, -c.z); g.scale(1/(s.x || 1), 1/(s.y || 1), 1/(s.z || 1)); g.computeVertexNormals();
     PART[o.name] = g;
   });
+  if (MODELS.trees) for (const k of ['pineR', 'spruceR', 'oakR']) { const o = MODELS.trees.getObjectByName((matchMedia('(pointer: coarse)').matches || innerWidth < 700) && k === 'oakR' ? 'oakL' : k); if (o) MODELS[k] = o; }
 })();
 const MODEL_BB = {};
 // a copy of a model, scaled so its size along one axis is `size`, standing on its base and centred
@@ -215,6 +216,41 @@ const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
 renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+// weathering on every standard material (desktop): patterned in the object's own space so moving things don't swim
+if (!MOBILE) for (const id of ['standard', 'physical']) {
+  const L = THREE.ShaderLib[id];
+  L.vertexShader = L.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGO, vGW, vGN;')
+    .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+  #ifndef NO_GRIME
+  { vec4 gl = vec4(transformed, 1.);
+    #ifdef USE_BATCHING
+    gl = batchingMatrix * gl;
+    #endif
+    #ifdef USE_INSTANCING
+    gl = instanceMatrix * gl;
+    #endif
+    vGW = (modelMatrix * gl).xyz; vGO = gl.xyz * length(modelMatrix[0].xyz); vGN = normalize(transpose(mat3(viewMatrix)) * transformedNormal); }
+  #endif`);
+  L.fragmentShader = L.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vGO, vGW, vGN;
+float gH(vec3 p) { p = fract(p*.3183099 + .1); p *= 17.; return fract(p.x*p.y*p.z*(p.x + p.y + p.z)); }
+float gNoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f*f*(3. - 2.*f);
+  return mix(mix(mix(gH(i), gH(i + vec3(1, 0, 0)), f.x), mix(gH(i + vec3(0, 1, 0)), gH(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(gH(i + vec3(0, 0, 1)), gH(i + vec3(1, 0, 1)), f.x), mix(gH(i + vec3(0, 1, 1)), gH(i + vec3(1, 1, 1)), f.x), f.y), f.z); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+  float gGN = .5;
+  #ifndef NO_GRIME
+  { gGN = gNoise(vGO*1.1)*.55 + gNoise(vGO*3.7)*.3 + gNoise(vGO*11.)*.15;
+    float wall = 1. - abs(vGN.y);
+    diffuseColor.rgb *= .87 + .2*gGN;                                                  // broad, uneven tone
+    diffuseColor.rgb *= mix(1., .74 + .26*smoothstep(0., 1.2, vGW.y), wall*.9);        // dirt splashed up the foot of walls
+    diffuseColor.rgb *= 1. - .1*smoothstep(.55, .95, -vGN.y);
+    float up = smoothstep(.85, .98, vGN.y), broad = gNoise(vec3(vGW.xz*.07, 3.))*.65 + gNoise(vec3(vGW.xz*.23, 7.))*.35;
+    diffuseColor.rgb *= mix(1., .8 + .34*broad, up*.8);                                // large patches across open ground
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb*vec3(1.08, 1.0, .82), up*smoothstep(.55, .8, broad)*.6); }   // drier, yellower spots                        // undersides a touch darker
+  #endif`)
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = clamp(roughnessFactor + (gGN - .5)*.18, .02, 1.);');
+}
 stage.prepend(renderer.domElement);
 renderer.domElement.tabIndex = 0;
 
@@ -499,7 +535,7 @@ const DETAIL_N = (() => {
   }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t;
 })();
-const grassPlane = ground(0x4f9e32, 420, 420, 0, -10, GY); grassPlane.material.map = groundTex([68, 68]);
+const grassPlane = ground(0x5f7a38, 420, 420, 0, -10, GY); grassPlane.material.map = groundTex([68, 68]);
 if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
 slab(0xb98f5c, 40, 2.4, 55, 1.6, .012);
@@ -540,6 +576,36 @@ function treeMat(m) {
     if (spots.some(s => Math.hypot(s[0]-x, s[1]-z) < 1.65)) continue;
     spots.push([x, z, .8 + rnd()*.6]);
   }
+  const KN = ['pineR', 'spruceR', 'oakR'].every(k => MODELS[k]);
+  if (KN) {
+    // shared materials, so the seasons recolour every tree at once; the baked shading rides in the vertex colours
+    const LEAFC = new THREE.MeshStandardMaterial({color:0x2f6e2c, vertexColors:true, roughness:.88}), LEAFB = new THREE.MeshStandardMaterial({color:0x4a8a3a, vertexColors:true, roughness:.85});
+    const BARKM = new THREE.MeshStandardMaterial({color:0xc8a27a, vertexColors:true, roughness:.95});
+    FOREST.matFor = m => /leafBroad/.test(m.name) ? LEAFB : /leaf/i.test(m.name) ? LEAFC : BARKM;
+    const KINDS = [['pineR', 3.7], ['spruceR', 3.3], ['oakR', 3.1]], kindOf = i => { const h = (i*2654435761 >>> 0) % 10; return h < 4 ? 0 : h < 7 ? 1 : 2; };
+    const local = KINDS.map(() => []); FOREST.where = spots.map((sp, i) => { const k = kindOf(i); local[k].push(i); return [k, local[k].length - 1]; });
+    const o = new THREE.Object3D(), m4 = new THREE.Matrix4(); FOREST.byKind = [];
+    const leafC = [], leafB = [], barks = [];
+    KINDS.forEach(([k, H], ki) => {
+      const src = MODELS[k], bb = new THREE.Box3().setFromObject(src), h = bb.max.y - bb.min.y; src.updateMatrixWorld(true);
+      const list = []; FOREST.byKind.push(list);
+      src.traverse(c => {
+        if (!c.isMesh) return;
+        const im = new THREE.InstancedMesh(c.geometry, FOREST.matFor(c.material), Math.max(1, local[ki].length));
+        local[ki].forEach((i, j) => {
+          const [x, z, sz] = spots[i], sc = H * sz / h;
+          o.position.set(x, GY - bb.min.y*sc, z); o.rotation.set(0, (x*7 + z*3) % 6.28, 0); o.scale.set(sc*(.9 + (i % 7)*.03), sc, sc*(.9 + (i % 5)*.04)); o.updateMatrix();
+          im.setMatrixAt(j, m4.multiplyMatrices(o.matrix, c.matrixWorld));
+        });
+        if (!local[ki].length) im.count = 0;
+        im.castShadow = true; im.receiveShadow = true; scene.add(im); list.push(im);
+        (im.material === LEAFC ? leafC : im.material === LEAFB ? leafB : barks).push(im);
+      });
+    });
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    FOREST.hideAt = i => { const [k, j] = FOREST.where[i]; FOREST.byKind[k].forEach(m => { m.setMatrixAt(j, zero); m.instanceMatrix.needsUpdate = true; }); };
+    FOREST.spots = spots; FOREST.meshes = [barks[0], leafC[0], leafB[0], ...barks.slice(1), ...leafC.slice(1), ...leafB.slice(1)];
+  } else {
   const KT = ['pineA', 'pineC', 'pineE', 'treeD'].filter(k => MODELS[k]);
   if (KT.length) {
     const meshes = [], o = new THREE.Object3D(), hide = new THREE.Matrix4().makeScale(0, 0, 0), m4 = new THREE.Matrix4();
@@ -570,6 +636,7 @@ function treeMat(m) {
   });
   [trunk, c1, c2].forEach(m => { m.castShadow = true; scene.add(m); });
   FOREST.spots = spots; FOREST.meshes = [trunk, c1, c2];
+  }
   }
 }
 // mountains and the cliff the mine is dug into, north of everything
@@ -603,8 +670,8 @@ const trees = [];
     mesh(G.cone, 0x5ec04c, [.75*s, 1.3*s, .75*s], [0, 2.45*s, 0], top);
     const stump = mesh(G.cyl, logMats, [.24*s, .3, .24*s], [0, .15, 0], g);
     stump.visible = false;
-    const km = model(['pineA', 'pineC', 'pineE'][trees.length % 3], 3.1*s, 'y');
-    if (km) { top.children.forEach(c => c.visible = false); trunk.visible = false; km.traverse(c => { if (c.isMesh) c.material = treeMat(c.material); }); top.add(km); }
+    const km = FOREST.matFor ? model(['pineR', 'spruceR', 'oakR'][trees.length % 3], [3.6, 3.2, 3.0][trees.length % 3]*s, 'y') : model(['pineA', 'pineC', 'pineE'][trees.length % 3], 3.1*s, 'y');
+    if (km) { top.children.forEach(c => c.visible = false); trunk.visible = false; km.traverse(c => { if (c.isMesh) c.material = FOREST.matFor ? FOREST.matFor(c.material) : treeMat(c.material); }); top.add(km); }
     scene.add(g);
     trees.push({x, z, g, top, trunk, stump, s, item:'log', logs:4, regrow:0, shake:0});
     circles.push({x, z, r:.35});
@@ -1305,7 +1372,7 @@ function regionOf(x, z) {
 function clearForest(r) {
   const o = new THREE.Object3D(); o.scale.setScalar(0); o.updateMatrix();
   FOREST.spots.forEach(([x, z], i) => {
-    if (x > r.x0 - 1.2 && x < r.x1 + 1.2 && z > r.z0 - 1.2 && z < r.z1 + 1.2) FOREST.meshes.forEach(m => m.setMatrixAt(i, o.matrix));
+    if (x > r.x0 - 1.2 && x < r.x1 + 1.2 && z > r.z0 - 1.2 && z < r.z1 + 1.2) { if (FOREST.hideAt) FOREST.hideAt(i); else FOREST.meshes.forEach(m => m.setMatrixAt(i, o.matrix)); }
   });
   FOREST.meshes.forEach(m => { m.instanceMatrix.needsUpdate = true; });
 }
@@ -1350,7 +1417,7 @@ function gapRoads() {
   EDGES.forEach(([u, v, [[ax, az], [bx, bz]]], i) => {
     if (GAP_ROADS[i] || !regionOpen(u) || !regionOpen(v)) return;
     const flat = Math.abs(az - bz) < .01, r = flat ? {x0:Math.min(ax, bx), x1:Math.max(ax, bx), z0:az - 1.8, z1:az + 1.8} : {x0:ax - 1.8, x1:ax + 1.8, z0:Math.min(az, bz), z1:Math.max(az, bz)};
-    GAP_ROADS[i] = r; AREAS.push(r); clearForest({x0:r.x0 - 1, x1:r.x1 + 1, z0:r.z0 - 1, z1:r.z1 + 1});
+    GAP_ROADS[i] = r; AREAS.push(flat ? {...r, z0:r.z0 + .3, z1:r.z1 - .3} : {...r, x0:r.x0 + .3, x1:r.x1 - .3}); clearForest({x0:r.x0 - 1, x1:r.x1 + 1, z0:r.z0 - 1, z1:r.z1 + 1});
     const g = slab(0xb98f5c, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .01);
     // milestones and lamps along the way, so the long road reads as a road
     const len = flat ? r.x1 - r.x0 : r.z1 - r.z0;
@@ -4872,9 +4939,9 @@ function renderFinal(night, sc = scene, cam = camera) {
 
 // ------------------------------------------------------------------ seasons and weather
 const SEASONS = [
-  {n:'Spring', icon:'🌸', farm:1.1, leaf:[0x5ec04c, 0x8ad86a], grass:[1, 1.05, .95], ground:0x5aa83a},
-  {n:'Summer', icon:'☀️', farm:1.3, leaf:[0x3b9a3a, 0x5ec04c], grass:[1, 1, 1], ground:0x4f9e32},
-  {n:'Autumn', icon:'🍂', farm:1.5, leaf:[0xd9772a, 0xe8b23a], grass:[1.25, .95, .55], ground:0x8a8a3a},
+  {n:'Spring', icon:'🌸', farm:1.1, leaf:[0x4f9a3e, 0x74b25a], grass:[1, 1.05, .95], ground:0x648a3e},
+  {n:'Summer', icon:'☀️', farm:1.3, leaf:[0x2f6e2c, 0x4a8a3a], grass:[1, 1, 1], ground:0x5f7a38},
+  {n:'Autumn', icon:'🍂', farm:1.5, leaf:[0xc0662a, 0xd49a34], grass:[1.25, .95, .55], ground:0x857a3e},
   {n:'Winter', icon:'❄️', farm:.6, leaf:[0xdfe8ee, 0xf4f8fa], grass:[1.7, 1.75, 1.85], ground:0xdfe6ea},
 ];
 const YEAR = 480;
@@ -7050,7 +7117,7 @@ const COAST = {z:-89.6, sites:{
   cove:{x:4, n:'Pirate cove'}, empire:{x:-92, n:'The old empire'}, azul:{x:52, n:'Port Azul'}, kumo:{x:72, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
 clearForest({x0:-150, x1:150, z0:-130, z1:-87});
 {
-  const sea = ground(0x2fb0e2, 320, 40, 0, -112.3, -.2); sea.material = water.material;
+  const sea = ground(0x2fb0e2, 320, 40, 0, -112.3, -.2); sea.material = water.material; self.SEA_MESH = sea;
   ground(0xe8d49a, 320, 4.6, 0, -90.1, -.215);
   const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -92.5); scene.add(foam); COAST.foam = foam;
   for (let i = 0; i < 26; i++) { const r = mesh(G.ico, 0x8a8478, [.5 + R()*.6, .3 + R()*.3, .5 + R()*.5], [-150 + i*11.6 + R()*2, -.1, -88.4 - R()*.6], scene); r.rotation.y = R()*3; }
@@ -8438,7 +8505,7 @@ function load() {
 }
 
 // ------------------------------------------------------------------ graphics: sky light, water, clouds, grass and life
-const FX = {t:{value:0}};
+const FX = {t:{value:0}, day:{value:1}};
 // the sky is reflected in metal, glass and water
 {
   const envScene = new THREE.Scene();
@@ -8461,25 +8528,37 @@ sun.shadow.radius = MOBILE ? 1 : 2.5; sun.shadow.normalBias = .02;
 renderer.toneMappingExposure = 1.02;
 
 // the river: rippling normals, foam along the banks and glints of sun
-water.material = new THREE.MeshStandardMaterial({color:0x1f9fd6, roughness:.06, metalness:.1});
+water.material = new THREE.MeshStandardMaterial({color:0xffffff, roughness:.17, metalness:.1}); water.material.defines = {NO_GRIME:''}; water.material.envMapIntensity = .55;
 water.material.onBeforeCompile = sh => {
-  sh.uniforms.uT = FX.t;
+  sh.uniforms.uT = FX.t; sh.uniforms.uDay = FX.day;
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
     .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nuniform float uT;')
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nuniform float uT, uDay;')
     .replace('#include <color_fragment>', `#include <color_fragment>
       float edge = abs(vWP.x + 13.6);
-      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(.55, .75, .95), diffuseColor.rgb * vec3(1.1, 1.15, 1.05), smoothstep(.4, 2.8, edge));
-      float foam = smoothstep(2.35, 2.95, edge) * (.55 + .45 * sin(vWP.z * 2.7 + uT * 2.2 + sin(vWP.z * .7) * 2.));
+      // a dark channel in the middle, teal shallows over sand at the banks; out at sea, deeper the further from the beach
+      float deep = vWP.z < -91. ? smoothstep(-.5, 16., -91.6 - vWP.z) : 1. - smoothstep(.5, 2.7, edge);
+      diffuseColor.rgb = mix(vec3(.24, .62, .62), vec3(.03, .2, .34), deep);
+      bool seaW = vWP.z < -91.;
+      float foam = seaW ? (1. - smoothstep(0., .9 + .35*sin(vWP.x*.9 + uT*1.1), -91.6 - vWP.z)) * (.6 + .4*sin(vWP.x*2.7 - uT*1.6)) : smoothstep(2.35, 2.95, edge) * (.55 + .45 * sin(vWP.z * 2.7 + uT * 2.2 + sin(vWP.z * .7) * 2.));
       float streak = smoothstep(.93, 1., sin(vWP.z * 1.3 - uT * 3.1 + sin(vWP.x * 2.3) * 1.5)) * (1. - smoothstep(.5, 2.4, edge)) * .35;
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.95, .98, 1.), clamp(foam * .7 + streak, 0., 1.));`)
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.92, .96, 1.), clamp(foam * .5 + streak * .4, 0., 1.));`)
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { vec2 sq = vWP.xz; float sp = sin(sq.x*7.3 + uT*2.1 + sin(sq.y*1.7))*sin(sq.y*9.1 - uT*1.6 + sin(sq.x*2.3))*sin((sq.x - sq.y)*5.3 + uT*1.2);
+        totalEmissiveRadiance += vec3(1., .95, .82) * pow(max(sp, 0.), 40.) * .8 * uDay; }`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       vec2 q = vWP.xz; float tt = uT;
       vec3 nW = normalize(vec3(sin(q.x * 2.1 + tt * 1.3) * .07 + sin(q.y * 1.3 - tt * 1.7 + q.x * .5) * .07 + sin((q.x + q.y) * 4.7 + tt * 2.6) * .03,
         1., cos(q.y * 1.9 - tt * 2.1) * .09 + sin(q.x * 3.3 - tt * 1.9 + q.y * .3) * .05 + sin(q.y * 6.1 + tt * 3.3) * .025));
-      normal = normalize((viewMatrix * vec4(nW, 0.)).xyz);`);
+      normal = normalize((viewMatrix * vec4(nW, 0.)).xyz);`)
+    .replace('#include <opaque_fragment>', `{ // water seen from above is mostly its own colour; the sky shows only at grazing angles (Fresnel), plus a capped sun glint
+        vec3 V = normalize(vViewPosition); float fr = .025 + .6*pow(1. - max(dot(normal, V), 0.), 5.);
+        vec3 body = diffuseColor.rgb * (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse);
+        outgoingLight = mix(body, vec3(.7, .82, .95)*(.35 + .65*uDay), fr) + min(reflectedLight.directSpecular*.3, vec3(.12)) + totalEmissiveRadiance; }
+      #include <opaque_fragment>`);
 };
 ripples.forEach(r => { r.material.opacity = .22; });
+if (self.SEA_MESH) self.SEA_MESH.material = water.material;
 
 // grass that sways in the wind, and wildflowers
 {
@@ -8495,7 +8574,7 @@ ripples.forEach(r => { r.material.opacity = .22; });
     for (let b = 0; b < 3 && k < N * 3; b++, k++) {
       o.position.set(x + (rnd() - .5)*.22, GY, z + (rnd() - .5)*.22); o.rotation.set((rnd() - .5)*.5, rnd()*6, (rnd() - .5)*.5); o.scale.setScalar(.7 + rnd()*.7);
       o.updateMatrix(); blades.setMatrixAt(k, o.matrix);
-      blades.setColorAt(k, c.setHSL(.24 + rnd()*.07, .55 + rnd()*.2, .26 + rnd()*.16, THREE.SRGBColorSpace));
+      blades.setColorAt(k, c.setHSL(.2 + rnd()*.08, .32 + rnd()*.18, .28 + rnd()*.14, THREE.SRGBColorSpace));
     }
     if (f < flowers.count && rnd() < .2) {
       o.position.set(x + .15, GY + .16, z); o.rotation.set(0, 0, 0); o.scale.setScalar(.8 + rnd()*.6); o.updateMatrix(); flowers.setMatrixAt(f, o.matrix);
@@ -8828,7 +8907,7 @@ function render(dt) {
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);
-  updFx(dt, dk); updSeasons(dt);
+  updFx(dt, dk); updSeasons(dt); FX.day.value = dk;
   if (follow && (Math.hypot(player.vel.x, player.vel.z) > .5 || !strollers.includes(follow))) follow = null;
   for (const s of strollers) if (s.el) {
     const [x, y, vis] = project(new THREE.Vector3(s.pos.x, 2.25 + elevAt(s.pos.x, s.pos.z), s.pos.z));
