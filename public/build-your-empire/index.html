@@ -144,7 +144,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
@@ -4740,14 +4740,24 @@ function decorMesh(k, x, z, ry = 0) {
   if (k === 'coaster') {
     // a loop of track on stilts, with a train of cars running round it
     const pts = []; for (let i = 0; i < 48; i++) { const a = i/48*Math.PI*2; pts.push([Math.cos(a)*2, 1.2 + Math.sin(a*2)*.8 + Math.sin(a*3)*.4, Math.sin(a)*1.2]); }
-    for (let i = 0; i < pts.length; i++) {
-      const [x1, y1, z1] = pts[i], [x2, y2, z2] = pts[(i + 1) % pts.length], len = Math.hypot(x2 - x1, y2 - y1, z2 - z1);
-      const seg = new THREE.Mesh(G.box, mat(0xd9443a, {metalness:.4})); seg.scale.set(.32, .06, len + .02); seg.position.set((x1 + x2)/2, (y1 + y2)/2, (z1 + z2)/2);
-      seg.lookAt(x2 + g.position.x, y2, z2 + g.position.z); g.add(seg);
-      if (i % 4 === 0) P(G.cyl, 0xdfe4ea, [.04, y1, .04], [x1, y1/2, z1]);
+    const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), true, 'centripetal');
+    const N = 240, up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3(), tg = new THREE.Vector3(), q = new THREE.Vector3();
+    const railPts = [[], []], spine = [];
+    for (let i = 0; i < N; i++) {
+      const u = i / N; curve.getPointAt(u, q); curve.getTangentAt(u, tg); side.crossVectors(tg, up).normalize();
+      railPts[0].push(q.clone().addScaledVector(side, -.13)); railPts[1].push(q.clone().addScaledVector(side, .13)); spine.push(q.clone().setY(q.y - .07));
+    }
+    const steel = mat(0xd9443a, {metalness:.45, roughness:.35});
+    for (const rp of railPts) g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rp, true), N, .035, 6, true), steel));
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spine, true), N, .06, 6, true), mat(0xb8342c, {metalness:.4, roughness:.4})));
+    // cross ties every so often, turned to the track
+    for (let i = 0; i < 64; i++) {
+      const u = i / 64; curve.getPointAt(u, q); curve.getTangentAt(u, tg);
+      const tie = mesh(G.box, 0x6a2a24, [.34, .03, .05], [q.x, q.y - .04, q.z], g); tie.lookAt(q.x + tg.x + g.position.x, q.y + tg.y, q.z + tg.z + g.position.z);
+      if (i % 5 === 0) P(G.cyl, 0xdfe4ea, [.035, q.y - .07, .035], [q.x, (q.y - .07)/2, q.z]);
     }
     const cars = []; for (let i = 0; i < 4; i++) { const c = new THREE.Group(); g.add(c); mesh(G.box, 0x3f7cc0, [.3, .2, .36], [0, .12, 0], c); bulb(c, 0, .26, 0, 0xffd36b, .04); cars.push(c); }
-    rides.push({k:'coaster', pts, cars, g});
+    rides.push({k:'coaster', pts, curve, cars, g, u:0});
   }
   if (k === 'carousel' || k === 'ferris' || k === 'coaster') riders(k, g);
   decorObjs.push(g);
@@ -4813,10 +4823,15 @@ function updBuild(dt) {
   for (const r of rides) {
     if (r.k === 'carousel') r.o.rotation.y += dt*.8;
     if (r.k === 'ferris') { r.o.rotation.x += dt*.25; for (const c of r.cabins) { const a = c.userData.a + r.o.rotation.x; c.position.set(0, 2.9 + Math.sin(a)*2.1, Math.cos(a)*2.1); } }
-    if (r.k === 'coaster') r.cars.forEach((c, i) => {
-      const t = ((time*.18 - i*.02) % 1 + 1) % 1, n = r.pts.length, f = t*n, a = r.pts[f|0], b = r.pts[((f|0) + 1) % n], u = f % 1;
-      c.position.set(a[0] + (b[0] - a[0])*u, a[1] + (b[1] - a[1])*u + .06, a[2] + (b[2] - a[2])*u); c.lookAt(b[0] + r.g.position.x, b[1], b[2] + r.g.position.z);
-    });
+    if (r.k === 'coaster') {
+      // the train slows on the climbs and rushes down the drops (lower track = faster), gliding along the curve
+      const lead = r.curve.getPointAt(r.u), v = .07 + .09*clamp((2.4 - lead.y) / 2, 0, 1);
+      r.u = (r.u + dt*v) % 1;
+      r.cars.forEach((c, i) => {
+        const u = ((r.u - i*.03) % 1 + 1) % 1, p = r.curve.getPointAt(u), t = r.curve.getTangentAt(u);
+        c.position.set(p.x, p.y + .03, p.z); c.lookAt(p.x + t.x + r.g.position.x, p.y + .03 + t.y, p.z + t.z + r.g.position.z);
+      });
+    }
     if (r.k === 'spray' && R() < dt*10) particle(0xcfefff, r.g.position.clone().setY(1.35), new THREE.Vector3((R() - .5)*1.2, 1.4 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
   }
 }
@@ -8245,6 +8260,13 @@ function update(dt) {
   if ((saveT -= dt) <= 0) { saveT = 5; if (started) save(); }
 }
 const camWant = new THREE.Vector3();
+// camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
+const CAMV = {i:0, list:[{n:'Classic view', d:13, h:16}, {n:'Top-down view', d:2.4, h:21}, {n:'Overview', d:20, h:25}]};
+try { CAMV.i = +(localStorage.getItem('bye.cam') || 0) % CAMV.list.length; } catch (e) {}
+function nextCam() {
+  CAMV.i = (CAMV.i + 1) % CAMV.list.length; try { localStorage.setItem('bye.cam', CAMV.i); } catch (e) {}
+  note(`🎥 ${CAMV.list[CAMV.i].n}`, 'Tap 🎥 or press C to switch.');
+}
 function render(dt) {
   // camera follows the player; pull back further on tall (portrait) screens
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
@@ -8252,15 +8274,16 @@ function render(dt) {
     render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
     Object.assign(sun.shadow.camera, {left:-19*k, right:19*k, top:19*k, bottom:-19*k}); sun.shadow.camera.updateProjectionMatrix();
   }
-  const D = (watchingWar() && W.camp.type === 'land' ? 8.5 : 13)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
+  const V = CAMV.list[CAMV.i], war = watchingWar();
+  const D = (war && W.camp.type === 'land' ? 8.5 : war ? 13 : V.d)*k, H = (war ? 16 : V.h)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
   // standing on the war table during a campaign shows the battlefield
   const watching = W.camp && player.zone && player.zone.kind === 'war';
   const wf = watching ? warFocus() : null;
   const fx = wf ? wf[0] : (follow || player).pos.x, fz = wf ? wf[1] : (follow || player).pos.z;
   const fy = wf && wf[2] ? wf[2] : 0;
-  camWant.set(fx + ox + .6, 16*k + fy, fz + oz + .6);
+  camWant.set(fx + ox + .6, H + fy, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
-  camera.lookAt(camera.position.x - ox, camera.position.y - 16*k, camera.position.z - oz);
+  camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);
   if (PHOTO.on) photoCamera(dt, fx, fz);
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
@@ -8516,10 +8539,11 @@ function setPause(v) {
   for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
   if (v) save(); else renderer.domElement.focus({preventScroll:true});
 }
-$('bPause').onclick = () => setPause(!paused); $('bResume').onclick = () => setPause(false);
+$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bResume').onclick = () => setPause(false);
 addEventListener('keydown', e => {
   if (e.repeat || e.target.closest?.('input, textarea')) return;
   const k = e.key.toLowerCase();
+  if (k === 'c' && started && !paused) nextCam();
   if (k === 'p' || (k === 'escape' && !BUILD.on && (paused || $('overlay').hidden))) setPause(!paused);
 });
 $('bMute').onclick = () => { muted = !muted; $('bMute').textContent = muted ? '🔇' : '🔊'; };
@@ -8528,7 +8552,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
