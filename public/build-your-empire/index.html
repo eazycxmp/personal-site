@@ -144,7 +144,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><div id="btns"><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
@@ -2303,7 +2303,7 @@ function launchCamp(c, branch) {
   if (goal === 'air') startAir(c);
   if (type === 'land') startBattle(c); else if (type === 'sea') startSea(); else if (goal === 'sea') { COAST.cur = coastFort(site); fortReset(COAST.cur); }
   banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
-    'Stand on the war table to watch.');
+    'Tap 🎥 Follow the army (or press F) to ride along.');
   snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
 }
 function updWar(dt) {
@@ -2392,6 +2392,7 @@ function zoneAct(e, zn, dt) {
     }
     case 'war': if (e.isPlayer) warAct(zn, e); break;
     case 'ferry': if (e.isPlayer && player.zoneT > .6) { takeFerry(zn); player.zoneT = 0; } e.tick = .2; break;
+    case 'fly': if (e.isPlayer && player.zoneT > .6 && !TRIP.on && $('modal').hidden) { openFlights(zn); player.zoneT = -2; } e.tick = .2; break;
     case 'invest': if (e.isPlayer && !zn.open && $('modal').hidden) { zn.open = true; openInvest(); } e.tick = .3; break;
     case 'upgrade': if (e.isPlayer) payUpgrade(zn, e); break;
     case 'gasup': if (e.isPlayer) payGas(zn, e); break;
@@ -3722,11 +3723,23 @@ function hangar(anim) {
   fader(g, 5, 2.6);
   if (anim) popIn(g);
 }
-const watchingWar = () => W.camp && player.zone && player.zone.kind === 'war';
+const WATCH = {on:false};
+const watchingWar = () => (W.camp && ((player.zone && player.zone.kind === 'war') || WATCH.on)) || (W.raid && WATCH.on);
+function setWatch(v) {
+  WATCH.on = !!v && !!(W.camp || W.raid); updWatchBtn();
+  if (WATCH.on) note(W.raid && !W.camp ? '🎥 Watching the enemy army' : '🎥 Following your forces', 'Walk, tap 🎥 or press F to come back.');
+}
+function updWatchBtn() {
+  const b = $('bWatch'); if (!b) return;
+  const war = !!(W.camp || W.raid); if (!war && WATCH.on) WATCH.on = false;
+  b.hidden = !war || TRIP.on; b.textContent = WATCH.on ? '🎥 Back to you' : W.raid && !W.camp ? '🎥 Watch the enemy' : '🎥 Follow the army';
+}
 function warFocus() {
   const C = W.camp;
-  if (C.type === 'land') return [BF.x - 1, BF.z + 1.5];
-  if (C.type === 'sea') { const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -80]; }
+  const mid = list => { const a = list.filter(e => !e.down && (e.alive !== false)); if (!a.length) return null; let x = 0, z = 0; for (const e of a) { x += e.pos.x; z += e.pos.z; } return [x/a.length, z/a.length]; };
+  if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
+  if (C.type === 'land') { const m = mid(soldiers); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
+  if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -93); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -80]; }
   const c = CAMPAIGNS[C.ci], [tx, tz] = C.tx != null ? [C.tx, C.tz] : AIR_TARGETS[c.target], e = C.dur - C.t;
   const lead = planes[0]; return lead && (lead.alt || 0) > .5 ? [lead.g.position.x, lead.g.position.z, lead.g.position.y*.8] : [tx, tz, 0];
 }
@@ -5214,7 +5227,7 @@ function rivalCity() {
   slab(0x8a7a5a, 22, 9, 3, 116.5, .002);
   if (EV.noRival) return;
   const lv = Math.max(W.rival || 0, ostLevel()); seed = 41;
-  for (let i = 0; i < 6 + lv*3; i++) {
+  if (!(MODELS.castles && MODELS.styles)) for (let i = 0; i < 6 + lv*3; i++) {
     const x = -7 + (i % 8)*2.6 + rnd()*.5, z = 113.5 + Math.floor(i / 8)*2.6, h = 1 + rnd()*1.4 + lv*.4;
     mesh(G.box, [0x5a3a3a, 0x4a4a5a, 0x3a2a2a][i % 3], [1.5, h, 1.4], [x, h/2, z], g); mesh(G.cone4, 0x2a1a1a, [1.2, .7, 1.1], [x, h + .35, z], g).rotation.y = Math.PI/4;
   }
@@ -7274,8 +7287,43 @@ const defPower = () => myPower() + [0, 6, 14, 24, 36][W.castle || 0];
 const giftCost = () => 500 + 400*W.era;
 const peaceCost = r => Math.round(es(r).pow * 60);
 function spend(c) { W.coins -= c; W.upSpent += c; }
+// ------------------------------------------------------------------ rival towns that grow in place
+const RTOWN = {}, RT_STYLE = {ostberg:'austria', azul:'brazil', kumo:'china'};
+const RT_COUNT = [2, 3, 4, 6, 99];   // houses and stalls standing at each tier: village, town, city, kingdom, empire
+function rivalTown(r, s, anim) {
+  const style = RT_STYLE[r.id]; if (!style || typeof LAYOUT2 === 'undefined') return;
+  const T = RTOWN[r.id] ||= {g:null, lvl:-1};
+  const lvl = s.owned || (r.id === 'ostberg' && W.rivalAlly && DISTRICT.built.austria) ? -1 : TIERS.findIndex(t => s.pow < t[0]);
+  if (lvl === T.lvl) return;
+  const prev = T.lvl, grew = prev >= 0 && lvl > prev;
+  if (T.g) scene.remove(T.g); T.g = null; T.lvl = lvl;
+  if (lvl < 0 || !MODELS.castles || !MODELS.styles) return;
+  const g = T.g = new THREE.Group(); scene.add(g);
+  const site = STYLE_SPOTS[style].site, ox = site ? COAST.sites[site].x : 0, L = LAYOUT2[style];
+  if (!T.cleared) { T.cleared = true; const zs = L.map(p => p[4]), xs = L.map(p => p[3] + ox); clearForest({x0:Math.min(...xs) - 5, x1:Math.max(...xs) + 5, z0:Math.min(...zs) - 5, z1:Math.max(...zs) + 5}); }   // no forest growing through the streets
+  const homes = [...L.filter(p => p[0] === 's'), ...L.filter(p => p[1] === 'stall')], keep = L.find(p => p[0] === 'c' && p[1] !== 'stall');
+  const had = prev >= 0 ? RT_COUNT[prev] : 99;
+  homes.slice(0, RT_COUNT[lvl]).forEach(([kit, name, h, x0, z], i) => {
+    const m = kit === 'c' ? castleModel(name, h) : styleModel(name, h, 0); if (!m) return;
+    m.rotation.y = Math.PI; m.position.set(x0 + ox, 0, z); if (kit === 's') recolor(m, WALLS[style], i); g.add(m);
+    if (anim && grew && i >= had) { m.userData.lvScale = m.scale.x; popIn(m); puff(x0 + ox, z); }
+  });
+  // the castle goes up once they are a city (half-built, scaffolded), and is finished when they become a kingdom
+  if (keep && lvl >= 2) {
+    const m = castleModel(keep[1], keep[2] * (lvl >= 3 ? 1 : .6)); if (m) {
+      m.rotation.y = Math.PI; m.position.set(keep[3] + ox, 0, keep[4]); g.add(m);
+      if (lvl === 2) for (const [dx, dz] of [[-1.6, -1.2], [1.6, -1.2], [-1.6, 1.2], [1.6, 1.2]]) mesh(G.cyl, 0xb08a5a, [.06, keep[2]*.7, .06], [keep[3] + ox + dx, keep[2]*.35, keep[4] + dz], g);
+      if (anim && grew && (prev < 2 || (prev === 2 && lvl >= 3))) { m.userData.lvScale = m.scale.x; popIn(m); puff(keep[3] + ox, keep[4]); }
+    }
+  }
+  // their banner flies over the town
+  const fx = (keep ? keep[3] : homes[0][3]) + ox + 3, fz = (keep ? keep[4] : homes[0][4]) - 3;
+  mesh(G.cyl, 0x2a2a2e, [.05, 3.4, .05], [fx, 1.7, fz], g); mesh(G.box, s.stance === 'ally' ? 0xf2c200 : 0x9a1a1a, [1, .55, .03], [fx + .52, 3.1, fz], g);
+  if (anim && grew && s.met) banner(`${r.icon} ${r.n} grows into ${/^[aeiou]/.test(TIERS[lvl][1]) ? 'an' : 'a'} ${TIERS[lvl][1]}`, 'Rival towns build out just like yours. Open 🏛️ to see how strong they are.');
+}
 function updEmpires(dt) {
   if (!started) return;
+  if ((EMP.townT = (EMP.townT || 0) - dt) <= 0) { EMP.townT = 1; for (const r of EMP.list) rivalTown(r, es(r), EMP.loaded); }
   if (!EMP.loaded) {
     EMP.loaded = true;
     for (const [id, rem] of Object.entries(W.flags.ruins || {})) if (ST[id] && !ST[id].ruin && rem > 0) ruinStation(ST[id], rem);
@@ -8351,7 +8399,7 @@ function buildDistrict(style, anim) {
     const x = x0 + ox, g = kit === 'c' ? castleModel(name, h) : styleModel(name, h, 0); if (!g) continue;
     g.rotation.y = Math.PI; g.position.set(x, 0, z); scene.add(g); if (kit === 's') recolor(g, WALLS[style], parts.length); list.push(g);
     const bb = new THREE.Box3().setFromObject(g); boxes.push({x0:bb.min.x + .15, x1:bb.max.x - .15, z0:bb.min.z + .15, z1:bb.max.z - .15});
-    parts.push({g, x, z, name, front:bb.min.z, stall:name === 'stall'}); if (anim) popIn(g);
+    parts.push({g, x, z, name, front:bb.min.z, stall:name === 'stall'}); if (anim) { g.userData.lvScale = g.scale.x; popIn(g); }   // pop up to the model's own size
   } else LAYOUT[style].forEach(([name, h, x, z, ry], i) => { const g = plant(name, h, x + ox, z, ry, style, i, list); if (g && anim) popIn(g); });
   // taken by war: the town is damaged when you first take it (older saves count as already rebuilt)
   const dmg = (W.flags.dmg ||= {});
@@ -8364,6 +8412,7 @@ function buildDistrict(style, anim) {
 }
 function styleFor(r) { return {ostberg:'austria', azul:'brazil', kumo:'china'}[r.id]; }
 function updDistricts(dt) {
+  updAirstrips();
   updMarkets(dt);
   if ((DISTRICT.t = (DISTRICT.t || 0) - dt) > 0) return; DISTRICT.t = .3;
   for (const r of EMP.list) { const s = W.flags.emp?.[r.id]; if (s && s.owned && styleFor(r)) buildDistrict(styleFor(r), started); }
@@ -8380,7 +8429,117 @@ function updDistricts(dt) {
     if (inRect(rect, player.pos.x, player.pos.z)) { DISTRICT.enter[style] = true; banner(`${S.flag} Welcome to ${S.n}`, 'Your province, in its own style.'); }
   }
 }
+// ------------------------------------------------------------------ trips you watch: by boat and by plane
+const TRIP = {on:false};
+function tripVehicle(kind) {
+  const g = new THREE.Group();
+  if (kind === 'boat') {
+    // a passenger steamer in the modern age, a sailing packet before it
+    const inner = new THREE.Group(); g.add(inner);
+    if (W.era >= 5 && typeof modernShip === 'function') modernShip(inner, 'cruise'); else galleon(inner, SHIPS.trade());
+    return g;
+  }
+  const am = model('airliner2', 4.9, 'z'); if (!am) return null;
+  am.traverse(o => { if (o.isMesh) { o.castShadow = true; } }); g.add(am);
+  if (kind === 'sea') for (const sx of [-.75, .75]) {   // floats for landing on water
+    mesh(G.cyl, 0xe8e8ea, [.16, 2.6, .16], [sx, -.55, .3], g, {metalness:.3}).rotation.x = Math.PI/2;
+    mesh(G.box, 0x8a8f96, [.05, .5, .05], [sx, -.3, .9], g); mesh(G.box, 0x8a8f96, [.05, .5, .05], [sx, -.3, -.3], g);
+  }
+  return g;
+}
+function startTrip(kind, pts, end, title) {
+  if (TRIP.on) return true;
+  const g = tripVehicle(kind); if (!g) return false;
+  g.rotation.order = 'YXZ'; scene.add(g);
+  const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'centripetal'), len = curve.getLength();
+  Object.assign(TRIP, {on:true, kind, g, curve, t:0, dur:clamp(len / (kind === 'boat' ? 10 : 15), 6, kind === 'boat' ? 12 : 16), end, yaw:null, bank:0, wake:0});
+  player.char.g.visible = false; player.stack.items.forEach(it => { it.mesh.visible = false; });
+  $('tripSkip').hidden = false; note(title, 'Sit back and watch. ⏩ skips ahead.');
+  tripStep(0);
+  return true;
+}
+function tripStep(dt) {
+  const T = TRIP; T.t = Math.min(T.dur, T.t + dt);
+  const u = T.t / T.dur, e = u*u*(3 - 2*u);           // ease in and out: the take-off roll and the landing are slow
+  const p = T.curve.getPointAt(e), q = T.curve.getPointAt(Math.min(1, e + .004)), r = e > .996 ? T.curve.getPointAt(e - .004) : null;
+  const dx = r ? p.x - r.x : q.x - p.x, dy = r ? p.y - r.y : q.y - p.y, dz = r ? p.z - r.z : q.z - p.z, h = Math.hypot(dx, dz);
+  const yaw = h > 1e-5 ? Math.atan2(dx, dz) : (T.yaw || 0);
+  if (T.yaw != null && dt > 0) { let dyaw = yaw - T.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); T.bank += (clamp(-dyaw/dt*.35, -.6, .6) - T.bank) * Math.min(1, dt*3); }
+  T.yaw = yaw; T.g.position.copy(p); T.g.rotation.y = yaw;
+  if (T.kind === 'boat') { T.g.position.y = -.26 + Math.sin(time*1.8)*.04; T.g.rotation.z = Math.sin(time*1.3)*.035; T.g.rotation.x = Math.sin(time*1.7)*.02; }
+  else { if (p.y < 0) T.g.position.y = 0; T.g.rotation.x = p.y > .3 ? -Math.atan2(dy, h || 1e-5) : 0; T.g.rotation.z = p.y > .5 ? T.bank : 0; }
+  // spray behind boats and seaplanes on the water
+  if (dt > 0 && (T.wake -= dt) <= 0) {
+    T.wake = .05;
+    const back = new THREE.Vector3(-Math.sin(yaw)*2, 0, -Math.cos(yaw)*2).add(p);
+    if (p.y < .4 && (T.kind !== 'plane' || p.z < -92)) for (const sd of [-1, 1]) particle(0xf4fbff, back.clone().add(new THREE.Vector3(Math.cos(yaw)*sd*.5, .05, -Math.sin(yaw)*sd*.5)), new THREE.Vector3(Math.cos(yaw)*sd*.6, .35, -Math.sin(yaw)*sd*.6), .6, .06, {grow:.25, op:.55});
+  }
+  player.pos.set(p.x, 0, p.z);
+  if (u >= 1) endTrip();
+}
+function endTrip() {
+  const T = TRIP; if (!T.on) return;
+  scene.remove(T.g); T.on = false; $('tripSkip').hidden = true;
+  player.char.g.visible = true; player.stack.items.forEach(it => { it.mesh.visible = true; });
+  player.pos.set(T.end.at[0], 0, T.end.at[1]); player.zoneT = 0;
+  for (let i = 0; i < 10; i++) particle(0xe8f8ff, player.pos.clone().setY(.3), new THREE.Vector3((R() - .5)*2, 1 + R(), (R() - .5)*2), .5, .12, {grav:1});
+  banner(T.end.title, T.end.sub);
+}
+// airstrips: home is the big runway; every province you hold gets a strip just outside town, or a seaplane dock on the coast
+const AIRSTRIPS = {};
+const HOME_AIR = {n:'🛫 Home airport', tile:[-85.8, -2.2], off:[-85.8, .2], arrive:[[-87, 16, -78], [-87, 6, -44], [-87, .2, -16], [-87, 0, 2], [-87, 0, 7]]};
+function stripFor(style) {
+  const S = STYLE_SPOTS[style];
+  if (S.site) {
+    // coastal: touch down on the sea heading for the beach, taxi in to the shallows
+    const sx = COAST.sites[S.site].x + 6;
+    return {n:`${S.flag} ${S.n}`, tile:[sx, -90.2], off:[sx, -88.3], sea:true, arrive:[[sx, 16, -170], [sx, 5, -135], [sx, .1, -114], [sx, 0, -99], [sx, 0, -94.6]]};
+  }
+  const r = S.rect, zs = r.z1 + 3.2, xe = r.x1 - 2.5;
+  return {n:`${S.flag} ${S.n}`, tile:[xe, r.z1 - 1.1], off:[xe - 2.2, r.z1 - 1.3], strip:{x0:xe - 30, x1:xe + 3, z:zs}, arrive:[[xe - 80, 16, zs + 20], [xe - 46, 6, zs], [xe - 24, .2, zs], [xe - 6, 0, zs], [xe, 0, zs]]};
+}
+function updAirstrips() {
+  if (!W.unlocked.has('airport')) return;
+  if (!AIRSTRIPS.home) AIRSTRIPS.home = {...HOME_AIR, zone:addZone({kind:'fly', x:HOME_AIR.tile[0], z:HOME_AIR.tile[1], icon:'✈️', tile:{alpha:1, size:84, label:'Fly', fill:'rgba(30,60,120,.7)'}})};
+  for (const style of Object.keys(DISTRICT.built)) {
+    if (AIRSTRIPS[style]) continue;
+    const A = AIRSTRIPS[style] = stripFor(style);
+    A.zone = addZone({kind:'fly', x:A.tile[0], z:A.tile[1], icon:A.sea ? '🛬' : '✈️', tile:{alpha:1, size:84, label:A.sea ? 'Seaplane' : 'Airstrip', fill:'rgba(30,60,120,.7)'}});
+    if (A.strip) {
+      // an asphalt strip with a centre line, edge lights and a windsock
+      const st = A.strip, w = st.x1 - st.x0; clearForest({x0:st.x0 - 2, x1:st.x1 + 2, z0:st.z - 4, z1:st.z + 4});
+      slab(0x3a3d42, w, 3.2, (st.x0 + st.x1)/2, st.z, .012);
+      for (let x = st.x0 + 1.5; x < st.x1 - 1; x += 3) slab(0xeeeeee, 1.4, .14, x, st.z, .016);
+      for (let x = st.x0; x <= st.x1; x += 5) for (const sz of [-1.75, 1.75]) { const b = bulb(scene, x, .18, st.z + sz, 0xfff0b0, .07); lampMats.push(b.material); }
+      const pole = mesh(G.cyl, 0xd8d8d8, [.05, 2.2, .05], [st.x0 + 4, 1.1, st.z + 3], scene);
+      const sock = mesh(G.cone, 0xff6a1a, [.22, .9, .22], [st.x0 + 4.45, 2.05, st.z + 3], scene); sock.rotation.z = Math.PI/2;
+    } else {
+      // a little jetty for the seaplane
+      const [x, z] = A.tile; mesh(G.box, 0x8a6a46, [1.2, .12, 4], [x, -.05, -92.4], scene); for (const dz of [-1.8, 0, 1.8]) for (const sx of [-.5, .5]) mesh(G.cyl, 0x5e4630, [.07, .6, .07], [x + sx, -.25, -92.4 + dz], scene);
+    }
+  }
+}
+function airAt(zn) { return Object.values(AIRSTRIPS).find(A => A.zone === zn); }
+function openFlights(zn) {
+  const from = airAt(zn); if (!from) return;
+  const dests = Object.values(AIRSTRIPS).filter(A => A !== from);
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'fly';
+  m.innerHTML = `<div class="card"><h1 style="font-size:24px">✈️ Where to?</h1><p>Planes land wherever you have an airstrip. Every province you hold gets one.</p>
+    <div class="trades">${dests.map((A, i) => `<div><b style="width:auto;flex:1">${A.n}</b><button data-i="${i}">Fly</button></div>`).join('') || '<p>Take a province to open a route.</p>'}</div>
+    <button class="ghost" id="flyClose">Stay here</button></div>`;
+  m.querySelectorAll('button[data-i]').forEach(b => b.onclick = () => { m.hidden = true; flightTo(from, dests[+b.dataset.i]); });
+  $('flyClose').onclick = () => { m.hidden = true; };
+}
+function flightTo(from, to) {
+  // take off the way this field's planes land, but in reverse; cruise high between; land at the far field
+  const dep = [...from.arrive].reverse(), arr = to.arrive, a = dep[dep.length - 1], b = arr[0];
+  const mid = [(a[0] + b[0])/2, 22, (a[2] + b[2])/2];
+  const pts = [...dep, mid, ...arr];
+  return startTrip(to.sea || from.sea ? 'sea' : 'plane', pts, {at:to.off, title:`🛬 Landed: ${to.n}`, sub:'Step off and look around.'}, `✈️ Flying to ${to.n.replace(/^\S+ /, '')}`);
+}
 function takeFerry(zn) {
+  const down = [[-12.3, -.26, .9], [-13.6, -.26, -6], [-13.4, -.26, -40], [-13.7, -.26, -75], [-13.2, -.26, -93], [-10.5, -.26, -95.2], [-8.6, -.26, -94.4]];
+  if (startTrip('boat', zn.back ? [...down].reverse() : down, zn.back ? {at:[-8.86, 2.2], title:'⛵ Back at the harbour', sub:'Welcome home.'} : {at:[-9, -90.4], title:'⛵ Ashore on the coast', sub:'Walk along the beach to your coastal provinces.'}, zn.back ? '⛵ Sailing home up the river' : '⛵ Sailing down the river to the coast')) return;
   const to = zn.back ? [-8.86, 2.2] : [-9, -90.4];
   for (let i = 0; i < 16; i++) particle(0xe8f8ff, player.pos.clone().setY(.2), new THREE.Vector3((R() - .5)*3, 1 + R()*2, (R() - .5)*3), .6, .15, {grav:1});
   player.pos.set(to[0], 0, to[1]); camera.position.set(to[0] + 11.8, 19, to[1] + 11.8);
@@ -8756,17 +8915,17 @@ function update(dt) {
   const cy = Math.cos(CAM_YAW), sy2 = Math.sin(CAM_YAW);
   let ix = sx*cy + sy*sy2 + testIn.x, iz = -sx*sy2 + sy*cy + testIn.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
-  if (!started || PHOTO.on || SPACE.view) ix = iz = 0;
+  if (!started || PHOTO.on || SPACE.view || TRIP.on) ix = iz = 0;
   const ps = player.speed * (W.mount ? MOUNTS[W.mount].speed : 1) * (policy('speed') || 1);
   player.vel.set(ix * ps, 0, iz * ps);
   prevPos.copy(player.pos);
-  player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8);
+  if (TRIP.on) tripStep(dt); else { player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8); }
   player.cap = W.cap;
   // a tile works once you stop on it (or linger), so running straight across one does nothing
-  const zn = zoneAt(player.pos.x, player.pos.z);
+  const zn = TRIP.on ? null : zoneAt(player.pos.x, player.pos.z);
   player.zoneT = zn && zn === player.zone ? player.zoneT + dt : 0; player.zone = zn;
   if (zn) { if (player.zoneT > .6 || Math.hypot(player.vel.x, player.vel.z) < .5) zoneAct(player, zn, dt); }
-  else if ((player.tick -= dt) <= 0) {
+  else if (!TRIP.on && (player.tick -= dt) <= 0) {
     const t = nodes().find(t => t.logs > 0 && Math.hypot(t.x - player.pos.x, t.z - player.pos.z) < (t.item === 'stone' ? 1.7 : 1.55));
     if (!t) player.tick = 0;
     else if (harvest(t, player)) player.tick = t.item === 'stone' ? .4 : .32;
@@ -8894,12 +9053,15 @@ function render(dt) {
     Object.assign(sun.shadow.camera, {left:-19*k, right:19*k, top:19*k, bottom:-19*k}); sun.shadow.camera.updateProjectionMatrix();
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
-  const D = (war && W.camp.type === 'land' ? 8.5 : war ? 13 : V.d)*k, H = (war ? 16 : V.h)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
-  // standing on the war table during a campaign shows the battlefield
-  const watching = W.camp && player.zone && player.zone.kind === 'war';
+  const wtype = W.camp ? W.camp.type : 'land';
+  const D = (war && wtype === 'land' ? 8.5 : war ? 13 : V.d)*k, H = (war ? 16 : V.h)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
+  // standing on the war table during a campaign (or pressing 🎥) shows the battlefield
+  if (WATCH.on && Math.hypot(player.vel.x, player.vel.z) > .5) setWatch(false);
+  updWatchBtn();
+  const watching = war;
   const wf = watching ? warFocus() : null;
   const fx = wf ? wf[0] : (follow || player).pos.x, fz = wf ? wf[1] : (follow || player).pos.z;
-  const fy = wf && wf[2] ? wf[2] : 0;
+  const fy = wf && wf[2] ? wf[2] : TRIP.on ? TRIP.g.position.y*.85 : 0;
   camWant.set(fx + ox + .6, H + fy, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);
@@ -9158,11 +9320,12 @@ function setPause(v) {
   for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
   if (v) save(); else renderer.domElement.focus({preventScroll:true});
 }
-$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
+$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
 addEventListener('keydown', e => {
   if (e.repeat || e.target.closest?.('input, textarea')) return;
   const k = e.key.toLowerCase();
   if (k === 'c' && started && !paused) nextCam();
+  if (k === 'f' && started && !paused) { setWatch(!WATCH.on); return; }
   if (k === 'm' && started && !paused) { const own = [1, 2, 3, 4, 5, 6].filter(i => W.unlocked.has('mount' + i)); if (own.length > 1) mountStage(own[(own.indexOf(W.mount) + 1) % own.length], true); }
   if (k === 't' && started && !paused) openTravel();
   if (k === 'e' && started && !paused) openEmpire();
@@ -9174,7 +9337,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
