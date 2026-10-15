@@ -1,0 +1,3 @@
+Textures and the sky HDRI in this folder are from Poly Haven (https://polyhaven.com), released under CC0 (public domain).
+kloofendal_48d_partly_cloudy_puresky, aerial_grass_rock, forrest_ground_01, coast_sand_01, cobblestone_floor_01,
+red_brick_03, plastered_wall_02, roof_tiles_14, rock_face_03, wood_planks.
