@@ -2911,11 +2911,12 @@ function updHomes(dt) {
 
 // ------------------------------------------------------------------ building levels
 // A small upgrade tile next to each producer: every level works 30% faster and keeps a bigger pile.
+// upgrade tiles sit outside the plot each building grows into, on the side facing the camera
 const UPG = {
   grill:{base:60, at:[-4.2, -1.7]}, spit:{base:100, at:[.4, -5]}, oven:{base:150, at:[-1.8, 4.95]}, lodge:{base:120, at:[-7.6, -9.3]},
-  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -19.4]}, workshop:{base:400, at:[9.6, -14.4]}, digger:{base:400, at:[12.4, -26.5]},
-  smith:{base:400, at:[-5, 16.2]}, library:{base:500, at:[25.6, -5.2]}, field2:{base:250, at:[14.8, 19.5]}, field3:{base:250, at:[14.8, 26.5]},
-  oven2:{base:300, at:[25.5, 17.6]}, brewery:{base:400, at:[23.5, 13.2]},
+  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -19.4]}, workshop:{base:400, at:[7.1, -12.1]}, digger:{base:400, at:[11.9, -24.75]},
+  smith:{base:400, at:[-5, 21.95]}, library:{base:500, at:[25.6, -5.2]}, field2:{base:250, at:[14.8, 19.5]}, field3:{base:250, at:[14.8, 26.5]},
+  oven2:{base:300, at:[25.5, 17.6]}, brewery:{base:400, at:[26.8, 13]},
 };
 const MAXLV = 5;
 const lvl = id => Math.min(MAXLV, W.levels[id] || 1);
@@ -3341,6 +3342,13 @@ const planes = [];
 const RUNWAY = {x:-27, z0:10, z1:-12};
 function makePlane(x, z) {
   const g = new THREE.Group(); g.rotation.order = 'YXZ'; scene.add(g);
+  // the same jet fighter that scrambles against the kaiju, parked or flying
+  const jet = model('fighter', 4.2, 'x');
+  if (jet) {
+    jet.position.y = .15; g.add(jet);
+    g.position.set(x, 0, z); g.rotation.y = Math.PI;
+    const p = {g, prop:new THREE.Group(), park:[x, z], bombT:0}; planes.push(p); return p;
+  }
   const body = new THREE.Group(); body.position.y = .62; g.add(body);
   mesh(G.cyl, 0x6b7d3a, [.32, 3, .32], [0, 0, 0], body).rotation.x = Math.PI/2;
   mesh(G.cone, 0x5a6a30, [.32, .5, .32], [0, 0, 1.75], body).rotation.x = Math.PI/2;
