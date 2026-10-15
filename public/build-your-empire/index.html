@@ -182,7 +182,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb'};
   const all = Promise.all(Object.entries(list).map(([k, u]) => L.loadAsync('./models/' + u).then(g => {
     g.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     MODELS[k] = g.scene;
@@ -229,7 +229,7 @@ const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 220);
 const hemi = new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(MOBILE ? 1024 : 3072, MOBILE ? 1024 : 3072);
+sun.shadow.mapSize.set(MOBILE ? 1024 : 4096, MOBILE ? 1024 : 4096);
 Object.assign(sun.shadow.camera, {left:-19, right:19, top:19, bottom:-19, near:1, far:80});
 sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);
@@ -480,10 +480,30 @@ const inRect = (r, x, z) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
 const inArea = (x, z) => AREAS.some(r => inRect(r, x, z));
 const boxes = [], circles = [];
 const GY = -.26;   // grass level, below the slabs
+const DETAIL_N = (() => {
+  // a height field of layered noise, turned into a normal map
+  const N = 256, h = new Float32Array(N*N); let sd = 7; const r = () => (sd = sd*16807 % 2147483647) / 2147483647;
+  for (const [cells, amp] of [[8, 1], [16, .55], [32, .3], [64, .16]]) {
+    const g = []; for (let i = 0; i <= cells; i++) { g.push([]); for (let j = 0; j <= cells; j++) g[i].push(r()); }
+    for (let i = 0; i < cells; i++) g[i][cells] = g[i][0]; for (let j = 0; j <= cells; j++) g[cells][j] = g[0][j];
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const fx = x/N*cells, fy = y/N*cells, ix = fx|0, iy = fy|0, tx = fx - ix, ty = fy - iy, sx = tx*tx*(3 - 2*tx), sy = ty*ty*(3 - 2*ty);
+      const a = g[iy][ix] + (g[iy][ix + 1] - g[iy][ix])*sx, b = g[iy + 1][ix] + (g[iy + 1][ix + 1] - g[iy + 1][ix])*sx;
+      h[y*N + x] += (a + (b - a)*sy) * amp;
+    }
+  }
+  const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), im = g.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = (h[y*N + (x + 1) % N] - h[y*N + (x - 1 + N) % N]) * 3, dy = (h[((y + 1) % N)*N + x] - h[((y - 1 + N) % N)*N + x]) * 3, l = Math.hypot(dx, dy, 1), k = (y*N + x)*4;
+    im.data[k] = (-dx/l*.5 + .5)*255; im.data[k + 1] = (-dy/l*.5 + .5)*255; im.data[k + 2] = (1/l*.5 + .5)*255; im.data[k + 3] = 255;
+  }
+  g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t;
+})();
 const grassPlane = ground(0x4f9e32, 420, 420, 0, -10, GY); grassPlane.material.map = groundTex([68, 68]);
+if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
-slab(0xb98f5c, 40, 2.4, 85, 1.6, .012);
-slab(0xb98f5c, 16, 1.8, 98, 3.6, .012);
+slab(0xb98f5c, 40, 2.4, 55, 1.6, .012);
+slab(0xb98f5c, 16, 1.8, 68, 3.6, .012);
 slab(0xb98f5c, 1.8, 16.4, -9.5, 98.8, .012);   // the recruits' road, west of the battlefield
 // river
 const water = ground(0x2fb0e2, 6, 320, -13.6, 0, -.2);
@@ -501,7 +521,7 @@ for (let i = 0; i < 9; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1
 [[-14.7, .2], [-14.7, 1.8], [-12.4, .2], [-12.4, 1.8]].forEach(([x, z]) => mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [x, .1, z], scene));
 
 // open land in the spread-out world: every region, the roads between them and the plots kept for later growth
-const OPEN_LAND = [{x0:-9.5, x1:-5.9, z0:-74.9, z1:-12.1}, {x0:12.6, x1:75.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:75.8}, {x0:77.8, x1:81.4, z0:12.9, z1:75}, {x0:12.4, x1:74.6, z0:81, z1:84.6}, {x0:73.2, x1:76.8, z0:-74, z1:-12.2}, {x0:-78.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:74.4, z0:-84.3, z1:-80.7}, {x0:-78.4, x1:-9.8, z0:-82.8, z1:-79.2}];
+const OPEN_LAND = [{x0:-9.5, x1:-5.9, z0:-44.9, z1:-12.1}, {x0:12.6, x1:45.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:75.8}, {x0:47.8, x1:51.4, z0:12.9, z1:75}, {x0:12.4, x1:44.6, z0:81, z1:84.6}, {x0:43.2, x1:46.8, z0:-44, z1:-12.2}, {x0:-78.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:44.4, z0:-54.3, z1:-50.7}, {x0:-78.4, x1:-9.8, z0:-52.8, z1:-49.2}];
 // decorative forest (instanced) outside the camp
 const FOREST = {};
 // tree colours: bright, warm greens and a soft brown bark
@@ -513,7 +533,7 @@ function treeMat(m) {
 {
   const spots = []; seed = 11;
   for (let n = 0; n < 40000 && spots.length < (MOBILE ? 900 : 1600); n++) {
-    const x = -105 + rnd()*215, z = -108 + rnd()*226;
+    const x = -105 + rnd()*195, z = -80 + rnd()*200;
     if (x > -11 && x < 15 && z > -14 && z < 15.2) continue;          // the camp
     if (x > -18 && x < -9.6) continue;                                // the river
     if (OPEN_LAND.some(r => x > r.x0 - 1.4 && x < r.x1 + 1.4 && z > r.z0 - 1.4 && z < r.z1 + 1.4)) continue;   // regions, roads and plots
@@ -555,15 +575,15 @@ function treeMat(m) {
 // mountains and the cliff the mine is dug into, north of everything
 {
   seed = 31;
-  for (let x = -94; x <= 104; x += 5 + rnd()*3) {
-    const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -98 - rnd()*6;
+  for (let x = -94; x <= 74; x += 5 + rnd()*3) {
+    const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -68 - rnd()*6;
     if (Math.abs(x + 13.6) < r + 2.5) continue;   // the river runs north between the mountains
     mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
     mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
   }
   for (let x = -9.4; x <= 16; x += 1.6) {
     const h = 2.6 + rnd()*1.6;
-    mesh(G.box, rnd() < .5 ? 0x8b8f96 : 0x9a9ea5, [1.9, h, 1.6 + rnd()], [x, h/2 - .24, -91.4 - rnd()*.5], scene, {flatShading:true}).rotation.y = (rnd() - .5)*.3;
+    mesh(G.box, rnd() < .5 ? 0x8b8f96 : 0x9a9ea5, [1.9, h, 1.6 + rnd()], [x, h/2 - .24, -61.4 - rnd()*.5], scene, {flatShading:true}).rotation.y = (rnd() - .5)*.3;
   }
 }
 
@@ -1152,7 +1172,7 @@ function animEntity(e, dt) {
   const carrying = e.stack.length > 0;
   c.armL.rotation.x = carrying ? -.5 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -.5 : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
-  c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > 57.6 && e.pos.x < 66.4 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
+  c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > -49.4 && e.pos.x < -40.6 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
 }
 function collide(p, prev, fly) {
   const r = .38;
@@ -1175,7 +1195,7 @@ function collide(p, prev, fly) {
 }
 
 // ------------------------------------------------------------------ game state
-const W = {coins:0, earned:0, fed:0, army:0, conquests:0, unrest:0, levels:{}, upPaid:{}, upSpent:0, goals:[], caught:0, playT:0, rate:0, era:0, cap:8, unlocked:new Set(), paid:{}, tut:0, flags:{spread:1}};
+const W = {coins:0, earned:0, fed:0, army:0, conquests:0, unrest:0, levels:{}, upPaid:{}, upSpent:0, goals:[], caught:0, playT:0, rate:0, era:0, cap:8, unlocked:new Set(), paid:{}, tut:0, flags:{spread:2}};
 const TROOPS = [
   {n:'Soldiers', o:{body:0x3a4a7a, trim:0x8a8f96, hat:'helmet', pants:0x2a2a3a, sword:true}},
   {n:'Roman legion', o:{body:0xb8322a, trim:0xd9a52a, hat:'roman', pants:0x6a4a2a, sword:true, shield:'scutum'}},
@@ -1261,20 +1281,20 @@ function fishSpecies() { const r = R(); return r < BOOST.bigFish ? 2 : r < .5 ? 
 
 // ------------------------------------------------------------------ regions
 const REGIONS = {
-  north:{name:'the Northern Quarry', rect:{x0:-10.3, x1:13.4, z0:-89.6, z1:-72.9}, gap:['n', -9.2, -6.2], gate:[[-7.7, -12.1], [-7.7, -74.9]], ground:0xbfa57a},
-  east:{name:'the Market Quarter', rect:{x0:73.4, x1:90.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [75.4, 1.6]], ground:0xcfae78},
+  north:{name:'the Northern Quarry', rect:{x0:-10.3, x1:13.4, z0:-59.6, z1:-42.9}, gap:['n', -9.2, -6.2], gate:[[-7.7, -12.1], [-7.7, -44.9]], ground:0xbfa57a},
+  east:{name:'the Market Quarter', rect:{x0:43.4, x1:60.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [45.4, 1.6]], ground:0xcfae78},
   south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:73.9, z1:90.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 75.8]], ground:0xc4a070},
-  farm:{name:'the Farmlands', rect:{x0:73.4, x1:90.6, z0:73.9, z1:90.6}, ground:0xb9a865},
-  downtown:{name:'Downtown', rect:{x0:73.4, x1:90.6, z0:-89.6, z1:-72.9}, ground:0x9ea3ad},
+  farm:{name:'the Farmlands', rect:{x0:43.4, x1:60.6, z0:73.9, z1:90.6}, ground:0xb9a865},
+  downtown:{name:'Downtown', rect:{x0:43.4, x1:60.6, z0:-59.6, z1:-42.9}, ground:0x9ea3ad},
   airfield:{name:'the Airfield', rect:{x0:-94, x1:-77.6, z0:-12.9, z1:29.9}, extra:{x0:-17.7, x1:-10.2, z0:8.85, z1:10.35}, ground:0x8fa86a},
-  ranch:{name:'the Ranch', rect:{x0:-94, x1:-77.6, z0:-90, z1:-74}, extra:{x0:-17.8, x1:-10.2, z0:-81.68, z1:-80.32}, ground:0x9fb06a},
+  ranch:{name:'the Ranch', rect:{x0:-94, x1:-77.6, z0:-60, z1:-44}, extra:{x0:-17.8, x1:-10.2, z0:-51.68, z1:-50.32}, ground:0x9fb06a},
 };
 // how regions connect, with the waypoints to cross between them
 const EDGES = [
-  ['camp', 'north', [[-7.7, -12.1], [-7.7, -74.9]]], ['camp', 'east', [[12.6, 1.6], [75.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 75.8]]],
-  ['east', 'farm', [[79.6, 12.9], [79.6, 75]]], ['south', 'farm', [[12.4, 82.8], [74.6, 82.8]]],
-  ['east', 'downtown', [[75, -12.2], [75, -74]]], ['camp', 'airfield', [[-9.6, 9.6], [-78.4, 9.6]]], ['north', 'downtown', [[12.8, -82.5], [74.4, -82.5]]],
-  ['north', 'ranch', [[-9.8, -81], [-78.4, -81]]],
+  ['camp', 'north', [[-7.7, -12.1], [-7.7, -44.9]]], ['camp', 'east', [[12.6, 1.6], [45.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 75.8]]],
+  ['east', 'farm', [[49.6, 12.9], [49.6, 75]]], ['south', 'farm', [[12.4, 82.8], [44.6, 82.8]]],
+  ['east', 'downtown', [[45, -12.2], [45, -44]]], ['camp', 'airfield', [[-9.6, 9.6], [-78.4, 9.6]]], ['north', 'downtown', [[12.8, -52.5], [44.4, -52.5]]],
+  ['north', 'ranch', [[-9.8, -51], [-78.4, -51]]],
 ];
 const regionOpen = id => id === 'camp' || W.unlocked.has(id + 'Gate');
 function regionOf(x, z) {
@@ -1300,7 +1320,7 @@ function openRegion(id, anim) {
   if (paved) pave(r.slab);
   fence(false);
   if (id === 'north') spawnRocks();
-  if (id === 'farm') { windmill(); AREAS.push({x0:90.4, x1:93, z0:71.5, z1:79.3}); }   // the strip by the railway
+  if (id === 'farm') { windmill(); AREAS.push({x0:60.4, x1:63, z0:71.5, z1:79.3}); }   // the strip by the railway
   if (id === 'downtown') downtownStreets();
   if (id === 'airfield') airfieldFx();
   gapRoads();
@@ -1312,12 +1332,17 @@ function openRegion(id, anim) {
 }
 // old (compact) map position -> spread-out map position, for old saves
 function spreadPt(x, z) {
-  const S = 60, camp = x >= -11 && x <= 14.6 && z >= -14 && z <= 14.9;
+  const camp = x >= -11 && x <= 14.6 && z >= -14 && z <= 14.9;
   if (camp) return [x, z];
   const OLD = [[-10.3, 13.4, -29.6, -12.9, 0, -1], [13.4, 30.6, -12.9, 13.9, 1, 0], [-10.3, 13.4, 13.9, 30.6, 0, 1], [13.4, 30.6, 13.9, 30.6, 1, 1], [13.4, 30.6, -29.6, -12.9, 1, -1], [-34, -17.6, -12.9, 13.9, -1, 0], [-34, -17.6, -30, -14, -1, -1]];
   const r = OLD.find(o => x >= o[0] && x <= o[1] && z >= o[2] && z <= o[3]);
   const sx = r ? r[4] : x > 13.4 ? 1 : x < -17.65 ? -1 : 0, sz = r ? r[5] : z > 13.95 ? 1 : z < -12.95 ? -1 : 0;
-  return [x + sx*S, z + sz*S];
+  return [x + sx*(sx > 0 ? 30 : 60), z + sz*(sz > 0 ? 60 : 30)];
+}
+function closerPt(x, z) {
+  const cx = x >= 73.4 ? x - 30 : x > 14.6 ? 14.6 + (x - 14.6)*(28.8/58.8) : x;
+  const cz = z <= -72.9 ? z + 30 : z < -14 ? -14 + (z + 14)*(28.9/58.9) : z;
+  return [cx, cz];
 }
 // the open country between regions: a dirt road across each gap once both sides are yours
 const GAP_ROADS = {};
@@ -1344,7 +1369,7 @@ function travelSpots() {
     const p = e[0] === id ? e[2][0] : e[2][1];
     out.push([`${{north:'⛏️', east:'💰', south:'⚔️', farm:'🌾', downtown:'🏙️', airfield:'✈️', ranch:'🐄'}[id] || '🗺️'} ${r.name.replace(/^the /, 'The ')}`, p[0], p[1]]);
   }
-  if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -120.4]);
+  if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -90.4]);
   return out;
 }
 function openTravel() {
@@ -1387,9 +1412,9 @@ function goTo(e, x, z, dt) {
 const rocks = [];
 function spawnRocks() {
   seed = 23;
-  const avoid = [[-7.7, -74.5], [-7.7, -77], [0, -87.2], [6.5, -82], [4.1, -82], [8.9, -82], [-6, -77.5], [-6, -79.2], [-2.5, -83], [-2.6, -77.4], [9.6, -76.6], [7.2, -76.6], [12, -76.6], [10, -86.5], [10, -84.1], [12, -80], [6.5, -79.4], [9.6, -74.4], [12.4, -86.5]];
+  const avoid = [[-7.7, -44.5], [-7.7, -47], [0, -57.2], [6.5, -52], [4.1, -52], [8.9, -52], [-6, -47.5], [-6, -49.2], [-2.5, -53], [-2.6, -47.4], [9.6, -46.6], [7.2, -46.6], [12, -46.6], [10, -56.5], [10, -54.1], [12, -50], [6.5, -49.4], [9.6, -44.4], [12.4, -56.5]];
   for (let n = 0; n < 3000 && rocks.length < 10; n++) {
-    const x = -9 + rnd()*21, z = -86.5 + rnd()*11.5;
+    const x = -9 + rnd()*21, z = -56.5 + rnd()*11.5;
     if (avoid.some(([ax, az]) => Math.hypot(ax - x, az - z) < 2.7)) continue;
     if (rocks.some(r => Math.hypot(r.x - x, r.z - z) < 2.1)) continue;
     const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
@@ -1451,7 +1476,7 @@ function longTable(x, z, alongXAxis) {
 function roofOn(g, w, d, h, y, color) { const r = mesh(G.cone4, color, [1, h, 1], [0, y, 0], g); r.rotation.y = Math.PI/4; r.scale.set(w*.72, h, d*.72); return r; }
 Object.assign(buildFx, {
   mine(anim) {
-    const g = new THREE.Group(); g.position.set(0, 0, -90.4); scene.add(g);
+    const g = new THREE.Group(); g.position.set(0, 0, -60.4); scene.add(g);
     mesh(G.box, 0x1a1410, [2, 2.2, .6], [0, 1.1, 0], g);
     for (const x of [-1.1, 1.1]) mesh(G.box, 0x6b4526, [.28, 2.6, .28], [x, 1.3, .3], g);
     mesh(G.box, 0x6b4526, [2.6, .3, .32], [0, 2.55, .3], g);
@@ -1463,19 +1488,19 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   masonry(anim) {
-    const g = new THREE.Group(); g.position.set(-6, 0, -79.3); scene.add(g);
+    const g = new THREE.Group(); g.position.set(-6, 0, -49.3); scene.add(g);
     for (let i = 0; i < 3; i++) mesh(G.box, 0xa3a6ab, [.7, .4, .5], [(i - 1)*.72, .2, 0], g);
     mesh(G.box, 0x9a9da2, [.7, .4, .5], [-.36, .6, 0], g); mesh(G.box, 0x9a9da2, [.7, .4, .5], [.36, .6, 0], g);
-    circles.push({x:-6, z:-79.3, r:.7});
+    circles.push({x:-6, z:-49.3, r:.7});
     if (anim) popIn(g);
   },
   smelter(anim) {
-    const g = new THREE.Group(); g.position.set(6.5, 0, -82); scene.add(g);
+    const g = new THREE.Group(); g.position.set(6.5, 0, -52); scene.add(g);
     mesh(G.cyl, 0x7a6a5a, [.95, 1.6, .95], [0, .8, 0], g);
     mesh(G.cone, 0x6a5a4a, [1, .8, 1], [0, 2, 0], g);
     mesh(G.cyl, 0x5a4a3a, [.22, 1.4, .22], [0, 2.9, 0], g);
     const glow = new THREE.Mesh(G.box, new THREE.MeshBasicMaterial({color:0xff7a1a})); glow.scale.set(.6, .45, .05); glow.position.set(0, .6, .95); g.add(glow);
-    smokers.push({x:6.5, y:3.7, z:-82}); if (ST.smelter) ST.smelter.body = g;
+    smokers.push({x:6.5, y:3.7, z:-52}); if (ST.smelter) ST.smelter.body = g;
     if (anim) popIn(g);
   },
   smithy(anim) {
@@ -1488,19 +1513,19 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   pavilion(anim) {
-    const g = new THREE.Group(); g.position.set(82, 0, 7); scene.add(g);
+    const g = new THREE.Group(); g.position.set(52, 0, 7); scene.add(g);
     // open-air hall: posts strung with bunting, so the camera can see the table
     for (const [x, z] of [[-2.9, -1], [2.9, -1], [-2.9, 1], [2.9, 1]]) mesh(G.cyl, 0x6b4526, [.12, 2.6, .12], [x, 1.3, z], g);
     for (const z of [-1, 1]) {
       mesh(G.box, 0x5e3f22, [5.8, .06, .06], [0, 2.55, z], g);
       for (let i = 0; i < 12; i++) { const f = mesh(G.cone4, [0xd9443a, 0xf0c030, 0x3f7cc0, 0x3f9a6a][i % 4], [.16, .3, .03], [-2.6 + i*.47, 2.36, z], g); f.rotation.x = Math.PI; }
     }
-    longTable(82, 7, true);
+    longTable(52, 7, true);
     for (const x of [-2.9, 2.9]) { const l = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xffd36b})); l.scale.setScalar(.14); l.position.set(x, 2.2, 1.1); g.add(l); }
     if (anim) popIn(g);
   },
   market(anim) {
-    const g = new THREE.Group(); g.position.set(80, 0, -8.2); scene.add(g);
+    const g = new THREE.Group(); g.position.set(50, 0, -8.2); scene.add(g);
     mesh(G.box, 0x9a6a3a, [2.4, .9, 1], [0, .45, 0], g);
     for (const x of [-1.15, 1.15]) mesh(G.cyl, 0x5e3f22, [.07, 2.2, .07], [x, 1.1, .45], g);
     for (let i = 0; i < 6; i++) mesh(G.box, i % 2 ? 0xffffff : 0xd9443a, [.42, .06, 1.3], [-1.05 + i*.42, 2.2, .1], g).rotation.x = -.25;
@@ -1508,7 +1533,7 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   library(anim) {
-    const g = new THREE.Group(); g.position.set(85.5, 0, -9.6); scene.add(g); if (ST.library) ST.library.body = g;
+    const g = new THREE.Group(); g.position.set(55.5, 0, -9.6); scene.add(g); if (ST.library) ST.library.body = g;
     mesh(G.box, 0xd8d2c4, [4, .3, 3], [0, .15, 0], g);
     mesh(G.box, 0xe8e2d4, [3.6, 2.2, 2.6], [0, 1.4, 0], g);
     for (let i = 0; i < 4; i++) mesh(G.cyl, 0xf4f0e6, [.14, 2.2, .14], [-1.35 + i*.9, 1.4, 1.4], g);
@@ -1562,17 +1587,17 @@ Object.assign(buildFx, {
 });
 // ------------------------------------------------------------------ brewery and beer garden
 function brewery(anim) {
-  const g = new THREE.Group(); g.position.set(83.5, 0, 75.5); scene.add(g); if (ST.brewery) ST.brewery.body = g;
+  const g = new THREE.Group(); g.position.set(53.5, 0, 75.5); scene.add(g); if (ST.brewery) ST.brewery.body = g;
   mesh(G.box, 0x8a5a3a, [2.4, 1.6, 1.9], [0, .8, 0], g); roofOn(g, 2.8, 2.4, .8, 2, 0x6a3a2a);
   for (const x of [-.6, .6]) { mesh(G.cyl, 0xc87a3a, [.42, .9, .42], [x, .45, 1.2], g, {metalness:.6, roughness:.3}); mesh(G.sph, 0xc87a3a, [.42, .2, .42], [x, .9, 1.2], g, {metalness:.6, roughness:.3}); }
   mesh(G.cyl, 0x7a7a7e, [.12, .8, .12], [.7, 2.4, -.4], g);
-  smokers.push({x:84.2, y:2.9, z:75.1});
+  smokers.push({x:54.2, y:2.9, z:75.1});
   fader(g, 2.6, 2.4);
   if (anim) popIn(g);
 }
-const SEATS = [...Array(6)].map((_, i) => [83.75 + i*.9, 88.95]);
+const SEATS = [...Array(6)].map((_, i) => [53.75 + i*.9, 88.95]);
 function beerGardenFx(anim) {
-  const g = new THREE.Group(); g.position.set(86, 0, 87.5); scene.add(g);
+  const g = new THREE.Group(); g.position.set(56, 0, 87.5); scene.add(g);
   mesh(G.box, 0x6b4526, [5.4, .9, 1.2], [0, .45, 0], g); mesh(G.box, 0x9a6a3a, [5.6, .1, 1.4], [0, .95, 0], g);
   mesh(G.box, 0x8a5a2b, [5.6, .12, .45], [0, .44, 1.75], g);
   for (const x of [-2.6, 2.6]) mesh(G.box, 0x5e3f22, [.1, .44, .4], [x, .22, 1.75], g);
@@ -1580,7 +1605,7 @@ function beerGardenFx(anim) {
   mesh(G.box, 0x5e3f22, [5.8, .05, .05], [0, 2.5, -.5], g);
   for (let i = 0; i < 12; i++) { const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:[0xffd36b, 0xff9a5a, 0xfff2b0][i % 3], toneMapped:false})); b.scale.setScalar(.07); b.position.set(-2.7 + i*.49, 2.4, -.5); g.add(b); }
   for (const x of [-4.3, 4.3]) { mesh(G.cyl, 0x5e3f22, [.05, 2, .05], [x, 1, 1.6], g); mesh(G.cone, 0xd9443a, [1, .5, 1], [x, 2.1, 1.6], g); }
-  boxes.push({x0:83.4, x1:88.6, z0:86.8, z1:88.2});
+  boxes.push({x0:53.4, x1:58.6, z0:86.8, z1:88.2});
   fader(g, 5.6, 2.6);
   if (anim) popIn(g);
 }
@@ -1613,7 +1638,7 @@ function gardenUpdate(L, dt) {
 }
 
 // ------------------------------------------------------------------ downtown: six lots that grow into skyscrapers
-const LOTS = [[77.5, -77.5], [82.5, -77.5], [87.5, -77.5], [77.5, -84.5], [82.5, -84.5], [87.5, -84.5]];
+const LOTS = [[47.5, -47.5], [52.5, -47.5], [57.5, -47.5], [47.5, -54.5], [52.5, -54.5], [57.5, -54.5]];
 const LOT_STAGES = [null, {n:'Townhouse', icon:'🏠', rent:30}, {n:'Apartments', icon:'🏢', rent:80}, {n:'Tower', icon:'🏬', rent:200}, {n:'Skyscraper', icon:'🏙️', rent:600}];
 const HOTEL_STAGES = [null, {n:'Motel', icon:'🛏️', rent:40}, {n:'Inn', icon:'🏨', rent:100}, {n:'Grand hotel', icon:'🏨', rent:240}, {n:'Neon hotel tower', icon:'🌃', rent:700}];
 const isHotel = i => i % 2 === 1;
@@ -1703,23 +1728,23 @@ function buildLot(i, stage, anim) {
   if (stage === 4) setEra(lotStage.every(s => s === 4) ? 9 : 8, anim);
 }
 function downtownStreets() {
-  for (const x of [80, 85]) slab(0x6e737c, 1.4, 16.7, x, -81.25, .004);
-  slab(0x6e737c, 17.2, 1.4, 82, -80.6, .006);
-  for (const [x, z] of [[80, -74], [85, -74], [80, -87.6], [85, -87.6], [75, -80.6], [90, -80.6]]) {
+  for (const x of [50, 55]) slab(0x6e737c, 1.4, 16.7, x, -51.25, .004);
+  slab(0x6e737c, 17.2, 1.4, 52, -50.6, .006);
+  for (const [x, z] of [[50, -44], [55, -44], [50, -57.6], [55, -57.6], [45, -50.6], [60, -50.6]]) {
     mesh(G.cyl, 0x3a3f46, [.06, 2.8, .06], [x + .9, 1.4, z], scene, {metalness:.5});
     const lamp = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xfff2c0, toneMapped:false})); lamp.scale.setScalar(.18); lamp.position.set(x + .9, 2.85, z); scene.add(lamp); lampMats.push(lamp.material);
   }
 }
 
 function windmill() {
-  const g = new THREE.Group(); g.position.set(89.3, 0, 75.6); scene.add(g);
+  const g = new THREE.Group(); g.position.set(59.3, 0, 75.6); scene.add(g);
   mesh(G.cyl, 0xe8dcc0, [1, 3.2, 1], [0, 1.6, 0], g); mesh(G.cone, 0x8a4a2a, [1.25, 1.2, 1.25], [0, 3.8, 0], g);
   const blades = new THREE.Group(); blades.position.set(0, 3.2, 1.05); g.add(blades);
   for (let i = 0; i < 4; i++) { const b = mesh(G.box, 0xf4ecd8, [.35, 2.2, .05], [0, 1.15, 0], new THREE.Group()); const arm = b.parent; arm.rotation.z = i*Math.PI/2; blades.add(arm); }
   ST.mill = blades; fader(g, 2.4, 4.5);
 }
 function digger(anim) {
-  const g = new THREE.Group(); g.position.set(10, 0, -86.5); scene.add(g); if (ST.digger) ST.digger.body = g;
+  const g = new THREE.Group(); g.position.set(10, 0, -56.5); scene.add(g); if (ST.digger) ST.digger.body = g;
   for (const z of [-.7, .7]) mesh(G.box, 0x2a2a2e, [2, .45, .45], [0, .23, z], g);
   mesh(G.box, 0xf2b705, [1.6, .8, 1.3], [0, .85, 0], g);
   mesh(G.box, 0xf2b705, [.8, .8, 1], [-.3, 1.65, 0], g); mesh(G.box, 0x9fd3e8, [.05, .5, .8], [.11, 1.7, 0], g);
@@ -1731,12 +1756,12 @@ function digger(anim) {
   if (anim) popIn(g);
 }
 function workshopFx(anim) {
-  const g = new THREE.Group(); g.position.set(9.6, 0, -76.6); scene.add(g); if (ST.workshop) ST.workshop.body = g;
+  const g = new THREE.Group(); g.position.set(9.6, 0, -46.6); scene.add(g); if (ST.workshop) ST.workshop.body = g;
   mesh(G.box, 0x8a6a4a, [2, 1.6, 2], [0, .8, 0], g);
   roofOn(g, 2.6, 2.6, .9, 2.1, 0x5a5f6a);
   mesh(G.box, 0x2a2a2e, [.5, .3, .3], [.6, .95, 1.05], g, {metalness:.6});
   mesh(G.cyl, 0x6a6a6e, [.18, 1, .18], [-.6, 2.6, -.5], g);
-  smokers.push({x:9, y:3.2, z:-77.1});
+  smokers.push({x:9, y:3.2, z:-47.1});
   fader(g, 2.6, 2.6);
   if (anim) popIn(g);
 }
@@ -1770,7 +1795,7 @@ function makeBoat(kind) {
   const sailor = makeChar({body:big ? 0x3a5a8a : 0x3f6fb5, hat:big ? 'beanie' : 'straw', hatCol:0x2a2a4a});
   sailor.g.scale.setScalar(.7); sailor.g.position.set(0, .53, big ? -.2 : -.6); g.add(sailor.g);
   const sail = null;
-  const b = {g, kind, sail, state:'dock', t:big ? 20 : 2, x:war ? -13.4 : big ? -14.4 : -13, z:war ? -4.6 : big ? -145 : -7.2, cargo:0};
+  const b = {g, kind, sail, state:'dock', t:big ? 20 : 2, x:war ? -13.4 : big ? -14.4 : -13, z:war ? -4.6 : big ? -115 : -7.2, cargo:0};
   b.g.position.set(b.x, 0, b.z);
   boats.push(b);
   return b;
@@ -1782,7 +1807,7 @@ function updBoats(dt) {
     const sail = (to, sp) => { const d = to - b.z; if (Math.abs(d) < .2) return true; vz = Math.sign(d)*sp; b.z += vz*dt; return false; };
     if (b.kind === 'war') {
       // the warship sails off with the army and comes home when the campaign ends
-      if (W.camp && W.camp.ships) { if (b.state !== 'gone') { if (sail(-135, 4)) b.state = 'gone'; } }
+      if (W.camp && W.camp.ships) { if (b.state !== 'gone') { if (sail(-105, 4)) b.state = 'gone'; } }
       else if (sail(-4.6, 4)) b.state = 'dock';
     } else if (b.kind === 'fish') {
       if (b.state === 'dock') { if ((b.t -= dt) <= 0) b.state = 'out'; }
@@ -1805,7 +1830,7 @@ function updBoats(dt) {
         // cruise passengers come ashore hungry
         if (b.kind === 'cruise') for (let i = 0; i < 3; i++) { const L = LINES.main; if (!L || L.q.length >= L.max) break; spawnIn(L); L.q[L.q.length - 1].pos.set(-9.4, 0, -9 + i*.4); L.q[L.q.length - 1].pre = null; } snd(880, .12, 'triangle', .05); } }
       else if (b.state === 'trade') { if ((b.t -= dt) <= 0) b.state = 'out'; }
-      else if (b.state === 'out') { if (sail(-145, 3)) { b.state = 'dock'; b.t = 30; } }
+      else if (b.state === 'out') { if (sail(-115, 3)) { b.state = 'dock'; b.t = 30; } }
     }
     b.g.position.set(b.x, Math.sin(time*2 + b.x)*.06 - .26, b.z);
     if (vz) b.g.rotation.y = vz > 0 ? 0 : Math.PI;
@@ -1860,7 +1885,7 @@ const outZone = st => zones.find(z => z.kind === 'out' && z.st === st);
 const dishOuts = tb => zones.filter(z => z.kind === 'out' && ITEM[ST[z.st].out]?.dish && tb.takes().includes(ST[z.st].out));
 const GATHER = {
   lumber:{nodes:() => trees, pile:() => ST.logs, drop:[3.4, -5.1]},
-  mason:{nodes:() => rocks, pile:() => ST.stones, drop:[-6, -77.5]},
+  mason:{nodes:() => rocks, pile:() => ST.stones, drop:[-6, -47.5]},
 };
 const ROUTES = {
   fisher:{src:() => { const h = outZone('harbor'); return [h && h.stack.length ? h : null, fishZone]; }, dst:() => inZone('grill')},
@@ -1883,7 +1908,7 @@ const ROUTES = {
   tinker:{src:() => [outZone('smelter')], dst:() => inZone('workshop')},
 };
 // ------------------------------------------------------------------ walking around things: a grid of where people can't go, and A* paths around it
-const NAV = {x0:-104, z0:-150, cs:.5, nx:440, nz:560, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
+const NAV = {x0:-104, z0:-110, cs:.5, nx:400, nz:480, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
 function navGrid() {
   const k = boxes.length*10000 + circles.length; if (k === NAV.key) return; NAV.key = k; NAV.ver++;
   const {x0, z0, cs, nx, nz} = NAV, g = NAV.grid = new Uint8Array(nx*nz), r = .3;
@@ -2058,8 +2083,8 @@ function stool(x, z) {
   mesh(G.cyl, 0x8a5a2b, [.26, .08, .26], [0, .44, 0], g); mesh(G.cyl, 0x5e3f22, [.07, .42, .07], [0, .21, 0], g);
 }
 function makeLine(id, o) { if (!o.noStool) { const [sx, sz] = o.slot(0); stool(sx, sz); } return LINES[id] = {id, q:[], leaving:[], spawnT:2, mult:1, ...o}; }
-makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[100, 1],
-  slot:k => k === 0 ? [5.75, 1] : [6.5 + k*1.3, 1], exit:[[7, 2.4], [102, 2.4]],
+makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[70, 1],
+  slot:k => k === 0 ? [5.75, 1] : [6.5 + k*1.3, 1], exit:[[7, 2.4], [72, 2.4]],
   active:() => W.tut >= 1, interval:() => 7 / (1 + .45*huts() + .3*W.era + .35*houses() + .3*(W.bridge || 0) + .4*(W.train || 0)), order:() => travelerOrder(2, 2)});
 function spawnIn(L) {
   const recruit = L.id === 'mess', col = recruit ? 0x8a7a5a : CLOTHES[R()*CLOTHES.length|0];
@@ -2284,7 +2309,7 @@ function zoneAct(e, zn, dt) {
       const it = e.isPlayer && e.stack.take(SELLABLE);
       if (it) {
         const v = ITEM[it.type].sell * (it.size > 1.2 ? 2 : 1);
-        W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(80, 1, -8.2), .25);
+        W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(50, 1, -8.2), .25);
         popText(`+${v}`, e.pos.clone().setY(2.4 + R()*.4), '#ffe06b'); snd(760 + R()*200, .04, 'triangle', .03); e.tick = .09;
       } else e.tick = .2;
       break;
@@ -2303,6 +2328,7 @@ function zoneAct(e, zn, dt) {
     case 'invest': if (e.isPlayer && !zn.open && $('modal').hidden) { zn.open = true; openInvest(); } e.tick = .3; break;
     case 'upgrade': if (e.isPlayer) payUpgrade(zn, e); break;
     case 'gasup': if (e.isPlayer) payGas(zn, e); break;
+    case 'fix': if (e.isPlayer) payFix(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;
@@ -2346,60 +2372,60 @@ const PADS = [
   {id:'treasurer2', x:2.8, z:7.4, cost:4000, cur:'coin', icon:'🧾', label:'2nd treasurer', after:['treasurer', 'hall']},
   // the quarry, north
   {id:'northGate', x:-7.7, z:-11.8, cost:35, cur:'log', icon:'⛰️', label:'North gate', after:['village']},
-  {id:'mine', x:0, z:-87.2, cost:20, cur:'log', icon:'⛏️', label:'Iron mine', after:['northGate'], region:'north'},
-  {id:'mason', x:-6, z:-77.5, cost:120, cur:'coin', icon:'🧱', label:'Stonemason', after:['northGate'], region:'north'},
-  {id:'smelter', x:6.5, z:-82, cost:25, cur:'stone', icon:'🔥', label:'Smelter', after:['mine'], region:'north'},
-  {id:'miner', x:-2.5, z:-83, cost:500, cur:'coin', icon:'👷', label:'Miner', after:['smelter'], region:'north'},
+  {id:'mine', x:0, z:-57.2, cost:20, cur:'log', icon:'⛏️', label:'Iron mine', after:['northGate'], region:'north'},
+  {id:'mason', x:-6, z:-47.5, cost:120, cur:'coin', icon:'🧱', label:'Stonemason', after:['northGate'], region:'north'},
+  {id:'smelter', x:6.5, z:-52, cost:25, cur:'stone', icon:'🔥', label:'Smelter', after:['mine'], region:'north'},
+  {id:'miner', x:-2.5, z:-53, cost:500, cur:'coin', icon:'👷', label:'Miner', after:['smelter'], region:'north'},
   // the market quarter, east
   {id:'eastGate', x:12.3, z:-2.6, cost:400, cur:'coin', icon:'🏪', label:'East gate', after:['village']},
-  {id:'hall', x:82, z:7, cost:30, cur:'log', icon:'🍻', label:'Great hall', after:['eastGate'], region:'east'},
-  {id:'market', x:80, z:-6, cost:15, cur:'stone', icon:'💰', label:'Market', after:['eastGate', 'northGate'], region:'east'},
-  {id:'porter', x:77.2, z:9.6, cost:500, cur:'coin', icon:'🧑‍🍳', label:'Hall waiter', after:['hall'], region:'east'},
-  {id:'porter2', x:77.2, z:12.2, cost:900, cur:'coin', icon:'🧑‍🍳', label:'2nd hall waiter', after:['porter'], region:'east'},
-  {id:'house1', x:85, z:-3, cost:20, cur:'stone', icon:'🏠', label:'Stone house', after:['hall', 'northGate'], region:'east'},
-  {id:'house2', x:88.5, z:-3, cost:25, cur:'stone', icon:'🏠', label:'Stone house', after:['house1'], region:'east'},
-  {id:'house3', x:88, z:10, cost:30, cur:'stone', icon:'🏠', label:'Stone house', after:['house2'], region:'east'},
+  {id:'hall', x:52, z:7, cost:30, cur:'log', icon:'🍻', label:'Great hall', after:['eastGate'], region:'east'},
+  {id:'market', x:50, z:-6, cost:15, cur:'stone', icon:'💰', label:'Market', after:['eastGate', 'northGate'], region:'east'},
+  {id:'porter', x:47.2, z:9.6, cost:500, cur:'coin', icon:'🧑‍🍳', label:'Hall waiter', after:['hall'], region:'east'},
+  {id:'porter2', x:47.2, z:12.2, cost:900, cur:'coin', icon:'🧑‍🍳', label:'2nd hall waiter', after:['porter'], region:'east'},
+  {id:'house1', x:55, z:-3, cost:20, cur:'stone', icon:'🏠', label:'Stone house', after:['hall', 'northGate'], region:'east'},
+  {id:'house2', x:58.5, z:-3, cost:25, cur:'stone', icon:'🏠', label:'Stone house', after:['house1'], region:'east'},
+  {id:'house3', x:58, z:10, cost:30, cur:'stone', icon:'🏠', label:'Stone house', after:['house2'], region:'east'},
   {id:'builder2', x:12.3, z:-5.6, cost:900, cur:'coin', icon:'👷', label:'2nd builder', after:['builder', 'house1']},
   {id:'bag3', x:.2, z:4.6, cost:900, cur:'coin', icon:'🎒', label:'Giant pack', after:['bag2', 'house1']},
-  {id:'mason2', x:-2.6, z:-77.4, cost:600, cur:'coin', icon:'🧱', label:'2nd stonemason', after:['mason', 'house1'], region:'north'},
-  {id:'library', x:85.5, z:-9.6, cost:30, cur:'stone', icon:'📚', label:'Library', after:['house1'], region:'east'},
-  {id:'sciNets', x:77.2, z:-11.6, cost:4, cur:'scroll', icon:'🕸️', label:'Fishing nets', after:['library'], region:'east', sci:1},
-  {id:'sciFarming', x:79.6, z:-11.6, cost:6, cur:'scroll', icon:'🌱', label:'Crop rotation', after:['library'], region:'east', sci:1},
-  {id:'sciMetal', x:82, z:-11.6, cost:8, cur:'scroll', icon:'⚗️', label:'Metallurgy', after:['library', 'smelter'], region:'east', sci:1},
-  {id:'sciWheel', x:77.2, z:-9.1, cost:10, cur:'scroll', icon:'☸️', label:'The wheel', after:['library'], region:'east', sci:1},
-  {id:'sciNav', x:89.3, z:-11.6, cost:10, cur:'scroll', icon:'🧭', label:'Navigation', after:['library'], region:'east', sci:1},
-  {id:'sciMedicine', x:77.2, z:-6.6, cost:8, cur:'scroll', icon:'🩺', label:'Medicine', after:['library'], region:'east', sci:1},
-  {id:'sciTactics', x:89.3, z:-8.6, cost:12, cur:'scroll', icon:'♟️', label:'Tactics', after:['library', 'barracks'], region:'east', sci:1},
-  {id:'scholar', x:82.4, z:-4, cost:500, cur:'coin', icon:'🧑‍🏫', label:'Scholar', after:['library'], region:'east'},
+  {id:'mason2', x:-2.6, z:-47.4, cost:600, cur:'coin', icon:'🧱', label:'2nd stonemason', after:['mason', 'house1'], region:'north'},
+  {id:'library', x:55.5, z:-9.6, cost:30, cur:'stone', icon:'📚', label:'Library', after:['house1'], region:'east'},
+  {id:'sciNets', x:47.2, z:-11.6, cost:4, cur:'scroll', icon:'🕸️', label:'Fishing nets', after:['library'], region:'east', sci:1},
+  {id:'sciFarming', x:49.6, z:-11.6, cost:6, cur:'scroll', icon:'🌱', label:'Crop rotation', after:['library'], region:'east', sci:1},
+  {id:'sciMetal', x:52, z:-11.6, cost:8, cur:'scroll', icon:'⚗️', label:'Metallurgy', after:['library', 'smelter'], region:'east', sci:1},
+  {id:'sciWheel', x:47.2, z:-9.1, cost:10, cur:'scroll', icon:'☸️', label:'The wheel', after:['library'], region:'east', sci:1},
+  {id:'sciNav', x:59.3, z:-11.6, cost:10, cur:'scroll', icon:'🧭', label:'Navigation', after:['library'], region:'east', sci:1},
+  {id:'sciMedicine', x:47.2, z:-6.6, cost:8, cur:'scroll', icon:'🩺', label:'Medicine', after:['library'], region:'east', sci:1},
+  {id:'sciTactics', x:59.3, z:-8.6, cost:12, cur:'scroll', icon:'♟️', label:'Tactics', after:['library', 'barracks'], region:'east', sci:1},
+  {id:'scholar', x:52.4, z:-4, cost:500, cur:'coin', icon:'🧑‍🏫', label:'Scholar', after:['library'], region:'east'},
   {id:'stoneRoads', x:5.6, z:9.4, cost:40, cur:'stone', icon:'🧱', label:'Cobblestone streets', after:['house2']},
   {id:'roads2', x:5.6, z:9.4, cost:12, cur:'tools', icon:'🪨', label:'Gravel paths', after:['stoneRoads', 'workshop']},
   {id:'roads3', x:5.6, z:9.4, cost:50000, cur:'coin', icon:'✨', label:'Grand promenade', after:['roads2', 'downtownGate']},
   // the farmlands, southeast
-  {id:'farmGate', x:80.4, z:12.3, cost:1500, cur:'coin', icon:'🌾', label:'Farmlands', after:['hall', 'townhall'], region:'east'},
-  {id:'field2', x:78.5, z:79.5, cost:400, cur:'coin', icon:'🌾', label:'Wheat field', after:['farmGate'], region:'farm'},
-  {id:'oven2', x:85.5, z:80, cost:600, cur:'coin', icon:'🥖', label:'Big bakery', after:['farmGate'], region:'farm'},
-  {id:'baker2', x:82, z:82.4, cost:600, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field2', 'oven2'], region:'farm'},
-  {id:'field3', x:78.5, z:86.5, cost:700, cur:'coin', icon:'🌾', label:'Wheat field', after:['field2'], region:'farm'},
-  {id:'baker3', x:83, z:84.6, cost:900, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field3', 'baker2'], region:'farm'},
+  {id:'farmGate', x:50.4, z:12.3, cost:1500, cur:'coin', icon:'🌾', label:'Farmlands', after:['hall', 'townhall'], region:'east'},
+  {id:'field2', x:48.5, z:79.5, cost:400, cur:'coin', icon:'🌾', label:'Wheat field', after:['farmGate'], region:'farm'},
+  {id:'oven2', x:55.5, z:80, cost:600, cur:'coin', icon:'🥖', label:'Big bakery', after:['farmGate'], region:'farm'},
+  {id:'baker2', x:52, z:82.4, cost:600, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field2', 'oven2'], region:'farm'},
+  {id:'field3', x:48.5, z:86.5, cost:700, cur:'coin', icon:'🌾', label:'Wheat field', after:['field2'], region:'farm'},
+  {id:'baker3', x:53, z:84.6, cost:900, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field3', 'baker2'], region:'farm'},
   // iron becomes tools, tools become machines
-  {id:'workshop', x:9.6, z:-76.6, cost:30, cur:'stone', icon:'🔨', label:'Workshop', after:['smelter'], region:'north'},
-  {id:'tinker', x:12, z:-80, cost:600, cur:'coin', icon:'🧰', label:'Tinker', after:['workshop'], region:'north'},
-  {id:'digger', x:10, z:-86.5, cost:5, cur:'tools', icon:'🚜', label:'Stone digger', after:['workshop'], region:'north'},
+  {id:'workshop', x:9.6, z:-46.6, cost:30, cur:'stone', icon:'🔨', label:'Workshop', after:['smelter'], region:'north'},
+  {id:'tinker', x:12, z:-50, cost:600, cur:'coin', icon:'🧰', label:'Tinker', after:['workshop'], region:'north'},
+  {id:'digger', x:10, z:-56.5, cost:5, cur:'tools', icon:'🚜', label:'Stone digger', after:['workshop'], region:'north'},
   {id:'plow', x:-8.4, z:11.6, cost:4, cur:'tools', icon:'⚙️', label:'Iron plows', after:['workshop', 'field']},
   {id:'carts', x:-7.4, z:-1.8, cost:6, cur:'tools', icon:'🛒', label:'Hand carts', after:['workshop']},
   // the river
   {id:'boatyard', x:-9.4, z:-7.2, cost:40, cur:'log', icon:'⛵', label:'Boatyard', after:['sciNav']},
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
   {id:'tradeShip', x:-9.3, z:-9.75, cost:2500, cur:'coin', icon:'🚢', label:'Merchant ship', after:['boatyard']},
-  {id:'brewery', x:83.5, z:75.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
-  {id:'brewer', x:76.2, z:75.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
-  {id:'beerGarden', x:86, z:87.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
-  {id:'barkeep', x:89.4, z:85.4, cost:900, cur:'coin', icon:'🧑‍🍳', label:'Barkeep', after:['beerGarden'], region:'farm'},
-  {id:'university', x:89.6, z:-5.6, w:1.9, cost:15, cur:'scroll', icon:'🎓', label:'University', after:['library', 'house2'], region:'east'},
-  {id:'labs', x:89.6, z:-5.6, w:1.9, cost:20, cur:'tools', icon:'🔬', label:'Research lab', after:['university', 'workshop'], region:'east'},
-  {id:'aiLab', x:89.6, z:-5.6, w:1.9, cost:40, cur:'scroll', icon:'🤖', label:'AI lab', after:['labs', 'exchange'], region:'east'},
-  {id:'superAI', x:89.6, z:-5.6, w:1.9, cost:250000, cur:'coin', icon:'🧠', label:'Superintelligence', after:['aiLab'], region:'east'},
-  {id:'sciFlight', x:82.4, z:-9.2, cost:25, cur:'scroll', icon:'✈️', label:'Aviation', after:['labs'], region:'east', sci:1},
+  {id:'brewery', x:53.5, z:75.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
+  {id:'brewer', x:46.2, z:75.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
+  {id:'beerGarden', x:56, z:87.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
+  {id:'barkeep', x:59.4, z:85.4, cost:900, cur:'coin', icon:'🧑‍🍳', label:'Barkeep', after:['beerGarden'], region:'farm'},
+  {id:'university', x:59.6, z:-5.6, w:1.9, cost:15, cur:'scroll', icon:'🎓', label:'University', after:['library', 'house2'], region:'east'},
+  {id:'labs', x:59.6, z:-5.6, w:1.9, cost:20, cur:'tools', icon:'🔬', label:'Research lab', after:['university', 'workshop'], region:'east'},
+  {id:'aiLab', x:59.6, z:-5.6, w:1.9, cost:40, cur:'scroll', icon:'🤖', label:'AI lab', after:['labs', 'exchange'], region:'east'},
+  {id:'superAI', x:59.6, z:-5.6, w:1.9, cost:250000, cur:'coin', icon:'🧠', label:'Superintelligence', after:['aiLab'], region:'east'},
+  {id:'sciFlight', x:52.4, z:-9.2, cost:25, cur:'scroll', icon:'✈️', label:'Aviation', after:['labs'], region:'east', sci:1},
   {id:'airfieldGate', x:-9.4, z:9.6, w:1.8, cost:60, cur:'stone', icon:'🌉', label:'Bridge & airfield', after:['sciFlight']},
   {id:'hangar', x:-81.5, z:-8, cost:20, cur:'tools', icon:'🛩️', label:'Hangar', after:['airfieldGate'], region:'airfield'},
   {id:'plane1', x:-81.5, z:-2.2, cost:25, cur:'tools', icon:'✈️', label:'Fighter plane', after:['hangar'], region:'airfield'},
@@ -2407,7 +2433,7 @@ const PADS = [
   {id:'plane3', x:-81.5, z:17.6, cost:60000, cur:'coin', icon:'✈️', label:'3rd fighter plane', after:['plane2'], region:'airfield'},
   {id:'plane4', x:-81.5, z:21.6, cost:90000, cur:'coin', icon:'✈️', label:'4th fighter plane', after:['plane3'], region:'airfield'},
   {id:'plane5', x:-81.5, z:25.6, cost:120000, cur:'coin', icon:'✈️', label:'5th fighter plane', after:['plane4'], region:'airfield'},
-  {id:'downtownGate', x:74.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
+  {id:'downtownGate', x:44.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
   {id:'warship', x:-9.4, z:-4.6, cost:10, cur:'tools', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
   // the military grounds, south
   {id:'southGate', x:3, z:12.6, cost:1000, cur:'coin', icon:'🛡️', label:'South gate', after:['townhall']},
@@ -2441,28 +2467,28 @@ const PADS = [
   // railways
   {id:'airport', x:-91.5, z:-9.6, cost:40, cur:'tools', icon:'🛫', label:'Passenger airport', after:['hangar', 'downtownGate'], region:'airfield'},
   {id:'jumbo', x:-90.9, z:.9, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
-  {id:'concert', x:85, z:90.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
+  {id:'concert', x:55, z:90.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
   {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'workshop']},
   {id:'cruisePort', x:-9.2, z:-11.8, cost:60000, cur:'coin', icon:'🛳️', label:'Cruise ships', after:['cargoPort', 'hall']},
-  {id:'police', x:89.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
-  {id:'fireStation', x:89.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
-  {id:'hospital', x:89.2, z:6, cost:30000, cur:'coin', icon:'🏥', label:'Hospital', after:['fireStation', 'library'], region:'east'},
-  {id:'traffic', x:74.6, z:-87.8, cost:20000, cur:'coin', icon:'🛣️', label:'Roads & traffic', after:['lot0s2'], region:'downtown'},
-  {id:'exchange', x:79, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
-  {id:'highway', x:74.6, z:-87.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
-  {id:'dome', x:88.73, z:83.12, cost:150000, cur:'coin', icon:'🌐', label:'Domed stadium', after:['stadium', 'aiLab'], region:'farm'},
+  {id:'police', x:59.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
+  {id:'fireStation', x:59.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
+  {id:'hospital', x:59.2, z:6, cost:30000, cur:'coin', icon:'🏥', label:'Hospital', after:['fireStation', 'library'], region:'east'},
+  {id:'traffic', x:44.6, z:-57.8, cost:20000, cur:'coin', icon:'🛣️', label:'Roads & traffic', after:['lot0s2'], region:'downtown'},
+  {id:'exchange', x:49, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
+  {id:'highway', x:44.6, z:-57.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
+  {id:'dome', x:58.73, z:83.12, cost:150000, cur:'coin', icon:'🌐', label:'Domed stadium', after:['stadium', 'aiLab'], region:'farm'},
   {id:'tanks', x:2.75, z:77.95, cost:25000, cur:'coin', icon:'🪖', label:'Tank division', after:['guns', 'castle3'], region:'south'},
-  {id:'stadium', x:88.73, z:83.12, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
+  {id:'stadium', x:58.73, z:83.12, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'terminal2', x:-90.9, z:.9, cost:60, cur:'tools', icon:'🏢', label:'Terminal 2', after:['airport'], region:'airfield'},
   {id:'jet2', x:-90.9, z:.9, cost:90000, cur:'coin', icon:'🛫', label:'2nd airliner', after:['terminal2'], region:'airfield'},
   {id:'cargoJet', x:-90.9, z:.9, cost:150000, cur:'coin', icon:'📦', label:'Cargo freighter', after:['jet2', 'cargoPort'], region:'airfield'},
   {id:'stallMain1', x:6.4, z:-2.2, cost:1500, cur:'coin', icon:'⛺', label:'Pop-up tent', after:['waiter2', 'house1']},
   {id:'stallMain2', x:6.4, z:-2.2, cost:80, cur:'stone', icon:'🏪', label:'Corner store', after:['stallMain1', 'townhall']},
-  {id:'stallHall1', x:82, z:10.9, cost:3000, cur:'coin', icon:'⛺', label:'Market tent', after:['hall', 'farmGate'], region:'east'},
-  {id:'stallHall2', x:82, z:10.9, cost:150, cur:'stone', icon:'🏪', label:'Market store', after:['stallHall1', 'castle'], region:'east'},
-  {id:'oilField', x:-2.4, z:-81.6, cost:40, cur:'tools', icon:'🛢️', label:'Oil field', after:['highway', 'mineRail'], need:() => oilReady(), region:'north'},
-  {id:'refinery', x:-0.4, z:-79.2, cost:100000, cur:'coin', icon:'🏭', label:'Oil refinery', after:['oilField'], region:'north'},
-  {id:'gasStation', x:45.2, z:25.6, cost:60000, cur:'coin', icon:'⛽', label:'Gas station', after:['highway']},
+  {id:'stallHall1', x:52, z:10.9, cost:3000, cur:'coin', icon:'⛺', label:'Market tent', after:['hall', 'farmGate'], region:'east'},
+  {id:'stallHall2', x:52, z:10.9, cost:150, cur:'stone', icon:'🏪', label:'Market store', after:['stallHall1', 'castle'], region:'east'},
+  {id:'oilField', x:-2.4, z:-51.6, cost:40, cur:'tools', icon:'🛢️', label:'Oil field', after:['highway', 'mineRail'], need:() => oilReady(), region:'north'},
+  {id:'refinery', x:-0.4, z:-49.2, cost:100000, cur:'coin', icon:'🏭', label:'Oil refinery', after:['oilField'], region:'north'},
+  {id:'gasStation', x:-28.4, z:25.6, cost:60000, cur:'coin', icon:'⛽', label:'Gas station', after:['highway', 'airfieldGate']},
   {id:'mount1', x:12.16, z:-0.32, cost:2000, cur:'coin', icon:'🐴', label:'Horse', after:['village']},
   {id:'mount2', x:12.16, z:-0.32, cost:6000, cur:'coin', icon:'🚲', label:'Bicycle', after:['mount1', 'townhall']},
   {id:'mount3', x:12.16, z:-0.32, cost:15000, cur:'coin', icon:'🛵', label:'Scooter', after:['mount2', 'workshop']},
@@ -2475,18 +2501,18 @@ const PADS = [
   {id:'wCathedral', x:-82.6, z:83.8, cost:30, cur:'tools', icon:'⛪', label:'Cathedral', after:['bridge1', 'castle2', 'workshop']},
   {id:'wTower', x:-89.5, z:89, cost:60, cur:'tools', icon:'🗼', label:'Iron Tower', after:['bridge1', 'steamTrain']},
   {id:'wNeedle', x:-82.6, z:89, cost:250000, cur:'coin', icon:'🛸', label:'Space Needle', after:['bridge1', 'labs']},
-  {id:'ranchGate', x:-8.9, z:-78, cost:60, cur:'stone', icon:'🐄', label:'Ranch bridge', after:['northGate', 'townhall'], region:'north'},
-  {id:'dairy', x:-90, z:-86.5, cost:2500, cur:'coin', icon:'🐄', label:'Dairy cows', after:['ranchGate'], region:'ranch'},
-  {id:'creamery', x:-81.2, z:-86.5, cost:50, cur:'log', icon:'🍦', label:'Ice cream parlor', after:['dairy'], region:'ranch'},
-  {id:'milkman', x:-90.5, z:-83.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Milkman', after:['creamery'], region:'ranch'},
-  {id:'tomatoes', x:-90, z:-80.5, cost:2500, cur:'coin', icon:'🍅', label:'Tomato field', after:['ranchGate'], region:'ranch'},
-  {id:'pizzeria', x:-81.2, z:-80.5, cost:60, cur:'stone', icon:'🍕', label:'Pizzeria', after:['tomatoes'], region:'ranch'},
-  {id:'picker', x:-86, z:-83.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Tomato picker', after:['pizzeria'], region:'ranch'},
-  {id:'fishPier', x:-78.6, z:-76.2, cost:1200, cur:'coin', icon:'🎣', label:'Fishing pier', after:['ranchGate'], region:'ranch'},
-  {id:'sushi', x:-81.2, z:-76.2, cost:25, cur:'tools', icon:'🍣', label:'Sushi bar', after:['fishPier', 'workshop'], region:'ranch'},
-  {id:'sushichef', x:-81.5, z:-83.1, cost:2000, cur:'coin', icon:'👨‍🍳', label:'Sushi chef', after:['sushi'], region:'ranch'},
-  {id:'aquarium', x:99, z:12.2, cost:40000, cur:'coin', icon:'🐠', label:'Aquarium', after:['steamTrain']},
-  {id:'zoo', x:103.8, z:12.1, cost:60000, cur:'coin', icon:'🦁', label:'Zoo', after:['aquarium', 'castle']},
+  {id:'ranchGate', x:-8.9, z:-48, cost:60, cur:'stone', icon:'🐄', label:'Ranch bridge', after:['northGate', 'townhall'], region:'north'},
+  {id:'dairy', x:-90, z:-56.5, cost:2500, cur:'coin', icon:'🐄', label:'Dairy cows', after:['ranchGate'], region:'ranch'},
+  {id:'creamery', x:-81.2, z:-56.5, cost:50, cur:'log', icon:'🍦', label:'Ice cream parlor', after:['dairy'], region:'ranch'},
+  {id:'milkman', x:-90.5, z:-53.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Milkman', after:['creamery'], region:'ranch'},
+  {id:'tomatoes', x:-90, z:-50.5, cost:2500, cur:'coin', icon:'🍅', label:'Tomato field', after:['ranchGate'], region:'ranch'},
+  {id:'pizzeria', x:-81.2, z:-50.5, cost:60, cur:'stone', icon:'🍕', label:'Pizzeria', after:['tomatoes'], region:'ranch'},
+  {id:'picker', x:-86, z:-53.1, cost:1500, cur:'coin', icon:'🧑‍🌾', label:'Tomato picker', after:['pizzeria'], region:'ranch'},
+  {id:'fishPier', x:-78.6, z:-46.2, cost:1200, cur:'coin', icon:'🎣', label:'Fishing pier', after:['ranchGate'], region:'ranch'},
+  {id:'sushi', x:-81.2, z:-46.2, cost:25, cur:'tools', icon:'🍣', label:'Sushi bar', after:['fishPier', 'workshop'], region:'ranch'},
+  {id:'sushichef', x:-81.5, z:-53.1, cost:2000, cur:'coin', icon:'👨‍🍳', label:'Sushi chef', after:['sushi'], region:'ranch'},
+  {id:'aquarium', x:69, z:12.2, cost:40000, cur:'coin', icon:'🐠', label:'Aquarium', after:['steamTrain']},
+  {id:'zoo', x:73.8, z:12.1, cost:60000, cur:'coin', icon:'🦁', label:'Zoo', after:['aquarium', 'castle']},
   {id:'launchPad', x:-91, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-91, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
   {id:'moonLanding', x:-91, z:3.6, cost:500000, cur:'coin', icon:'🚀', label:'Moon landing', after:['satellite'], region:'airfield'},
@@ -2495,13 +2521,13 @@ const PADS = [
   {id:'moonHotel', x:-91, z:3.6, cost:1500000, cur:'coin', icon:'🏨', label:'Moon hotel', after:['moonBase'], region:'airfield'},
   {id:'asteroid', x:-91, z:3.6, cost:2000000, cur:'coin', icon:'☄️', label:'Asteroid mining', after:['mars', 'moonHotel'], region:'airfield'},
   {id:'spaceElevator', x:-91, z:3.6, cost:4000000, cur:'coin', icon:'🛗', label:'Space elevator', after:['asteroid'], region:'airfield'},
-  {id:'mineRail', x:-2.4, z:-81.6, cost:8, cur:'tools', icon:'🚃', label:'Mine railway', after:['miner', 'workshop'], region:'north'},
-  {id:'railway', x:91.65, z:77.2, cost:90, cur:'stone', icon:'🐎', label:'Stagecoach line', after:['farmGate', 'workshop'], region:'farm'},
-  {id:'steamTrain', x:91.65, z:77.2, cost:15, cur:'tools', icon:'🚂', label:'Steam train', after:['railway'], region:'farm'},
-  {id:'bulletTrain', x:91.65, z:77.2, cost:120000, cur:'coin', icon:'🚄', label:'Bullet train', after:['steamTrain', 'labs'], region:'farm'},
+  {id:'mineRail', x:-2.4, z:-51.6, cost:8, cur:'tools', icon:'🚃', label:'Mine railway', after:['miner', 'workshop'], region:'north'},
+  {id:'railway', x:61.65, z:77.2, cost:90, cur:'stone', icon:'🐎', label:'Stagecoach line', after:['farmGate', 'workshop'], region:'farm'},
+  {id:'steamTrain', x:61.65, z:77.2, cost:15, cur:'tools', icon:'🚂', label:'Steam train', after:['railway'], region:'farm'},
+  {id:'bulletTrain', x:61.65, z:77.2, cost:120000, cur:'coin', icon:'🚄', label:'Bullet train', after:['steamTrain', 'labs'], region:'farm'},
 ];
 LOTS.forEach(([x, z], i) => {
-  const m = 1 + .3*i, tz = z + (z > -80 ? 2.6 : 2.8);
+  const m = 1 + .3*i, tz = z + (z > -50 ? 2.6 : 2.8);
   const costs = [[Math.round(25*m), 'stone'], [Math.round(50*m), 'stone'], [Math.round(10*m), 'tools'], [Math.round(25000*m), 'coin']];
   for (let n = 1; n <= 4; n++) {
     PADS.push({id:`lot${i}s${n}`, x, z:tz, cost:costs[n-1][0], cur:costs[n-1][1], icon:(isHotel(i) ? HOTEL_STAGES : LOT_STAGES)[n].icon, label:(isHotel(i) ? HOTEL_STAGES : LOT_STAGES)[n].n,
@@ -2557,35 +2583,35 @@ const UNLOCK = {
   northGate(a) { openRegion('north', a); },
   mine(a) {
     buildFx.mine(a);
-    oreZone = addZone({kind:'source', item:'ore', rate:.55, wrate:.95, from:() => new THREE.Vector3((R() - .5)*1.2, 1, -89.6), x:0, z:-87.2, icon:'⛏️', tile:{alpha:1, size:92, label:'Iron mine'}});
+    oreZone = addZone({kind:'source', item:'ore', rate:.55, wrate:.95, from:() => new THREE.Vector3((R() - .5)*1.2, 1, -59.6), x:0, z:-57.2, icon:'⛏️', tile:{alpha:1, size:92, label:'Iron mine'}});
   },
-  mason(a) { station('stones', {name:'stone pile', pile:'stone', outZ:[-6, -77.5], outCap:40}); buildFx.masonry(a); addWorker('mason', -4.2, -79.2, a); },
+  mason(a) { station('stones', {name:'stone pile', pile:'stone', outZ:[-6, -47.5], outCap:40}); buildFx.masonry(a); addWorker('mason', -4.2, -49.2, a); },
   smelter(a) {
-    station('smelter', {name:'smelter', in:'ore', out:'ingot', t:1.8, group:'metal', inZ:[4.1, -82], outZ:[8.9, -82], fireAt:[6.5, 1.2, -82]});
-    buildFx.smelter(a); circles.push({x:6.5, z:-82, r:.95});
+    station('smelter', {name:'smelter', in:'ore', out:'ingot', t:1.8, group:'metal', inZ:[4.1, -52], outZ:[8.9, -52], fireAt:[6.5, 1.2, -52]});
+    buildFx.smelter(a); circles.push({x:6.5, z:-52, r:.95});
   },
-  miner(a) { addWorker('miner', -2.5, -83, a); },
-  mason2(a) { addWorker('mason', -2.6, -77.4, a); },
+  miner(a) { addWorker('miner', -2.5, -53, a); },
+  mason2(a) { addWorker('mason', -2.6, -47.4, a); },
   eastGate(a) { openRegion('east', a); },
   hall(a) {
     buildFx.pavilion(a);
-    makeTable('hall', DISHES, alongX(79.75, 7), {x:82, z:8.9, w:3, d:1.6});
-    boxes.push({x0:79.3, x1:84.7, z0:6.3, z1:7.7});
-    makeCash('hall', 86.1, 7);
-    makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[107, 2.9], mult:1.5,
-      slot:k => k === 0 ? [82, 5.5] : k <= 6 ? [82.4 + k*1.3, 4.2] : [90.2 - (k - 7)*1.15, 5.15], exit:[[80.6, 4.2], [80.6, 3], [102, 3]],
+    makeTable('hall', DISHES, alongX(49.75, 7), {x:52, z:8.9, w:3, d:1.6});
+    boxes.push({x0:49.3, x1:54.7, z0:6.3, z1:7.7});
+    makeCash('hall', 56.1, 7);
+    makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[77, 2.9], mult:1.5,
+      slot:k => k === 0 ? [52, 5.5] : k <= 6 ? [52.4 + k*1.3, 4.2] : [60.2 - (k - 7)*1.15, 5.15], exit:[[50.6, 4.2], [50.6, 3], [72, 3]],
       active:() => true, interval:() => 5.5 / (1 + .4*houses() + .25*W.era), order:() => travelerOrder(3, 3)});
   },
-  market(a) { buildFx.market(a); addZone({kind:'sell', x:80, z:-6, icon:'💰', tile:{alpha:1, size:92, label:'Sell extras'}}); boxes.push({x0:78.8, x1:81.2, z0:-8.7, z1:-7.7}); },
-  porter(a) { addWorker('porter', 77.2, 9.6, a); },
-  porter2(a) { addWorker('porter', 77.2, 12.2, a); },
-  house1(a) { house(85, -3, a); }, house2(a) { house(88.5, -3, a); }, house3(a) { house(88, 10, a); },
+  market(a) { buildFx.market(a); addZone({kind:'sell', x:50, z:-6, icon:'💰', tile:{alpha:1, size:92, label:'Sell extras'}}); boxes.push({x0:48.8, x1:51.2, z0:-8.7, z1:-7.7}); },
+  porter(a) { addWorker('porter', 47.2, 9.6, a); },
+  porter2(a) { addWorker('porter', 47.2, 12.2, a); },
+  house1(a) { house(55, -3, a); }, house2(a) { house(58.5, -3, a); }, house3(a) { house(58, 10, a); },
   library(a) {
-    station('library', {name:'library', in:'bread', out:'scroll', t:3.5, inZ:[84, -6.9], outZ:[87.2, -6.9], fireAt:[85.5, 1.5, -8.2], outCap:20});
-    buildFx.library(a); boxes.push({x0:83.7, x1:87.3, z0:-11, z1:-8.2}); setEra(4, a);
+    station('library', {name:'library', in:'bread', out:'scroll', t:3.5, inZ:[54, -6.9], outZ:[57.2, -6.9], fireAt:[55.5, 1.5, -8.2], outCap:20});
+    buildFx.library(a); boxes.push({x0:53.7, x1:57.3, z0:-11, z1:-8.2}); setEra(4, a);
   },
-  scholar(a) { addWorker('scholar', 82.4, -4, a); },
-  tinker(a) { addWorker('tinker', 12, -80, a); },
+  scholar(a) { addWorker('scholar', 52.4, -4, a); },
+  tinker(a) { addWorker('tinker', 12, -50, a); },
   builder(a) { addWorker('builder', 8.6, -3.4, a); },
   builder2(a) { addWorker('builder', 12.3, -5.6, a); },
   sciMedicine() { BOOST.patience = 1.6; },
@@ -2593,43 +2619,43 @@ const UNLOCK = {
   stoneRoads(a) { groundStage(1, a); }, roads2(a) { groundStage(2, a); }, roads3(a) { groundStage(3, a); },
   farmGate(a) { openRegion('farm', a); },
   field2(a) {
-    station('field2', {name:'wheat field', gen:'wheat', t:1.7, group:'farm', outZ:[78.5, 77.1], outCap:18, genAt:[78.5, 1, 79.5]});
-    fieldAt(78.5, 79.5, a); ST.field2.body = fieldAt.last; boxes.push({x0:75.9, x1:81.1, z0:78.3, z1:80.8});
+    station('field2', {name:'wheat field', gen:'wheat', t:1.7, group:'farm', outZ:[48.5, 77.1], outCap:18, genAt:[48.5, 1, 79.5]});
+    fieldAt(48.5, 79.5, a); ST.field2.body = fieldAt.last; boxes.push({x0:45.9, x1:51.1, z0:78.3, z1:80.8});
   },
   field3(a) {
-    station('field3', {name:'wheat field', gen:'wheat', t:1.7, group:'farm', outZ:[78.5, 84.1], outCap:18, genAt:[78.5, 1, 86.5]});
-    fieldAt(78.5, 86.5, a); ST.field3.body = fieldAt.last; boxes.push({x0:75.9, x1:81.1, z0:85.3, z1:87.8});
+    station('field3', {name:'wheat field', gen:'wheat', t:1.7, group:'farm', outZ:[48.5, 84.1], outCap:18, genAt:[48.5, 1, 86.5]});
+    fieldAt(48.5, 86.5, a); ST.field3.body = fieldAt.last; boxes.push({x0:45.9, x1:51.1, z0:85.3, z1:87.8});
   },
   oven2(a) {
-    station('oven2', {name:'big bakery', in:'wheat', out:'bread', t:1.1, inZ:[83.1, 80], outZ:[87.9, 80], fireAt:[85.5, .7, 80.9], inCap:30, outCap:30});
-    ovenAt(85.5, 80, a); ST.oven2.body = ovenAt.last; circles.push({x:85.5, z:80, r:1.05});
+    station('oven2', {name:'big bakery', in:'wheat', out:'bread', t:1.1, inZ:[53.1, 80], outZ:[57.9, 80], fireAt:[55.5, .7, 80.9], inCap:30, outCap:30});
+    ovenAt(55.5, 80, a); ST.oven2.body = ovenAt.last; circles.push({x:55.5, z:80, r:1.05});
   },
-  baker2(a) { addWorker('baker2', 82, 82.4, a); },
-  baker3(a) { addWorker('baker3', 83, 84.6, a); },
+  baker2(a) { addWorker('baker2', 52, 82.4, a); },
+  baker3(a) { addWorker('baker3', 53, 84.6, a); },
   workshop(a) {
-    station('workshop', {name:'workshop', in:'ingot', out:'tools', t:1.4, group:'metal', inZ:[7.2, -76.6], outZ:[12, -76.6], fireAt:[9.6, 1.2, -76.6]});
-    workshopFx(a); boxes.push({x0:8.6, x1:10.6, z0:-77.6, z1:-75.6});
+    station('workshop', {name:'workshop', in:'ingot', out:'tools', t:1.4, group:'metal', inZ:[7.2, -46.6], outZ:[12, -46.6], fireAt:[9.6, 1.2, -46.6]});
+    workshopFx(a); boxes.push({x0:8.6, x1:10.6, z0:-47.6, z1:-45.6});
   },
   digger(a) {
-    station('digger', {name:'stone digger', gen:'stone', t:.9, outZ:[10, -84.1], outCap:40, genAt:[10, 1.2, -85.4]});
-    digger(a); boxes.push({x0:8.9, x1:11.1, z0:-87.4, z1:-85.6});
+    station('digger', {name:'stone digger', gen:'stone', t:.9, outZ:[10, -54.1], outCap:40, genAt:[10, 1.2, -55.4]});
+    digger(a); boxes.push({x0:8.9, x1:11.1, z0:-57.4, z1:-55.6});
   },
   plow() { BOOST.farm *= 1.5; },
   carts() { WORKER.cap += 4; for (const w of workers) w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); },
   warship() { makeBoat('war'); },
   brewery(a) {
-    station('brewery', {name:'brewery', in:'wheat', out:'beer', t:1.8, inZ:[81.1, 75.5], outZ:[85.9, 75.5], fireAt:[83.5, 1.2, 76.7]});
-    brewery(a); boxes.push({x0:82.3, x1:84.7, z0:74.55, z1:76.45});
+    station('brewery', {name:'brewery', in:'wheat', out:'beer', t:1.8, inZ:[51.1, 75.5], outZ:[55.9, 75.5], fireAt:[53.5, 1.2, 76.7]});
+    brewery(a); boxes.push({x0:52.3, x1:54.7, z0:74.55, z1:76.45});
   },
-  brewer(a) { addWorker('brewer', 76.2, 75.2, a); },
-  barkeep(a) { addWorker('barkeep', 89.4, 85.4, a); },
+  brewer(a) { addWorker('brewer', 46.2, 75.2, a); },
+  barkeep(a) { addWorker('barkeep', 59.4, 85.4, a); },
   beerGarden(a) {
     beerGardenFx(a);
-    makeTable('garden', ['beer'], alongX(83.75, 87.5), {x:86, z:85.6, w:3, d:1.4, icon:'🍺'});
-    makeCash('garden', 81.9, 89.3);
-    slab(0xb98f5c, 12, 1.6, 96.6, 89.6, .012);
-    makeLine('garden', {table:TB.garden, cash:CASH.garden, face:Math.PI, max:6, spawn:[102, 89.6], seats:SEATS, noStool:true, custom:gardenUpdate,
-      slot:k => SEATS[k], exit:[[91, 89.6], [102, 89.6]], active:() => true, interval:() => 3.2, order:() => [{type:'beer', need:1 + (R()*3|0)}]});
+    makeTable('garden', ['beer'], alongX(53.75, 87.5), {x:56, z:85.6, w:3, d:1.4, icon:'🍺'});
+    makeCash('garden', 51.9, 89.3);
+    slab(0xb98f5c, 12, 1.6, 66.6, 89.6, .012);
+    makeLine('garden', {table:TB.garden, cash:CASH.garden, face:Math.PI, max:6, spawn:[72, 89.6], seats:SEATS, noStool:true, custom:gardenUpdate,
+      slot:k => SEATS[k], exit:[[61, 89.6], [72, 89.6]], active:() => true, interval:() => 3.2, order:() => [{type:'beer', need:1 + (R()*3|0)}]});
   },
   downtownGate(a) { openRegion('downtown', a); },
   university(a) { libraryStage(2, a); },
@@ -2695,7 +2721,7 @@ const UNLOCK = {
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },
   airport(a) { terminalFx(a); makeCash('airport', -93.1, .9); makeJet(false, 'pax', 0); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },
   jumbo(a) { makeJet(true, 'pax', 0); if (a) banner('🛬 Jumbo jets!', 'Bigger planes, more passengers, much bigger fares.'); },
-  concert(a) { arenaStage(1, a); makeCash('concert', 87.6, 90.1); },
+  concert(a) { arenaStage(1, a); makeCash('concert', 57.6, 90.1); },
   cargoPort(a) { cargoYard(a); makeBoat('cargo'); if (a) banner('🏗️ Cargo port!', 'Container ships unload at your harbor and pay well.'); },
   cruisePort(a) { makeBoat('cruise'); if (a) banner('🛳️ Cruise ships!', 'Liners bring hungry tourists to your tables.'); },
   police(a) { civicBlock('police', a); if (a) banner('🚓 Police station!', 'Officers chase robbers and keep the peace: unrest fades twice as fast.'); },
@@ -2722,15 +2748,15 @@ const UNLOCK = {
   wStone(a) { wonderFx('wStone', a); }, wPyramid(a) { wonderFx('wPyramid', a); }, wColosseum(a) { wonderFx('wColosseum', a); },
   wCathedral(a) { wonderFx('wCathedral', a); }, wTower(a) { wonderFx('wTower', a); }, wNeedle(a) { wonderFx('wNeedle', a); },
   ranchGate(a) { openRegion('ranch', a); ranchBridge(a); ranchAnimals(); },
-  dairy(a) { station('dairy', {name:'dairy', gen:'milk', t:1.6, group:'farm', outZ:[-85.8, -86.5], outCap:18, genAt:[-88, 1, -86.5]}); ranchFx('dairy', a); },
-  creamery(a) { station('creamery', {name:'ice cream parlor', in:'milk', out:'icecream', t:1.4, inZ:[-83.8, -86.5], outZ:[-78.6, -86.5], fireAt:[-81.2, 1.4, -86.5]}); ranchFx('creamery', a); if (a) banner('🍦 Ice cream!', 'A new dish on every table. Guests pay well for it.'); },
-  milkman(a) { addWorker('milkman', -90.5, -83.1, a); },
-  tomatoes(a) { station('tomatoes', {name:'tomato field', gen:'tomato', t:1.6, group:'farm', outZ:[-85.8, -80.5], outCap:18, genAt:[-88, 1, -80.5]}); ranchFx('tomatoes', a); },
-  pizzeria(a) { station('pizzeria', {name:'pizzeria', in:'tomato', out:'pizza', t:1.6, inZ:[-83.8, -80.5], outZ:[-78.6, -80.5], fireAt:[-81.2, 1.4, -80.5]}); ranchFx('pizzeria', a); if (a) banner('🍕 Pizza!', 'Hot pizza for your guests, at a much better price.'); },
-  picker(a) { addWorker('picker', -86, -83.1, a); },
-  fishPier(a) { ranchFx('pier', a); RANCH.pier = addZone({kind:'source', item:'fish', rate:.42, wrate:.75, from:() => new THREE.Vector3(-15.4 + R()*1.2, -.1, -76.2 + (R() - .5)*2), x:-78.6, z:-76.2, icon:'🎣', tile:{alpha:1, size:96, label:'Fishing pier'}}); },
-  sushi(a) { station('sushi', {name:'sushi bar', in:'fish', out:'sushi', t:1.4, inZ:[-83.8, -76.2], outZ:[-86.6, -76.2], fireAt:[-81.2, 1.4, -76.2]}); ranchFx('sushi', a); if (a) banner('🍣 Sushi!', 'The best-paying dish in the empire.'); },
-  sushichef(a) { addWorker('sushichef', -81.5, -83.1, a); },
+  dairy(a) { station('dairy', {name:'dairy', gen:'milk', t:1.6, group:'farm', outZ:[-85.8, -56.5], outCap:18, genAt:[-88, 1, -56.5]}); ranchFx('dairy', a); },
+  creamery(a) { station('creamery', {name:'ice cream parlor', in:'milk', out:'icecream', t:1.4, inZ:[-83.8, -56.5], outZ:[-78.6, -56.5], fireAt:[-81.2, 1.4, -56.5]}); ranchFx('creamery', a); if (a) banner('🍦 Ice cream!', 'A new dish on every table. Guests pay well for it.'); },
+  milkman(a) { addWorker('milkman', -90.5, -53.1, a); },
+  tomatoes(a) { station('tomatoes', {name:'tomato field', gen:'tomato', t:1.6, group:'farm', outZ:[-85.8, -50.5], outCap:18, genAt:[-88, 1, -50.5]}); ranchFx('tomatoes', a); },
+  pizzeria(a) { station('pizzeria', {name:'pizzeria', in:'tomato', out:'pizza', t:1.6, inZ:[-83.8, -50.5], outZ:[-78.6, -50.5], fireAt:[-81.2, 1.4, -50.5]}); ranchFx('pizzeria', a); if (a) banner('🍕 Pizza!', 'Hot pizza for your guests, at a much better price.'); },
+  picker(a) { addWorker('picker', -86, -53.1, a); },
+  fishPier(a) { ranchFx('pier', a); RANCH.pier = addZone({kind:'source', item:'fish', rate:.42, wrate:.75, from:() => new THREE.Vector3(-15.4 + R()*1.2, -.1, -46.2 + (R() - .5)*2), x:-78.6, z:-46.2, icon:'🎣', tile:{alpha:1, size:96, label:'Fishing pier'}}); },
+  sushi(a) { station('sushi', {name:'sushi bar', in:'fish', out:'sushi', t:1.4, inZ:[-83.8, -46.2], outZ:[-86.6, -46.2], fireAt:[-81.2, 1.4, -46.2]}); ranchFx('sushi', a); if (a) banner('🍣 Sushi!', 'The best-paying dish in the empire.'); },
+  sushichef(a) { addWorker('sushichef', -81.5, -53.1, a); },
   aquarium(a) { aquariumFx(a); if (a) banner('🐠 Aquarium!', 'Every fish you have caught brings more visitors.'); },
   zoo(a) { zooFx(a); if (a) banner('🦁 Zoo!', 'An animal from every land you conquered. Visitors pay to see them.'); },
   moonHotel(a) { const S = spaceScene('moon'); S.built = -1; if (a) { SPACE.view = 'moon'; SPACE.tour = 8; stage.classList.add('space'); buildBase(S); banner('🏨 Moon hotel!', 'The most expensive rooms in the universe. Guests pay a fortune.'); } },
@@ -2740,7 +2766,7 @@ const UNLOCK = {
   satellite(a) { if (a) launch('sat'); },
   moonLanding(a) { if (a) launch('moon'); else setEra(11, false); },
   mineRail(a) { buildMineRail(a); if (a) banner('🚃 Mine railway!', 'Ore carts run from the mine straight into the smelter.'); },
-  railway(a) { W.train = 1; railStage(1, a); makeCash('rail', 89.3, 73); makeTrain(0); if (a) banner('🐎 Stagecoach line!', 'Horses and wagons bring travelers from the next towns.'); },
+  railway(a) { W.train = 1; railStage(1, a); makeCash('rail', 59.3, 73); makeTrain(0); if (a) banner('🐎 Stagecoach line!', 'Horses and wagons bring travelers from the next towns.'); },
   steamTrain(a) { W.train = 2; railStage(2, a); overpasses(a); makeTrain(1); if (a) banner('🚂 Steam train!', 'Trains bring travelers and fares from the next towns.'); },
   bulletTrain(a) { W.train = 3; railStage(3, a); makeTrain(2); if (a) banner('🚄 Bullet train!', 'Faster trains, more passengers, bigger fares.'); },
 };
@@ -3058,9 +3084,9 @@ function updHomes(dt) {
 // upgrade tiles sit outside the plot each building grows into, on the side facing the camera
 const UPG = {
   grill:{base:60, at:[-4.2, -1.7]}, spit:{base:100, at:[.4, -5]}, oven:{base:150, at:[-1.8, 4.95]}, lodge:{base:120, at:[-7.6, -9.3]},
-  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -79.4]}, workshop:{base:400, at:[7.1, -12.1]}, digger:{base:400, at:[11.9, -84.75]},
-  smith:{base:400, at:[-5, 81.95]}, library:{base:500, at:[85.6, -5.2]}, field2:{base:250, at:[74.8, 79.5]}, field3:{base:250, at:[74.8, 86.5]},
-  oven2:{base:300, at:[85.5, 77.6]}, brewery:{base:400, at:[86.8, 13]},
+  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -49.4]}, workshop:{base:400, at:[7.1, -12.1]}, digger:{base:400, at:[11.9, -54.75]},
+  smith:{base:400, at:[-5, 81.95]}, library:{base:500, at:[55.6, -5.2]}, field2:{base:250, at:[44.8, 79.5]}, field3:{base:250, at:[44.8, 86.5]},
+  oven2:{base:300, at:[55.5, 77.6]}, brewery:{base:400, at:[56.8, 13]},
 };
 const MAXLV = 5;
 const lvl = id => Math.min(MAXLV, W.levels[id] || 1);
@@ -3103,7 +3129,7 @@ function kit2(name, width) {
 function libraryStage(stage, anim) {
   const st = ST.library; if (!st) return;
   if (st.body) { scene.remove(st.body); const i = FADERS.findIndex(f => f.g === st.body); if (i >= 0) FADERS.splice(i, 1); }
-  const g = new THREE.Group(); g.position.set(85.5, 0, -9.6); scene.add(g);
+  const g = new THREE.Group(); g.position.set(55.5, 0, -9.6); scene.add(g);
   if (stage === 2) {
     // a university: a long hall of columns and a clock tower
     mesh(G.box, 0xe8e0cc, [4, .35, 3], [0, .17, 0], g); mesh(G.box, 0xd9cdb0, [3.8, 2.4, 2.6], [0, 1.55, 0], g);
@@ -3133,7 +3159,7 @@ function libraryStage(stage, anim) {
   fader(g, 4.2, stage === 2 ? 5.6 : 4);
   st.body = g; st.body.userData.lvShown = 0;
   refreshUpgrades();
-  if (anim) { popIn(g); shakeCam(.4); puff(85.5, -9.6); }
+  if (anim) { popIn(g); shakeCam(.4); puff(55.5, -9.6); }
 }
 function refreshUpgrades() {
   for (const [id, u] of Object.entries(UPG)) {
@@ -3425,12 +3451,12 @@ function addCrew(b) {
 function fleet() { return boats.filter(b => b.inFleet); }
 // ------------------------------------------------------------------ war in the air
 // the enemy holds a mountain range to the east: ridges, snowy peaks and pine forest, with fortresses in two valleys
-const AIR_TARGETS = [[124, -20], [126, 13]];
-const TERR = {x0:107, x1:152, z0:-46, z1:40};
+const AIR_TARGETS = [[94, -20], [96, 13]];
+const TERR = {x0:77, x1:122, z0:-46, z1:40};
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t*t*(3 - 2*t); };
 function terrainH(x, z) {
   let h = 4.4 + 3.4*Math.sin(x*.21 + 1.3)*Math.cos(z*.17) + 2.3*Math.sin(x*.47 + z*.31) + 1.3*Math.sin(z*.6 + x*.13)*Math.sin(x*.9) + .5*Math.sin(x*1.7 + z*1.3);
-  h += Math.max(0, x - 132) * .22;
+  h += Math.max(0, x - 102) * .22;
   for (const [tx, tz] of AIR_TARGETS) h *= smooth(6.5, 13, Math.hypot(x - tx, z - tz));
   h *= smooth(TERR.x0, TERR.x0 + 6, x);
   return Math.max(0, h);
@@ -3459,7 +3485,7 @@ function terrainH(x, z) {
   spots.forEach(([x, y, z, s], i) => { o.position.set(x, y + .9*s, z); o.scale.set(.55*s, 1.9*s, .55*s); o.updateMatrix(); tr.setMatrixAt(i, o.matrix); });
   tr.castShadow = true; scene.add(tr);
   // a lake in a hollow between the two valleys
-  const lake = new THREE.Mesh(new THREE.CircleGeometry(4, 24), mat(0x2a7ab0, {roughness:.08, metalness:.2})); lake.rotation.x = -Math.PI/2; lake.position.set(117, .05, -3); scene.add(lake);
+  const lake = new THREE.Mesh(new THREE.CircleGeometry(4, 24), mat(0x2a7ab0, {roughness:.08, metalness:.2})); lake.rotation.x = -Math.PI/2; lake.position.set(87, .05, -3); scene.add(lake);
 }
 for (const [x, z] of AIR_TARGETS) slab(0x8a7a5a, 12, 12, x, z, 0);
 const forts = {};
@@ -3633,7 +3659,7 @@ const watchingWar = () => W.camp && player.zone && player.zone.kind === 'war';
 function warFocus() {
   const C = W.camp;
   if (C.type === 'land') return [BF.x - 1, BF.z + 1.5];
-  if (C.type === 'sea') { const f = COAST.cur; return f ? [f.g.position.x - 3, -124] : [-13.6, -110]; }
+  if (C.type === 'sea') { const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -80]; }
   const c = CAMPAIGNS[C.ci], [tx, tz] = C.tx != null ? [C.tx, C.tz] : AIR_TARGETS[c.target], e = C.dur - C.t;
   const lead = planes[0]; return lead && (lead.alt || 0) > .5 ? [lead.g.position.x, lead.g.position.z, lead.g.position.y*.8] : [tx, tz, 0];
 }
@@ -4009,9 +4035,9 @@ function waterStage(n, anim) {
       // the aqueduct runs along the north wall from the hills
       const aq = new THREE.Group(); scene.add(aq); waterStage.aq = aq;
       const STONE = 0xcdb994, archG = new THREE.RingGeometry(.42, .62, 14, 1, 0, Math.PI);
-      for (let x = -5.6; x <= 74; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -73.55], aq);
+      for (let x = -5.6; x <= 44; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -43.55], aq);
       mesh(G.box, STONE, [20, .45, .62], [4.2, 2.8, -13.55], aq); mesh(G.box, BLUE, [20, .04, .3], [4.2, 3.04, -13.55], aq);
-      for (let x = -4.9; x < 74; x += 1.4) {
+      for (let x = -4.9; x < 44; x += 1.4) {
         const a = new THREE.Mesh(archG, mat(0xbfa982, {side:THREE.DoubleSide})); a.position.set(x, 1.95, -13.28); aq.add(a);
       }
       if (anim) popIn(aq);
@@ -4051,7 +4077,7 @@ function waterStage(n, anim) {
     if (!waterStage.manholes) {
       // cast-iron manholes over the new sewers, all over town
       waterStage.manholes = true;
-      for (const [x, z] of [[0, -3.4], [6.6, -1.4], [-7.6, -2.4], [2.6, 9.8], [11.4, 1.2], [-2.8, 75.8], [78, -.6], [81.6, -6], [80.5, 78], [5.8, -77.2], [77.2, -81], [-6.8, 12.6], [7.6, 81.2]]) {
+      for (const [x, z] of [[0, -3.4], [6.6, -1.4], [-7.6, -2.4], [2.6, 9.8], [11.4, 1.2], [-2.8, 75.8], [48, -.6], [51.6, -6], [50.5, 78], [5.8, -47.2], [47.2, -51], [-6.8, 12.6], [7.6, 81.2]]) {
         mesh(G.cyl, 0x34363a, [.3, .03, .3], [x, .025, z], scene, {metalness:.6, roughness:.5});
         mesh(G.cyl, 0x4a4c50, [.2, .035, .2], [x, .03, z], scene, {metalness:.6, roughness:.5});
       }
@@ -4066,14 +4092,14 @@ function waterStage(n, anim) {
     for (let i = 0; i < 3; i++) mesh(G.cyl, 0x9aa0a8, [.07, .5, .07], [-1.3 + i*.6, .25, -.65], g, {metalness:.6});
     if (!clarifiers.length) {
       // the sewage plant, out past the railway
-      clearForest({x0:95, x1:103, z0:-10.5, z1:-2});
+      clearForest({x0:65, x1:73, z0:-10.5, z1:-2});
       const p = new THREE.Group(); scene.add(p);
-      for (const [x, z] of [[97.2, -7.4], [100.6, -4.4]]) {
+      for (const [x, z] of [[67.2, -7.4], [70.6, -4.4]]) {
         mesh(G.cyl, 0xb8bcc2, [1.6, .7, 1.6], [x, .1, z], p); mesh(G.cyl, 0x4a8fb0, [1.45, .02, 1.45], [x, .46, z], p, {roughness:.1, metalness:.2});
         const arm = new THREE.Group(); arm.position.set(x, .62, z); p.add(arm); mesh(G.box, 0xf2c200, [3, .1, .18], [0, 0, 0], arm); clarifiers.push(arm);
       }
-      mesh(G.box, 0xdfe4ea, [2.2, 1.4, 1.6], [100.6, .7, -8.2], p); mesh(G.box, 0x8fc6e8, [2.22, .3, 1.62], [100.6, .9, -8.2], p, {metalness:.5, roughness:.15});
-      mesh(G.cyl, 0x9aa0a8, [.12, 3.4, .12], [98.9, .2, -5.9], p, {metalness:.6}).rotation.x = Math.PI/2;
+      mesh(G.box, 0xdfe4ea, [2.2, 1.4, 1.6], [70.6, .7, -8.2], p); mesh(G.box, 0x8fc6e8, [2.22, .3, 1.62], [70.6, .9, -8.2], p, {metalness:.5, roughness:.15});
+      mesh(G.cyl, 0x9aa0a8, [.12, 3.4, .12], [68.9, .2, -5.9], p, {metalness:.6}).rotation.x = Math.PI/2;
       if (anim) popIn(p);
     }
   }
@@ -4169,7 +4195,7 @@ function updBridge(dt) {
 }
 
 // ------------------------------------------------------------------ trains: ore carts in the mine, and a line to the next towns
-const MINE_PATH = [[-1.4, -89.6], [3.35, -89.6], [3.35, -83.3]];
+const MINE_PATH = [[-1.4, -59.6], [3.35, -59.6], [3.35, -53.3]];
 function polyAt(P, s) {
   for (let i = 0; i < P.length - 1; i++) {
     const [ax, az] = P[i], [bx, bz] = P[i + 1], l = Math.hypot(bx - ax, bz - az);
@@ -4224,7 +4250,7 @@ function updMineTrain(dt) {
   });
 }
 // the main line runs north to south past the farms, from a mountain tunnel to the next town
-const RAIL = {x:93.6, z0:-97.5, z1:118, stop:75.4};
+const RAIL = {x:63.6, z0:-67.5, z1:118, stop:75.4};
 let railTrain = null;
 function makeTrain(kind) {
   if (railTrain) { scene.remove(railTrain.g); }
@@ -4290,14 +4316,14 @@ function updTrain(dt) {
 }
 function trainArrives(T) {
   const fare = [50, 120, 420][T.kind] + 30*W.era;
-  addCash(CASH.rail, fare, {x:92, z:RAIL.stop});
+  addCash(CASH.rail, fare, {x:62, z:RAIL.stop});
   popText(`+${fare} 🚉 fares`, new THREE.Vector3(32, 3.4, RAIL.stop), '#ffe06b');
   snd(660, .25, 'triangle', .05); setTimeout(() => snd(550, .35, 'triangle', .05), 260);
   // riders step off with their bags and head into town, while others board
   const doorX = T.kind === 0 ? RAIL.x - 1 : RAIL.x - .58;
   for (let i = 0; i < [2, 4, 6][T.kind] && movers.length < MAX_MOVERS; i++) {
     const z = RAIL.stop - 3 + i*1.1 + R()*.4;
-    spawnMover([[doorX, z], [RAIL.x - 1.4, z], [RAIL.x - 1.4, RAIL.stop - 4.6], [91.3, 4.6]], null, R() < .7);
+    spawnMover([[doorX, z], [RAIL.x - 1.4, z], [RAIL.x - 1.4, RAIL.stop - 4.6], [61.3, 4.6]], null, R() < .7);
   }
   for (let i = 0; i < [1, 3, 5][T.kind] && movers.length < MAX_MOVERS; i++) {
     const z = RAIL.stop - 2.6 + i*1.2;
@@ -4522,7 +4548,7 @@ function groundCanvas(kind) {
       g.save(); g.translate(x*1.0, (i + j)*BH/2 + (i - j)*0);
       g.restore();
     }
-    for (let y = 0; y < 256; y += 14) for (let x = -88; x < 316; x += 28) {
+    for (let y = 0; y < 256; y += 14) for (let x = -88; x < 286; x += 28) {
       const v = r(), col = `rgb(${176 + v*34 | 0},${104 + v*24 | 0},${78 + v*18 | 0})`, off = ((y / 14) % 4) * 7;
       g.fillStyle = col;
       if ((y / 14) % 2) g.fillRect(x + off + 1, y + 1, 26, 12); else { g.fillRect(x + off + 1, y + 1, 12, 12); g.fillRect(x + off + 15, y + 1, 12, 12); }
@@ -4564,7 +4590,7 @@ function groundStage(n, anim) {
 let railRoadG = null, railsG = null, depotG = null;
 function railStage(n, anim) {
   if (n === 1) {
-    clearForest({x0:91, x1:97.5, z0:-36, z1:60}); clearForest({x0:95, x1:107, z0:107, z1:120});
+    clearForest({x0:61, x1:67.5, z0:-36, z1:60}); clearForest({x0:65, x1:77, z0:107, z1:120});
     railRoadG = slab(0xa58a62, 2.4, RAIL.z1 - RAIL.z0, RAIL.x, (RAIL.z0 + RAIL.z1)/2, .004);
     railRoadG.material[2].map = groundTex([1, 20]);
     const g = new THREE.Group(); scene.add(g);
@@ -4573,7 +4599,7 @@ function railStage(n, anim) {
     mesh(G.box, 0x9a958c, [3, 2.8, .8], [0, 1.4, .2], tn); mesh(G.box, 0x15120f, [1.8, 2.1, .1], [0, 1.05, .62], tn);
     seed = 77;
     for (let i = 0; i < 10; i++) {
-      const x = 96.5 + (i % 4)*2.4 + rnd()*.6, z = 109 + Math.floor(i / 4)*3 + rnd()*.6, h = 1.2 + rnd()*1.6, col = [0xe8d8b0, 0xd9a0a0, 0xa0c4d9, 0xe0c890, 0xb8d8a8][i % 5];
+      const x = 66.5 + (i % 4)*2.4 + rnd()*.6, z = 109 + Math.floor(i / 4)*3 + rnd()*.6, h = 1.2 + rnd()*1.6, col = [0xe8d8b0, 0xd9a0a0, 0xa0c4d9, 0xe0c890, 0xb8d8a8][i % 5];
       mesh(G.box, col, [1.6, h, 1.5], [x, h/2, z], g); mesh(G.cone4, [0x8a3a2a, 0x4a5a6a, 0x6a3a2a][i % 3], [1.3, .8, 1.2], [x, h + .4, z], g).rotation.y = Math.PI/4;
       mesh(G.box, WIN, [.05, .35, .3], [x - .82, h*.55, z], g);
     }
@@ -4646,9 +4672,9 @@ function makeWagon(g, cars) {
 }
 
 // ------------------------------------------------------------------ footbridges over the railway, so nobody walks in front of a train
-const OV_H = 2.35, OVERPASS = [{x0:90.8, x1:92.4, x2:94.8, x3:96.4, z0:.15, z1:4.95}, {x0:90.8, x1:92.4, x2:94.8, x3:96.4, z0:88.9, z1:90.3}];
+const OV_H = 2.35, OVERPASS = [{x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:.15, z1:4.95}, {x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:88.9, z1:90.3}];
 function elevAt(x, z) {
-  if (railsG && x > 91.4 && x < 92.95 && Math.abs(z - RAIL.stop) < 4) return .36;   // the station platform
+  if (railsG && x > 61.4 && x < 62.95 && Math.abs(z - RAIL.stop) < 4) return .36;   // the station platform
   if (x < -10.25 && x > -14.8 && z > .1 && z < 1.9) return .29;   // the fishing dock
   if (W.bridge && x > BR.x0 && x < BR.x1 && Math.abs(z - BR.z) < 1) return DECK[W.bridge];
   if (railsG) for (const o of OVERPASS) if (z > o.z0 && z < o.z1 && x > o.x0 && x < o.x3)
@@ -4656,7 +4682,7 @@ function elevAt(x, z) {
   return 0;
 }
 function overpasses(anim) {
-  clearForest({x0:105.5, x1:109.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 107.3, 7.6, .01); AREAS.push({x0:106, x1:108.6, z0:.35, z1:14.8}, {x0:96.4, x1:106.4, z0:.35, z1:14.8}, {x0:90.4, x1:96.6, z0:.35, z1:4.75}, {x0:90.4, x1:96.6, z0:89, z1:90.2}, {x0:90.4, x1:92.9, z0:71.5, z1:79.3});
+  clearForest({x0:75.5, x1:79.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 77.3, 7.6, .01); AREAS.push({x0:76, x1:78.6, z0:.35, z1:14.8}, {x0:66.4, x1:76.4, z0:.35, z1:14.8}, {x0:60.4, x1:66.6, z0:.35, z1:4.75}, {x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:60.4, x1:62.9, z0:71.5, z1:79.3});
   const g = new THREE.Group(); scene.add(g);
   const IRON = 0x3a6a5a;
   for (const o of OVERPASS) {
@@ -4775,27 +4801,50 @@ const mBlur = postShader({t:{value:null}, d:{value:new THREE.Vector2()}}, `unifo
     c += (texture2D(t, vUv + d*1.3846).rgb + texture2D(t, vUv - d*1.3846).rgb) * .3162162;
     c += (texture2D(t, vUv + d*3.2308).rgb + texture2D(t, vUv - d*3.2308).rgb) * .0702703;
     gl_FragColor = vec4(c, 1.); }`);
-const mComp = postShader({tS:{value:null}, tB:{value:null}, tG:{value:null}, bloom:{value:.5}, night:{value:0}}, `uniform sampler2D tS, tB, tG; uniform float bloom, night; varying vec2 vUv;
+const mAO = postShader({tD:{value:null}, projInv:{value:new THREE.Matrix4()}, py:{value:1}, seed:{value:0}}, `uniform sampler2D tD; uniform mat4 projInv; uniform float py, seed; varying vec2 vUv;
+  vec3 vpos(vec2 uv) { float d = texture2D(tD, uv).r; vec4 p = projInv * vec4(uv*2. - 1., d*2. - 1., 1.); return p.xyz / p.w; }
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + seed) * 43758.5453); }
+  void main(){
+    float d0 = texture2D(tD, vUv).r; if (d0 >= .9999) { gl_FragColor = vec4(1.); return; }
+    vec3 P = vpos(vUv), N = normalize(cross(dFdx(P), dFdy(P)));
+    float r = .9, rs = r * py / max(.5, -P.z) * .5, a0 = hash(vUv * 731.), ao = 0.;
+    for (int i = 0; i < 14; i++) {
+      float t = (float(i) + .5) / 14., ang = a0*6.2831 + float(i)*2.3999;
+      vec2 uv = vUv + vec2(cos(ang), sin(ang)) * rs * t;
+      vec3 v = vpos(uv) - P; float l = length(v);
+      ao += max(0., dot(N, v / max(l, 1e-4)) - .08) * (1. / (1. + l*l*1.6));
+    }
+    ao = clamp(1. - ao / 14. * 2.4, 0., 1.);
+    gl_FragColor = vec4(vec3(ao), 1.);
+  }`);
+const mComp = postShader({tS:{value:null}, tB:{value:null}, tG:{value:null}, tAO:{value:null}, aoOn:{value:0}, bloom:{value:.5}, night:{value:0}}, `uniform sampler2D tS, tB, tG, tAO; uniform float bloom, night, aoOn; varying vec2 vUv;
   void main(){
     vec3 c = texture2D(tS, vUv).rgb;
+    c *= mix(1., texture2D(tAO, vUv).r, aoOn * .85);
     float f = smoothstep(.2, .5, abs(vUv.y - .5));
     c = mix(c, texture2D(tB, vUv).rgb, f * .85);
     c += texture2D(tG, vUv).rgb * (bloom + night * .7);
-    float l = dot(c, vec3(.2126, .7152, .0722)); c = mix(vec3(l), c, 1.1);
+    float l = dot(c, vec3(.2126, .7152, .0722)); c = mix(vec3(l), c, 1.12);
+    // filmic grade: cool shadows, warm highlights, a gentle S-curve
+    c *= mix(vec3(.93, .98, 1.08), vec3(1.06, 1.0, .92), smoothstep(.05, .8, l));
+    c = c * (1. + .12 * (c - .35));
     vec2 q = vUv - .5; c *= 1. - .55 * dot(q, q);
     gl_FragColor = vec4(c, 1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`);
-let rtS = null, rtA, rtB, rtC, rtD;
+let rtS = null, rtA, rtB, rtC, rtD, rtE, rtF;
+const AOX = {on:true};
 function postSize() {
   const v = renderer.getDrawingBufferSize(new THREE.Vector2()), w = Math.max(4, v.x), h = Math.max(4, v.y);
   if (!rtS) {
     rtS = new THREE.WebGLRenderTarget(w, h, {type:THREE.HalfFloatType, samples:4});
+    rtS.depthTexture = new THREE.DepthTexture(w, h); rtS.depthTexture.type = THREE.UnsignedIntType;
     const o = {type:THREE.HalfFloatType, depthBuffer:false};
+    rtE = new THREE.WebGLRenderTarget(4, 4, o); rtF = new THREE.WebGLRenderTarget(4, 4, o);
     rtA = new THREE.WebGLRenderTarget(4, 4, o); rtB = new THREE.WebGLRenderTarget(4, 4, o); rtC = new THREE.WebGLRenderTarget(4, 4, o); rtD = new THREE.WebGLRenderTarget(4, 4, o);
   }
-  rtS.setSize(w, h); rtA.setSize(w/2|0, h/2|0); rtB.setSize(w/2|0, h/2|0); rtC.setSize(w/4|0, h/4|0); rtD.setSize(w/4|0, h/4|0);
+  rtS.setSize(w, h); rtE.setSize(w/2|0, h/2|0); rtF.setSize(w/2|0, h/2|0); rtA.setSize(w/2|0, h/2|0); rtB.setSize(w/2|0, h/2|0); rtC.setSize(w/4|0, h/4|0); rtD.setSize(w/4|0, h/4|0);
 }
 function pass(m, out) { quad.material = m; renderer.setRenderTarget(out); renderer.render(postScene, postCam); }
 function blur(src, tmp, k) {
@@ -4810,6 +4859,13 @@ function renderFinal(night, sc = scene, cam = camera) {
   blur(rtA, rtB, 1.3);
   mBright.uniforms.t.value = rtA.texture; pass(mBright, rtC);
   blur(rtC, rtD, 1.5); blur(rtC, rtD, 2.6);
+  // ambient occlusion, at half resolution, softened
+  const aoOn = sc === scene && !perf.low && AOX.on;
+  if (aoOn) {
+    mAO.uniforms.tD.value = rtS.depthTexture; mAO.uniforms.projInv.value.copy(cam.projectionMatrixInverse); mAO.uniforms.py.value = cam.projectionMatrix.elements[5]; mAO.uniforms.seed.value = 0;
+    pass(mAO, rtE); blur(rtE, rtF, 1.2);
+  }
+  mComp.uniforms.tAO.value = rtE.texture; mComp.uniforms.aoOn.value = aoOn ? 1 : 0;
   mComp.uniforms.tS.value = rtS.texture; mComp.uniforms.tB.value = rtA.texture; mComp.uniforms.tG.value = rtC.texture; mComp.uniforms.night.value = night;
   pass(mComp, null);
 }
@@ -4936,7 +4992,7 @@ function decorSpot() {
   return [player.pos.x + s*1.8, player.pos.z + c*1.8];
 }
 // roads and queues where travelers, recruits and soldiers walk stay clear
-const NO_BUILD = [{x0:65, x1:91, z0:-.4, z1:3.3}, {x0:79.5, x1:91, z0:3, z1:5.4}, {x0:82, x1:91, z0:88.2, z1:91}, {x0:-10.4, x1:7.6, z0:3.7, z1:5.5},
+const NO_BUILD = [{x0:35, x1:61, z0:-.4, z1:3.3}, {x0:49.5, x1:61, z0:3, z1:5.4}, {x0:52, x1:61, z0:88.2, z1:91}, {x0:-10.4, x1:7.6, z0:3.7, z1:5.5},
   {x0:-10.4, x1:2.8, z0:83.2, z1:85.2}, {x0:-10.4, x1:-8.4, z0:83, z1:91}, {x0:4.2, x1:6.2, z0:83, z1:91}];
 function decorFits(k, x, z) {
   const r = DECOR[k].r;
@@ -5095,7 +5151,7 @@ function rivalCity() {
     const x = -7 + (i % 8)*2.6 + rnd()*.5, z = 113.5 + Math.floor(i / 8)*2.6, h = 1 + rnd()*1.4 + lv*.4;
     mesh(G.box, [0x5a3a3a, 0x4a4a5a, 0x3a2a2a][i % 3], [1.5, h, 1.4], [x, h/2, z], g); mesh(G.cone4, 0x2a1a1a, [1.2, .7, 1.1], [x, h + .35, z], g).rotation.y = Math.PI/4;
   }
-  for (const x of [-8, 74]) { mesh(G.cyl, 0x3a3a3e, [.5, 3 + lv*.5, .5], [x, 1.5 + lv*.25, 112.4], g); mesh(G.cone, 0x6a1a1a, [.6, 1, .6], [x, 3.6 + lv*.5, 112.4], g); }
+  for (const x of [-8, 14]) { mesh(G.cyl, 0x3a3a3e, [.5, 3 + lv*.5, .5], [x, 1.5 + lv*.25, 112.4], g); mesh(G.cone, 0x6a1a1a, [.6, 1, .6], [x, 3.6 + lv*.5, 112.4], g); }
   mesh(G.cyl, 0x2a2a2e, [.05, 3, .05], [3, 1.5, 112], g); mesh(G.box, W.rivalAlly || ostOurs() ? 0xf2c200 : 0x6a1a1a, [.9, .5, .03], [3.47, 2.7, 112], g);
 }
 function updEvents(dt) {
@@ -5258,11 +5314,11 @@ function updResidents(dt) {
 const BROKER = {top:'suit', body:0xf4f4f4, body2:0x1e1e26, pants:0x1e1e26, hair:'sidepart', hairCol:0x2a1a10, acc:'sunglasses', shoe:0x111114, skin:0xe8b892};
 const MKT = {t:2, idx:[100], ex:null, led:null, ledT:0};
 const brokers = () => workers.filter(w => w.kind === 'broker');
-const exchangeAt = () => [77, -9.3];
+const exchangeAt = () => [47, -9.3];
 function buildingDone() { return PADS.every(p => p.cur === 'coin' || W.unlocked.has(p.id)); }
 function exchangeFx(anim) {
   // a grand exchange: marble steps, columns, a pediment, a ticker board and a golden bull
-  const g = new THREE.Group(); g.position.set(79, 0, -11.4); g.scale.z = .82; scene.add(g); MKT.ex = g;
+  const g = new THREE.Group(); g.position.set(49, 0, -11.4); g.scale.z = .82; scene.add(g); MKT.ex = g;
   const MARB = 0xeee8dc, MARB2 = 0xd9d2c2;
   for (let i = 0; i < 3; i++) mesh(G.box, MARB2, [4.4 - i*.2, .14, 3.2 - i*.2], [0, .07 + i*.14, .1 - i*.05], g);
   mesh(G.box, MARB, [3.8, 2.6, 2.2], [0, 1.72, -.3], g);
@@ -5282,7 +5338,7 @@ function exchangeFx(anim) {
   mesh(G.box, 0xd9a52a, [.5, .4, .9], [0, .5, 0], bull, GOLD); mesh(G.box, 0xd9a52a, [.36, .34, .3], [0, .62, .58], bull, GOLD);
   for (const sx of [-1, 1]) { mesh(G.cone, 0xd9a52a, [.06, .28, .06], [sx*.2, .86, .66], bull, GOLD).rotation.z = -sx*.9; for (const zz of [-.3, .3]) mesh(G.box, 0xd9a52a, [.1, .32, .1], [sx*.16, .16, zz], bull, GOLD); }
   mesh(G.box, 0x8a8478, [.9, .1, 1.3], [0, -.02, 0], bull);
-  boxes.push({x0:76.9, x1:81.1, z0:-12.75, z1:-10.05});
+  boxes.push({x0:46.9, x1:51.1, z0:-12.75, z1:-10.05});
   fader(g, 4.4, 4);
   if (anim) popIn(g);
   drawLed();
@@ -5485,12 +5541,12 @@ function cargoApronFx(anim) {
 }
 
 // ------------------------------------------------------------------ the concert hall: every so often a band plays to a crowd
-const GIG = {at:[81, 94.2], t:40, on:0, band:[], lights:[], noteT:0, beat:0};
+const GIG = {at:[51, 94.2], t:40, on:0, band:[], lights:[], noteT:0, beat:0};
 function concertFx(anim) {
-  clearForest({x0:74, x1:88, z0:91, z1:101});
+  clearForest({x0:44, x1:58, z0:91, z1:101});
   slab(0x8a8478, 13, 8.6, GIG.at[0], 96.4, .004);
   slab(0x8a8478, 3, 2.2, GIG.at[0] + 4, 91.5, .004);   // a path down from the farms
-  AREAS.push({x0:74.6, x1:87.4, z0:90.4, z1:100.6});
+  AREAS.push({x0:44.6, x1:57.4, z0:90.4, z1:100.6});
   boxes.push({x0:GIG.at[0] - 3.6, x1:GIG.at[0] + 3.6, z0:GIG.at[1] - 1.6, z1:GIG.at[1] + 1.6}, {x0:GIG.at[0] - 4.4, x1:GIG.at[0] - 3.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4}, {x0:GIG.at[0] + 3.4, x1:GIG.at[0] + 4.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4});
   const g = new THREE.Group(); g.position.set(GIG.at[0], 0, GIG.at[1]); scene.add(g); GIG.g = g;
   mesh(G.box, 0x2a2a30, [7, .8, 3], [0, .4, 0], g); mesh(G.box, 0x3a3a42, [7.2, .08, 3.2], [0, .82, 0], g);
@@ -5527,7 +5583,7 @@ function updConcert(dt) {
     banner(ARENA.lv >= 2 ? '🎤 Stadium concert tonight!' : '🎸 Concert tonight!', 'The band takes the stage at the arena. Fans dance down the front and the whole town cheers up.');
     for (let i = 0; i < 14 && movers.length < MAX_MOVERS; i++) {
       const x = GIG.at[0] - 3 + (i % 7)*1, z = GIG.at[1] + 3.6 + Math.floor(i / 7)*1.1;
-      spawnMover([[89.5 - R()*8, 90.4], [x + (R() - .5)*.4, z]], null, false);
+      spawnMover([[59.5 - R()*8, 90.4], [x + (R() - .5)*.4, z]], null, false);
       const m = movers[movers.length - 1]; m.fan = true; m.path.push([x, z]); GIG.fans++;
     }
   }
@@ -5552,11 +5608,11 @@ function updConcert(dt) {
   }
   if (GIG.on <= 0) {
     const pay = Math.round(GIG.fans * (150 + 30*W.era) * [1, 1, 2, 3][ARENA.lv]);
-    addCash(CASH.concert, pay, {x:87.6, z:90.1});
-    popText(`🎟️ +${pay} tickets`, new THREE.Vector3(87.6, 3, 90.1), '#ffe06b');
+    addCash(CASH.concert, pay, {x:57.6, z:90.1});
+    popText(`🎟️ +${pay} tickets`, new THREE.Vector3(57.6, 3, 90.1), '#ffe06b');
     for (const s of strollers) if (s.need) s.need.fun = 100;
     // fans head home
-    for (const m of movers) if (m.fan) { m.fan = false; m.wait = 0; m.path.push([89.5 - R()*8, 90.4], [91, 90.4]); }
+    for (const m of movers) if (m.fan) { m.fan = false; m.wait = 0; m.path.push([59.5 - R()*8, 90.4], [61, 90.4]); }
   }
 }
 
@@ -5618,14 +5674,14 @@ function robberLook() { return {body:0x1e1e22, body2:0xf4f4f4, top:'stripes', pa
 function startRobbery() {
   const piles = Object.values(CASH).filter(c => c.value > 60 && inRect(BOUNDS, c.x, c.z) || (c.value > 60 && regionOf(c.x, c.z) !== 'camp' && regionOpen(regionOf(c.x, c.z))));
   const pile = piles.sort((a, b) => b.value - a.value)[0]; if (!pile) return;
-  const e = entity(robberLook(), 100, 0, 4.4, 0);
+  const e = entity(robberLook(), 70, 0, 4.4, 0);
   mesh(G.sph, 0xd8c8a0, [.22, .26, .2], [0, .9, -.35], e.char.g);   // the swag bag
   robber = e; e.pile = pile; e.state = 'in'; e.loot = 0; lastRobCaught = false;
   banner('🦹 A robber is after your cash!', W.unlocked.has('police') || W.army ? 'Your police and soldiers give chase.' : 'Hire police or raise an army to catch robbers.');
   snd(880, .2, 'square', .04); setTimeout(() => snd(660, .3, 'square', .04), 200);
   // the chase: police from the station, soldiers from the yard
   const chasers = [];
-  if (W.unlocked.has('police')) for (let i = 0; i < 2; i++) chasers.push(entity({body:0x1f3a7a, body2:0x1f3a7a, top:'shirt', pants:0x1a2440, hat:'helmet', hatCol:0x1f3a7a, hair:'short'}, 96.5 + i*.6, 4, 6.4, 0));
+  if (W.unlocked.has('police')) for (let i = 0; i < 2; i++) chasers.push(entity({body:0x1f3a7a, body2:0x1f3a7a, top:'shirt', pants:0x1a2440, hat:'helmet', hatCol:0x1f3a7a, hair:'short'}, 66.5 + i*.6, 4, 6.4, 0));
   if (W.army) for (let i = 0; i < 2; i++) chasers.push(entity(ARMS(), 7 + i*1.2, 77.5, 5.6, 0));
   e.chasers = chasers;
 }
@@ -5645,7 +5701,7 @@ function updRobber(dt) {
       e.state = 'out'; e.speed = 4.8;
     }
   } else if (e.state === 'out') {
-    if (moveTo(e, 104, 1.6, dt) || e.pos.x > 101) { endRobbery(false); return; }
+    if (moveTo(e, 74, 1.6, dt) || e.pos.x > 71) { endRobbery(false); return; }
   } else if (e.state === 'caught') {
     e.vel.set(0, 0, 0); e.char.armL.rotation.x = e.char.armR.rotation.x = -2.9;
     if ((e.t -= dt) <= 0) { endRobbery(true); return; }
@@ -5672,10 +5728,10 @@ function endRobbery(caught) {
 // ------------------------------------------------------------------ civic services: police, fire and a hospital, east of the railway
 const CIVIC = {fire:null, truck:null, amb:null, patrol:null};
 function civicBlock(kind, anim) {
-  clearForest({x0:95.5, x1:106, z0:-.5, z1:10.5});
-  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 101, 1.6, .007); AREAS.push({x0:96.4, x1:106.4, z0:.35, z1:9.8}); }
-  boxes.push({police:{x0:96.9, x1:99.5, z0:3.5, z1:6.1}, fire:{x0:100, x1:102.8, z0:3.5, z1:6.1}, hospital:{x0:103.1, x1:106.1, z0:4, z1:6.8}}[kind]);
-  const at = {police:[98.2, 4.8], fire:[101.4, 4.8], hospital:[104.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
+  clearForest({x0:65.5, x1:76, z0:-.5, z1:10.5});
+  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 71, 1.6, .007); AREAS.push({x0:66.4, x1:76.4, z0:.35, z1:9.8}); }
+  boxes.push({police:{x0:66.9, x1:69.5, z0:3.5, z1:6.1}, fire:{x0:70, x1:72.8, z0:3.5, z1:6.1}, hospital:{x0:73.1, x1:76.1, z0:4, z1:6.8}}[kind]);
+  const at = {police:[68.2, 4.8], fire:[71.4, 4.8], hospital:[74.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
   const sign = (t, bg, fg, y) => { const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(t, bg, fg), toneMapped:false})); s.scale.set(1.7, .5, 1); s.position.set(0, y, 1.33); g.add(s); };
   if (kind === 'police') {
     mesh(G.box, 0xeef1f4, [2.6, 1.8, 2.6], [0, .9, 0], g); mesh(G.box, 0x1f3a7a, [2.62, .35, 2.62], [0, 1.6, 0], g);
@@ -5693,9 +5749,9 @@ function civicBlock(kind, anim) {
   }
   fader(g, 3, 2.6);
   if (anim) popIn(g);
-  if (kind === 'fire') CIVIC.truck = vehicle(0xd9443a, 101.4, 6.7, 'fire');
-  if (kind === 'hospital') CIVIC.amb = vehicle(0xf4f6f8, 104.6, 7.4, 'amb');
-  if (kind === 'police') CIVIC.patrol = vehicle(0xf4f6f8, 98.2, 6.7, 'police');
+  if (kind === 'fire') CIVIC.truck = vehicle(0xd9443a, 71.4, 6.7, 'fire');
+  if (kind === 'hospital') CIVIC.amb = vehicle(0xf4f6f8, 74.6, 7.4, 'amb');
+  if (kind === 'police') CIVIC.patrol = vehicle(0xf4f6f8, 68.2, 6.7, 'police');
 }
 const A_SIREN = [];
 function vehicle(col, x, z, kind) {
@@ -5723,7 +5779,7 @@ function updVehicle(v, dt) {
   v.lights.forEach((l, i) => { l.visible = on ? Math.sin(time*12 + i*Math.PI) > 0 : false; });
 }
 // the road in from the east, then straight to the job
-const TOWN_ROUTE = (x, z) => [[98, 1.6], [14, 1.6], [12.6, 1.6], [x, z]];
+const TOWN_ROUTE = (x, z) => [[68, 1.6], [14, 1.6], [12.6, 1.6], [x, z]];
 function updCivic(dt) {
   if (!started) return;
   // fire trucks put out fires so you don't have to
@@ -5738,7 +5794,7 @@ function updCivic(dt) {
         for (let i = 0; i < 30; i++) setTimeout(() => particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((x - T.g.position.x)*.8 + (R() - .5), 2, (z - T.g.position.z)*.8 + (R() - .5)), .6, .08, {grav:1}), i*90);
         setTimeout(() => {
           if (st.broken) { st.broken = false; if (st.repairZone) removeZone(st.repairZone); st.repairZone = null; puff(x, z); popText(`🚒 Fire out at the ${st.name}`, new THREE.Vector3(x, 2.8, z), '#b8f0a0'); }
-          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [98, 1.6], T.home], () => { T.busy = false; });
+          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [68, 1.6], T.home], () => { T.busy = false; });
         }, 3000);
       });
     }
@@ -5746,7 +5802,7 @@ function updCivic(dt) {
   updVehicle(T, dt);
   // the ambulance goes out to the battlefield after every land battle
   const Am = CIVIC.amb;
-  if (Am && !Am.busy && W.camp && W.camp.type === 'land' && W.camp.t < 9 && W.camp.t > 8) driveTo(Am, [[98, 1.6], [91, 1.6], [91, 91.5], [BF.x + 2, 93]], () => { Am.wait = 4; driveTo(Am, [[91, 91.5], [91, 1.6], [98, 1.6], Am.home], () => { Am.busy = false; }); });
+  if (Am && !Am.busy && W.camp && W.camp.type === 'land' && W.camp.t < 9 && W.camp.t > 8) driveTo(Am, [[68, 1.6], [61, 1.6], [61, 91.5], [BF.x + 2, 93]], () => { Am.wait = 4; driveTo(Am, [[61, 91.5], [61, 1.6], [68, 1.6], Am.home], () => { Am.busy = false; }); });
   updVehicle(Am, dt);
   // a patrol car loops through town
   const Pc = CIVIC.patrol;
@@ -5761,9 +5817,9 @@ function cargoYard(anim) {
   slab(0x8a8f96, 4.4, 3.6, -80, -12.3, .005);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0x8a3a8a, 0xf4f4f4];
   for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 1 + ((i + j) % 3); k++)
-    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-81.4 + i*1, .25 + k*.5, -73.4 + j*.6], g);
+    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-81.4 + i*1, .25 + k*.5, -43.4 + j*.6], g);
   // a gantry crane on the bank
-  for (const z of [-73.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-78.2, 1.5, z], g, {metalness:.4});
+  for (const z of [-43.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-78.2, 1.5, z], g, {metalness:.4});
   mesh(G.box, 0xf2a21a, [.2, .2, 2.8], [-78.2, 3, -12.3], g, {metalness:.4}); const jib = mesh(G.box, 0xf2a21a, [4, .18, .25], [-76.6, 3.1, -12.3], g, {metalness:.4});
   if (anim) popIn(g);
 }
@@ -5783,7 +5839,7 @@ function modernShip(g, kind) {
 
 // ------------------------------------------------------------------ downtown traffic: cars, a bus and traffic lights
 const TRAFFIC = {cars:[], lights:[], bus:null};
-const LOOP = [[74.9, -73.6], [89.9, -73.6], [89.9, -88.9], [74.9, -88.9]];
+const LOOP = [[44.9, -43.6], [59.9, -43.6], [59.9, -58.9], [44.9, -58.9]];
 function trafficFx() {
   // asphalt with lane markings and kerbs, round the block and across the middle
   for (let i = 0; i < 4; i++) {
@@ -5792,18 +5848,18 @@ function trafficFx() {
     for (let t = -len/2 + .6; t < len/2 - .4; t += 1.1) slab(0xf2f2f2, alongX ? .55 : .07, alongX ? .07 : .55, (ax + bx)/2 + (alongX ? t : 0), (az + bz)/2 + (alongX ? 0 : t), .016);
     for (const k of [-1, 1]) slab(0xbdb8ae, alongX ? len : .12, alongX ? .12 : len, (ax + bx)/2 + (alongX ? 0 : k*.81), (az + bz)/2 + (alongX ? k*.81 : 0), .03);
   }
-  for (const [x, z] of LOOP) for (let k = -2; k <= 2; k++) slab(0xf4f4f4, .7, .14, x + (x < 80 ? 1.4 : -1.4), z + k*.28, .017);
+  for (const [x, z] of LOOP) for (let k = -2; k <= 2; k++) slab(0xf4f4f4, .7, .14, x + (x < 50 ? 1.4 : -1.4), z + k*.28, .017);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a];
   const per = LOOP.reduce((a, p, i) => a + Math.hypot(LOOP[(i + 1) % 4][0] - p[0], LOOP[(i + 1) % 4][1] - p[1]), 0);
   // traffic lights at each corner
   for (const [x, z] of LOOP) {
-    const g = new THREE.Group(); g.position.set(x + (x < 80 ? -.7 : .7), 0, z + (z > -80 ? .7 : -.7)); scene.add(g);
+    const g = new THREE.Group(); g.position.set(x + (x < 50 ? -.7 : .7), 0, z + (z > -50 ? .7 : -.7)); scene.add(g);
     mesh(G.cyl, 0x2a2e36, [.04, 1.8, .04], [0, .9, 0], g, {metalness:.5}); mesh(G.box, 0x1a1a1e, [.18, .5, .14], [0, 1.85, 0], g);
     const l = [bulb(g, 0, 2.02, .08, 0xff3030, .05), bulb(g, 0, 1.86, .08, 0xffc030, .05), bulb(g, 0, 1.7, .08, 0x30ff60, .05)];
     TRAFFIC.lights.push({l, x, z});
   }
   // a bus shelter
-  const sh = new THREE.Group(); sh.position.set(82, 0, -89.6); scene.add(sh);
+  const sh = new THREE.Group(); sh.position.set(52, 0, -59.6); scene.add(sh);
   mesh(G.box, 0x8fc6e8, [1.6, 1.2, .05], [0, .8, -.3], sh, {metalness:.4, roughness:.1, transparent:true, opacity:.6}); mesh(G.box, 0x3a3e44, [1.8, .08, .7], [0, 1.45, 0], sh);
 }
 function loopAt(s) {
@@ -5826,18 +5882,18 @@ function updTraffic(dt) {
     const ahead = TRAFFIC.cars.some(o => o !== v && ((o.s - v.s + v.per) % v.per) > 0 && ((o.s - v.s + v.per) % v.per) < 1.6);
     if (!(red && toCorner < 1.4 && toCorner > .4) && !ahead) v.s += v.speed*dt;
     v.g.position.set(x, 0, z); v.g.rotation.y = a;
-    if (v.bus && Math.abs(x - 82) < .1 && seg === 2 && !v.stopped) { v.wait = 3; v.stopped = true; for (let i = 0; i < 2 && movers.length < MAX_MOVERS; i++) spawnMover([[82 + i*.4, -89.8], [82, -89.2]], null, false); }
+    if (v.bus && Math.abs(x - 52) < .1 && seg === 2 && !v.stopped) { v.wait = 3; v.stopped = true; for (let i = 0; i < 2 && movers.length < MAX_MOVERS; i++) spawnMover([[52 + i*.4, -59.8], [52, -59.2]], null, false); }
     if (v.bus && seg !== 2) v.stopped = false;
   }
 }
 
 // ------------------------------------------------------------------ the rugby stadium: matchdays with two teams, a ball and a roaring crowd
-const RUGBY = {at:[101.5, 82], t:60, on:0, players:[], ball:null, score:[0, 0], crowd:null, board:null};
+const RUGBY = {at:[71.5, 82], t:60, on:0, players:[], ball:null, score:[0, 0], crowd:null, board:null};
 function stadiumFx(anim) {
   const [cx, cz] = RUGBY.at;
-  clearForest({x0:95, x1:108.5, z0:74, z1:90});
+  clearForest({x0:65, x1:78.5, z0:74, z1:90});
   slab(0x8a8478, 13, 15, cx, cz, .004);
-  AREAS.push({x0:90.4, x1:96.6, z0:89, z1:90.2}, {x0:95, x1:108, z0:74.6, z1:90.2});
+  AREAS.push({x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:65, x1:78, z0:74.6, z1:90.2});
   for (const sx of [-1, 1]) boxes.push({x0:cx + Math.min(sx*4, sx*6.5), x1:cx + Math.max(sx*4, sx*6.5), z0:cz - 5, z1:cz + 5});
   boxes.push({x0:cx - 7.2, x1:cx - 6.8, z0:cz - 1.6, z1:cz + 1.6});
   const g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); RUGBY.g = g;
@@ -5914,7 +5970,7 @@ function updRugby(dt) {
   }
   if (RUGBY.on <= 0) {
     const pay = 2500 + 300*W.era; W.coins += pay; W.earned += pay;
-    popText(`🎟️ +${pay} gate takings`, new THREE.Vector3(90, 3, 82), '#ffe06b');
+    popText(`🎟️ +${pay} gate takings`, new THREE.Vector3(60, 3, 82), '#ffe06b');
     news(`Rugby: ${RUGBY.score[0]}–${RUGBY.score[1]} in front of a full house`);
   }
 }
@@ -6164,7 +6220,7 @@ function updSpaceView(dt) {
 }
 
 // ------------------------------------------------------------------ the highway: up a ramp out of downtown, over the railway on pillars, into a tunnel to the next city
-const HW = {pts:[[97.5, -96.6, 0], [97.5, -93, 1.6], [96.2, -90.9, 3.2], [91.4, -90.9, 3.4], [87.5, -90.9, 3.2], [83.8, -90.9, 1.7], [80.8, -90.3, .2], [79.2, -89.6, 0]], cars:[], len:0, segs:[], lights:[]};
+const HW = {pts:[[67.5, -66.6, 0], [67.5, -63, 1.6], [66.2, -60.9, 3.2], [61.4, -60.9, 3.4], [57.5, -60.9, 3.2], [53.8, -60.9, 1.7], [50.8, -60.3, .2], [49.2, -59.6, 0]], cars:[], len:0, segs:[], lights:[]};
 function hwAt(u, lane) {
   // u runs 0..1 out of the tunnel to downtown on one lane, then back on the other
   let d = (u % 1) * HW.len*2, back = d > HW.len; if (back) d = HW.len*2 - d;
@@ -6176,7 +6232,7 @@ function hwAt(u, lane) {
   const s = HW.segs[HW.segs.length - 1]; return {x:s.b[0], z:s.b[1], h:0, yaw:s.yaw, pitch:0};
 }
 function highwayFx(anim) {
-  clearForest({x0:89, x1:100, z0:-100, z1:-87});
+  clearForest({x0:59, x1:70, z0:-70, z1:-57});
   const g = new THREE.Group(); scene.add(g); HW.g = g;
   const CON = 0xb8b4ac, ASP = 0x3a3d42;
   HW.segs = []; HW.len = 0;
@@ -6204,26 +6260,26 @@ function highwayFx(anim) {
     HW.lights.push(bulb(g, x + .8, h + 1.55, z, 0xfff2c8, .09));
   }
   // a big green sign over the road
-  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DOWNTOWN ▸', '#1d6b3a', '#ffffff'), toneMapped:false})); sign.scale.set(2, .55, 1); sign.position.set(95, 5.3, -90.9); sign.rotation.y = Math.PI/2; g.add(sign);
-  for (const z of [-92.1, -89.7]) mesh(G.box, 0x8a8f96, [.08, 5.6, .08], [95, 2.8, z], g, {metalness:.6});
-  mesh(G.box, 0x8a8f96, [.08, .08, 2.6], [95, 5.6, -90.9], g, {metalness:.6});
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DOWNTOWN ▸', '#1d6b3a', '#ffffff'), toneMapped:false})); sign.scale.set(2, .55, 1); sign.position.set(65, 5.3, -60.9); sign.rotation.y = Math.PI/2; g.add(sign);
+  for (const z of [-62.1, -59.7]) mesh(G.box, 0x8a8f96, [.08, 5.6, .08], [65, 2.8, z], g, {metalness:.6});
+  mesh(G.box, 0x8a8f96, [.08, .08, 2.6], [65, 5.6, -60.9], g, {metalness:.6});
   // the tunnel to the next city
-  mesh(G.cone, 0x7d838a, [5.5, 8.5, 5.5], [97.5, 3.6, -101.5], g, {flatShading:true});
-  mesh(G.box, 0x9a958c, [3.4, 3, .9], [97.5, 1.5, -97], g); mesh(G.box, 0x15120f, [2.4, 2.1, .1], [97.5, 1.05, -96.5], g);
-  for (const x of [96.6, 98.4]) bulb(g, x, 2.3, -96.4, 0xffd890, .08);
+  mesh(G.cone, 0x7d838a, [5.5, 8.5, 5.5], [67.5, 3.6, -71.5], g, {flatShading:true});
+  mesh(G.box, 0x9a958c, [3.4, 3, .9], [67.5, 1.5, -67], g); mesh(G.box, 0x15120f, [2.4, 2.1, .1], [67.5, 1.05, -66.5], g);
+  for (const x of [66.6, 68.4]) bulb(g, x, 2.3, -66.4, 0xffd890, .08);
   // cars both ways
   const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a, 0xb04f86, 0xff8a3a];
   for (let i = 0; i < 8; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.u = i/8; v.lane = .55; HW.cars.push(v); }
   if (anim) popIn(g);
 }
 // the interstate runs north-south between the camp and the east districts, up on viaducts over the three cross roads
-const IHW_LINKS = [{x0:56, x1:68, z0:-84.3, z1:-80.7}, {x0:56, x1:68, z0:-.2, z1:3.4}, {x0:56, x1:68, z0:81, z1:84.6}];
-const IHW = {links:IHW_LINKS, x:62, z0:-90, z1:126, cross:[-82.5, 1.6, 82.8], built:false, open:false, cars:[], rect:{x0:57.6, x1:66.4, z0:-90, z1:126}, lanes:[59.2, 60.8, 63.2, 64.8]};
+const IHW_LINKS = [{x0:-51, x1:-39, z0:-52.8, z1:-49.2}, {x0:-51, x1:-39, z0:3.2, z1:6}, {x0:-51, x1:-39, z0:7.8, z1:11.4}];
+const IHW = {links:IHW_LINKS, x:-45, z0:-62, z1:126, cross:[-51, 4.6, 9.6], built:false, open:false, cars:[], rect:{x0:-49.4, x1:-40.6, z0:-62, z1:126}, lanes:[-47.8, -46.2, -43.8, -42.2]};
 const ihwH = z => IHW.cross.reduce((h, c) => Math.max(h, 3.2*clamp((16 - Math.abs(z - c))/10, 0, 1)), 0);
 function interstateFx(anim) {
   if (IHW.built) return; IHW.built = true;
   const g = new THREE.Group(); scene.add(g); IHW.g = g;
-  clearForest({x0:55, x1:69, z0:IHW.z0 - 4, z1:IHW.z1 + 4});
+  clearForest({x0:-52, x1:-38, z0:IHW.z0 - 4, z1:IHW.z1 + 4});
   const ASP = mat(0x34373c, {roughness:.85}), CON = mat(0xb8b4ac), RAILM = mat(0xc8ccd0, {metalness:.5, roughness:.4});
   const dash = [], step = 2;
   for (let z = IHW.z0; z < IHW.z1; z += step) {
@@ -6242,7 +6298,7 @@ function interstateFx(anim) {
   for (const sx of [-4.2, 4.2, -.45, .45]) for (let z = IHW.z0; z < IHW.z1; z += step) { const h0 = ihwH(z), h1 = ihwH(z + step); const e = mesh(G.box, sx < -1 || sx > 1 ? 0xf2f2f2 : 0xf2c200, [.1, .02, step + .04], [IHW.x + sx, (h0 + h1)/2 + .075, z + step/2], g); e.rotation.x = -Math.atan2(h1 - h0, step); }
   // light poles on the median every so often, sign gantries
   for (let z = IHW.z0 + 6; z < IHW.z1; z += 14) { const h = ihwH(z); mesh(G.cyl, 0x8a8f96, [.06, 3.4, .06], [IHW.x, h + 1.9, z], g, {metalness:.6}); for (const sx of [-1, 1]) { mesh(G.box, 0x8a8f96, [1.4, .06, .06], [IHW.x + sx*.7, h + 3.55, z], g); bulb(g, IHW.x + sx*1.35, h + 3.45, z, 0xfff2c8, .1); } }
-  for (const [z, txt, col] of [[22, 'EXIT ⛽ GAS', '#1d6b3a'], [-60, 'DOWNTOWN ▸', '#1d6b3a'], [100, 'FARMS · STADIUM', '#1d6b3a'], [-20, 'CAMP ◂', '#1d6b3a']]) {
+  for (const [z, txt, col] of [[14, 'EXIT ⛽ GAS', '#1d6b3a'], [-30, 'RANCH · QUARRY', '#1d6b3a'], [100, 'WONDERS · SOUTH', '#1d6b3a'], [-6, 'CAMP ▸', '#1d6b3a']]) {
     const h = ihwH(z); for (const sx of [-4.9, 4.9]) mesh(G.box, 0x8a8f96, [.12, 5.4, .12], [IHW.x + sx, h + 2.7, z], g, {metalness:.6});
     mesh(G.box, 0x8a8f96, [9.9, .14, .14], [IHW.x, h + 5.4, z], g);
     for (const sx of [-2.4, 2.4]) { const sg = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(txt, col, '#ffffff'), toneMapped:false, side:THREE.DoubleSide})); sg.scale.set(3.4, .9, 1); sg.position.set(IHW.x + sx, h + 4.8, z); g.add(sg); }
@@ -6265,16 +6321,16 @@ function interstateFx(anim) {
   if (anim) { popIn(g); banner('🛣️ The interstate!', 'Four lanes north to south, up over the cross roads. Drive it in your car, on your motorcycle or with a jetpack.'); }
 }
 // the gas station by the exit: a corner store that grows into a giant travel stop
-const GAS2 = {plot:{x0:34.5, x1:56.5, z0:28, z1:43}, at:[45.5, 35.5], g:null, lv:0, q:[], t:4, zone:null};
+const GAS2 = {plot:{x0:-39.5, x1:-18, z0:28, z1:43}, at:[-28.7, 35.5], g:null, lv:0, q:[], t:4, zone:null};
 const gasLvl = () => Math.min(5, W.levels.gas || 1);
 const gasCost = () => Math.round(30000 * Math.pow(2.6, gasLvl() - 1));
 function gasPlotFx() {
   if (GAS2.ready) return; GAS2.ready = true;
-  const P0 = GAS2.plot; clearForest({x0:P0.x0 - 1, x1:P0.x1 + 1, z0:P0.z0 - 1, z1:P0.z1 + 1}); clearForest({x0:43, x1:47.5, z0:2, z1:29});
-  slab(0xb98f5c, 2.4, 25, 45.2, 15.5, .01);                                   // the access road from the camp road
-  AREAS.push({x0:44, x1:46.4, z0:2.8, z1:28.4}, P0);
+  const P0 = GAS2.plot; clearForest({x0:P0.x0 - 1, x1:P0.x1 + 1, z0:P0.z0 - 1, z1:P0.z1 + 1}); clearForest({x0:-30.6, x1:-26.2, z0:10, z1:29});
+  slab(0xb98f5c, 2.4, 17.4, -28.4, 19.7, .01);                                 // the access road from the airfield road
+  AREAS.push({x0:-29.6, x1:-27.2, z0:10, z1:28.4}, P0);
   // the off-ramp and on-ramp from the southbound lanes
-  for (const pts of [[[59.2, 20], [57.4, 25], [55.5, 30]], [[55.5, 41], [57.4, 46], [59.2, 51]]]) for (let i = 0; i < pts.length - 1; i++) {
+  for (const pts of [[[-42.2, 20], [-40.4, 25], [-38.5, 30]], [[-38.5, 41], [-40.4, 46], [-42.2, 51]]]) for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1], l = Math.hypot(bx - ax, bz - az), r = mesh(G.box, 0x34373c, [2.4, .05, l + .3], [(ax + bx)/2, .02, (az + bz)/2], scene); r.rotation.y = Math.atan2(bx - ax, bz - az);
   }
 }
@@ -6292,7 +6348,7 @@ function refreshGasTile() {
   if (!W.unlocked.has('gasStation')) return;
   if (GAS2.zone && gasLvl() >= 5) { removeZone(GAS2.zone); GAS2.zone = null; return; }
   if (gasLvl() >= 5) return;
-  if (!GAS2.zone) GAS2.zone = addZone({kind:'gasup', x:45.2, z:25.6, w:1.6, d:1.6, icon:'⬆️', tile:{}});
+  if (!GAS2.zone) GAS2.zone = addZone({kind:'gasup', x:-28.4, z:25.6, w:1.6, d:1.6, icon:'⬆️', tile:{}});
   const paid = W.upPaid.gas || 0, cost = gasCost(), key = gasLvl() + ':' + paid;
   if (GAS2.zone.key !== key) { GAS2.zone.key = key; drawTile(GAS2.zone.tc.g, '⬆️', {cost:cost - paid, cur:'💵', prog:paid/cost, title:`⛽ Lv ${gasLvl() + 1}`}); GAS2.zone.tc.t.needsUpdate = true; }
 }
@@ -6323,9 +6379,9 @@ function updInterstate(dt) {
     const pz = v.z; v.z += v.dir*v.sp*dt;
     if (v.z > IHW.z1) v.z = IHW.z0; if (v.z < IHW.z0) v.z = IHW.z1;
     // take the exit to the pumps when there is room
-    if (pumps && v.dir === -1 && v.lane === 59.2 && pz > 52 && v.z <= 52 && GAS2.q.length < pumps && R() < .5) {
+    if (pumps && v.dir === 1 && v.lane === -42.2 && pz < 20 && v.z >= 20 && GAS2.q.length < pumps && R() < .5) {
       const k = GAS2.q.length, px = GAS2.at[0] - 5 + (k % 5)*2.5, pz = GAS2.at[1] - 2 + Math.floor(k / 5)*3.5;
-      v.fuel = {path:[[57.4, 46], [55.5, 41], [px, pz + 3], [px, pz], [px, pz - 3], [55.5, 30], [57.4, 25], [59.2, 20]], i:0, pump:3, wait:0}; GAS2.q.push(v); continue;
+      v.fuel = {path:[[-40.4, 25], [-38.5, 30], [px, pz - 3], [px, pz], [px, pz + 3], [-38.5, 41], [-40.4, 46], [-42.2, 51]], i:0, pump:3, wait:0}; GAS2.q.push(v); continue;
     }
     const h = ihwH(v.z), h2 = ihwH(v.z + v.dir);
     v.g.position.set(v.lane, h + .06, v.z); v.g.rotation.order = 'YXZ'; v.g.rotation.set(-v.dir*Math.atan2(h2 - h, 1)*(v.dir), v.dir > 0 ? 0 : Math.PI, 0);
@@ -6341,9 +6397,9 @@ function updHighway(dt) {
     const p = hwAt(v.u, v.lane);
     v.g.position.set(p.x, p.h + .12, p.z); v.g.rotation.order = 'YXZ'; v.g.rotation.set(p.pitch, p.yaw, 0);
     // hidden while inside the tunnel
-    v.g.visible = Math.hypot(p.x - 97.5, p.z + 96.6) > .6;
+    v.g.visible = Math.hypot(p.x - 67.5, p.z + 66.6) > .6;
   }
-  if (started && (tollT -= dt) <= 0) { tollT = 15; const pay = 300 + 60*W.era; W.coins += pay; W.earned += pay; popText(`🛣️ +${pay} tolls`, new THREE.Vector3(91.4, 5, -90.9), '#ffe06b'); }
+  if (started && (tollT -= dt) <= 0) { tollT = 15; const pay = 300 + 60*W.era; W.coins += pay; W.earned += pay; popText(`🛣️ +${pay} tolls`, new THREE.Vector3(61.4, 5, -60.9), '#ffe06b'); }
 }
 
 // ------------------------------------------------------------------ graphics: wet streets in the rain, pools of light at night, windows lit unevenly
@@ -6388,7 +6444,7 @@ function updGfx3(dt, dk) {
 // ------------------------------------------------------------------ stalls: a table, then a pop-up tent, then a proper store
 const STALL = {
   main:{at:[4, 1], w:2, d:6, alongZ:true, sign:'STORE', groups:null},
-  hall:{at:[82, 7], w:6, d:2.4, alongZ:false, sign:'MARKET', groups:null},
+  hall:{at:[52, 7], w:6, d:2.4, alongZ:false, sign:'MARKET', groups:null},
 };
 const STALL_FX = [{serve:1, max:0, mult:1}, {serve:1.4, max:3, mult:1.2}, {serve:2, max:6, mult:1.5}];
 function stallStage(id, n, anim) {
@@ -6428,7 +6484,7 @@ function stallStage(id, n, anim) {
 
 // ------------------------------------------------------------------ oil: once the stone is no longer needed, the quarry becomes an oil field and refinery
 const OIL = {jacks:[], flare:null, t:{well:20}, car:null, men:[]};
-const REFINERY = {x0:-8.7, x1:-2.4, z0:-85.4, z1:-80.6};
+const REFINERY = {x0:-8.7, x1:-2.4, z0:-55.4, z1:-50.6};
 const oilReady = () => PADS.every(p => p.cur !== 'stone' || W.unlocked.has(p.id));
 function pipeline(pts, parent, y = 2.3) {
   // overhead pipes on tall stands: you can walk underneath
@@ -6480,12 +6536,12 @@ function refineryFx(anim) {
   for (let i = 0; i < 5; i++) bulb(g, cx - 2.4 + i*1.2, 3.4 + (i % 2)*.8, cz - .4, 0xffe08a, .06);
   boxes.push({...REFINERY});
   // a pipeline in from the field
-  pipeline([[2.2, -78.6], [2.2, -82.6], [REFINERY.x1, -82.6]], g);
+  pipeline([[2.2, -48.6], [2.2, -52.6], [REFINERY.x1, -52.6]], g);
   if (anim) popIn(g);
 }
-const GAS = {at:[79.2, -92.9]};
+const GAS = {at:[49.2, -62.9]};
 function gasStationFx(anim) {
-  if (MODELS.road) { gasPlotFx(); gasStationLook(anim); OIL.car = null; if (W.unlocked.has('refinery')) pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -88.9], [12.6, -88.9], [45, -88.9], [45, 28]], scene, 2.6); return; }
+  if (MODELS.road) { gasPlotFx(); gasStationLook(anim); OIL.car = null; if (W.unlocked.has('refinery')) pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -58.9], [-28.4, -58.9], [-28.4, 28]], scene, 2.6); return; }
   // just off the highway where it lands downtown, fed by a pipe from the refinery
   const g = new THREE.Group(); g.position.set(GAS.at[0], 0, GAS.at[1]); scene.add(g);
   slab(0x3a3d42, 6, 3.6, GAS.at[0], GAS.at[1], .006);
@@ -6495,8 +6551,8 @@ function gasStationFx(anim) {
   mesh(G.box, 0xeef1f4, [1.4, 1.3, 1.2], [-2.6, .65, -.8], g); mesh(G.box, 0x8fc6e8, [1.42, .5, 1.22], [-2.6, .8, -.8], g, {metalness:.5, roughness:.1});
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('GAS', '#d9443a', '#ffffff'), toneMapped:false})); sign.scale.set(1, .4, 1); sign.position.set(0, 2.5, 1.32); g.add(sign);
   for (let i = 0; i < 6; i++) bulb(g, -1.8 + i*.72, 2.3, 1.32, 0xffffff, .05);
-  pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -88.9], [12.6, -88.9], [76.4, -92.9]], scene, 2.6);
-  OIL.car = vehicle(0x3f7cc0, 80.8, -90.3, 'car'); OIL.car.g.visible = false; OIL.car.speed = 4;
+  pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -58.9], [46.4, -62.9]], scene, 2.6);
+  OIL.car = vehicle(0x3f7cc0, 50.8, -60.3, 'car'); OIL.car.g.visible = false; OIL.car.speed = 4;
   if (anim) popIn(g);
 }
 let oilCarT = 6;
@@ -6506,25 +6562,25 @@ function updOil(dt) {
   // oil workers do the rounds of the pump jacks
   for (const w of OIL.men) {
     if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); continue; }
-    if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -80]; }
+    if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -50]; }
     if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
   }
   if (!started) return;
   // crude sells as it is pumped; refined fuel sells for far more
   if (W.unlocked.has('oilField') && (OIL.t.well -= dt) <= 0) {
     OIL.t.well = 20; const pay = (W.unlocked.has('refinery') ? 2500 : 600) + 120*W.era; W.coins += pay; W.earned += pay;
-    popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -81), '#ffe06b');
+    popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -51), '#ffe06b');
   }
   // cars come down off the highway to fill up
   const C = OIL.car;
   if (C) {
     if (!C.busy && (oilCarT -= dt) <= 0) {
-      oilCarT = 10 + R()*6; C.g.visible = true; C.g.position.set(83.8, 0, -90.9);
-      driveTo(C, [[80.8, -90.3], [79.6, -92.6]], () => {
+      oilCarT = 10 + R()*6; C.g.visible = true; C.g.position.set(53.8, 0, -60.9);
+      driveTo(C, [[50.8, -60.3], [49.6, -62.6]], () => {
         C.wait = 3;
         const pay = 400 + 60*W.era; W.coins += pay; W.earned += pay;
-        popText(`⛽ +${pay}`, new THREE.Vector3(79.4, 3, -92.8), '#ffe06b');
-        setTimeout(() => driveTo(C, [[77.6, -92.4], [79.2, -89.6], [81, -89]], () => { C.busy = false; C.g.visible = false; }), 0);
+        popText(`⛽ +${pay}`, new THREE.Vector3(49.4, 3, -62.8), '#ffe06b');
+        setTimeout(() => driveTo(C, [[47.6, -62.4], [49.2, -59.6], [51, -59]], () => { C.busy = false; C.g.visible = false; }), 0);
       });
     }
     updVehicle(C, dt);
@@ -6536,7 +6592,7 @@ const AI = {brain:null, drones:[]};
 const aiMult = () => (policy('work') || 1) * (1 + (W.unlocked.has('aiLab') ? .25 : 0) + (W.unlocked.has('superAI') ? .25 : 0));
 function aiFx(level, anim) {
   if (!AI.brain) {
-    const g = new THREE.Group(); g.position.set(85.5, 7.2, -9.6); scene.add(g); AI.brain = g;
+    const g = new THREE.Group(); g.position.set(55.5, 7.2, -9.6); scene.add(g); AI.brain = g;
     const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 1), new THREE.MeshBasicMaterial({color:0x5af0ff, wireframe:true, transparent:true, opacity:.7, toneMapped:false})); g.add(wire);
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.55, 2), new THREE.MeshBasicMaterial({color:0xb8fbff, toneMapped:false})); g.add(core);
     for (let i = 0; i < 2; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(1.5 + i*.35, .03, 6, 40), new THREE.MeshBasicMaterial({color:i ? 0xff4fb0 : 0x5af0ff, toneMapped:false})); r.rotation.x = Math.PI/2 + i*.6; g.add(r); }
@@ -6559,7 +6615,7 @@ function updAI(dt) {
   AI.brain.rotation.y += dt*.6; AI.wire.rotation.x += dt*.3; AI.core.scale.setScalar(1 + Math.sin(time*3)*.08);
   const spots = Object.values(ST).filter(s => s.body).map(s => [s.body.position.x, s.body.position.z]);
   for (const d of AI.drones) {
-    if (d.t >= 1) { d.from = d.to || [85.5, -9.6]; d.to = spots[R()*spots.length|0] || [0, 0]; d.t = 0; d.len = Math.hypot(d.to[0] - d.from[0], d.to[1] - d.from[1]) || 1; }
+    if (d.t >= 1) { d.from = d.to || [55.5, -9.6]; d.to = spots[R()*spots.length|0] || [0, 0]; d.t = 0; d.len = Math.hypot(d.to[0] - d.from[0], d.to[1] - d.from[1]) || 1; }
     d.t = Math.min(1, d.t + dt*4 / d.len);
     const u = d.t, x = d.from[0] + (d.to[0] - d.from[0])*u, z = d.from[1] + (d.to[1] - d.from[1])*u;
     d.g.position.set(x, 4.5 + Math.sin(u*Math.PI)*2, z); d.g.rotation.y = Math.atan2(d.to[0] - d.from[0], d.to[1] - d.from[1]);
@@ -6693,7 +6749,7 @@ const RANCH = {bridge:null, leaves:[], up:0, block:null, animals:[]};
 function ranchBridge(anim) {
   // a bascule bridge that lifts for passing ships
   const g = new THREE.Group(); scene.add(g); RANCH.bridge = g;
-  for (const x of [-10.6, -17.4]) mesh(G.box, 0x8f8a80, [.9, .9, 1.8], [x, -.1, -81], g);
+  for (const x of [-10.6, -17.4]) mesh(G.box, 0x8f8a80, [.9, .9, 1.8], [x, -.1, -51], g);
   for (const [hinge, off, dir] of [[-10.6, -1.7, -1], [-17.4, 1.7, 1]]) {
     const pivot = new THREE.Group(); pivot.position.set(hinge, .35, -21); g.add(pivot);
     const leaf = new THREE.Group(); leaf.position.x = off; pivot.add(leaf);
@@ -6707,33 +6763,33 @@ function ranchFx(kind, anim) {
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
   if (kind === 'dairy') {
     // a fenced pasture with grazing cows
-    for (let x = -92.8; x <= -87.2; x += .7) for (const z of [-88.6, -84.4]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
-    for (let z = -88.6; z <= -84.4; z += .7) for (const x of [-92.8, -87.2]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
-    for (const z of [-88.6, -84.4]) P(G.box, 0x8a5a2b, [5.6, .06, .06], [-90, .5, z]); for (const x of [-92.8, -87.2]) P(G.box, 0x8a5a2b, [.06, .06, 4.2], [x, .5, -86.5]);
-    P(G.box, 0xb8322a, [1.6, 1.3, 1.2], [-91.6, .65, -87.6]); P(G.cone4, 0x6a3a22, [1.3, .7, 1], [-91.6, 1.65, -87.6]).rotation.y = Math.PI/4;
-    for (let i = 0; i < 3; i++) RANCH.animals.push(animal(g, 'cow', -90 + (i - 1)*1.4, -86.2 + (i % 2)*.8, {x0:-92.4, x1:-87.6, z0:-88.2, z1:-84.8}));
-    boxes.push({x0:-92.8, x1:-87.2, z0:-88.6, z1:-84.4});
+    for (let x = -92.8; x <= -87.2; x += .7) for (const z of [-58.6, -54.4]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
+    for (let z = -58.6; z <= -54.4; z += .7) for (const x of [-92.8, -87.2]) P(G.box, 0x8a5a2b, [.08, .6, .08], [x, .3, z]);
+    for (const z of [-58.6, -54.4]) P(G.box, 0x8a5a2b, [5.6, .06, .06], [-90, .5, z]); for (const x of [-92.8, -87.2]) P(G.box, 0x8a5a2b, [.06, .06, 4.2], [x, .5, -56.5]);
+    P(G.box, 0xb8322a, [1.6, 1.3, 1.2], [-91.6, .65, -57.6]); P(G.cone4, 0x6a3a22, [1.3, .7, 1], [-91.6, 1.65, -57.6]).rotation.y = Math.PI/4;
+    for (let i = 0; i < 3; i++) RANCH.animals.push(animal(g, 'cow', -90 + (i - 1)*1.4, -56.2 + (i % 2)*.8, {x0:-92.4, x1:-87.6, z0:-58.2, z1:-54.8}));
+    boxes.push({x0:-92.8, x1:-87.2, z0:-58.6, z1:-54.4});
   } else if (kind === 'creamery') {
-    P(G.box, 0xf4f0e6, [2.6, 1.8, 2.2], [-81.2, .9, -86.5]); P(G.box, 0xff9ec0, [2.62, .3, 2.22], [-81.2, 1.6, -86.5]);
-    P(G.cone, 0xe8c48a, [.35, .8, .35], [-81.2, 2.4, -86.5]).rotation.x = Math.PI; P(G.sph, 0xff9ec0, [.38, .32, .38], [-81.2, 2.9, -86.5]);
-    boxes.push({x0:-82.5, x1:-79.9, z0:-87.6, z1:-85.4});
+    P(G.box, 0xf4f0e6, [2.6, 1.8, 2.2], [-81.2, .9, -56.5]); P(G.box, 0xff9ec0, [2.62, .3, 2.22], [-81.2, 1.6, -56.5]);
+    P(G.cone, 0xe8c48a, [.35, .8, .35], [-81.2, 2.4, -56.5]).rotation.x = Math.PI; P(G.sph, 0xff9ec0, [.38, .32, .38], [-81.2, 2.9, -56.5]);
+    boxes.push({x0:-82.5, x1:-79.9, z0:-57.6, z1:-55.4});
   } else if (kind === 'tomatoes') {
-    P(G.box, 0x6a4a2a, [5.2, .12, 2.6], [-90, .06, -80.5]);
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) { P(G.cone, 0x3f8a3a, [.18, .55, .18], [-92.3 + c*.5, .35, -81.4 + r*.6]); P(G.sph, 0xd9302a, [.08, .08, .08], [-92.2 + c*.5, .45, -81.3 + r*.6]); }
-    boxes.push({x0:-92.6, x1:-87.4, z0:-81.8, z1:-79.2});
+    P(G.box, 0x6a4a2a, [5.2, .12, 2.6], [-90, .06, -50.5]);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) { P(G.cone, 0x3f8a3a, [.18, .55, .18], [-92.3 + c*.5, .35, -51.4 + r*.6]); P(G.sph, 0xd9302a, [.08, .08, .08], [-92.2 + c*.5, .45, -51.3 + r*.6]); }
+    boxes.push({x0:-92.6, x1:-87.4, z0:-51.8, z1:-49.2});
   } else if (kind === 'pizzeria') {
-    P(G.box, 0xe8d0a8, [2.6, 1.7, 2.2], [-81.2, .85, -80.5]); for (let i = 0; i < 5; i++) P(G.box, i % 2 ? 0xf4f0e6 : 0x3f9a3a, [.52, .06, .7], [-82.24 + i*.52, 1.7, -79.1]).rotation.x = .35;
-    P(G.cyl, 0x9a4a32, [.3, 1.2, .3], [-80.4, 2, -81.2]); smokers.push({x:-80.4, y:2.7, z:-81.2});
-    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('PIZZA', '#3f9a3a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-81.2, 1.35, -79.38); g.add(s);
-    boxes.push({x0:-82.5, x1:-79.9, z0:-81.6, z1:-79.4});
+    P(G.box, 0xe8d0a8, [2.6, 1.7, 2.2], [-81.2, .85, -50.5]); for (let i = 0; i < 5; i++) P(G.box, i % 2 ? 0xf4f0e6 : 0x3f9a3a, [.52, .06, .7], [-82.24 + i*.52, 1.7, -49.1]).rotation.x = .35;
+    P(G.cyl, 0x9a4a32, [.3, 1.2, .3], [-80.4, 2, -51.2]); smokers.push({x:-80.4, y:2.7, z:-51.2});
+    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('PIZZA', '#3f9a3a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-81.2, 1.35, -49.38); g.add(s);
+    boxes.push({x0:-82.5, x1:-79.9, z0:-51.6, z1:-49.4});
   } else if (kind === 'pier') {
-    for (let i = 0; i < 6; i++) P(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.6], [-17.4 + i*.52, .22, -76.2]);
+    for (let i = 0; i < 6; i++) P(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.6], [-17.4 + i*.52, .22, -46.2]);
   } else if (kind === 'sushi') {
-    P(G.box, 0x2a2a30, [2.6, 1.7, 2.2], [-81.2, .85, -76.2]); P(G.box, 0xd9443a, [2.8, .2, 2.4], [-81.2, 1.75, -76.2]);
-    const r = P(G.cone4, 0x2a2a30, [2, .6, 1.8], [-81.2, 2.15, -76.2]); r.rotation.y = Math.PI/4;
-    for (const x of [-82.1, -80.3]) bulb(g, x, 1.4, -75.05, 0xff6a5a, .1);
-    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('SUSHI', '#d9443a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-81.2, 1.2, -75.08); g.add(s);
-    boxes.push({x0:-82.5, x1:-79.9, z0:-77.3, z1:-75.1});
+    P(G.box, 0x2a2a30, [2.6, 1.7, 2.2], [-81.2, .85, -46.2]); P(G.box, 0xd9443a, [2.8, .2, 2.4], [-81.2, 1.75, -46.2]);
+    const r = P(G.cone4, 0x2a2a30, [2, .6, 1.8], [-81.2, 2.15, -46.2]); r.rotation.y = Math.PI/4;
+    for (const x of [-82.1, -80.3]) bulb(g, x, 1.4, -45.05, 0xff6a5a, .1);
+    const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('SUSHI', '#d9443a', '#ffffff'), toneMapped:false})); s.scale.set(1.4, .4, 1); s.position.set(-81.2, 1.2, -45.08); g.add(s);
+    boxes.push({x0:-82.5, x1:-79.9, z0:-47.3, z1:-45.1});
   }
   if (anim) popIn(g);
 }
@@ -6766,17 +6822,17 @@ function animal(parent, kind, x, z, pen) {
 }
 function ranchAnimals() {
   const g = new THREE.Group(); scene.add(g);
-  for (let x = -93.2; x <= -87; x += .7) mesh(G.box, 0xc8a878, [.06, .4, .06], [x, .2, -77.6], g);
-  for (let i = 0; i < 6; i++) RANCH.animals.push(animal(g, i < 4 ? 'chicken' : 'pig', -91 + i*.8, -76, {x0:-93, x1:-87.4, z0:-77.2, z1:-74.8}));
+  for (let x = -93.2; x <= -87; x += .7) mesh(G.box, 0xc8a878, [.06, .4, .06], [x, .2, -47.6], g);
+  for (let i = 0; i < 6; i++) RANCH.animals.push(animal(g, i < 4 ? 'chicken' : 'pig', -91 + i*.8, -46, {x0:-93, x1:-87.4, z0:-47.2, z1:-44.8}));
 }
 function updRanch(dt) {
   // the bridge lifts when a ship comes up or down the river
   if (RANCH.leaves.length) {
-    const shipNear = boats.some(b => Math.abs(b.z + 81) < 3.2) || pirates.some(p => Math.abs(p.g.position.z + 81) < 3.2);
+    const shipNear = boats.some(b => Math.abs(b.z + 51) < 3.2) || pirates.some(p => Math.abs(p.g.position.z + 51) < 3.2);
     RANCH.up += ((shipNear ? 1 : 0) - RANCH.up) * Math.min(1, dt*3);
     for (const p of RANCH.leaves) p.rotation.z = p.dir * RANCH.up * 1.25;
     const want = RANCH.up > .15;
-    if (want && !RANCH.block) { RANCH.block = {x0:-17, x1:-11, z0:-81.8, z1:-80.2}; boxes.push(RANCH.block); }
+    if (want && !RANCH.block) { RANCH.block = {x0:-17, x1:-11, z0:-51.8, z1:-50.2}; boxes.push(RANCH.block); }
     if (!want && RANCH.block) { boxes.splice(boxes.indexOf(RANCH.block), 1); RANCH.block = null; }
   }
   for (const a of RANCH.animals) {
@@ -6838,7 +6894,7 @@ function ship(i) {
   const pay = Math.round(d.qty * (ITEM[d.good].sell || 2) * d.mult * (ally ? 1.25 : 1) * (1 + W.era*.15));
   // a caravan, then a truck, rolls off down the east road
   const v = vehicle(W.era >= 6 ? 0x3f7cc0 : 0x8a5d36, 14, 1.6, W.era >= 6 ? 'car' : 'bus'); v.speed = 5;
-  driveTo(v, [[106, 1.6]], () => { v.g.visible = false; });
+  driveTo(v, [[76, 1.6]], () => { v.g.visible = false; });
   TRADE.trips.push({city:d.c.n, t:d.c.far, pay, v});
   banner(`🚚 Shipment to ${d.c.icon} ${d.c.n}`, `${d.qty} ${ITEM[d.good].n.toLowerCase()} on the road. Back in ${d.c.far}s with ${pay} 💵.`);
   openTrade();
@@ -6859,19 +6915,19 @@ function updTrade(dt) {
 const ZOO = {fish:[], animals:[]};
 function aquariumFx(anim) {
   if (MODELS.aqua && aquariumTank(anim)) return;
-  const g = new THREE.Group(); g.position.set(99, 0, 12.2); scene.add(g);
+  const g = new THREE.Group(); g.position.set(69, 0, 12.2); scene.add(g);
   mesh(G.box, 0xeef1f4, [3.8, 2.2, 2.6], [0, 1.1, 0], g);
   const tank = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({color:0x3a9ad0, transparent:true, opacity:.55, roughness:.05, metalness:.2})); tank.scale.set(3.2, 1.5, .5); tank.position.set(0, 1.05, 1.32); g.add(tank);
   const dome = new THREE.Mesh(new THREE.SphereGeometry(1.2, 18, 10, 0, Math.PI*2, 0, Math.PI/2), mat(0x8fc6e8, {metalness:.4, roughness:.1, transparent:true, opacity:.8})); dome.position.y = 2.2; g.add(dome);
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('AQUARIUM', '#1f5fb8', '#ffffff'), toneMapped:false})); sign.scale.set(2.2, .5, 1); sign.position.set(0, 2.05, 1.32); g.add(sign);
   for (let i = 0; i < 8; i++) { const f = itemMesh('fish', i % 3); f.scale.setScalar(.6); scene.remove(f); g.add(f); ZOO.fish.push({m:f, ph:R()*6, y:.6 + R()*.8}); }
-  boxes.push({x0:97.1, x1:100.9, z0:10.9, z1:13.5}); AREAS.push({x0:96.4, x1:106.4, z0:9.6, z1:14.8}, {x0:106, x1:108.6, z0:.35, z1:14.8}); clearForest({x0:105.5, x1:109.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 107.3, 7.6, .01);
+  boxes.push({x0:67.1, x1:70.9, z0:10.9, z1:13.5}); AREAS.push({x0:66.4, x1:76.4, z0:9.6, z1:14.8}, {x0:76, x1:78.6, z0:.35, z1:14.8}); clearForest({x0:75.5, x1:79.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 77.3, 7.6, .01);
   fader(g, 3.8, 2.6); if (anim) popIn(g);
 }
 // the glass tank: reef, tunnel and water from the Blender kit, with swimmers on lazy loops
 function aquariumTank(anim) {
   const tank = MODELS.aqua.getObjectByName('aquariumTank'), water = MODELS.aqua.getObjectByName('aquariumWater'); if (!tank || !water) return false;
-  const g = new THREE.Group(); g.position.set(99, 0, 12.2); scene.add(g);
+  const g = new THREE.Group(); g.position.set(69, 0, 12.2); scene.add(g);
   const inner = new THREE.Group(); inner.scale.setScalar(5 / 9.6); g.add(inner);
   const t = tank.clone(true), w = water.clone(true); t.position.set(0, 0, 0); w.position.set(0, 0, 0); inner.add(t, w);
   // the water and the tunnel glass are see-through
@@ -6882,7 +6938,7 @@ function aquariumTank(anim) {
     for (let i = 0; i < n; i++) { const m = src.clone(true); inner.add(m); const tail = m.children.find(c => /_tail/.test(c.name));
       ZOO.fish.push({m, tail, mdl:true, ph:i/n*Math.PI*2 + R()*.3, rx:rx*(.85 + R()*.3), rz:rz*(.8 + R()*.3), y:y0 + R()*.6, sp:sp*(.85 + R()*.3), dir:i % 2 ? 1 : -1}); } };
   add('sharkFish', 1, 3.2, 1.9, 2.2, .22); add('clownFish', 6, 3.6, 2.2, 1.0, .45); add('tangFish', 6, 3.4, 2.0, 2.6, .4);
-  boxes.push({x0:96.5, x1:101.5, z0:10.1, z1:14.4}); AREAS.push({x0:96.4, x1:106.4, z0:9.6, z1:14.8}, {x0:106, x1:108.6, z0:.35, z1:14.8}); clearForest({x0:105.5, x1:109.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 107.3, 7.6, .01);
+  boxes.push({x0:66.5, x1:71.5, z0:10.1, z1:14.4}); AREAS.push({x0:66.4, x1:76.4, z0:9.6, z1:14.8}, {x0:76, x1:78.6, z0:.35, z1:14.8}); clearForest({x0:75.5, x1:79.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 77.3, 7.6, .01);
   if (anim) popIn(g);
   return true;
 }
@@ -6890,10 +6946,10 @@ const ZOO_ANIMALS = [['🐘', 0x9aa0a8, 1.4], ['🦒', 0xe0b050, 1], ['🦁', 0x
 const ZOO_KIND = {'🐘':'elephant', '🦒':'giraffe', '🦁':'lion', '🐧':'penguin', '🐻':'bear', '🦓':'zebra', '🐼':'panda', '🐯':'tiger'};
 function zooFx(anim) {
   const g = new THREE.Group(); scene.add(g); ZOO.g = g;
-  for (let i = 0; i < 2; i++) { const x = 102.6 + i*2.4; for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 10.4], g); for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 13.8], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 10.4], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 13.8], g); }
-  slab(0x9fb86a, 4.6, 3.4, 103.8, 12.1, .008);
-  for (const [x, z] of [[102, 12.6], [105.5, 11.4]]) { mesh(G.cyl, 0x5e3f22, [.12, 1.6, .12], [x, .8, z], g); mesh(G.ico, 0x4a9a3a, [.7, .6, .7], [x, 1.9, z], g); }
-  boxes.push({x0:101.5, x1:106.1, z0:10.3, z1:13.9});
+  for (let i = 0; i < 2; i++) { const x = 72.6 + i*2.4; for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 10.4], g); for (let k = 0; k < 7; k++) mesh(G.box, 0x6b4526, [.06, .7, .06], [x - 1 + k*.33, .35, 13.8], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 10.4], g); mesh(G.box, 0x6b4526, [2, .05, .05], [x, .6, 13.8], g); }
+  slab(0x9fb86a, 4.6, 3.4, 73.8, 12.1, .008);
+  for (const [x, z] of [[72, 12.6], [75.5, 11.4]]) { mesh(G.cyl, 0x5e3f22, [.12, 1.6, .12], [x, .8, z], g); mesh(G.ico, 0x4a9a3a, [.7, .6, .7], [x, 1.9, z], g); }
+  boxes.push({x0:71.5, x1:76.1, z0:10.3, z1:13.9});
   if (anim) popIn(g);
   zooAnimals();
 }
@@ -6907,7 +6963,7 @@ function zooAnimals() {
     if (icon === '🦒') mesh(G.box, col, [.12, .8, .12], [0, .9, .35], a);
     if (icon === '🐘') { mesh(G.box, col, [.1, .45, .1], [0, .5, .65], a); for (const x of [-.22, .22]) mesh(G.box, col, [.05, .3, .25], [x, .7, .35], a); }
     for (const [x, z] of [[-.15, -.28], [.15, -.28], [-.15, .28], [.15, .28]]) mesh(G.box, col, [.09, .3, .09], [x, .15, z], a);
-    ZOO.animals.push({g:a, x:102.6 + (ZOO.animals.length % 2)*2.4, z:12.1, t:0, tx:0, tz:0});
+    ZOO.animals.push({g:a, x:72.6 + (ZOO.animals.length % 2)*2.4, z:12.1, t:0, tx:0, tz:0});
   }
 }
 let zooT = 25;
@@ -6921,7 +6977,7 @@ function updZoo(dt) {
   for (const a of ZOO.animals) { if ((a.t -= dt) <= 0) { a.t = 2 + R()*3; a.tx = a.x + (R() - .5)*1.4; a.tz = 11 + R()*2.2; } const p = a.g.position, dx = a.tx - p.x, dz = a.tz - p.z, d = Math.hypot(dx, dz); if (d > .05) { p.x += dx/d*Math.min(d, .5*dt); p.z += dz/d*Math.min(d, .5*dt); a.g.rotation.y = Math.atan2(dx, dz); } if (a.g.userData.legs) { a.ph = (a.ph || 0) + dt*(d > .05 ? 6 : 0); stride(a.g, a.ph, d > .05 ? .4 : 0); } }
   if (!started || (zooT -= dt) > 0) return; zooT = 25;
   const aq = W.unlocked.has('aquarium') ? 200 + Math.min(3000, W.caught*2) : 0, zoo = W.unlocked.has('zoo') ? ZOO.animals.length*(250 + 40*W.era) : 0, pay = aq + zoo;
-  if (pay) { W.coins += pay; W.earned += pay; popText(`🐠 +${pay} visitors`, new THREE.Vector3(101.5, 3.5, 12), '#ffe06b'); }
+  if (pay) { W.coins += pay; W.earned += pay; popText(`🐠 +${pay} visitors`, new THREE.Vector3(71.5, 3.5, 12), '#ffe06b'); }
 }
 
 // ------------------------------------------------------------------ the city council votes on what to do next
@@ -6990,14 +7046,14 @@ function beltScene() {
 }
 
 // ------------------------------------------------------------------ the coast: the river runs into the sea, with a fort or a town on every beach
-const COAST = {z:-119.6, sites:{
-  cove:{x:4, n:'Pirate cove'}, empire:{x:-92, n:'The old empire'}, azul:{x:82, n:'Port Azul'}, kumo:{x:102, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
-clearForest({x0:-150, x1:150, z0:-160, z1:-117});
+const COAST = {z:-89.6, sites:{
+  cove:{x:4, n:'Pirate cove'}, empire:{x:-92, n:'The old empire'}, azul:{x:52, n:'Port Azul'}, kumo:{x:72, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
+clearForest({x0:-150, x1:150, z0:-130, z1:-87});
 {
-  const sea = ground(0x2fb0e2, 320, 40, 0, -142.3, -.2); sea.material = water.material;
-  ground(0xe8d49a, 320, 4.6, 0, -120.1, -.215);
-  const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -122.5); scene.add(foam); COAST.foam = foam;
-  for (let i = 0; i < 26; i++) { const r = mesh(G.ico, 0x8a8478, [.5 + R()*.6, .3 + R()*.3, .5 + R()*.5], [-150 + i*11.6 + R()*2, -.1, -118.4 - R()*.6], scene); r.rotation.y = R()*3; }
+  const sea = ground(0x2fb0e2, 320, 40, 0, -112.3, -.2); sea.material = water.material;
+  ground(0xe8d49a, 320, 4.6, 0, -90.1, -.215);
+  const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -92.5); scene.add(foam); COAST.foam = foam;
+  for (let i = 0; i < 26; i++) { const r = mesh(G.ico, 0x8a8478, [.5 + R()*.6, .3 + R()*.3, .5 + R()*.5], [-150 + i*11.6 + R()*2, -.1, -88.4 - R()*.6], scene); r.rotation.y = R()*3; }
 }
 function coastFort(id) {
   if (COAST.forts[id]) return COAST.forts[id];
@@ -7065,13 +7121,13 @@ function startSea() {
   const war = boats.find(b => b.kind === 'war');
   if (war) { war.inFleet = true; war.lane = -13.6; war.home = -4.6; addCrew(war); }
   [[-15.2, -8.8], [-12, -8.8]].forEach(([x, z]) => { const b = makeBoat('troop'); b.x = x; b.z = z; b.inFleet = true; b.temp = true; b.lane = x; b.home = z; addCrew(b); });
-  fleet().forEach((b, k) => { b.ax = S.x - 5 + k*5; b.az = -126.6 - (k % 2)*.9; });
-  [-1, 1].forEach(s => { const p = makePirate(S.x + s*7, -136); p.hp = 3; pirates.push(p); });
+  fleet().forEach((b, k) => { b.ax = S.x - 5 + k*5; b.az = -96.6 - (k % 2)*.9; });
+  [-1, 1].forEach(s => { const p = makePirate(S.x + s*7, -106); p.hp = 3; pirates.push(p); });
 }
 function updSea(dt) {
   const C = W.camp;
   if (!C || C.type !== 'sea') { if (pirates.length && !C) { pirates.forEach(p => scene.remove(p.g)); pirates.length = 0; } return; }
-  const e = C.dur - C.t, ease = u => u < 0 ? 0 : u > 1 ? 1 : u*u*(3 - 2*u), win = C.win !== false, f = COAST.cur, MZ = -123.2, stop = win ? 35 : 30;
+  const e = C.dur - C.t, ease = u => u < 0 ? 0 : u > 1 ? 1 : u*u*(3 - 2*u), win = C.win !== false, f = COAST.cur, MZ = -93.2, stop = win ? 35 : 30;
   for (const b of fleet()) {
     let x = b.lane, z = b.home, yaw = Math.PI;
     if (e < 9) z = b.home;
@@ -7088,7 +7144,7 @@ function updSea(dt) {
   }
   // the defenders' ships come out to meet you, and go down if you are winning
   pirates.forEach((p, i) => {
-    const tx = f.g.position.x + (i ? 6 : -6), z = e < 21 ? -136 + 7*ease(e/21) : -129 + Math.sin(time*.7 + i)*.3;
+    const tx = f.g.position.x + (i ? 6 : -6), z = e < 21 ? -106 + 7*ease(e/21) : -99 + Math.sin(time*.7 + i)*.3;
     p.x = tx; p.z = z; if (win && e > 24 + i*4) p.sink = Math.min(1.6, p.sink + dt*.45);
     p.g.position.set(tx, -.26 - p.sink*2.4 + Math.sin(time*2 + i)*.06, z);
     p.g.rotation.y = Math.PI/2 + Math.sin(time*.9 + i)*.2; p.g.rotation.z = p.sink*.8;
@@ -7217,7 +7273,7 @@ function sailAway(war) {
 function updFleets(dt) {
   for (const f of [...COAST.fleets]) {
     f.t += dt; f.g.position.z -= dt*5;
-    if (f.g.position.z < -123) { f.g.rotation.y = Math.PI/2; f.g.position.z = -124; f.g.position.x += dt*5; }
+    if (f.g.position.z < -93) { f.g.rotation.y = Math.PI/2; f.g.position.z = -94; f.g.position.x += dt*5; }
     if (f.t > 40) { scene.remove(f.g); COAST.fleets.splice(COAST.fleets.indexOf(f), 1); }
   }
 }
@@ -7275,7 +7331,7 @@ function startSiege(r) {
     } else if (cb && i % 5 === 2 && gi < 3) { f.role = 'gate'; f.wx = cb.x1 + .7 + (gi % 2)*.5; f.wz = 87.4 + gi*.45; gi++; }
     SIEGE.foes.push(f);
   }
-  if (r.sea) for (const [x, z] of [[-14.4, 86], [-12.8, 90]]) { const p = makePirate(x, r.id === 'azul' ? -138 : 138); Object.assign(p, {tz:z, hp:win ? 4 : 9, sink:0}); SIEGE.ships.push(p); }
+  if (r.sea) for (const [x, z] of [[-14.4, 86], [-12.8, 90]]) { const p = makePirate(x, r.id === 'azul' ? -108 : 138); Object.assign(p, {tz:z, hp:win ? 4 : 9, sink:0}); SIEGE.ships.push(p); }
   // archers man the stone walls
   if (cb && W.castle >= 2) for (let k = 0; k < Math.min(6, W.castle*2); k++) {
     const c = makeChar(ARMS()); c.g.position.set(cb.x0 + 1 + k*((cb.x1 - cb.x0 - 2)/5), H - .1, cb.z1 - (W.castle === 3 ? 1.3 : .8)); scene.add(c.g); c.armR.rotation.x = -1.5; SIEGE.archers.push(c);
@@ -7457,7 +7513,8 @@ const govCost = () => 1500 + 600*W.era;
 function loyParts(k) {
   const L = land(k), n = landKeys().length;
   return {base:-4, garrison:Math.min(3, W.army / (4 + 2*n)), senate:W.unlocked.has('senate') ? 2.5 : 0, governor:L.gov ? 3.5 : 0,
-    festival:W.festival > 0 ? 2 : 0, policy:policy('happy')/6, war:EMP.list.some(r => W.flags.emp?.[r.id]?.stance === 'war') ? -1 : 0};
+    festival:W.festival > 0 ? 2 : 0, policy:policy('happy')/6, ruins:DSTYLE[k] && DPARTS[DSTYLE[k]] ? -.6*((W.flags.dmg || {})[DSTYLE[k]] || []).length : 0,
+    markets:DSTYLE[k] && DPARTS[DSTYLE[k]] ? .5*DPARTS[DSTYLE[k]].filter((p, i) => p.stall && !(((W.flags.dmg || {})[DSTYLE[k]] || []).includes(i))).length : 0, war:EMP.list.some(r => W.flags.emp?.[r.id]?.stance === 'war') ? -1 : 0};
 }
 const loyRate = k => Object.values(loyParts(k)).reduce((a, b) => a + b, 0);
 function updLands(t) {
@@ -7686,7 +7743,7 @@ function jetModel(b, big, cargo, tail) {
 }
 
 // ------------------------------------------------------------------ the beach: palms along the sand
-if (MODELS.palm) for (const x of [-116, -107, -100, -82, -17, -5.5, 12.5, 90, 94, 110.5, 116]) {
+if (MODELS.palm) for (const x of [-116, -107, -100, -82, -17, -5.5, 12.5, 60, 64, 80.5, 86]) {
   const p = model('palm', 3 + (Math.abs(x*7) % 10)/10, 'y'); p.position.set(x, -.2, -58.9 - (Math.abs(x*3) % 7)/10); p.rotation.y = x; scene.add(p);
 }
 
@@ -7723,13 +7780,13 @@ function arenaStage(n, anim) {
   ARENA.lv = Math.max(ARENA.lv, n);
   const [cx, cz] = RUGBY.at, P = ARENA.parts;
   if (!ARENA.g) {
-    clearForest({x0:94, x1:109, z0:73.5, z1:91});
+    clearForest({x0:64, x1:79, z0:73.5, z1:91});
     slab(0x8a8478, 13.4, 16, cx, cz, .004);
-    AREAS.push({x0:90.4, x1:96.6, z0:89, z1:90.2}, {x0:95, x1:108, z0:74.6, z1:90.2});
+    AREAS.push({x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:65, x1:78, z0:74.6, z1:90.2});
     // a path round the west side of the bowl joins the stadium to the zoo strip (the civic block fills the strip further south)
-    clearForest({x0:93.2, x1:95.5, z0:73.4, z1:90.4});
-    AREAS.push({x0:93.4, x1:95.3, z0:73.6, z1:90.2}, {x0:93.4, x1:97.2, z0:73.6, z1:74.8});
-    slab(0xb98f5c, 1.9, 16.6, 94.35, 81.9, .012); slab(0xb98f5c, 3.8, 1.2, 95.3, 74.2, .012);
+    clearForest({x0:63.2, x1:65.5, z0:73.4, z1:90.4});
+    AREAS.push({x0:63.4, x1:65.3, z0:73.6, z1:90.2}, {x0:63.4, x1:67.2, z0:73.6, z1:74.8});
+    slab(0xb98f5c, 1.9, 16.6, 64.35, 81.9, .012); slab(0xb98f5c, 3.8, 1.2, 65.3, 74.2, .012);
     ARENA.g = new THREE.Group(); ARENA.g.position.set(cx, 0, cz); scene.add(ARENA.g);
     // the floor: a lawn for the amphitheater, a striped pitch later
     const lawn = new THREE.Mesh(new THREE.CircleGeometry(1, 48), mat(0x5aa83c, {roughness:.95})); lawn.rotation.x = -Math.PI/2; lawn.scale.set(ARX, ARY, 1); lawn.position.y = .012; lawn.receiveShadow = true; ARENA.g.add(lawn); P.lawn = lawn;
@@ -7968,7 +8025,7 @@ let investZone = null;
 function investTile() {
   if (investZone) return;
   // on the steps beside the exchange, or behind it while the flight research plot there is still unbuilt
-  const at = W.unlocked.has('sciFlight') ? [82.4, -9.2] : [80.2, -74];
+  const at = W.unlocked.has('sciFlight') ? [52.4, -9.2] : [50.2, -44];
   investZone = addZone({kind:'invest', x:at[0], z:at[1], icon:'📈', tile:{alpha:1, size:84, label:'Invest', fill:'rgba(30,110,70,.65)'}});
 }
 function updInvestTile() {
@@ -8030,7 +8087,7 @@ function startBoss() {
   const kind = W.era >= 8 ? 'kaiju' : 'dragon', g = kind === 'kaiju' ? (kaijuModel() || makeBoss(kind)) : makeBoss(kind);
   scene.add(g);
   const hp = kind === 'kaiju' ? 90 + 15*W.era : 50 + 8*W.era, F = bossForces(), dps = Object.values(F).reduce((a, b) => a + b, 0);
-  BOSS.on = {kind, g, hp, maxHp:hp, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -78), target:null, breath:0};
+  BOSS.on = {kind, g, hp, maxHp:hp, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -48), target:null, breath:0};
   $('bossBar').hidden = false; $('bossName').textContent = kind === 'dragon' ? '🐉 The Red Dragon' : '🦖 The Kaiju';
   const have = Object.entries(F).filter(([, v]) => v > 0).map(([k]) => ({soldiers:'🪖 soldiers', tanks:'🛡️ tanks', planes:'✈️ planes', warship:'⚓ warship', castle:'🏰 castle guns'})[k]);
   banner(kind === 'dragon' ? '🐉 A dragon attacks!' : '🦖 A kaiju rises from the river!', have.length ? `Fighting back: ${have.join(', ')}.` : 'You have nothing that can fight it. It will wreck the town until it leaves.');
@@ -8115,7 +8172,7 @@ function updBoss(dt) {
 // ------------------------------------------------------------------ conquered lands join your map, each in its own style
 const STYLE_SPOTS = {
   austria:{n:'Ostberg', flag:'🇦🇹', rect:{x0:-9, x1:14, z0:111, z1:122.5}, centre:[2.5, 116.5]},
-  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:74, x1:88.5, z0:110, z1:121.5}, centre:[81.2, 115.8]},
+  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:44, x1:58.5, z0:110, z1:121.5}, centre:[51.2, 115.8]},
   mideast:{n:'Pirate cove', flag:'🕌', site:'cove'}, russia:{n:'The old empire', flag:'⛪', site:'empire'},
   brazil:{n:'Port Azul', flag:'🇧🇷', site:'azul'}, china:{n:'Kumo', flag:'🏯', site:'kumo'}};
 const DISTRICT = {built:{}, enter:{}, ferry:null, back:null};
@@ -8142,6 +8199,63 @@ const LAYOUT = {
   russia:[['onionChurch', 5.2, 0, -53.5, 0], ['kremlinTower', 6, -4.6, -56, 0], ['kremlinTower', 6, 4.6, -56, 0], ['kremlinWall', 1.8, -2.4, -57, 0], ['kremlinWall', 1.8, 2.4, -57, 0]],
   brazil:[['statue', 5.2, 0, -52.6, 0], ['colonial', 3, -4.4, -56, 0], ['colonial', 3, -1.4, -56, 0], ['colonial', 3, 1.6, -56, 0], ['colonial', 3, 4.6, -56, 0]],
   china:[['pagoda', 6.5, 0, -53.2, 0], ['paifang', 3, 0, -57.2, 0], ['chineseHouse', 2.4, -4.6, -55, 0], ['chineseHouse', 2.4, 4.6, -55, 0], ['chineseHouse', 2.4, -4.6, -51.8, 0], ['chineseHouse', 2.4, 4.6, -51.8, 0]]};
+const LAYOUT2 = {
+  austria:[['c', 'cSpires', 7, 2.5, 118.6], ['s', 'chalet', 3.2, -6.5, 113.6], ['s', 'chalet', 3.2, 11.5, 113.6], ['s', 'chalet', 3.2, -6.5, 119.5], ['c', 'stall', 2.2, -2.2, 112.6], ['c', 'stall', 2.2, 7.4, 112.6], ['c', 'stall', 2.2, 10.8, 119.5]],
+  canada:[['s', 'logCabin', 3, 48, 117.5], ['s', 'logCabin', 3, 54.5, 117.5], ['s', 'maple', 3.6, 46, 112.5], ['s', 'maple', 3.6, 57, 113], ['c', 'stall', 2.2, 51.2, 112.6], ['c', 'stall', 2.2, 51.2, 119.6]],
+  mideast:[['c', 'cPalace', 6.5, 0, -84], ['s', 'souk', 2, -5.6, -82.5], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86]],
+  russia:[['s', 'onionChurch', 5.5, 0, -83.8], ['s', 'kremlinTower', 6, -5.4, -83], ['c', 'stall', 2.2, 5.4, -83.4], ['c', 'stall', 2.2, 5.4, -86.2]],
+  brazil:[['c', 'cTropic', 7, 0, -84.2], ['s', 'colonial', 3, -5.6, -82.6], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86.2]],
+  china:[['c', 'cHimeji', 8, 0, -84], ['s', 'chineseHouse', 2.4, -5.6, -82.6], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86.2]]};
+const DSTYLE = {'r:ostberg':'austria', 'r:azul':'brazil', 'r:kumo':'china', c2:'mideast', c4:'russia', c5:'canada'};
+const DPARTS = {};   // style -> [{g, x, z, name, zone, stall}]
+function castleModel(name, h) {
+  const src = MODELS.castles && MODELS.castles.getObjectByName(name); if (!src) return null;
+  const m = src.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0);
+  const bb = new THREE.Box3().setFromObject(m), g = new THREE.Group(); m.position.y = -bb.min.y; g.add(m); g.scale.setScalar(h / (bb.max.y - bb.min.y));
+  m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return g;
+}
+// damage: darkened, leaning, smoking; repaired: as built
+function setRuined(p, on) {
+  p.g.rotation.z = on ? .06 * (p.x > 0 ? 1 : -1) : 0;
+  p.g.traverse(o => { if (!o.isMesh) return; const ms = [].concat(o.material);
+    const nm = ms.map(m => { if (on) { if (!m.userData.burnt) { const c = m.clone(); c.color.multiplyScalar(.42); c.userData.burnt = true; c.userData.orig = m; return c; } return m; } return m.userData.orig || m; });
+    o.material = Array.isArray(o.material) ? nm : nm[0]; });
+  if (on && !p.rubble) { p.rubble = new THREE.Group(); for (let i = 0; i < 5; i++) mesh(G.ico, 0x5a5650, [.35 + R()*.3, .25, .35 + R()*.3], [p.x + (R() - .5)*2.4, .1, p.front + .4 + R()*.6], p.rubble); scene.add(p.rubble); }
+  if (!on && p.rubble) { scene.remove(p.rubble); p.rubble = null; }
+}
+const fixCost = p => Math.round((p.name[0] === 'c' && p.name !== 'stall' ? 3 : 1) * (1200 + 350*W.era));
+function fixZones(style) {
+  const broken = (W.flags.dmg || {})[style] || [];
+  for (const [i, p] of (DPARTS[style] || []).entries()) {
+    const want = broken.includes(i);
+    if (want && !p.zone) { p.zone = addZone({kind:'fix', style, idx:i, x:p.x, z:p.front + 1.3, w:1.5, d:1.5, icon:'🔨', tile:{}}); p.zone.key = ''; }
+    if (!want && p.zone) { removeZone(p.zone); p.zone = null; }
+    if (p.zone) { const paid = (W.flags.fixPaid || {})[style + i] || 0, cost = fixCost(p), key = paid + ':' + cost;
+      if (p.zone.key !== key) { p.zone.key = key; drawTile(p.zone.tc.g, '🔨', {cost:cost - paid, cur:'💵', prog:paid/cost, title:'Repair'}); p.zone.tc.t.needsUpdate = true; } }
+  }
+}
+function payFix(zn, e) {
+  const p = DPARTS[zn.style][zn.idx], cost = fixCost(p), fp = (W.flags.fixPaid ||= {}), key = zn.style + zn.idx, paid = fp[key] || 0;
+  if (W.coins <= 0) { e.tick = .3; return; }
+  const amt = Math.min(cost - paid, W.coins, Math.max(1, Math.ceil(cost / 20)));
+  W.coins -= amt; W.upSpent += amt; fp[key] = paid + amt; e.tick = .05; snd(500 + paid/cost*400, .03, 'square', .025);
+  if (fp[key] >= cost) {
+    delete fp[key]; W.flags.dmg[zn.style] = W.flags.dmg[zn.style].filter(i => i !== zn.idx); setRuined(p, false); puff(p.x, p.front);
+    const k = Object.keys(DSTYLE).find(q => DSTYLE[q] === zn.style); if (k) land(k).loy = Math.min(100, land(k).loy + 8);
+    banner(p.stall ? '🛒 A market stall reopens' : '🔨 Rebuilt', p.stall ? 'Trade is back: the stall pays you, and the people cheer up.' : 'The people see you rebuilding. Their morale rises.');
+    save();
+  }
+  fixZones(zn.style);
+}
+// open stalls pay, and every ruin still standing weighs on the people
+let stallT = 30;
+function updMarkets(dt) {
+  if (!started || (stallT -= dt) > 0) return; stallT = 30;
+  let pay = 0; const dmg = W.flags.dmg || {};
+  for (const [style, parts] of Object.entries(DPARTS)) parts.forEach((p, i) => { if (p.stall && !(dmg[style] || []).includes(i)) pay += 150 + 40*W.era; });
+  if (pay && CASH.spoils) addCash(CASH.spoils, pay, {x:12.3, z:84.8});
+  for (const [style, parts] of Object.entries(DPARTS)) for (const i of (dmg[style] || [])) if (R() < .6) { const p = parts[i]; if (p) for (let k = 0; k < 4; k++) particle(0x555555, new THREE.Vector3(p.x + (R() - .5)*2, 2 + R()*2, p.front - 1), new THREE.Vector3(0, 1.6, 0), 2.2, .5, {grow:.8, op:.55}); }
+}
 function buildDistrict(style, anim) {
   if (DISTRICT.built[style] || !MODELS.styles) return;
   const S = STYLE_SPOTS[style], list = DISTRICT.built[style] = [];
@@ -8149,12 +8263,12 @@ function buildDistrict(style, anim) {
   if (S.site) {
     // coastal lands: the old fort comes down and the town grows behind the beach
     const f = coastFort(S.site); f.g.visible = false; ox = COAST.sites[S.site].x;
-    rect = {x0:ox - 7.5, x1:ox + 7.5, z0:-121.6, z1:-110.5};
-    clearForest({x0:rect.x0, x1:rect.x1, z0:-122, z1:-110});
-    slab(0xd8c49a, 15, 6, ox, -114, .004);
-    DISTRICT.ferryBack ||= addZone({kind:'ferry', back:true, x:-9, z:-119.2, icon:'⛵', tile:{alpha:1, size:84, label:'Sail home', fill:'rgba(30,90,140,.65)'}});
-    AREAS.push({x0:-120, x1:120, z0:-121.6, z1:-117.9});
-    if (!DISTRICT.sandbar) { DISTRICT.sandbar = true; for (let i = 0; i < 12; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.55, .12, 2.2], [-16.6 + i*.56, -.1, -119.7], scene); }
+    rect = {x0:ox - 7.5, x1:ox + 7.5, z0:-91.6, z1:-80.5};
+    clearForest({x0:rect.x0, x1:rect.x1, z0:-92, z1:-80});
+    slab(0xd8c49a, 15, 6, ox, -84, .004);
+    DISTRICT.ferryBack ||= addZone({kind:'ferry', back:true, x:-9, z:-89.2, icon:'⛵', tile:{alpha:1, size:84, label:'Sail home', fill:'rgba(30,90,140,.65)'}});
+    AREAS.push({x0:-120, x1:120, z0:-91.6, z1:-87.9});
+    if (!DISTRICT.sandbar) { DISTRICT.sandbar = true; for (let i = 0; i < 12; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.55, .12, 2.2], [-16.6 + i*.56, -.1, -89.7], scene); }
   } else {
     clearForest({x0:rect.x0 - 1, x1:rect.x1 + 1, z0:rect.z0 - 1, z1:rect.z1 + 1});
     slab(style === 'austria' ? 0xc8c0b0 : 0xa89a78, rect.x1 - rect.x0, rect.z1 - rect.z0, (rect.x0 + rect.x1)/2, (rect.z0 + rect.z1)/2, .004);
@@ -8164,13 +8278,26 @@ function buildDistrict(style, anim) {
     if (style === 'austria' && EV.rivalG) { scene.remove(EV.rivalG); EV.rivalG = null; EV.noRival = true; }
   }
   AREAS.push(rect);
-  LAYOUT[style].forEach(([name, h, x, z, ry], i) => { const g = plant(name, h, x + ox, z, ry, style, i, list); if (g && anim) popIn(g); });
+  // one great castle, a market and homes; everything faces the way you arrive (-z)
+  const parts = DPARTS[style] = [];
+  if (MODELS.castles) for (const [kit, name, h, x0, z] of LAYOUT2[style]) {
+    const x = x0 + ox, g = kit === 'c' ? castleModel(name, h) : styleModel(name, h, 0); if (!g) continue;
+    g.rotation.y = Math.PI; g.position.set(x, 0, z); scene.add(g); if (kit === 's') recolor(g, WALLS[style], parts.length); list.push(g);
+    const bb = new THREE.Box3().setFromObject(g); boxes.push({x0:bb.min.x + .15, x1:bb.max.x - .15, z0:bb.min.z + .15, z1:bb.max.z - .15});
+    parts.push({g, x, z, name, front:bb.min.z, stall:name === 'stall'}); if (anim) popIn(g);
+  } else LAYOUT[style].forEach(([name, h, x, z, ry], i) => { const g = plant(name, h, x + ox, z, ry, style, i, list); if (g && anim) popIn(g); });
+  // taken by war: the town is damaged when you first take it (older saves count as already rebuilt)
+  const dmg = (W.flags.dmg ||= {});
+  if (!(style in dmg)) dmg[style] = anim ? parts.map((_, i) => i) : [];
+  for (const i of dmg[style]) if (parts[i]) setRuined(parts[i], true);
+  fixZones(style);
   // your flags over the new province
   for (const [x, z] of [[rect.x0 + 1, rect.z1 - 1], [rect.x1 - 1, rect.z1 - 1]]) { mesh(G.cyl, 0x5e3f22, [.05, 3, .05], [x, 1.5, z], scene); mesh(G.box, 0xf2c200, [.9, .55, .03], [x + .46, 2.7, z], scene); }
   if (anim) banner(`${S.flag} ${S.n} joins your map!`, S.site ? 'Take the ferry from the harbour to walk its streets.' : 'Walk south across the old battlefield to visit.');
 }
 function styleFor(r) { return {ostberg:'austria', azul:'brazil', kumo:'china'}[r.id]; }
 function updDistricts(dt) {
+  updMarkets(dt);
   if ((DISTRICT.t = (DISTRICT.t || 0) - dt) > 0) return; DISTRICT.t = .3;
   for (const r of EMP.list) { const s = W.flags.emp?.[r.id]; if (s && s.owned && styleFor(r)) buildDistrict(styleFor(r), started); }
   const coast = W.flags.coast || {};
@@ -8182,12 +8309,12 @@ function updDistricts(dt) {
   // a welcome the first time you walk into each province
   for (const [style, S] of Object.entries(STYLE_SPOTS)) {
     if (!DISTRICT.built[style] || DISTRICT.enter[style]) continue;
-    const rect = S.rect || {x0:COAST.sites[S.site].x - 7.5, x1:COAST.sites[S.site].x + 7.5, z0:-121.6, z1:-110.5};
+    const rect = S.rect || {x0:COAST.sites[S.site].x - 7.5, x1:COAST.sites[S.site].x + 7.5, z0:-91.6, z1:-80.5};
     if (inRect(rect, player.pos.x, player.pos.z)) { DISTRICT.enter[style] = true; banner(`${S.flag} Welcome to ${S.n}`, 'Your province, in its own style.'); }
   }
 }
 function takeFerry(zn) {
-  const to = zn.back ? [-8.86, 2.2] : [-9, -120.4];
+  const to = zn.back ? [-8.86, 2.2] : [-9, -90.4];
   for (let i = 0; i < 16; i++) particle(0xe8f8ff, player.pos.clone().setY(.2), new THREE.Vector3((R() - .5)*3, 1 + R()*2, (R() - .5)*3), .6, .15, {grav:1});
   player.pos.set(to[0], 0, to[1]); camera.position.set(to[0] + 11.8, 19, to[1] + 11.8);
   banner(zn.back ? '⛵ Back at the harbour' : '⛵ Down the river to the coast', zn.back ? 'Welcome home.' : 'Walk along the beach to your coastal provinces.');
@@ -8295,7 +8422,9 @@ function load() {
     if (W.flags.traders) setTimeout(() => addTraders(W.flags.traders), 0);
     W.decor = s.decor || []; W.rival = s.rival || 0;
     // saves from before the map spread out: move placed decorations into the new, wider world
-    if (!W.flags.spread) { for (const d of W.decor) [d.x, d.z] = spreadPt(d.x, d.z); W.flags.spread = 1; } W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
+    if (!W.flags.spread) { for (const d of W.decor) [d.x, d.z] = spreadPt(d.x, d.z); W.flags.spread = 2; }
+    // saves from the first wide map (60 each way): the quarry and market quarter came 30 closer
+    if (W.flags.spread === 1) { for (const d of W.decor) [d.x, d.z] = closerPt(d.x, d.z); W.flags.spread = 2; } W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
     for (const d of W.decor) circles.push({x:d.x, z:d.z, r:DECOR[d.k].r, decor:decorMesh(d.k, d.x, d.z, d.ry)});
     if (W.rival || W.rivalAlly) rivalCity();
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
@@ -8360,9 +8489,9 @@ ripples.forEach(r => { r.material.opacity = .22; });
   const o = new THREE.Object3D(), c = new THREE.Color();
   seed = 123; let k = 0, f = 0;
   for (let n = 0; n < N * 4 && k < N * 3; n++) {
-    const x = -100 + rnd()*205, z = -100 + rnd()*215;
+    const x = -100 + rnd()*175, z = -80 + rnd()*200;
     if (x > -17.4 && x < -9.9) continue;                          // the river and its sand
-    if (x > -10.6 && x < 73.6 && z > -73.2 && z < 74.2) continue;  // the camp
+    if (x > -10.6 && x < 43.6 && z > -43.2 && z < 74.2) continue;  // the camp
     for (let b = 0; b < 3 && k < N * 3; b++, k++) {
       o.position.set(x + (rnd() - .5)*.22, GY, z + (rnd() - .5)*.22); o.rotation.set((rnd() - .5)*.5, rnd()*6, (rnd() - .5)*.5); o.scale.setScalar(.7 + rnd()*.7);
       o.updateMatrix(); blades.setMatrixAt(k, o.matrix);
@@ -8418,7 +8547,7 @@ function addGlows() {
 const flies = (() => {
   const n = MOBILE ? 40 : 90, pos = new Float32Array(n*3), base = [];
   seed = 55;
-  for (let i = 0; i < n; i++) { const x = -90 + rnd()*190, z = -90 + rnd()*190; if (x > -11 && x < 14 && z > -13 && z < 14) { i--; continue; } base.push([x, .4 + rnd()*1.2, z, rnd()*6]); }
+  for (let i = 0; i < n; i++) { const x = -90 + rnd()*170, z = -70 + rnd()*180; if (x > -11 && x < 14 && z > -13 && z < 14) { i--; continue; } base.push([x, .4 + rnd()*1.2, z, rnd()*6]); }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const p = new THREE.Points(geo, new THREE.PointsMaterial({color:0xfff27a, size:.16, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
   p.frustumCulled = false; scene.add(p); p.base = base; return p;
@@ -8483,7 +8612,7 @@ function updFx(dt, dk) {
   FX.t.value = time;
   const night = clamp((.5 - dk) * 2.4, 0, 1);
   scene.environmentIntensity = .18 + .42*dk;
-  for (const c of clouds) { c.position.x += dt * .9; if (c.position.x > 120) c.position.x = -120; }
+  for (const c of clouds) { c.position.x += dt * .9; if (c.position.x > 90) c.position.x = -120; }
   if (glows.length !== fireLights.length) addGlows();
   for (const s of glows) { s.material.opacity = .35 + night*.55 + Math.sin(time*13 + s.id)*.05; }
   flies.material.opacity = night * .95;
@@ -8515,7 +8644,7 @@ function updAO() {
 const SUNC = {noon:new THREE.Color(0xfff2dc), gold:new THREE.Color(0xffa860), moon:new THREE.Color(0x8aa8ff), skyD:new THREE.Color(0xdcefff), skyG:new THREE.Color(0xffd4b0), skyN:new THREE.Color(0x3a4a7a), tmp:new THREE.Color()};
 const SNAP = {f:new THREE.Vector3(), r:new THREE.Vector3(), u:new THREE.Vector3(), d:new THREE.Vector3(), Y:new THREE.Vector3(0, 1, 0)};
 function lightAt(fx, fz, dk) {
-  const a = time / 240 * Math.PI * 2, az = .9 + Math.sin(a*.5) * 1.1, el = 7 + 15*dk;
+  const a = time / 240 * Math.PI * 2, az = 3.45 + Math.sin(a*.5) * .45, el = 6 + 11*dk;
   sun.position.set(fx + Math.cos(az)*13, el, fz + Math.sin(az)*13); sun.target.position.set(fx, 0, fz);
   // slide the shadow map in whole texels so shadow edges hold still as the camera follows you
   {
@@ -8662,7 +8791,7 @@ function update(dt) {
     if (p.t >= 1) { if (p.rise) p.obj.position.y = 0; else p.obj.scale.setScalar(p.obj.userData.lvScale || 1); popIns.splice(popIns.indexOf(p), 1); }
   }
   for (const f of fires) f.m.scale.y = f.base * (.8 + Math.sin(time * 13 + f.ph) * .2);
-  for (const r of ripples) { r.position.z += dt * 2.2; if (r.position.z > 100) r.position.z = -100; }
+  for (const r of ripples) { r.position.z += dt * 2.2; if (r.position.z > 100) r.position.z = -70; }
   for (const f of [ST.flag, ST.flag2, ST.flag3]) if (f) f.rotation.y = Math.sin(time * 3) * .25;
   smoke(dt); updParts(dt); updFaders(dt);
   for (const p of [...pops]) if ((p.t += dt) > 1.2) { p.el.remove(); pops.splice(pops.indexOf(p), 1); }
@@ -8966,7 +9095,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
