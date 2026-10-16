@@ -190,7 +190,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb'};
   const TL = new THREE.TextureLoader(), texJobs = PH_IDS.flatMap(id => ['diff', 'nor_gl', 'rough'].map(k => TL.loadAsync(`./tex/${id}_${k}_1k.jpg`).then(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (k === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     const T = TEX[id] ||= {}; T[{diff:'map', nor_gl:'normalMap', rough:'roughnessMap'}[k]] = t;
@@ -2596,6 +2596,7 @@ function zoneAct(e, zn, dt) {
       break;
     }
     case 'war': if (e.isPlayer) warAct(zn, e); break;
+    case 'recruit': if (e.isPlayer) payRecruit(zn, e); e.tick = .2; break;
     case 'ferry': if (e.isPlayer && player.zoneT > .6) { takeFerry(zn); player.zoneT = 0; } e.tick = .2; break;
     case 'dock': if (e.isPlayer && player.zoneT > .6 && !BOAT.on && W.unlocked.has('speedboat')) { boatOn(zn.dock); player.zoneT = -2; } e.tick = .2; break;
     case 'fly': if (e.isPlayer && player.zoneT > .6 && !TRIP.on && $('modal').hidden) { openFlights(zn); player.zoneT = -2; } e.tick = .2; break;
@@ -4644,8 +4645,8 @@ function updTrain(dt) {
     T.z = want; T.leg = (T.leg + 1) % TRAIN_STOPS.length; T.wait = want === RAIL.stop ? 5 : 3;
     if (want === RAIL.stop) trainArrives(T);
   } else {
-    const sp = Math.min(top, Math.sqrt(2 * 2.5 * Math.abs(d)) + .3);
-    T.v = Math.sign(d) * sp; T.z += T.v*dt;
+    const sp = Math.min(top, Math.sqrt(2 * 2.5 * Math.abs(d)) + .3, xingLimit(T, Math.sign(d)));
+    T.held = sp < .05; T.v = T.held ? 0 : Math.sign(d) * sp; T.z += T.v*dt;
     if (Math.sign(want - T.z) !== Math.sign(d)) T.z = want;
   }
   // the head leads in whichever direction the train travels
@@ -5020,20 +5021,106 @@ function makeWagon(g, cars) {
 }
 
 // ------------------------------------------------------------------ footbridges over the railway, so nobody walks in front of a train
+const XING = {h:2.7, list:[{zc:1.9, z0:.35, z1:3.45, sn:-.15, ss:3.95}, {zc:89.6, z0:88.95, z1:90.25, sn:88.6, ss:90.6}],
+  foot:[{z0:5.0, z1:6.1}, {z0:87.15, z1:88.25}], built:false, blink:0};
 const OV_H = 2.35, OVERPASS = [{x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:.15, z1:4.95}, {x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:88.9, z1:90.3}];
 function elevAt(x, z) {
   if (railsG && x > 61.4 && x < 62.95 && Math.abs(z - RAIL.stop) < 4) return .36;   // the station platform
   if (x < -10.25 && x > -14.8 && z > .1 && z < 1.9) return .29;   // the fishing dock
   if (W.bridge && x > BR.x0 && x < BR.x1 && Math.abs(z - BR.z) < 1) return DECK[W.bridge];
-  if (railsG) for (const o of OVERPASS) if (z > o.z0 && z < o.z1 && x > o.x0 && x < o.x3)
-    return x < o.x1 ? OV_H * (x - o.x0) / (o.x1 - o.x0) : x > o.x2 ? OV_H * (o.x3 - x) / (o.x3 - o.x2) : OV_H;
+  if (railsG) for (const f of XING.foot) if (z > f.z0 && z < f.z1 && x > 59.6 && x < 67.6)
+    return x < 61.8 ? XING.h * (x - 59.6) / 2.2 : x > 65.4 ? XING.h * (67.6 - x) / 2.2 : XING.h;
   return 0;
 }
+function stripeTex() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 16; const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#111111' : '#f2c200'; g.beginPath(); g.moveTo(i*16, 0); g.lineTo(i*16 + 16, 0); g.lineTo(i*16 + 8, 16); g.lineTo(i*16 - 8, 16); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function diamondTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.translate(64, 64); g.rotate(Math.PI/4); g.fillStyle = '#111'; g.fillRect(-44, -44, 88, 88); g.fillStyle = '#f2c200'; g.fillRect(-39, -39, 78, 78); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.strokeStyle = '#111'; g.lineWidth = 9; g.beginPath(); g.moveTo(40, 40); g.lineTo(88, 88); g.moveTo(88, 40); g.lineTo(40, 88); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function levelCrossings(anim) {
+  if (XING.built) return; XING.built = true;
+  const g = new THREE.Group(); scene.add(g); XING.g = g; XING.posts = [];
+  const STRIPE = new THREE.MeshStandardMaterial({map:stripeTex(), roughness:.6}), DIA = new THREE.MeshBasicMaterial({map:diamondTex(), transparent:true, side:THREE.DoubleSide, toneMapped:false});
+  for (const X of XING.list) {
+    // rubber crossing panels over the rails, flush with the road
+    mesh(G.box, 0x2e3034, [3.2, .1, X.z1 - X.z0 - .1], [RAIL.x, .12, (X.z0 + X.z1)/2], g);
+    for (const dx of [-.72, .72]) mesh(G.box, 0x8a8f96, [.08, .11, X.z1 - X.z0 - .1], [RAIL.x + dx, .13, (X.z0 + X.z1)/2], g, {metalness:.7});
+    // a signal post on each approach (on the driver's right): crossbuck, warning diamond, two red lamps, a striped arm
+    for (const [px, pz, side] of [[RAIL.x - 2.3, X.sn, -1], [RAIL.x + 2.3, X.ss, 1]]) {
+      const p = new THREE.Group(); p.position.set(px, 0, pz); g.add(p);
+      const pole = new THREE.Mesh(G.cyl, STRIPE); pole.scale.set(.07, 2.6, .07); pole.position.y = 1.3; p.add(pole);
+      for (const a of [.6, -.6]) { const b = new THREE.Mesh(G.box, STRIPE); b.scale.set(1.15, .17, .03); b.position.set(0, 2.45, 0); b.rotation.z = a; b.rotation.y = Math.PI/2; p.add(b); }
+      const dia = new THREE.Mesh(G.plane, DIA); dia.scale.set(.75, .75, 1); dia.position.set(-side*.06, 1.85, 0); dia.rotation.y = side > 0 ? Math.PI/2 : -Math.PI/2; p.add(dia);
+      mesh(G.box, 0x111111, [.1, .3, .95], [0, 1.5, 0], p);
+      const lamps = [-.32, .32].map(dz => { const l = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0x3a0a0a, toneMapped:false})); l.scale.setScalar(.12); l.position.set(-side*.08, 1.5, dz); p.add(l); return l; });
+      const arm = new THREE.Group(); arm.position.set(0, .95, 0); p.add(arm);
+      const bar = new THREE.Mesh(G.box, STRIPE); bar.scale.set(.08, .08, 2.9); bar.position.z = -side*1.55; bar.rotation.x = 0; arm.add(bar);
+      mesh(G.box, 0x333333, [.22, .3, .3], [0, .95, 0], p);
+      arm.rotation.x = side*1.45;   // raised
+      XING.posts.push({p, lamps, arm, side, X});
+      boxes.push({x0:px - .2, x1:px + .2, z0:pz - .2, z1:pz + .2});
+    }
+  }
+  // the footbridges: stairs up, a fenced deck over the rails, stairs down
+  for (const f of XING.foot) {
+    const zc = (f.z0 + f.z1)/2, wz = f.z1 - f.z0, H = XING.h;
+    mesh(G.box, 0xb8b2a6, [3.6, .18, wz], [63.6, H - .09, zc], g);
+    for (const [a, b] of [[59.6, 61.8], [67.6, 65.4]]) for (let i = 0; i < 9; i++) { const h = H*(i + 1)/9; mesh(G.box, i % 2 ? 0xc9c4ba : 0xbdb8ae, [Math.abs(b - a)/9 + .01, .16, wz], [a + (b - a)*(i + .5)/9, h - .08, zc], g); }
+    for (const x of [62.0, 65.2]) for (const z of [f.z0 + .15, f.z1 - .15]) mesh(G.box, 0x9a958c, [.2, H, .2], [x, H/2, z], g);
+    for (const z of [f.z0 + .03, f.z1 - .03]) { mesh(G.box, 0x3a6a5a, [3.6, .05, .05], [63.6, H + .9, z], g, {metalness:.5}); for (let x = 61.9; x <= 65.4; x += .5) mesh(G.box, 0x3a6a5a, [.04, .9, .04], [x, H + .45, z], g, {metalness:.5}); }
+    AREAS.push({x0:59.4, x1:67.8, z0:f.z0 - .3, z1:f.z1 + .3});
+  }
+  if (anim) popIn(g);
+}
+const onXing = (X, x, z) => x > RAIL.x - 2.1 && x < RAIL.x + 2.1 && z > X.z0 - .1 && z < X.z1 + .1;
+function xingBusy(X) {
+  // anyone on the crossing, or just stepping onto it
+  if (onXing(X, player.pos.x, player.pos.z) && (player.rideY || 0) < 1.5 && !TRIP.on) return true;
+  const at = q => q.pos || (q.c && q.c.g && q.c.g.position) || (q.char && q.char.g.position) || (q.g && q.g.position);
+  for (const L of [movers, strollers, workers, soldiers, walkers]) for (const q of L) { const p = at(q); if (p && onXing(X, p.x, p.z)) return true; }
+  return false;
+}
+function updCrossings(dt) {
+  if (!railsG || !XING.built) { if (railsG && !XING.built) levelCrossings(false); return; }
+  const T = railTrain, len = T ? T.lens.reduce((a, b) => a + b, 0) : 0;
+  XING.blink += dt;
+  for (const X of XING.list) {
+    X.busy = xingBusy(X);
+    // the bells and lights run from the moment a train is near until its last car is past
+    let near = false;
+    if (T) { const dir = T.dir || 1, head = T.z, tail = T.z - dir*len, lo = Math.min(head, tail) - (dir > 0 ? 6 : 26), hi = Math.max(head, tail) + (dir > 0 ? 26 : 6); near = X.zc > lo && X.zc < hi && (T.v !== 0 || T.held); }
+    X.on = near;
+  }
+  for (const P of XING.posts) {
+    const on = P.X.on, ph = Math.floor(XING.blink*2.2) % 2;
+    P.lamps.forEach((l, i) => l.material.color.set(on && ph === i ? 0xff2a1a : 0x3a0a0a));
+    const want = on ? 0 : P.side*1.45; P.arm.rotation.x += (want - P.arm.rotation.x)*Math.min(1, dt*2.5);
+  }
+  const X0 = XING.list.find(X => X.on && Math.hypot(player.pos.x - RAIL.x, player.pos.z - X.zc) < 14);
+  if (X0 && (XING.bell = (XING.bell || 0) - dt) <= 0) { XING.bell = .9; snd(1400, .06, 'triangle', .02); }
+}
+// the train brakes for a crossing with people on it, and waits until it is clear
+function xingLimit(T, dir) {
+  let lim = Infinity;
+  for (const X of XING.list) {
+    if (!X.busy) continue;
+    const d = (X.zc - T.z)*dir - 3.6;
+    if (d > -1.2 && d < 40) lim = Math.min(lim, d <= 0 ? 0 : Math.sqrt(2*2.5*d));
+  }
+  return lim;
+}
 function overpasses(anim) {
+  levelCrossings(anim);
   clearForest({x0:75.5, x1:79.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 77.3, 7.6, .01); AREAS.push({x0:76, x1:78.6, z0:.35, z1:14.8}, {x0:66.4, x1:76.4, z0:.35, z1:14.8}, {x0:60.4, x1:66.6, z0:.35, z1:4.75}, {x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:60.4, x1:62.9, z0:71.5, z1:79.3});
   const g = new THREE.Group(); scene.add(g);
   const IRON = 0x3a6a5a;
-  for (const o of OVERPASS) {
+  for (const o of []) {   // (the old ramps over the tracks: replaced by level crossings and footbridges)
     const zc = (o.z0 + o.z1)/2, wz = o.z1 - o.z0;
     mesh(G.box, 0xb8b2a6, [o.x2 - o.x1, .2, wz], [(o.x1 + o.x2)/2, OV_H - .1, zc], g);
     for (const [a, b] of [[o.x0, o.x1], [o.x3, o.x2]]) {
@@ -6387,6 +6474,7 @@ const ACH = [
   ['win1', '⚔️', 'First victory', 'Win a campaign', () => W.conquests >= 1],
   ['winAll', '🌍', 'World conqueror', 'Win every campaign', () => W.conquests >= CAMPAIGNS.length],
   ['army50', '🛡️', 'Standing army', 'Train 50 soldiers', () => W.army >= 50],
+  ['army1000', '🎖️', 'Grand army', 'Field 1,000 soldiers', () => W.army >= 1000],
   ['castle', '🏰', 'Stronghold', 'Build the bunker complex', () => (W.castle || 0) >= 4],
   ['water', '💧', 'Clean water', 'Build the modern water plant', () => (W.water || 0) >= 5],
   ['bridge', '🌁', 'Golden gate', 'Build the suspension bridge', () => (W.bridge || 0) >= 4],
@@ -7218,7 +7306,63 @@ function updRanch(dt) {
 }
 
 // ------------------------------------------------------------------ the boss: a dragon in the old days, a kaiju in the modern ones
-const BOSS = {t:900, on:null};
+const BOSS = {t:600, on:null};
+// the dragon model, assembled at its pivots: jaw, tail and wings move
+function dragonModel(s = .78) {
+  const src = MODELS.dragon; if (!src || !src.getObjectByName('dragon_body')) return null;
+  const g = new THREE.Group(), P = {};
+  const piv = {body:[0, 0, 0], jaw:[0, 1.5, 3.25], tail:[0, .3, -2.0], wingL:[-.5, .82, .7], wingR:[.5, .82, .7]};
+  for (const [k, p] of Object.entries(piv)) {
+    const o = src.getObjectByName('dragon_' + k); if (!o) continue;
+    const m = o.clone(true); m.position.set(...p); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
+    m.traverse(q => { if (q.isMesh) { q.castShadow = true; } }); g.add(m); P[k] = m;
+  }
+  g.scale.setScalar(s); g.parts = P; g.wings = [P.wingL, P.wingR].filter(Boolean); g.real = true;
+  return g;
+}
+// a jet of flame from a mouth to a point: three nested cones (white-hot core, orange, red) that flicker, embers at the end
+function flameJet(F, from, to, on, dt) {
+  if (!F.g) {
+    F.g = new THREE.Group(); scene.add(F.g); F.cones = [];
+    [[0xfff2b0, .22, 1], [0xffa030, .45, .8], [0xe8401a, .7, .55]].forEach(([c, r, op]) => {
+      const m = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 12, 1, true), new THREE.MeshBasicMaterial({color:c, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, toneMapped:false}));
+      m.geometry.translate(0, -.5, 0); m.geometry.rotateX(-Math.PI/2); m.userData.r = r; F.g.add(m); F.cones.push(m);
+    });
+    F.light = new THREE.PointLight(0xff8a3a, 0, 14, 1.5); scene.add(F.light);
+  }
+  F.g.visible = on; F.light.intensity = on ? 6 + Math.sin(time*40)*2 : 0;
+  if (!on) return;
+  const len = from.distanceTo(to);
+  F.g.position.copy(from); F.g.lookAt(to);
+  F.cones.forEach((m, i) => { const w = m.userData.r*(1 + .25*Math.sin(time*37 + i*2)); m.scale.set(w, w, len*(1 + .05*Math.sin(time*29 + i))); m.rotation.z = time*3*(i + 1); });
+  F.light.position.copy(to).setY(to.y + 1);
+  if (R() < dt*25) particle([0xffa040, 0xff5a1f, 0xffe060][R()*3|0], to.clone().add(new THREE.Vector3((R() - .5)*1.5, 0, (R() - .5)*1.5)), new THREE.Vector3((R() - .5)*3, 2 + R()*3, (R() - .5)*3), .7, .35, {grow:.8, op:.85});
+  if (R() < dt*10) particle(0x4a4a4a, to.clone().setY(to.y + 1), new THREE.Vector3((R() - .5), 2.5, (R() - .5)), 1.6, .5, {grow:1.2, op:.45});
+}
+function flapDragon(g, t, beat) {
+  const P = g.parts || {}, f = Math.sin(t*beat)*.62;
+  if (P.wingL) { P.wingL.rotation.z = -f; P.wingR.rotation.z = f; } else (g.wings || []).forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * f; });
+  if (P.tail) P.tail.rotation.y = Math.sin(t*1.7)*.28;
+}
+// dragons over the land between attacks: one crosses the sky every few minutes, high up, now and then breathing fire
+const SKYD = {t:45, g:null, u:0};
+function updSkyDragon(dt) {
+  if (!started) return;
+  if (!SKYD.g) {
+    if (BOSS.on || W.era < 2 || (SKYD.t -= dt) > 0) return;
+    SKYD.g = dragonModel(.62) || makeBoss('dragon'); scene.add(SKYD.g); SKYD.u = 0; SKYD.fx = {};
+    // it crosses just in front of you, low enough to see from the town
+    const a = (R() - .5)*1.2 + (R() < .5 ? 0 : Math.PI), c = player.pos; SKYD.a = [c.x - Math.cos(a)*70, c.z + 4 - Math.sin(a)*40]; SKYD.b = [c.x + Math.cos(a)*70, c.z + 4 + Math.sin(a)*40]; SKYD.yaw = Math.atan2(SKYD.b[0] - SKYD.a[0], SKYD.b[1] - SKYD.a[1]);
+    if (!W.flags.skyDragon) { W.flags.skyDragon = 1; banner('🐉 A dragon in the sky!', 'Dragons fly over the land. One day one will come for your town; walls and soldiers will help.'); }
+  }
+  const D = SKYD, g = D.g; D.u += dt/20;
+  const x = D.a[0] + (D.b[0] - D.a[0])*D.u, z = D.a[1] + (D.b[1] - D.a[1])*D.u, y = 9.5 - Math.sin(D.u*Math.PI)*3 + Math.sin(time*1.4)*.6;
+  g.position.set(x, y, z); g.rotation.set(0, D.yaw, Math.sin(time*.8)*.15); flapDragon(g, time, 4.2);
+  const roar = Math.sin(D.u*Math.PI*3) > .93; g.updateMatrixWorld(true);
+  const mouth = new THREE.Vector3(0, 1.5, 4.6).applyMatrix4(g.matrixWorld), ahead = mouth.clone().add(new THREE.Vector3(Math.sin(D.yaw)*7, -1.5, Math.cos(D.yaw)*7));
+  flameJet(D.fx, mouth, ahead, roar, dt);
+  if (D.u >= 1) { scene.remove(g); if (D.fx.g) { scene.remove(D.fx.g); scene.remove(D.fx.light); } D.g = null; D.t = 140 + R()*160; }
+}
 function makeBoss(kind) {
   const g = new THREE.Group(); scene.add(g);
   if (kind === 'dragon') {
@@ -8584,7 +8728,7 @@ function kaijuModel() {
 function bossForces() {
   const troop = 1 + .15*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.5 : 1;
   return {
-    soldiers:Math.min(24, W.army) * .07 * troop * guns,
+    soldiers:(Math.min(24, W.army) + 2*Math.sqrt(Math.max(0, W.army - 24))) * .07 * troop * guns,
     tanks:W.unlocked.has('tanks') ? 3 * 1.4 : 0,
     planes:planesBuilt() * 1.6,
     warship:W.unlocked.has('warship') ? 1 : 0,
@@ -8592,10 +8736,13 @@ function bossForces() {
 }
 const BOSS_UNITS = {tanks:[], jets:[]};
 function startBoss() {
-  const kind = W.era >= 8 ? 'kaiju' : 'dragon', g = kind === 'kaiju' ? (kaijuModel() || makeBoss(kind)) : makeBoss(kind);
+  // in the modern age the kaiju and the dragon take turns
+  const kind = W.era >= 8 && (W.flags.bossN = (W.flags.bossN || 0) + 1) % 2 ? 'kaiju' : 'dragon', g = kind === 'kaiju' ? (kaijuModel() || makeBoss(kind)) : (dragonModel() || makeBoss(kind));
+  if (SKYD.g) { scene.remove(SKYD.g); if (SKYD.fx.g) { scene.remove(SKYD.fx.g); scene.remove(SKYD.fx.light); } SKYD.g = null; SKYD.t = 200; }
   scene.add(g);
   const hp = kind === 'kaiju' ? 90 + 15*W.era : 50 + 8*W.era, F = bossForces(), dps = Object.values(F).reduce((a, b) => a + b, 0);
-  BOSS.on = {kind, g, hp, maxHp:hp, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -48), target:null, breath:0};
+  const tough = Math.max(hp, Math.round(dps*40));
+  BOSS.on = {kind, g, hp:tough, maxHp:tough, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -48), target:null, breath:0};
   $('bossBar').hidden = false; $('bossName').textContent = kind === 'dragon' ? '🐉 The Red Dragon' : '🦖 The Kaiju';
   const have = Object.entries(F).filter(([, v]) => v > 0).map(([k]) => ({soldiers:'🪖 soldiers', tanks:'🛡️ tanks', planes:'✈️ planes', warship:'⚓ warship', castle:'🏰 castle guns'})[k]);
   banner(kind === 'dragon' ? '🐉 A dragon attacks!' : '🦖 A kaiju rises from the river!', have.length ? `Fighting back: ${have.join(', ')}.` : 'You have nothing that can fight it. It will wreck the town until it leaves.');
@@ -8610,12 +8757,39 @@ function bossHit(from, to, color, size, dur, arc) {
 }
 function updBoss(dt) {
   if (!started) return;
-  if (!BOSS.on) { if (W.era >= 5 && !W.camp && !W.raid && (BOSS.t -= dt) <= 0) { BOSS.t = 780 + R()*480; startBoss(); } return; }
+  if (!BOSS.on) { if (W.era >= 4 && !W.camp && !W.raid && (BOSS.t -= dt) <= 0) { BOSS.t = 780 + R()*480; startBoss(); } return; }
   const B = BOSS.on, g = B.g; B.t += dt;
   if (B.kind === 'dragon') {
-    const a = B.t*.35; g.position.set(3 + Math.cos(a)*11, 9 + Math.sin(B.t*1.3)*1.2, 2 + Math.sin(a)*11); g.rotation.y = -a; g.rotation.z = .3;
-    (g.wings || []).forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(B.t*6)*.6; });
-    if (R() < dt*12) { const head = new THREE.Vector3(0, 1.3, 3.5).applyMatrix4(g.matrixWorld); particle([0xffa040, 0xff5a1f, 0xffe060][R()*3|0], head, new THREE.Vector3(Math.sin(g.rotation.y)*5, -5, Math.cos(g.rotation.y)*5), .7, .3, {grow:.6, op:.85}); }
+    // wide loops over the kingdom; every few seconds it picks a building, swoops low and burns it
+    B.fx ||= {}; B.vel ||= new THREE.Vector3(); B.mode ||= 'loop';
+    if (B.t < .05) g.position.set(-60, 14, -40);
+    let want, sp = 11;
+    if (B.mode === 'loop') {
+      const a = B.t*.22; want = new THREE.Vector3(10 + Math.cos(a)*34, 7.5 + Math.sin(B.t*.9)*1.5, 14 + Math.sin(a*2)*26);
+      if (B.t > 8 && (B.burnT -= dt) <= 0) {
+        B.target = Object.values(ST).filter(s => s.inZ && !s.ruin && s.id !== 'grill').sort(() => R() - .5)[0] || null;
+        if (B.target) B.mode = 'swoop'; else B.burnT = 6;
+      }
+    }
+    let to = null;
+    if (B.mode !== 'loop' && B.target) {
+      to = new THREE.Vector3(B.target.inZ[0], 1, B.target.inZ[1]);
+      const from = g.position, dx = from.x - to.x, dz = from.z - to.z, d = Math.hypot(dx, dz) || 1;
+      want = new THREE.Vector3(to.x + dx/d*8, 6.5, to.z + dz/d*8);
+      if (B.mode === 'swoop' && g.position.distanceTo(want) < 2.5) { B.mode = 'burn'; B.breath = 2.6; }
+      if (B.mode === 'burn') { sp = 1.5; B.breath -= dt;
+        if (B.breath <= 0) { ruinStation(B.target, rebuildCost(B.target)); W.flags.dragonBurns = (W.flags.dragonBurns || 0) + 1; shakeCam(.4); snd(60, .5, 'sawtooth', .05, .5); B.target = null; B.mode = 'loop'; B.burnT = 9 + R()*5; } }
+    } else if (B.mode !== 'loop') B.mode = 'loop';
+    // fly toward it: steer the velocity, bank into the turns
+    const dv = want.clone().sub(g.position), dd = dv.length();
+    B.vel.lerp(dv.normalize().multiplyScalar(Math.min(sp, dd*1.5)), Math.min(1, dt*1.6)); g.position.addScaledVector(B.vel, dt);
+    const yaw = B.mode === 'burn' && to ? Math.atan2(to.x - g.position.x, to.z - g.position.z) : Math.atan2(B.vel.x, B.vel.z);
+    let dy = yaw - g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); g.rotation.order = 'YXZ'; g.rotation.y += dy*Math.min(1, dt*2.5);
+    g.rotation.z += (-dy*.9 - g.rotation.z)*Math.min(1, dt*2); g.rotation.x = B.mode === 'burn' ? .32 : -B.vel.y*.04;
+    flapDragon(g, B.t, B.mode === 'burn' ? 7 : 4.5);
+    const P = g.parts || {}; if (P.jaw) P.jaw.rotation.x = B.mode === 'burn' ? .5 : 0;
+    g.updateMatrixWorld(true); const mouth = new THREE.Vector3(0, 1.5, 4.6).applyMatrix4(g.matrixWorld);
+    flameJet(B.fx, mouth, to || mouth, B.mode === 'burn' && B.breath < 2.3, dt);
   } else {
     // it wades out of the river, then stomps toward whatever is standing
     const P = g.parts || {}, rise = Math.min(1, B.t/4);
@@ -8638,13 +8812,10 @@ function updBoss(dt) {
       if (P.jaw) P.jaw.rotation.x = .5;
       if (B.breath < 1.2 && B.target) {
         const mouth = new THREE.Vector3(0, 6.2, -1.6).applyMatrix4(g.matrixWorld), to = new THREE.Vector3(B.target.inZ[0], 1, B.target.inZ[1]);
-        if (!B.beam) { B.beam = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0x8fe0ff, transparent:true, opacity:.85, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false})); scene.add(B.beam); }
-        const mid = mouth.clone().add(to).multiplyScalar(.5), len = mouth.distanceTo(to);
-        B.beam.position.copy(mid); B.beam.scale.set(.25, len, .25); B.beam.lookAt(to); B.beam.rotateX(Math.PI/2); B.beam.visible = true;
-        if (R() < dt*30) particle(0x8fe0ff, to, new THREE.Vector3((R() - .5)*4, 2 + R()*3, (R() - .5)*4), .6, .3, {grav:1});
+        B.fx ||= {}; B.fxOn = true; flameJet(B.fx, mouth, to, true, dt); for (const c of B.fx.cones) c.scale.x = c.scale.y = c.userData.r*1.5;
       }
       if (B.breath <= 0) {
-        if (B.beam) B.beam.visible = false; if (P.plateMat) P.plateMat.emissiveIntensity = 0; if (P.jaw) P.jaw.rotation.x = 0;
+        if (B.fx) flameJet(B.fx, null, null, false, dt); if (P.plateMat) P.plateMat.emissiveIntensity = 0; if (P.jaw) P.jaw.rotation.x = 0;
         B.burnT = 7 + R()*4;
         if (B.target) { ruinStation(B.target, rebuildCost(B.target)); W.flags.kaijuRuins = (W.flags.kaijuRuins || 0) + 1; shakeCam(.5); snd(60, .6, 'sawtooth', .06, .5); B.target = null; }
       }
@@ -8670,6 +8841,7 @@ function updBoss(dt) {
   if (B.hp <= 0 || B.t > 80) {
     const won = B.hp <= 0, pay = won ? 5000 + 2500*W.era : 0;
     if (won) { W.coins += pay; W.earned += pay; W.flags.boss = (W.flags.boss || 0) + 1; for (let i = 0; i < 30; i++) particle([0xffd84a, 0xff6a2a, 0xffffff][i % 3], g.position.clone().setY(4), new THREE.Vector3((R() - .5)*8, 4 + R()*6, (R() - .5)*8), 1.4, .3, {grav:1}); }
+    if (B.fx && B.fx.g) { scene.remove(B.fx.g); scene.remove(B.fx.light); }
     banner(won ? `🏆 The ${B.kind} is defeated!` : `The ${B.kind} ${B.kind === 'kaiju' ? 'sinks back into the sea' : 'flies off'}…`, won ? `Your empire takes ${pay} 💵 in treasure.` : 'Buy tanks, planes and bigger walls before it comes back.');
     scene.remove(g); if (B.beam) scene.remove(B.beam);
     for (const u of [...BOSS_UNITS.tanks, ...BOSS_UNITS.jets]) scene.remove(u.g); BOSS_UNITS.tanks = []; BOSS_UNITS.jets = []; BASE.tanks.forEach(t => { t.visible = true; });
@@ -8912,8 +9084,78 @@ function updSiegeEngines(dt) {
   // home again: park them back at the base and stand them down
   if (!C && mid && Math.hypot(mid[0] - 3, mid[1] - 86) < 10) { for (const u of SENG.units) scene.remove(u.g); SENG.units = []; SENG.id = null; }
 }
+// ------------------------------------------------------------------ the regiment field: every soldier past the 24 in the yard
+const REGT = {rect:{x0:22.4, x1:41.4, z0:47, z1:73.4}, built:false, n:-1, col:0, cap:1200, colCap:360, troop:-1, ims:[], tile:null, lastMid:null, dir:[0, 1]};
+const UNIFORM = [[0x8a6a4a, 0x6a5038], [0xa8322a, 0xc8a24a], [0x7a828a, 0x9aa2aa], [0xb8221a, 0x1a1a22], [0x6a6a44, 0x4a5030], [0x2e3a2e, 0x1e221e]];
+const recruitCost = () => 10*(220 + 110*W.era);
+function regtSlot(k) {
+  // blocks of a hundred (10 x 10), three blocks across and four deep
+  const b = Math.floor(k / 100), i = k % 100, bx = b % 3, bz = Math.floor(b / 3);
+  return [REGT.rect.x0 + 1.1 + bx*6.25 + (i % 10)*.55, REGT.rect.z0 + 1.2 + bz*6.3 + Math.floor(i / 10)*.55];
+}
+function regtBuild() {
+  REGT.built = true;
+  const r = REGT.rect;
+  clearForest({x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1}); clearForest({x0:13, x1:22.6, z0:59, z1:62.8});
+  slab(0xc4a676, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .004); slab(0xb98f5c, 9.6, 3, 17.8, 60.9, .006);
+  AREAS.push(r, {x0:13, x1:22.8, z0:59.6, z1:62.2});
+  // flags round the field and a sign at the way in
+  for (const [x, z] of [[r.x0 + .4, r.z0 + .4], [r.x1 - .4, r.z0 + .4], [r.x0 + .4, r.z1 - .4], [r.x1 - .4, r.z1 - .4]]) {
+    mesh(G.cyl, 0x5e3f22, [.05, 3.2, .05], [x, 1.6, z], scene); mesh(G.box, 0xf2c200, [.9, .55, .03], [x + .46, 2.9, z], scene); boxes.push({x0:x - .2, x1:x + .2, z0:z - .2, z1:z + .2});
+  }
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('REGIMENT FIELD', '#5a3a1a', '#ffffff'), toneMapped:false, side:THREE.DoubleSide}));
+  sign.scale.set(2.6, .7, 1); sign.position.set(17.8, 2.2, 59.3); scene.add(sign);
+  for (const x of [16.5, 19.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.6, .05], [x, 1.3, 59.3], scene);
+  // the soldiers themselves: five instanced parts, enough for the field and a marching column
+  const N = REGT.cap + REGT.colCap, part = (geo, sc, pos) => { const g = geo.clone(); g.scale(...sc); g.translate(...pos); return g; };
+  const defs = [[part(G.box, [.3, .44, .18], [0, .24, 0]), 0x2a2a30], [part(G.box, [.36, .48, .22], [0, .7, 0]), 0], [part(G.sph, [.12, .13, .12], [0, 1.08, 0]), 0xe0b08a],
+    [part(G.sph, [.14, .08, .14], [0, 1.19, 0]), 1], [part(G.box, [.04, 1.15, .04], [.22, .85, .06]), 0x5a4a3a]];
+  REGT.ims = defs.map(([geo, c]) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({color:typeof c === 'number' && c > 1 ? c : 0x888888, roughness:.75}), N); im.count = 0; im.castShadow = true; im.frustumCulled = false; im.colorRole = c; scene.add(im); return im; });
+  REGT.tile = addZone({kind:'recruit', x:21.4, z:60.9, icon:'🪖', tile:{alpha:1, size:84, label:'', fill:'rgba(60,70,40,.6)'}});
+}
+const REGT_O = new THREE.Object3D();
+function regtPut(k, x, z, yaw, bob) { REGT_O.position.set(x, bob || 0, z); REGT_O.rotation.set(0, yaw, 0); REGT_O.updateMatrix(); for (const im of REGT.ims) im.setMatrixAt(k, REGT_O.matrix); }
+function updRegiments(dt) {
+  if (!started) return;
+  if (!REGT.built) { if (W.unlocked.has('barracks') && regionOpen('south')) regtBuild(); else return; }
+  const C = W.camp, extra = Math.max(0, (W.army || 0) - Math.min(W.army || 0, 24));
+  // their uniform follows the army's age
+  const tr = Math.min(5, W.troop || 0);
+  if (tr !== REGT.troop) { REGT.troop = tr; const [a, b] = UNIFORM[tr]; REGT.ims[1].material.color.set(a); REGT.ims[3].material.color.set(b); }
+  // the recruiting office: ten at a time
+  const cost = recruitCost(), label = `+10 🛡️ · ${cost} 💵`;
+  if (REGT.tile.label !== label) { REGT.tile.label = label; drawTile(REGT.tile.tc.g, '🪖', {alpha:1, size:84, label, fill:'rgba(60,70,40,.6)'}); REGT.tile.tc.t.needsUpdate = true; }
+  // away at war on land: the regiments march with the army, otherwise they stand on the field
+  const vis = soldiers.filter(q => q.char.g.visible && !q.down), away = C && C.away && C.type === 'land' && !(C.sail && !vis.length) && vis.length;
+  const nf = away ? 0 : Math.min(REGT.cap, extra), nc = away ? Math.min(REGT.colCap, extra) : 0;
+  if (nf !== REGT.n) { REGT.n = nf; for (let k = 0; k < nf; k++) { const [x, z] = regtSlot(k); regtPut(k, x, z, -Math.PI/2); } }
+  if (nc) {
+    const mid = vis.reduce((a, q) => [a[0] + q.pos.x/vis.length, a[1] + q.pos.z/vis.length], [0, 0]);
+    if (REGT.lastMid) { const dx = mid[0] - REGT.lastMid[0], dz = mid[1] - REGT.lastMid[1], d = Math.hypot(dx, dz); if (d > .02) { const k = Math.min(1, dt*3); REGT.dir = [REGT.dir[0] + (dx/d - REGT.dir[0])*k, REGT.dir[1] + (dz/d - REGT.dir[1])*k]; } }
+    REGT.lastMid = mid;
+    const fighting = C.t <= 22 && C.t > 9, dl = Math.hypot(...REGT.dir) || 1, fx = REGT.dir[0]/dl, fz = REGT.dir[1]/dl, yaw = Math.atan2(fx, fz);
+    for (let k = 0; k < nc; k++) {
+      let x, z, y;
+      if (fighting) { const row = Math.floor(k / 30), c = k % 30; x = BF.x - 10 + c*.7; z = BF.z - 4 - row*.75; y = 0; regtPut(nf + k, x, z, 0, 0); continue; }
+      // a column eight wide behind the soldiers, stepping in time
+      const row = Math.floor(k / 8), c = k % 8, back = 3 + row*.75, side = (c - 3.5)*.62;
+      x = mid[0] - fx*back + fz*side; z = mid[1] - fz*back - fx*side; y = Math.abs(Math.sin(time*9 + row*.7))*.06;
+      regtPut(nf + k, x, z, yaw, y);
+    }
+  } else REGT.lastMid = null;
+  for (const im of REGT.ims) { im.count = nf + nc; im.instanceMatrix.needsUpdate = true; }
+}
+function payRecruit(zn, e) {
+  if (player.zoneT < .6) return;
+  const cost = recruitCost();
+  if (W.coins < cost) { if (player.zoneT > 1.2) { popText(`Need ${cost} 💵`, e.pos.clone().setY(2.6), '#ffb0a0'); player.zoneT = 0; } return; }
+  player.zoneT = 0; W.coins -= cost; W.upSpent += cost; W.army += 10;
+  popText('+10 🛡️ soldiers', e.pos.clone().setY(2.6), '#b8d4ff'); snd(392, .1, 'square', .04);
+  for (let i = 0; i < 6; i++) particle(0xf2c200, new THREE.Vector3(zn.x, 1, zn.z), new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), .7, .12, {grav:1});
+  refreshPads(); save();
+}
 function updDistricts(dt) {
-  updFog(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
+  updFog(dt); updRegiments(dt); updCrossings(dt); updSkyDragon(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
   if (W.unlocked.has('speedboat') && !BOAT.docked) boatDocks();
   updAirstrips();
   updMarkets(dt);
@@ -9928,7 +10170,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
