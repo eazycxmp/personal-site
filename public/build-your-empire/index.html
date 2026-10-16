@@ -895,6 +895,39 @@ function ovenAt(x, z, anim) {
   smokers.push({x:x + .45, y:1.8, z:z - .3});
   if (anim) popIn(g);
 }
+// the base: towers, tents, depot, drill yard and (with tanks) a motor pool; the towers and barracks upgrade with the castle
+const BASE = {built:false, towers:[], hq:null, tier:0, pool:null, tanks:[]};
+const baseTierNow = () => W.unlocked.has('castle4') ? 3 : W.unlocked.has('castle2') ? 2 : 1;
+function baseTier(anim) {
+  const t = baseTierNow(); if (t === BASE.tier) return; BASE.tier = t;
+  if (BASE.hq) { BASE.hq.clear(); const m = kit2('barracks' + t, 5.4); if (m) { m.rotation.y = Math.PI; BASE.hq.add(m); } }
+  for (const tw of BASE.towers) { tw.clear(); const m = kit2('tower' + t, 2.2); if (m) tw.add(m); }
+  if (anim && t > 1) banner(t === 2 ? '🏯 The base is rebuilt in steel and concrete' : '🛡️ An armoured base', 'Towers, barracks and bunkers upgrade with your castle.');
+}
+function baseCamp(anim) {
+  if (BASE.built || !MODELS.b2) return; BASE.built = true;
+  clearForest({x0:-10.3, x1:13.4, z0:46, z1:74});
+  // the drill yard: a sand square with a low fence
+  slab(0xd8c49a, 7.2, 8.6, -2.8, 67.6, .006);
+  for (let x = -6.4; x <= .8; x += .9) for (const z of [63.3, 71.9]) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [x, .35, z], scene);
+  for (let z = 63.3; z <= 71.9; z += .9) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [-6.4, .35, z], scene);
+  // tents, a depot, towers on the corners
+  for (const z of [51, 57, 63]) { const t = kit2('armyTent', 3.4); if (t) { t.position.set(-7.8, 0, z); t.rotation.y = -Math.PI/2; scene.add(t); boxes.push({x0:-9.4, x1:-6.2, z0:z - 1.6, z1:z + 1.6}); if (anim) popIn(t); } }
+  const d = kit2('depot', 3.4); if (d) { d.position.set(8.4, 0, 58.6); scene.add(d); boxes.push({x0:6.8, x1:10, z0:57.4, z1:59.8}); }
+  for (const [x, z] of [[-8.6, 47.4], [11.6, 47.4], [-8.6, 72.8], [11.8, 72.8]]) { const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); BASE.towers.push(g); boxes.push({x0:x - .9, x1:x + .9, z0:z - .9, z1:z + .9}); }
+  // a fence line along the north edge, open where the road comes in
+  for (let x = -10; x <= 13; x += 1.1) if (Math.abs(x - 3) > 2.4) { mesh(G.box, 0x6a6e70, [.08, 1.1, .08], [x, .55, 46.3], scene); mesh(G.box, 0x8a8e90, [1.1, .05, .05], [x + .55, 1.0, 46.3], scene); }
+  BASE.tier = 0; baseTier(false);
+  if (W.unlocked.has('tanks')) motorPool(false);
+}
+// the motor pool: a shed with bays where the tank division parks between fights
+function motorPool(anim) {
+  if (BASE.pool || !MODELS.b2) return;
+  const g = BASE.pool = kit2('motorPool', 7); if (!g) return; g.position.set(9.2, 0, 52); g.rotation.y = Math.PI; scene.add(g);
+  boxes.push({x0:5.7, x1:12.7, z0:49.6, z1:50.9});
+  for (let i = 0; i < 3; i++) { const t = model('tank', 2.4, 'z'); if (!t) break; t.position.set(6.9 + i*2.3, 0, 52.8); scene.add(t); BASE.tanks.push(t); }
+  if (anim) { popIn(g); banner('🪖 The motor pool', 'Your tanks park here and roll out when danger comes.'); }
+}
 const buildFx = {
   grill(anim) {
     const g = new THREE.Group(); g.position.set(-4.2, 0, 1); scene.add(g);
@@ -1438,7 +1471,7 @@ function fishSpecies() { const r = R(); return r < BOOST.bigFish ? 2 : r < .5 ? 
 const REGIONS = {
   north:{name:'the Northern Quarry', rect:{x0:-10.3, x1:13.4, z0:-59.6, z1:-42.9}, gap:['n', -9.2, -6.2], gate:[[-7.7, -12.1], [-7.7, -44.9]], ground:0xbfa57a},
   east:{name:'the Market Quarter', rect:{x0:43.4, x1:60.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [45.4, 1.6]], ground:0xcfae78},
-  south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:73.9, z1:90.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 75.8]], ground:0xc4a070},
+  south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:46, z1:90.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 75.8]], ground:0xc4a070},
   farm:{name:'the Farmlands', rect:{x0:43.4, x1:60.6, z0:73.9, z1:90.6}, ground:0xb9a865},
   downtown:{name:'Downtown', rect:{x0:43.4, x1:60.6, z0:-59.6, z1:-42.9}, ground:0x9ea3ad},
   airfield:{name:'the Airfield', rect:{x0:-94, x1:-77.6, z0:-12.9, z1:29.9}, extra:{x0:-17.7, x1:-10.2, z0:8.85, z1:10.35}, ground:0x8fa86a},
@@ -1738,6 +1771,8 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   barracks(anim) {
+    baseCamp(anim);
+    if (MODELS.b2) { const g = BASE.hq = new THREE.Group(); g.position.set(9.5, 0, 87.5); scene.add(g); BASE.tier = 0; baseTier(false); fader(g, 5.6, 4); if (anim) popIn(g); return; }
     const g = new THREE.Group(); g.position.set(9.5, 0, 87.5); scene.add(g);
     mesh(G.box, 0x8a6a4a, [5, 2, 3], [0, 1, 0], g);
     roofOn(g, 5.8, 3.6, 1.2, 2.6, 0x3a4a6a);
@@ -2340,7 +2375,12 @@ function payOut(c, L) {
 }
 // a fed and armed recruit becomes a soldier drilling in the yard
 const soldiers = [];
-const yardSlot = i => [6.1 + (i % 6)*1.2, 76.4 + Math.floor(i / 6)*1.25];
+const BASE_SLOTS = [
+  ...[...Array(12)].map((_, k) => [-4.4 + (k % 3)*1.6, 65.2 + Math.floor(k / 3)*1.7]),          // the drill yard
+  [-5.4, 50.2], [-5.4, 51.4], [-5.4, 56.2], [-5.4, 57.4], [-5.4, 62.2], [-5.4, 63.4],              // by the tents
+  [-8, 48.6], [11.2, 48.6], [-8.2, 72.4], [11.4, 72.4],                                              // guards at the towers
+  [7.4, 60.8], [8.6, 60.8]];                                                                          // hands at the depot
+const yardSlot = i => BASE_SLOTS[i % BASE_SLOTS.length];
 function makeSoldier(x, z) {
   if (soldiers.length >= 24) return null;
   const s = entity(ARMS(), x, z, 3.4, 0);
@@ -2924,7 +2964,7 @@ const UNLOCK = {
   highway(a) { highwayFx(a); interstateFx(a); gasPlotFx(); if (a) banner('🛣️ The highway!', 'An elevated freeway over the railway to the next city. Cars pay tolls.'); },
   stadium(a) { arenaStage(2, a); },
   dome(a) { arenaStage(3, a); },
-  tanks(a) { if (a) banner('🪖 Tank division!', 'Three tanks roll out through the south gate whenever a monster attacks.'); },
+  tanks(a) { if (BASE.built) motorPool(a); if (a && !BASE.pool) banner('🪖 Tank division!', 'Three tanks roll out through the south gate whenever a monster attacks.'); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
   terminal2(a) { terminal2Fx(a); if (a) banner('🏢 Terminal 2!', 'A second gate: room for another airliner.'); },
@@ -3035,6 +3075,7 @@ function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id);
   { const n0 = scene.children.length; UNLOCK[id](anim); PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o)); }
+  if (/^castle/.test(id) && BASE.built) baseTier(anim);
   if (anim) {
     shakeCam(.35);
     const p = PADS.find(q => q.id === id);
@@ -8468,7 +8509,7 @@ function startBoss() {
   banner(kind === 'dragon' ? '🐉 A dragon attacks!' : '🦖 A kaiju rises from the river!', have.length ? `Fighting back: ${have.join(', ')}.` : 'You have nothing that can fight it. It will wreck the town until it leaves.');
   snd(70, 1.2, 'sawtooth', .07, .5); shakeCam(.6);
   // tanks roll out through the south gate, jets scramble from the airfield
-  if (F.tanks) for (let i = 0; i < 3; i++) { const t = model('tank', 2.4, 'z'); if (!t) break; t.position.set(3 + (i - 1)*1.6, 0, 76 + i); scene.add(t); BOSS_UNITS.tanks.push({g:t, cd:R()*2, ph:i}); }
+  if (F.tanks) for (let i = 0; i < 3; i++) { const t = model('tank', 2.4, 'z'); if (!t) break; if (BASE.tanks[i]) BASE.tanks[i].visible = false; t.position.set(BASE.tanks[i] ? BASE.tanks[i].position.x : 3 + (i - 1)*1.6, 0, BASE.tanks[i] ? BASE.tanks[i].position.z : 76 + i); scene.add(t); BOSS_UNITS.tanks.push({g:t, cd:R()*2, ph:i}); }
   if (F.planes) for (let i = 0; i < planesBuilt(); i++) { const j = model(W.era >= 8 ? 'fighter' : 'fighter', 3, 'x'); if (!j) break; j.rotation.order = 'YXZ'; scene.add(j); BOSS_UNITS.jets.push({g:j, a:i*Math.PI, cd:1 + i}); }
 }
 function bossHit(from, to, color, size, dur, arc) {
@@ -8539,7 +8580,7 @@ function updBoss(dt) {
     if (won) { W.coins += pay; W.earned += pay; W.flags.boss = (W.flags.boss || 0) + 1; for (let i = 0; i < 30; i++) particle([0xffd84a, 0xff6a2a, 0xffffff][i % 3], g.position.clone().setY(4), new THREE.Vector3((R() - .5)*8, 4 + R()*6, (R() - .5)*8), 1.4, .3, {grav:1}); }
     banner(won ? `🏆 The ${B.kind} is defeated!` : `The ${B.kind} ${B.kind === 'kaiju' ? 'sinks back into the sea' : 'flies off'}…`, won ? `Your empire takes ${pay} 💵 in treasure.` : 'Buy tanks, planes and bigger walls before it comes back.');
     scene.remove(g); if (B.beam) scene.remove(B.beam);
-    for (const u of [...BOSS_UNITS.tanks, ...BOSS_UNITS.jets]) scene.remove(u.g); BOSS_UNITS.tanks = []; BOSS_UNITS.jets = [];
+    for (const u of [...BOSS_UNITS.tanks, ...BOSS_UNITS.jets]) scene.remove(u.g); BOSS_UNITS.tanks = []; BOSS_UNITS.jets = []; BASE.tanks.forEach(t => { t.visible = true; });
     BOSS.on = null; $('bossBar').hidden = true; save();
   }
 }
@@ -8623,11 +8664,20 @@ function setRuined(p, on) {
   if (!on && p.rubble) { scene.remove(p.rubble); p.rubble = null; }
 }
 const fixCost = p => Math.round((p.name[0] === 'c' && p.name !== 'stall' ? 3 : 1) * (1200 + 350*W.era));
+// the repair tile goes on open, walkable ground near the building: in front if there is room, else beside or behind it
+function fixSpot(p) {
+  const bb = new THREE.Box3().setFromObject(p.g), d = p.fdir || -1, w = (bb.max.x - bb.min.x)/2 + 1.1;
+  const ok = (x, z) => AREAS.some(a => x - .7 >= a.x0 && x + .7 <= a.x1 && z - .7 >= a.z0 && z + .7 <= a.z1) && !boxes.some(b => x + .75 > b.x0 && x - .75 < b.x1 && z + .75 > b.z0 && z - .75 < b.z1) && !zones.some(q => q.active !== false && Math.abs(q.x - x) < 1.7 && Math.abs(q.z - z) < 1.7);
+  const back = d > 0 ? bb.min.z : bb.max.z;
+  for (const [x, z] of [[p.x, p.front + d*1.2], [p.x, p.front + d*2.2], [bb.min.x - 1.1, p.z], [bb.max.x + 1.1, p.z], [p.x - w, p.front + d*1.2], [p.x + w, p.front + d*1.2], [p.x, back - d*1.2]]) if (ok(x, z)) return [x, z];
+  for (let r = 1.5; r <= 9; r += .75) for (let k = 0; k < 16; k++) { const a = k/16*Math.PI*2, x = p.x + Math.cos(a)*r, z = p.front + Math.sin(a)*r; if (ok(x, z)) return [x, z]; }   // spiral out to the nearest free ground
+  return [p.x, p.front + d*1.2];
+}
 function fixZones(style) {
   const broken = (W.flags.dmg || {})[style] || [];
   for (const [i, p] of (DPARTS[style] || []).entries()) {
     const want = broken.includes(i);
-    if (want && !p.zone) { p.zone = addZone({kind:'fix', style, idx:i, x:p.x, z:p.front + (p.fdir || -1)*1.2, w:1.5, d:1.5, icon:'🔨', tile:{}}); p.zone.key = ''; }
+    if (want && !p.zone) { const [fx, fz] = fixSpot(p); p.zone = addZone({kind:'fix', style, idx:i, x:fx, z:fz, w:1.5, d:1.5, icon:'🔨', tile:{}}); p.zone.key = ''; }
     if (!want && p.zone) { removeZone(p.zone); p.zone = null; }
     if (p.zone) { const paid = (W.flags.fixPaid || {})[style + i] || 0, cost = fixCost(p), key = paid + ':' + cost;
       if (p.zone.key !== key) { p.zone.key = key; drawTile(p.zone.tc.g, '🔨', {cost:cost - paid, cur:'💵', prog:paid/cost, title:'Repair'}); p.zone.tc.t.needsUpdate = true; } }
@@ -9710,7 +9760,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
