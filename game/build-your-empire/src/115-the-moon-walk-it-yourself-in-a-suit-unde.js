@@ -72,14 +72,18 @@ function updMoonWalk(dt, S) {
 
 function save() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
+    if (Date.now() - lastBak > BAK_EVERY) backupSave('auto');
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:SAVE_VERSION, coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
       cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
       levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
+  let raw = null;
   try {
-    const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s) return false;
+    raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
+    let s = JSON.parse(raw); if (!s) return false;
+    if ((s.v || 1) < SAVE_VERSION) { backupSave(`before the update to save v${SAVE_VERSION}`); s = migrate(s); }
     W.coins = s.coins || 0; W.earned = s.earned || 0; W.fed = s.fed || 0; W.paid = s.paid || {}; W.tut = s.tut || 0; W.flags = s.flags || {};
     W.army = s.army || 0; W.conquests = s.conquests || 0; W.unrest = s.unrest || 0;
     W.levels = s.levels || {}; W.upPaid = s.upPaid || {}; W.upSpent = s.upSpent || 0; W.goals = s.goals || []; W.caught = s.caught || 0;
@@ -99,10 +103,7 @@ function load() {
     W.fund = s.fund || 0; W.fundIn = s.fundIn || 0; W.autoInvest = !!s.autoInvest;
     if (W.flags.traders) setTimeout(() => addTraders(W.flags.traders), 0);
     W.decor = s.decor || []; W.rival = s.rival || 0;
-    // saves from before the map spread out: move placed decorations into the new, wider world
-    if (!W.flags.spread) { for (const d of W.decor) [d.x, d.z] = spreadPt(d.x, d.z); W.flags.spread = 2; }
-    // saves from the first wide map (60 each way): the quarry and market quarter came 30 closer
-    if (W.flags.spread === 1) { for (const d of W.decor) [d.x, d.z] = closerPt(d.x, d.z); W.flags.spread = 2; } W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
+    W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
     for (const d of W.decor) circles.push({x:d.x, z:d.z, r:DECOR[d.k].r, decor:decorMesh(d.k, d.x, d.z, d.ry)});
     if (W.rival || W.rivalAlly) rivalCity();
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
@@ -112,6 +113,6 @@ function load() {
     for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
     if (player.speed < 7 && W.flags.roads) player.speed = 7;
     return true;
-  } catch (e) { console.error(e); return false; }
+  } catch (e) { if (raw) saveBroken(raw, e); return false; }
 }
 

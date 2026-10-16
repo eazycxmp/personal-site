@@ -4551,9 +4551,60 @@ const endJoy = e => { if (e.pointerId !== joy.id) return; if (joy.on && performa
 stage.addEventListener('pointerup', endJoy); stage.addEventListener('pointercancel', endJoy);
 
 // ------------------------------------------------------------------ save
-const SAVE_KEY = 'buildyourempire.v1';
+const SAVE_KEY = 'buildyourempire.v1', SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
 try { if (!localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
+// every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
+// (saves from before versions count as version 1)
+const MIGRATE = {
+  1: s => {
+    s.flags = s.flags || {}; s.decor = s.decor || [];
+    if (typeof s.cash === 'number') s.cash = {main:s.cash};
+    // placed decorations from the compact map, then from the first wide map (the quarry and market quarter came 30 closer)
+    if (!s.flags.spread) { for (const d of s.decor) [d.x, d.z] = spreadPt(d.x, d.z); s.flags.spread = 2; }
+    if (s.flags.spread === 1) { for (const d of s.decor) [d.x, d.z] = closerPt(d.x, d.z); s.flags.spread = 2; }
+    return s;
+  },
+};
+function migrate(s) {
+  let v = s.v || 1;
+  while (v < SAVE_VERSION) { s = MIGRATE[v](s); v++; }
+  s.v = Math.max(v, s.v || 1); return s;
+}
+// rolling backups: the last few saves, one every ten minutes of play, plus one before anything that replaces the save
+function backups() { try { return JSON.parse(localStorage.getItem(BAK_KEY) || '[]'); } catch (e) { return []; } }
+let lastBak = (backups()[0] || {}).at || 0;
+function backupSave(why) {
+  try {
+    const cur = localStorage.getItem(SAVE_KEY); if (!cur) return;
+    const list = backups().filter(b => b.data !== cur);
+    list.unshift({at:Date.now(), why, data:cur});
+    localStorage.setItem(BAK_KEY, JSON.stringify(list.slice(0, BAK_N))); lastBak = Date.now();
+  } catch (e) {}
+}
+// a save that will not load is kept aside, and the newest backup is tried instead (once per visit)
+function saveBroken(raw, err) {
+  console.error('save would not load', err);
+  try {
+    if (!localStorage.getItem(SAVE_KEY + '.broken')) localStorage.setItem(SAVE_KEY + '.broken', raw);
+    const b = backups().find(b => b.data !== raw && b.why !== 'would not load');
+    const list = backups(); if (!list.some(q => q.data === raw)) { list.unshift({at:Date.now(), why:'would not load', data:raw}); localStorage.setItem(BAK_KEY, JSON.stringify(list.slice(0, BAK_N + 1))); }
+    if (b && !sessionStorage.getItem('bye.restored')) { sessionStorage.setItem('bye.restored', '1'); localStorage.setItem(SAVE_KEY, b.data); location.reload(); }
+  } catch (e) {}
+}
+function restoreBackup(i = 0) { const b = backups()[i]; if (!b) return false; backupSave('before restoring a backup'); localStorage.setItem(SAVE_KEY, b.data); location.reload(); return true; }
+// take the save with you, or bring one back
+function exportSave() {
+  save();
+  const a = document.createElement('a'), d = new Date();
+  a.href = URL.createObjectURL(new Blob([localStorage.getItem(SAVE_KEY) || '{}'], {type:'application/json'}));
+  a.download = `build-your-empire-${d.toISOString().slice(0, 10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importSave(text) {
+  let s; try { s = JSON.parse(text); } catch (e) { return 'That file is not a save.'; }
+  if (!s || typeof s !== 'object' || !Array.isArray(s.unlocked)) return 'That file is not a save.';
+  backupSave('before importing a save'); localStorage.setItem(SAVE_KEY, JSON.stringify(s)); location.reload(); return '';
+}
 // ------------------------------------------------------------------ guns
 function rifle(arm, modern) {
   const r = new THREE.Group(); r.position.set(0, -.5, .06); arm.add(r);
@@ -10514,14 +10565,18 @@ function updMoonWalk(dt, S) {
 
 function save() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
+    if (Date.now() - lastBak > BAK_EVERY) backupSave('auto');
+    localStorage.setItem(SAVE_KEY, JSON.stringify({v:SAVE_VERSION, coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
       cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
       levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
+  let raw = null;
   try {
-    const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s) return false;
+    raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
+    let s = JSON.parse(raw); if (!s) return false;
+    if ((s.v || 1) < SAVE_VERSION) { backupSave(`before the update to save v${SAVE_VERSION}`); s = migrate(s); }
     W.coins = s.coins || 0; W.earned = s.earned || 0; W.fed = s.fed || 0; W.paid = s.paid || {}; W.tut = s.tut || 0; W.flags = s.flags || {};
     W.army = s.army || 0; W.conquests = s.conquests || 0; W.unrest = s.unrest || 0;
     W.levels = s.levels || {}; W.upPaid = s.upPaid || {}; W.upSpent = s.upSpent || 0; W.goals = s.goals || []; W.caught = s.caught || 0;
@@ -10541,10 +10596,7 @@ function load() {
     W.fund = s.fund || 0; W.fundIn = s.fundIn || 0; W.autoInvest = !!s.autoInvest;
     if (W.flags.traders) setTimeout(() => addTraders(W.flags.traders), 0);
     W.decor = s.decor || []; W.rival = s.rival || 0;
-    // saves from before the map spread out: move placed decorations into the new, wider world
-    if (!W.flags.spread) { for (const d of W.decor) [d.x, d.z] = spreadPt(d.x, d.z); W.flags.spread = 2; }
-    // saves from the first wide map (60 each way): the quarry and market quarter came 30 closer
-    if (W.flags.spread === 1) { for (const d of W.decor) [d.x, d.z] = closerPt(d.x, d.z); W.flags.spread = 2; } W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
+    W.rivalWins = s.rivalWins || 0; W.rivalAlly = !!s.rivalAlly;
     for (const d of W.decor) circles.push({x:d.x, z:d.z, r:DECOR[d.k].r, decor:decorMesh(d.k, d.x, d.z, d.ry)});
     if (W.rival || W.rivalAlly) rivalCity();
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
@@ -10554,7 +10606,7 @@ function load() {
     for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
     if (player.speed < 7 && W.flags.roads) player.speed = 7;
     return true;
-  } catch (e) { console.error(e); return false; }
+  } catch (e) { if (raw) saveBroken(raw, e); return false; }
 }
 
 // ------------------------------------------------------------------ graphics: sky light, water, clouds, grass and life
@@ -11222,7 +11274,7 @@ $('bBoard').onclick = openBoard;
 $('bBuild').onclick = openBuild; $('bTrophy').onclick = openTrophies; $('bTrade').onclick = openTrade; $('bPhoto').onclick = () => togglePhoto(true); $('bPhotoX').onclick = () => togglePhoto(false); $('bSnap').onclick = savePhoto; $('bSpace').onclick = toggleSpace; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
 addEventListener('keydown', e => { if (BUILD.on && e.key === 'Enter') placeDecor(); if (BUILD.on && e.key === 'Escape') endPlacing(); });
 refreshUpgrades();
-const wipe = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
+const wipe = () => { try { backupSave('before a new game'); localStorage.removeItem(SAVE_KEY); } catch (e) {} location.reload(); };
 $('bNew').onclick = wipe;
 $('bReset').onclick = () => { if (confirm('Start a new camp? Your progress will be lost.')) wipe(); };
 // pause: the ⏸️ button, P, or Esc; nothing moves, earns or attacks until you resume
@@ -11250,7 +11302,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
