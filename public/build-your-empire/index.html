@@ -190,7 +190,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb', props3:'props3.glb'};
   const TL = new THREE.TextureLoader(), texJobs = PH_IDS.flatMap(id => ['diff', 'nor_gl', 'rough'].map(k => TL.loadAsync(`./tex/${id}_${k}_1k.jpg`).then(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (k === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     const T = TEX[id] ||= {}; T[{diff:'map', nor_gl:'normalMap', rough:'roughnessMap'}[k]] = t;
@@ -431,7 +431,7 @@ const ITEM = {
   fish:   {h:.26, icon:'🐟', sell:1, n:'Fish'},
   grilled:{h:.26, icon:'🐟', dish:1, price:3, sell:3, n:'Grilled fish'},
   log:    {h:.3,  icon:'🪵', sell:1, n:'Logs'},
-  meat:   {h:.34, icon:'🥩', sell:2, n:'Meat'},
+  meat:   {h:.12, icon:'🥩', sell:2, n:'Meat'},
   roast:  {h:.34, icon:'🍗', dish:1, price:6, sell:6, n:'Roast'},
   wheat:  {h:.26, icon:'🌾', sell:1, n:'Wheat'},
   bread:  {h:.3,  icon:'🍞', dish:1, price:8, sell:8, n:'Bread'},
@@ -527,15 +527,22 @@ function bake(group) {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return g;
 }
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({color:0x2a1a12, side:THREE.BackSide});
+const OUTLINED = new Set(['meat', 'roast', 'bread', 'log', 'fish', 'grilled', 'wheat', 'tomato', 'pizza', 'sushi', 'icecream', 'milk', 'beer']);
+function propItem(type) {
+  const src = MODELS.props3 && MODELS.props3.getObjectByName('item_' + type); if (!src) return null;
+  const g = new THREE.Group(), m = src.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); g.add(m); return g;
+}
 function itemMesh(type, species = null) {
-  const key = type + (species ?? '');
+  const pm = species == null && MODELS.props3 && MODELS.props3.getObjectByName('item_' + type), key = type + (species ?? '') + (pm ? '+' : '');
   if (!itemCache[key]) {
-    const grp = buildItem(type);
+    const grp = (pm && propItem(type)) || buildItem(type);
     if (species != null) recolorFish(grp, SPECIES[species]);
     itemCache[key] = bake(grp);
   }
   const m = new THREE.Mesh(itemCache[key], itemMat);
   m.castShadow = true;
+  if (OUTLINED.has(type)) { const o = new THREE.Mesh(itemCache[key], OUTLINE_MAT); o.scale.setScalar(1.09); m.add(o); }
   scene.add(m);
   return m;
 }
@@ -792,6 +799,9 @@ function drawTile(g, icon, opt = {}) {
   if (opt.dashed) {
     roundRect(g, 18, 18, 220, 220, 28); g.fillStyle = 'rgba(255,255,255,.07)'; g.fill();
     g.setLineDash([26, 16]); g.lineWidth = 9; g.strokeStyle = 'rgba(255,255,255,.85)'; g.stroke(); g.setLineDash([]);
+  } else if (!opt.slate) {
+    roundRect(g, 16, 16, 224, 224, 34); g.fillStyle = opt.fill ? opt.fill.replace(/[\d.]+\)$/, '.55)') : 'rgba(44,40,40,.52)'; g.fill();
+    g.setLineDash([30, 18]); g.lineWidth = 10; g.lineCap = 'round'; roundRect(g, 18, 18, 220, 220, 32); g.strokeStyle = 'rgba(255,255,255,.92)'; g.stroke(); g.setLineDash([]);
   } else {
     g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 10; g.shadowOffsetY = 6;
     roundRect(g, 14, 14, 228, 228, 30);
@@ -803,10 +813,10 @@ function drawTile(g, icon, opt = {}) {
     g.save(); roundRect(g, 14, 14, 228, 228, 30); g.clip();
     g.fillStyle = 'rgba(80,205,100,.62)'; g.fillRect(14, 242 - 228*opt.prog, 228, 228*opt.prog); g.restore();
   }
-  // corner brackets
+  // corner brackets (only on the old slate tiles)
   g.strokeStyle = opt.stroke || 'rgba(255,255,255,.96)'; g.lineWidth = 13; g.lineCap = 'round'; g.lineJoin = 'round';
   const L = 56, A = 24, B = 232;
-  for (const [x, y, dx, dy] of [[A, A, 1, 1], [B, A, -1, 1], [A, B, 1, -1], [B, B, -1, -1]]) {
+  if (opt.slate || opt.dashed) for (const [x, y, dx, dy] of [[A, A, 1, 1], [B, A, -1, 1], [A, B, 1, -1], [B, B, -1, -1]]) {
     g.beginPath(); g.moveTo(x, y + dy*L); g.lineTo(x, y + dy*14); g.quadraticCurveTo(x, y, x + dx*14, y); g.lineTo(x + dx*L, y); g.stroke();
   }
   g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -965,6 +975,8 @@ const buildFx = {
   },
   oven(anim) {
     const g = new THREE.Group(); g.position.set(-4.2, 0, 7); scene.add(g);
+    const po = MODELS.props3 && MODELS.props3.getObjectByName('prop_oven');
+    if (po) { const m = po.clone(true); m.position.set(0, 0, 0); m.scale.setScalar(.82); m.traverse(q => { if (q.isMesh) { q.castShadow = true; q.receiveShadow = true; } }); g.add(m); smokers.push({x:-4.2, y:2.1, z:6.9}); ST.oven.body = g; if (anim) popIn(g); return; }
     mesh(G.cyl, 0x9a958c, [1.1, .4, 1.1], [0, .2, 0], g);
     const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10, 0, Math.PI*2, 0, Math.PI/2), mat(0xc0703f));
     dome.position.y = .4; dome.castShadow = true; g.add(dome);
@@ -4985,12 +4997,10 @@ function groundCanvas(kind) {
       g.save(); g.translate(x*1.0, (i + j)*BH/2 + (i - j)*0);
       g.restore();
     }
-    for (let y = 0; y < 256; y += 14) for (let x = -88; x < 286; x += 28) {
-      const v = r(), col = `rgb(${176 + v*34 | 0},${104 + v*24 | 0},${78 + v*18 | 0})`, off = ((y / 14) % 4) * 7;
-      g.fillStyle = col;
-      if ((y / 14) % 2) g.fillRect(x + off + 1, y + 1, 26, 12); else { g.fillRect(x + off + 1, y + 1, 12, 12); g.fillRect(x + off + 15, y + 1, 12, 12); }
-    }
-    g.fillStyle = 'rgba(240,234,222,.95)'; g.fillRect(0, 0, 256, 10); g.fillRect(0, 128, 256, 10); g.fillRect(0, 0, 10, 256); g.fillRect(128, 0, 10, 256);
+    // large pale paving slabs, softly varied, with faint joints
+    g.fillStyle = '#b9bcc4'; g.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 64) for (let x = 0; x < 256; x += 64) { const v = r(); g.fillStyle = `rgb(${178 + v*16 | 0},${181 + v*16 | 0},${190 + v*14 | 0})`; g.fillRect(x + 2, y + 2, 60, 60); }
+    g.fillStyle = 'rgba(90,96,110,.18)'; for (let k = 0; k < 256; k += 64) { g.fillRect(0, k, 256, 2); g.fillRect(k, 0, 2, 256); }
     for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${r()*.07})`; g.fillRect(r()*256, r()*256, 2, 2); }
   }
   return c;
@@ -9872,7 +9882,17 @@ function updMilFire(dt) {
     T.job = null; driveTo(T, [T.home], () => { T.busy = false; T.g.rotation.y = Math.PI; });
   }
 }
+const GREENPAD = {m:null};
+function updGreenPad() {
+  if (!GREENPAD.m) {
+    const tc = tileCanvas(g => { g.clearRect(0, 0, 256, 256); roundRect(g, 16, 16, 224, 224, 34); g.fillStyle = 'rgba(96,232,96,.88)'; g.fill(); g.setLineDash([30, 18]); g.lineWidth = 10; roundRect(g, 18, 18, 220, 220, 32); g.strokeStyle = 'rgba(255,255,255,.95)'; g.stroke(); });
+    GREENPAD.m = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:tc.t, transparent:true, depthWrite:false, toneMapped:false})); GREENPAD.m.rotation.x = -Math.PI/2; GREENPAD.m.renderOrder = 0; scene.add(GREENPAD.m);
+  }
+  const z = player.zone; GREENPAD.m.visible = !!z && z.mesh && z.mesh.visible !== false;
+  if (z) { GREENPAD.m.position.set(z.x, .035, z.z); GREENPAD.m.scale.set(z.w*1.04, z.d*1.04, 1); }
+}
 function updDistricts(dt) {
+  updGreenPad();
   updMilFire(dt);
   updHighways(dt);
   updWarArms(dt);
@@ -10900,7 +10920,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
