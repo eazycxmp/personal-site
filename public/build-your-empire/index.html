@@ -9941,7 +9941,7 @@ function updStrip(dt) {
   // the takings
   const take = stripTake();
   if (started && take && (STRIP.t -= dt) <= 0) {
-    STRIP.t = 10; const v = Math.round((800 + 300*W.era) * take);
+    STRIP.t = 10; const v = Math.round((800 + 300*W.era) * take * .7);   // casinos pay well, not wildly
     addCash(STRIP.cash, v, {x:-76, z:110});
     if (Math.hypot(player.pos.x + 76, player.pos.z - 110) < 40) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, 110), '#ffe06b');
   }
@@ -9967,11 +9967,12 @@ function playSlots(zn, e) {
   const bet = 400*(1 + W.era);
   if (W.coins < bet) { popText(`Need ${bet} 💵`, e.pos.clone().setY(2.6), '#ffb0a0'); return; }
   W.coins -= bet;
-  const r = R(), mult = r < .002 ? 100 : r < .022 ? 15 : r < .122 ? 4 : r < .422 ? 2 : 0;
-  const pick = () => SPIN[R()*SPIN.length|0], reel = mult >= 100 ? '💎💎💎' : mult >= 15 ? '7️⃣7️⃣7️⃣' : mult >= 4 ? '⭐⭐⭐' : mult ? (() => { const a = pick(); return a + a + pick(); })() : (() => { let a, b, c; do { a = pick(); b = pick(); c = pick(); } while (a === b && b === c); return a + b + c; })();
+  // pays back a little over the stake on average (2x 30%, 3x 8%, 10x 1.2%, 60x 0.1%)
+  const r = R(), mult = r < .001 ? 60 : r < .013 ? 10 : r < .093 ? 3 : r < .393 ? 2 : 0;
+  const pick = () => SPIN[R()*SPIN.length|0], reel = mult >= 60 ? '💎💎💎' : mult >= 10 ? '7️⃣7️⃣7️⃣' : mult >= 3 ? '⭐⭐⭐' : mult ? (() => { const a = pick(); return a + a + pick(); })() : (() => { let a, b, c; do { a = pick(); b = pick(); c = pick(); } while (a === b && b === c); return a + b + c; })();
   const win = bet*mult; W.coins += win; if (win) W.earned += win - bet;
   popText(`${reel} ${win ? '+' + win.toLocaleString() : '−' + bet.toLocaleString()}`, e.pos.clone().setY(2.8), win ? '#ffe06b' : '#ffb0a0');
-  if (mult >= 15) { banner(mult >= 100 ? '💎 JACKPOT!' : '7️⃣ Big win!', `The slots pay ${win.toLocaleString()} 💵.`); for (let i = 0; i < 20; i++) particle([0xffd84a, 0xff6ad8, 0xffffff][i % 3], e.pos.clone().setY(2), new THREE.Vector3((R() - .5)*6, 4 + R()*4, (R() - .5)*6), 1.2, .2, {grav:1}); }
+  if (mult >= 10) { banner(mult >= 60 ? '💎 JACKPOT!' : '7️⃣ Big win!', `The slots pay ${win.toLocaleString()} 💵.`); for (let i = 0; i < 20; i++) particle([0xffd84a, 0xff6ad8, 0xffffff][i % 3], e.pos.clone().setY(2), new THREE.Vector3((R() - .5)*6, 4 + R()*4, (R() - .5)*6), 1.2, .2, {grav:1}); }
   if (win) snd(880 + mult*20, .1, 'triangle', .04);
   save();
 }

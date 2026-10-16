@@ -1,0 +1,68 @@
+// ------------------------------------------------------------------ builders
+// Builders carry stone, logs, tools and scrolls from the piles to whatever unlock is waiting for them.
+// builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
+// they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
+const BSTAT = {items:0, dist:0, loads:0, goal:0};
+function builderJob(w) {
+  const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
+  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  if (!open.length) return null;
+  const others = workers.filter(o => o !== w && o.kind === 'builder' && o.job);
+  const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
+  const goal = OBJ.z && OBJ.z.pad ? OBJ.z : null;
+  const score = z => {
+    const rem = z.pad.cost - (W.paid[z.pad.id] || 0), dPlayer = Math.hypot(z.x - player.pos.x, z.z - player.pos.z), dMe = Math.hypot(z.x - w.pos.x, z.z - w.pos.z);
+    return (z === goal ? -1000 : 0) + dPlayer*2 + dMe + rem*.5;
+  };
+  const free = open.filter(z => need(z) > 0);
+  const pick = (free.length ? free : open).sort((a, b) => score(a) - score(b))[0];
+  return pick ? pick.pad : null;
+}
+function builderPile(w, cur, want, pz) {
+  const piles = zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
+  const taken = new Set(workers.filter(o => o !== w && o.kind === 'builder' && o.pile).map(o => o.pile));
+  // the shortest walk there and on to the tile, but a pile that can fill the whole load is worth a detour
+  return piles.map(z => ({z, cost:Math.hypot(z.x - w.pos.x, z.z - w.pos.z) + Math.hypot(z.x - pz.x, z.z - pz.z) + (z.stack.count([cur]) >= want ? 0 : 6) + (taken.has(z) && z.stack.count([cur]) < want*2 ? 5 : 0)}))
+    .sort((a, b) => a.cost - b.cost)[0]?.z || null;
+}
+function updBuilder(w, dt) {
+  if (w.lastP) BSTAT.dist += Math.hypot(w.pos.x - w.lastP.x, w.pos.z - w.lastP.z); else w.lastP = new THREE.Vector3();
+  w.lastP.copy(w.pos);
+  // look again every few seconds in case you moved on to something else
+  if ((w.rethink = (w.rethink || 0) - dt) <= 0 && w.mode === 'fetch' && !w.stack.length) { w.rethink = 4; w.job = null; }
+  if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
+    w.job = builderJob(w);
+    w.mode = 'fetch'; w.wait = 0; w.pile = null;
+    if (!w.job) { goTo(w, ...w.home, dt); return; }
+  }
+  const p = w.job, cur = p.cur, pz = padZones[p.id], rem = p.cost - (W.paid[p.id] || 0);
+  while (w.stack.length > w.stack.count([cur])) { const it = w.stack.take(Object.keys(ITEM).filter(k => k !== cur)); flyAway(it.mesh, w.pos.clone().setY(0), .3); }
+  const carried = w.stack.count([cur]), want = Math.max(1, Math.min(rem, w.cap));
+  if (w.mode === 'fetch') {
+    if (carried >= want) { w.mode = 'deliver'; return; }
+    if (!w.pile || !zones.includes(w.pile) || (!w.pile.stack.count([cur]) && !carried)) { w.pile = builderPile(w, cur, want - carried, pz); w.wait = 0; }
+    if (!w.pile) { if (carried) w.mode = 'deliver'; else w.job = null; return; }
+    if (goTo(w, w.pile.x, w.pile.z, dt) && (w.tick -= dt) <= 0) {
+      w.tick = .05;
+      if (w.pile.stack.count([cur])) { transfer(w.pile.stack, w.stack, [cur]); w.wait = 0; }
+      // the pile ran dry: try the next nearest, or bring what we have
+      else if ((w.wait += .05) > 1) { const nx = builderPile(w, cur, want - carried, pz); if (nx && nx !== w.pile) { w.pile = nx; w.wait = 0; } else w.mode = 'deliver'; }
+    }
+  } else {
+    if (!carried) { w.mode = 'fetch'; w.pile = null; return; }
+    if (goTo(w, pz.x, pz.z, dt) && (w.tick -= dt) <= 0) {
+      w.tick = .04;
+      const it = w.stack.take([cur]);
+      flyAway(it.mesh, new THREE.Vector3(pz.x, .1, pz.z), .25);
+      W.paid[p.id] = (W.paid[p.id] || 0) + 1; BSTAT.items++; if (OBJ.z && OBJ.z.pad === p) BSTAT.goal++; snd(200 + carried*15, .04, 'square', .02);
+      if (!w.stack.count([cur])) BSTAT.loads++;
+      if (W.paid[p.id] >= p.cost) { w.job = null; unlock(p.id, true); } else refreshPads();
+    }
+  }
+}
+// treasurers split the cash piles between them, going for the most money per step
+function treasurerPile(w) {
+  const taken = new Set(workers.filter(o => o !== w && o.kind === 'treasurer' && o.pile).map(o => o.pile));
+  return Object.values(CASH).filter(c => c.value > 0 && !taken.has(c)).sort((a, b) => b.value/(Math.hypot(b.x - w.pos.x, b.z - w.pos.z) + 4) - a.value/(Math.hypot(a.x - w.pos.x, a.z - w.pos.z) + 4))[0] || null;
+}
+

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Build Your Empire</title>
+<script>if (window.parent !== window) document.documentElement.classList.add('framed');</script>
+<style>
+:root{--ink:#2b2118;--panel:#fffaf0;--accent:#f0a83a;--good:#4caf50}
+*{box-sizing:border-box}
+html,body{margin:0;background:#1c1814;font-family:ui-rounded,"SF Pro Rounded","Trebuchet MS",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+#app{width:100%;max-width:1180px;margin:0 auto}
+#stage{position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;border-radius:14px;background:#bfe3f2;
+  user-select:none;-webkit-user-select:none;touch-action:none}
+/* standalone only: when framed, the host sizes us from our reported height */
+html:not(.framed) #stage{max-height:100vh;max-height:100svh}
+@media (min-width:701px){html.framed #app{max-width:none}html.framed #stage{aspect-ratio:auto;height:100vh}}
+@media (max-width:700px){#stage{aspect-ratio:3/4;border-radius:0}}
+@media (max-width:560px){
+  #hudL{top:auto;bottom:10px}
+  .chip{font-size:13px;padding:4px 9px}
+  #obj{top:46px;font-size:13px}
+}
+#stage canvas{display:block;width:100%;height:100%;outline:none}
+.hud{position:absolute;top:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:3;pointer-events:none}
+#hudL{left:10px;top:auto;bottom:10px;max-width:calc(100% - 110px)}#hudR{right:10px;justify-content:flex-end;max-width:calc(100% - 20px)}
+.chip{background:#fffaf0ee;color:var(--ink);border-radius:999px;padding:5px 12px;font-weight:800;font-size:15px;
+  box-shadow:0 3px 0 #0002;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.chip.money{background:linear-gradient(#6ad66f,#2f9e44);color:#fff;text-shadow:0 1px 0 #0005}
+.chip.angry{background:#ffd9cf;color:#a0281e}
+.bub.angry{background:#ffcfc4}
+.bub.angry::after{border-top-color:#ffcfc4}
+.bub.mad{box-shadow:0 0 0 3px #ff7a5c}
+.chip small{font-weight:600;opacity:.6;font-size:12px}
+#obj{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:3;background:#2b2118dd;color:#fff;
+  border-radius:12px;padding:7px 14px;font-weight:700;font-size:14px;pointer-events:none;max-width:86%;text-align:center}
+#obj:empty{display:none}
+#banner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(.7);opacity:0;transition:.4s;z-index:4;
+  background:#fffaf0;color:var(--ink);border-radius:18px;padding:14px 24px;text-align:center;font-weight:900;font-size:24px;
+  box-shadow:0 8px 0 #0003;pointer-events:none;max-width:88%}
+#banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#banner small{display:block;font-weight:600;font-size:14px;opacity:.7;margin-top:4px}
+/* news stacks quietly down the right side: a few cards at most, repeats fold into one, each fades on its own */
+#feed{position:absolute;right:10px;top:54px;z-index:4;display:flex;flex-direction:column;gap:6px;width:250px;pointer-events:none}
+.note{background:#fffaf0f2;color:var(--ink);border-radius:12px;padding:7px 11px 8px;font-weight:800;font-size:13.5px;line-height:1.25;box-shadow:0 3px 0 #0002;
+  border-left:4px solid #6ad66f;opacity:0;transform:translateX(18px);transition:opacity .35s,transform .35s}
+.note.in{opacity:1;transform:none}
+.note small{display:block;font-weight:600;font-size:11.5px;opacity:.7;margin-top:2px}
+.note.urgent{border-left-color:#e0483a;background:#fff1ec}
+.note i{font-style:normal;background:#2b2118;color:#fff;border-radius:999px;padding:0 6px;font-size:11px;margin-left:6px;vertical-align:1px}
+@media (max-width:700px){#feed{width:168px;top:26%}.note{font-size:12px;padding:5px 9px 6px}.note small{display:none}}
+#labels{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+.bub{position:absolute;transform:translate(-50%,-100%);background:#fff;color:var(--ink);border-radius:999px;padding:2px 8px 2px 5px;
+  font-weight:900;font-size:13px;display:flex;gap:3px;align-items:center;box-shadow:0 3px 0 #0002;white-space:nowrap}
+.bub::after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-top-color:#fff;border-bottom:0}
+.bub.front{font-size:18px;padding:4px 12px 4px 8px}
+.bub.done{background:#c8f0b8}
+.bub.done::after{border-top-color:#c8f0b8}
+.pop{position:absolute;transform:translate(-50%,-50%);font-weight:900;font-size:18px;color:#fff;
+  text-shadow:0 2px 0 #0007,0 0 6px #0005;white-space:nowrap}
+#joy{position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:#ffffff33;border:3px solid #ffffff88;
+  z-index:3;pointer-events:none;display:none}
+#knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#fffffff0;box-shadow:0 3px 0 #0003}
+#btns{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;z-index:3}
+#btns button{border:0;background:#fffaf0dd;border-radius:10px;padding:6px 10px;font-size:15px;cursor:pointer;box-shadow:0 3px 0 #0002}
+#overlay{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
+#overlay[hidden]{display:none}
+#pauseOv{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
+#pauseOv[hidden]{display:none}
+.card{background:var(--panel);color:var(--ink);border-radius:20px;padding:22px 26px;max-width:430px;text-align:center;box-shadow:0 10px 0 #0003}
+.card h1{margin:0 0 6px;font-size:34px}
+.card p{margin:8px 0;line-height:1.5;color:#5a4a3a}
+.card .keys{font-size:13px;opacity:.8}
+.big{background:linear-gradient(#5fd068,#3ea84a);color:#fff;border:0;border-radius:14px;padding:12px 28px;font-weight:900;font-size:19px;
+  box-shadow:0 5px 0 #2b7a34;cursor:pointer;margin-top:8px}
+.big:active{transform:translateY(3px);box-shadow:0 2px 0 #2b7a34}
+.ghost{background:none;border:0;color:#8a7a6a;text-decoration:underline;cursor:pointer;font-size:13px;margin-top:10px}
+#goals{position:absolute;top:30%;left:10px;z-index:3;display:flex;flex-direction:column;gap:5px;pointer-events:none;width:210px}
+.goal{background:#fffaf0ee;color:var(--ink);border-radius:10px;padding:5px 10px 6px;font-weight:800;font-size:12.5px;box-shadow:0 3px 0 #0002;line-height:1.25}
+.goal small{display:block;font-weight:700;opacity:.65;font-size:11px}
+.goal i{display:block;height:5px;border-radius:9px;background:#0001;margin-top:4px;overflow:hidden}
+.goal i b{display:block;height:100%;background:linear-gradient(90deg,#5fd068,#2f9e44)}
+#modal{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
+#modal[hidden]{display:none}
+#modal .card{max-height:92%;overflow:auto}
+.board{display:flex;gap:16px;text-align:left;font-size:14px;margin:8px 0;justify-content:center}
+.board ol{margin:4px 0;padding-left:22px;line-height:1.6;min-width:130px}
+.board h3{margin:0;font-size:14px}
+.card input{font:inherit;padding:8px 10px;border-radius:10px;border:2px solid #d8cbb5;width:170px}
+.flycash{position:absolute;z-index:5;font-size:22px;pointer-events:none;transition:transform .65s cubic-bezier(.5,-.3,.7,1),opacity .65s}
+.chip.money{transition:transform .15s}
+.chip.money.bump{transform:scale(1.18)}
+@media (max-width:700px){#goals{width:160px;top:26%}#goals .goal{font-size:11.5px;padding:4px 8px 5px}#goals .goal:nth-child(n+2){display:none}}
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:10px 0}
+.palette button{border:0;border-radius:12px;background:#fff6e4;padding:8px 4px;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 0 #0002;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--ink)}
+.palette button span{font-size:26px}.palette button small{font-weight:700;opacity:.7}.palette button:disabled{opacity:.4;cursor:default}
+.need{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:800;font-size:14px}.need span{width:92px;text-align:left}
+.need i{flex:1;height:10px;border-radius:6px;background:#0001;overflow:hidden}.need b{display:block;height:100%}
+.bub.mood{padding:1px 5px;font-size:12px;background:#ffffffd8}.bub.mood::after{display:none}
+#placeBar{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800}
+#placeBar[hidden]{display:none}
+#placeBar button{border:0;border-radius:10px;padding:7px 12px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}#placeBar #bCancel{background:#fffaf0;color:#2b2118}
+#ticker{position:absolute;left:0;right:0;bottom:0;height:22px;background:#1c1814e0;color:#ffe9b8;font:700 12px/22px ui-rounded,"Trebuchet MS",sans-serif;overflow:hidden;white-space:nowrap;z-index:3;pointer-events:none}
+#ticker[hidden]{display:none}
+#tickerText{display:inline-block;padding-left:100%;animation:tick 45s linear infinite}
+@keyframes tick{to{transform:translateX(-100%)}}
+#stage.news #hudL,#stage.news #btns{bottom:30px}
+#stage.photo .hud,#stage.photo #obj,#stage.photo #labels,#stage.photo #goals,#stage.photo #btns,#stage.photo #ticker,#stage.photo #banner,#stage.photo #feed{display:none}
+#stage.space #labels,#stage.space #goals,#stage.space #obj{display:none}
+#photoBar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:5;display:flex;gap:8px;align-items:center;background:#2b2118e6;color:#fff;border-radius:14px;padding:8px 10px;font-weight:800;font-size:13px}
+#photoBar[hidden]{display:none}
+#photoBar button{border:0;border-radius:10px;padding:7px 12px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}#photoBar #bPhotoX{background:#fffaf0;color:#2b2118}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:12px 0;text-align:center}
+.shelf div{background:#efe6d6;border-radius:12px;padding:8px 6px;opacity:.55;display:flex;flex-direction:column;gap:2px}
+.shelf div.won{background:linear-gradient(#fff6d8,#f2d27a);opacity:1;box-shadow:0 3px 0 #0002}
+.shelf span{font-size:28px}.shelf b{font-size:12px}.shelf small{font-size:10.5px;opacity:.7}
+#bossBar{position:absolute;left:50%;top:88px;transform:translateX(-50%);z-index:4;background:#2b2118e6;color:#fff;border-radius:12px;padding:6px 12px;font-weight:900;font-size:13px;display:flex;flex-direction:column;gap:4px;min-width:220px;text-align:center}
+#bossBar[hidden]{display:none}#bossBar i{height:10px;border-radius:6px;background:#0005;overflow:hidden;display:block}#bossBar b{display:block;height:100%;background:linear-gradient(90deg,#ff5a3a,#ffb03a);width:100%}
+.trades{display:flex;flex-direction:column;gap:8px;margin:12px 0;text-align:left}
+.trades div{display:flex;align-items:center;gap:8px;background:#fff6e4;border-radius:10px;padding:8px 10px}.trades b{width:110px}.trades span{flex:1;font-size:13px}
+.trades button{border:0;border-radius:10px;padding:6px 10px;font-weight:900;cursor:pointer;background:#6ad66f;color:#fff}.trades button:disabled{background:#cfc6b6;cursor:default}
+.emp{display:flex;flex-direction:column;gap:7px;margin:10px 0;text-align:left}.emp .pow{background:#2a2a35;color:#fff;border-radius:10px;padding:8px 10px;font-size:14px}.emp .pow b{margin-left:6px}.emp .pow small{display:block;opacity:.75;font-size:11px;margin-top:2px}
+.ec{background:#fff6e4;border-radius:10px;padding:8px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}.ec b{min-width:110px}.ec span{flex:1;font-size:12px}.ec span i{color:#c0392b;font-style:normal;font-weight:900}
+.ec.dim{opacity:.55}.ec.war{background:#ffe1dc}.ec.ally{background:#e4f6e0}.ec.owned{background:#fff1b8}.ec .rel{flex-basis:100%;height:5px;background:#0001;border-radius:3px;overflow:hidden}.ec .rel i{display:block;height:100%;background:linear-gradient(90deg,#e0483a,#f2c200,#5ad85a)}
+.ec .eb{flex-basis:100%;display:flex;gap:5px;flex-wrap:wrap}.ec button{border:0;border-radius:9px;padding:5px 8px;font-weight:900;font-size:12px;cursor:pointer;background:#3f7cc0;color:#fff}.ec button:disabled{background:#cfc6b6;cursor:default}.ec em{font-size:12px}
+.trh{font-size:16px;margin:10px 0 2px}.empHint{font-size:12px;opacity:.7;margin:2px 0}
+.votes{display:flex;gap:10px;margin:12px 0}.votes button{flex:1;border:0;border-radius:14px;padding:14px 10px;background:#fff6e4;cursor:pointer;box-shadow:0 3px 0 #0002;display:flex;flex-direction:column;gap:4px;color:var(--ink)}
+.votes b{font-size:16px}.votes small{opacity:.7}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div class="hud" id="hudL"></div>
+    <div class="hud" id="hudR"></div>
+    <div id="obj"></div>
+    <div id="banner"></div>
+    <div id="feed"></div>
+    <div id="labels"></div>
+    <div id="joy"><div id="knob"></div></div>
+    <div id="goals"></div>
+    <div id="modal" hidden></div>
+    <div id="placeBar" hidden><span id="placeName"></span><button id="bPlace">Place here ✓</button><button id="bCancel">✕</button></div>
+    <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
+    <div id="ticker" hidden><div id="tickerText"></div></div>
+    <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <div id="pauseOv" hidden>
+      <div class="card">
+        <h1>⏸️ Paused</h1>
+        <p>Your empire is on hold: no time passes, nobody earns and nothing attacks until you come back.</p>
+        <button class="big" id="bResume">Resume</button>
+      </div>
+    </div>
+    <div id="overlay">
+      <div class="card">
+        <h1>🏰 Build Your Empire</h1>
+        <p>Start with a campfire by the river. Catch fish, feed hungry travelers, and grow your camp into a kingdom, an empire and a skyline.</p>
+        <p class="keys">Drag anywhere to walk (or WASD / arrow keys). Stand on a tile to use it.</p>
+        <button class="big" id="bPlay">Play</button><br>
+        <button class="ghost" id="bNew" hidden>Start a new camp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+<!--GAME-SCRIPT-->
+</script>
+</body>
+</html>
