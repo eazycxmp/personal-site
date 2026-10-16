@@ -1,0 +1,2 @@
+Realistic characters and animations: "Universal Base Characters" and "Universal Animation Library" by Quaternius (quaternius.com), CC0 1.0 Universal (public domain).
+Converted for the game: bodies, hairstyles and skeletons re-exported with downsized textures; clothing shells generated from the bodies.
