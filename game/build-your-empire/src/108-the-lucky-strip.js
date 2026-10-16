@@ -1,7 +1,12 @@
 // ------------------------------------------------------------------ the Lucky Strip
-const STRIP = {walk:{x0:-102, x1:-50, z0:102.8, z1:117.2}, path:{x0:-77.2, x1:-74.3, z0:66.5, z1:103}, spur:{x0:-80.6, x1:-74.3, z0:66.5, z1:69.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
+// The Strip is a long boulevard south of the wonders park: two lanes either side of a planted median, wide sidewalks,
+// and the resorts on big lots with room round them (28 apart), four to a side. The walk in from the park comes
+// down between the third and fourth lots on the north side.
+const STRIP_Z = 150, STRIP_X0 = -162, STRIP_X1 = -50, STRIP_HALF = 8.7;
+const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-77.2, x1:-74.3, z0:66.5, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-80.6, x1:-74.3, z0:66.5, z1:69.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
 // lot centres: four on the north side (facing south onto the boulevard), four on the south side (facing north)
-const STRIP_LOTS = {slots:[-96, 97.1], casino1:[-82.5, 97.1], casino2:[-69, 97.1], casino3:[-55.5, 97.1], chapel:[-96, 122.9], fountains:[-82.5, 122.9], stripHotel:[-69, 122.9], casino4:[-55.5, 122.9]};
+const STRIP_N = STRIP_Z - STRIP_HALF - 6, STRIP_S = STRIP_Z + STRIP_HALF + 6;
+const STRIP_LOTS = {slots:[-150, STRIP_N], casino1:[-122, STRIP_N], casino2:[-94, STRIP_N], casino3:[-64, STRIP_N], chapel:[-150, STRIP_S], fountains:[-122, STRIP_S], stripHotel:[-94, STRIP_S], casino4:[-64, STRIP_S]};
 const STRIP_PAY = {slots:1, chapel:.5, casino1:3, casino2:7, casino3:14, casino4:28, stripHotel:4};
 function stripNeonTex(text, col, w = 512, h = 128) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -30,18 +35,21 @@ function stripFx(anim) {
   if (typeof wondersPark === 'function') wondersPark();
   const g = STRIP.g = new THREE.Group(); scene.add(g);
   const W0 = STRIP.walk, P0 = STRIP.path, S0 = STRIP.spur;
-  clearForest({x0:-103, x1:-49.5, z0:90, z1:130}); clearForest({x0:-81, x1:-73.5, z0:65.5, z1:103});
-  // the desert floor, the walk in from the wonders park, the boulevard and its sidewalks
-  slab(0xd8b47a, 53, 39, -76, 110.4, .003);
+  clearForest({x0:STRIP_X0 - 1, x1:STRIP_X1 + 1, z0:STRIP_N - 13, z1:STRIP_S + 13}); clearForest({x0:-81, x1:-73.5, z0:65.5, z1:STRIP_Z});
+  // the desert floor, the walk in from the wonders park, the boulevard, its median and its sidewalks
+  const L = STRIP_X1 - STRIP_X0, CX = (STRIP_X0 + STRIP_X1)/2;
+  slab(0xd8b47a, L + 2, STRIP_S - STRIP_N + 26, CX, STRIP_Z, .003);
   for (const q of [P0, S0]) slab(0xd8d4cc, q.x1 - q.x0, q.z1 - q.z0, (q.x0 + q.x1)/2, (q.z0 + q.z1)/2, .01);
-  slab(0x34373c, 52, 5, -76, 110, .008); slab(0xd8d4cc, 52, 4.7, -76, 105.15, .012); slab(0xd8d4cc, 52, 4.7, -76, 114.85, .012);
-  for (let x = -101; x < -50; x += 2.2) mesh(G.box, 0xf2c200, [1.1, .02, .12], [x, .02, 110], g);
+  slab(0x34373c, L, 8, CX, STRIP_Z, .008); slab(0xd8d4cc, L, 4.7, CX, STRIP_Z - 6.35, .012); slab(0xd8d4cc, L, 4.7, CX, STRIP_Z + 6.35, .012);
+  slab(0x6a9a4a, L - 4, 1.6, CX, STRIP_Z, .14);
+  for (const dz of [-2.1, 2.1]) for (let x = STRIP_X0 + 1; x < STRIP_X1 - 1; x += 2.2) mesh(G.box, 0xf2f2f2, [1.1, .02, .12], [x, .02, STRIP_Z + dz], g);
   AREAS.push(W0, P0, S0);
-  // palms between the lots on both sidewalks, streetlights in front of them
-  for (const x of [-101.3, -89.25, -62.25, -50.7]) for (const z of [103.6, 116.4]) { palm(g, x, z); circles.push({x, z, r:.25}); }
-  for (const x of [-92.6, -79.1, -65.6, -59]) for (const z of [107.2, 112.8]) { mesh(G.cyl, 0x2a2a2e, [.05, 3.2, .05], [x, 1.6, z], g); STRIP.lamps = (STRIP.lamps || []).concat(bulb(g, x, 3.15, z + (z < 110 ? .35 : -.35), 0xfff2c8, .12)); circles.push({x, z, r:.15}); }
+  // palms down the median and along both sidewalks, streetlights between them
+  for (let x = STRIP_X0 + 4; x < STRIP_X1 - 2; x += 9) { palm(g, x, STRIP_Z); circles.push({x, z:STRIP_Z, r:.3}); }
+  for (let x = STRIP_X0 + 2; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 7.9, STRIP_Z + 7.9]) { if (Math.abs(x + 75.75) < 3) continue; palm(g, x, z); circles.push({x, z, r:.25}); }
+  for (let x = STRIP_X0 + 9; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 4.4, STRIP_Z + 4.4]) { mesh(G.cyl, 0x2a2a2e, [.05, 3.6, .05], [x, 1.8, z], g); STRIP.lamps = (STRIP.lamps || []).concat(bulb(g, x, 3.55, z + (z < STRIP_Z ? .35 : -.35), 0xfff2c8, .12)); circles.push({x, z, r:.15}); }
   // the welcome sign, across from the walk in
-  const sg = new THREE.Group(); sg.position.set(-75.75, 0, 117.9); g.add(sg);
+  const sg = new THREE.Group(); sg.position.set(-75.75, 0, STRIP_Z + STRIP_HALF + .7); g.add(sg);
   for (const x of [-.9, .9]) mesh(G.cyl, 0xd8d4cc, [.08, 2.6, .08], [x, 1.3, 0], sg);
   const board = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:(() => {
     const c = document.createElement('canvas'); c.width = 512; c.height = 320; const q = c.getContext('2d');
@@ -53,23 +61,36 @@ function stripFx(anim) {
     for (let i = 0; i < 24; i++) { const a = i/24*Math.PI*2; q.fillStyle = '#ffd040'; q.beginPath(); q.arc(256 + Math.cos(a)*235, 165 + Math.sin(a)*140, 6, 0, 7); q.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })(), transparent:true, toneMapped:false, side:THREE.DoubleSide}));
   board.scale.set(3.2, 2, 1); board.position.set(0, 3.2, 0); sg.add(board); STRIP.neon.push({m:board, ph:0});
-  STRIP.cash = makeCash('vegas', -78.9, 105.2);
+  STRIP.cash = makeCash('vegas', -78.9, STRIP_Z - 6.3);
   if (anim) popIn(g);
 }
 function stripLot(id, anim) {
   if (STRIP.lots[id]) return; if (!STRIP.g) stripFx(false);
-  const [cx, cz] = STRIP_LOTS[id], north = cz < 110, sz = north ? 1 : -1;   // sz: toward the boulevard
+  const [cx, cz] = STRIP_LOTS[id], north = cz < STRIP_Z, sz = north ? 1 : -1;   // sz: toward the boulevard
   // each lot is built in its own frame (front toward local +z), then turned to face the boulevard
-  const g = new THREE.Group(); g.position.set(cx, 0, cz); g.rotation.y = north ? 0 : Math.PI; scene.add(g); STRIP.lots[id] = g;
-  const box = (hw, hd) => boxes.push({x0:cx - hw, x1:cx + hw, z0:cz - hd, z1:cz + hd});
+  // the big resorts stand a third larger, set back on their grounds; the small places stay at the sidewalk
+  const S = {casino1:1.3, casino2:1.3, casino3:1.3, stripHotel:1.3, casino4:1.3}[id] || 1, back = S > 1 ? 2.6 : 0;
   const W2 = (lx, lz) => [cx + lx*sz, cz + lz*sz];   // local to world
-  slab(0xc9b48a, 11, 10.6, cx, cz, .01);
+  const [gx, gz] = W2(0, -back);
+  const g = new THREE.Group(); g.position.set(gx, 0, gz); g.rotation.y = north ? 0 : Math.PI; g.scale.setScalar(S); scene.add(g); STRIP.lots[id] = g;
+  const box = (hw, hd) => boxes.push({x0:gx - hw*S, x1:gx + hw*S, z0:gz - hd*S, z1:gz + hd*S});
+  // a porte-cochere: a lit canopy on gold columns over the drop-off, and a red carpet out to the sidewalk
+  const canopy = (z0) => {
+    const GOLD = {metalness:.9, roughness:.25};
+    mesh(G.box, 0xf4efe4, [4.6, .28, 2.6], [0, 2.75, z0 + 1.3], g); mesh(G.box, 0xd8b04a, [4.7, .1, 2.7], [0, 2.92, z0 + 1.3], g, GOLD);
+    for (const x of [-2.1, 2.1]) mesh(G.cyl, 0xd8b04a, [.12, 2.6, .12], [x, 1.3, z0 + 2.45], g, GOLD);
+    for (let i = 0; i < 4; i++) for (let k = 0; k < 2; k++) bulb(g, -1.5 + i, 2.58, z0 + .7 + k*1.2, 0xfff0c8, .07);
+    mesh(G.box, 0xa8222a, [1.8, .02, (6 - back)/S + 2.6 - z0 + 1], [0, .03, z0 + ((6 - back)/S - z0 + 1)/2 + .6], g);
+  };
+  // the resort's grounds: a forecourt to the street, lawns down the sides, palms at the corners
+  { const [gx, gz] = W2(0, -2); slab(0x8aae5a, 19, 16, gx, gz, .006); } slab(0xc9b48a, 12, 11, cx, cz, .01);
+  for (const [lx, lz] of [[-8.3, 4.6], [8.3, 4.6], [-8.3, -8.6], [8.3, -8.6]]) { const [px, pz] = W2(lx, lz); palm(STRIP.g, px, pz); circles.push({x:px, z:pz, r:.3}); }
   // the name in neon, readable from the street side and from the camera (south) side
   const name = (text, col, w, h, y, z) => { stripSign(g, text, col, w, h, 0, y, z, 0); if (!north) stripSign(g, text, col, w, h, 0, y, -z, Math.PI); };
   if (id === 'slots') {
     mesh(G.box, 0x5a1e8a, [9, 3.4, 8.6], [0, 1.7, 0], g); mesh(G.box, 0x2a0a4a, [9.4, .4, 9], [0, 3.6, 0], g);
     for (let k = 0; k < 14; k++) bulb(g, -4.2 + k*.64, 2.9, 4.35, 0xffd040, .07);
-    name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); box(4.6, 4.4);
+    name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); canopy(4.3); box(4.6, 4.4);
     const [zx, zz] = W2(3, 6.3); STRIP.spin = addZone({kind:'spin', x:zx, z:zz, icon:'🎰', tile:{alpha:1, size:84, label:'Play the slots', fill:'rgba(120,30,140,.6)'}});
   } else if (id === 'chapel') {
     mesh(G.box, 0xf6f2ea, [7, 3, 5], [0, 1.5, 0], g); const roof = mesh(G.cone4, 0xe8a0b8, [5.4, 1.8, 4.4], [0, 3.9, 0], g); roof.rotation.y = Math.PI/4;
@@ -82,7 +103,7 @@ function stripLot(id, anim) {
     name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85);
     const L = new THREE.Group(); L.position.set(3.6, 0, 5.2); g.add(L); const GOLD = {metalness:.9, roughness:.25};
     mesh(G.box, 0x6a6a6a, [1.2, .8, 1.2], [0, .4, 0], L); mesh(G.sph, 0xd8b04a, [.5, .5, .75], [0, 1.25, 0], L, GOLD); mesh(G.sph, 0xd8b04a, [.42, .42, .42], [0, 1.7, .45], L, GOLD); mesh(G.sph, 0xc8962a, [.55, .55, .3], [0, 1.72, .3], L, GOLD);
-    box(4.9, 5.3);
+    canopy(4.8); box(4.9, 5.3);
   } else if (id === 'fountains') {
     mesh(G.box, 0xd8d4cc, [10.6, .5, 10], [0, .25, 0], g); mesh(G.box, 0x2a8ac8, [9.8, .1, 9.2], [0, .48, 0], g, {roughness:.05, metalness:.3});
     const JM = new THREE.MeshBasicMaterial({color:0xe8f6ff, transparent:true, opacity:.75, toneMapped:false});
@@ -101,11 +122,11 @@ function stripLot(id, anim) {
     mesh(G.cyl, 0xd8d4cc, [1, 20, 1], [0, 13, -1], g); for (const a of [0, 2.1, 4.2]) mesh(G.box, 0xd8d4cc, [.3, 18, 2.4], [Math.cos(a)*.9, 12, -1 + Math.sin(a)*.9], g).rotation.y = -a;
     mesh(G.cyl, 0x3a4a5a, [3, 1.6, 3], [0, 23.8, -1], g, {metalness:.6, roughness:.2}); mesh(G.cyl, 0xe8e4dc, [3.2, .4, 3.2], [0, 24.8, -1], g);
     mesh(G.cone, 0xe8e4dc, [.3, 5, .3], [0, 27.5, -1], g); bulb(g, 0, 30.1, -1, 0xff3a2a, .2);
-    box(4.6, 4.4);
+    canopy(4.3); box(4.6, 4.4);
   } else if (id === 'stripHotel') {
     for (const a of [0, 2.094, 4.189]) { const t = stripTower(g, 2.6, 16, 6, Math.sin(a)*2.4, -.6 + Math.cos(a)*2.4, '#e8e2d4', 4); t.rotation.y = a; }
     mesh(G.box, 0xc8a85a, [10, 2.4, 9.6], [0, 1.2, 0], g); name('RESORT', '#ffd040', 6, 1.4, 3, 4.85);
-    box(5.1, 5);
+    canopy(4.8); box(5.1, 5);
   } else if (id === 'casino4') {
     mesh(G.box, 0xf0e2c4, [10.4, 5, 6.6], [0, 2.5, -1.6], g);
     for (let k = 0; k < 6; k++) { mesh(G.box, 0x6a4a3a, [.9, 1.4, .1], [-4 + k*1.6, 1.2, 1.72], g); mesh(G.box, 0x6a4a3a, [.7, 1, .1], [-4 + k*1.6, 3.4, 1.72], g); }
@@ -119,7 +140,7 @@ function stripLot(id, anim) {
     box(5.4, 5.2);
   }
   // tall ones fade while you walk behind them, so they never hide you from the camera
-  const H = {casino1:17, casino2:11, casino3:30, stripHotel:16, casino4:15}[id]; if (H) fader(g, 11, H);
+  const H = {casino1:17, casino2:11, casino3:30, stripHotel:16, casino4:15}[id]; if (H) fader(g, 11*S, H*S);
   if (anim) { popIn(g); puff(cx, cz); }
 }
 const stripTake = () => { let m = 0; for (const [k, v] of Object.entries(STRIP_PAY)) if (STRIP.lots[k]) m += v; return m * (STRIP.lots.fountains ? 1.25 : 1); };
@@ -138,19 +159,19 @@ function updStrip(dt) {
   const take = stripTake();
   if (started && take && (STRIP.t -= dt) <= 0) {
     STRIP.t = 10; const v = Math.round((800 + 300*W.era) * take * .7);   // casinos pay well, not wildly
-    addCash(STRIP.cash, v, {x:-76, z:110});
-    if (Math.hypot(player.pos.x + 76, player.pos.z - 110) < 40) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, 110), '#ffe06b');
+    addCash(STRIP.cash, v, {x:-76, z:STRIP_Z});
+    if (Math.hypot(player.pos.x + 76, player.pos.z - STRIP_Z) < 50) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, STRIP_Z), '#ffe06b');
   }
   // tourists stroll the Strip
   const want = Math.min(16, 4 + Object.keys(STRIP.lots).length*2);
   if (STRIP.tourists.length < want && R() < dt) {
-    const c = makeChar({civ:true}), side = R() < .5 ? 105.4 : 114.6; c.g.position.set(-100 + R()*48, 0, side); STRIP.tourists.push({c, tx:-100 + R()*48, tz:side, sp:1.2 + R()*.6, wait:0});
+    const c = makeChar({civ:true}), side = STRIP_Z + (R() < .5 ? -6.1 : 6.1), rx = () => STRIP_X0 + 2 + R()*(STRIP_X1 - STRIP_X0 - 4); c.g.position.set(rx(), 0, side); STRIP.tourists.push({c, tx:rx(), tz:side, sp:1.2 + R()*.6, wait:0});
   }
   for (const t of STRIP.tourists) {
     const c = t.c, p = c.g.position;
     if (t.wait > 0) { t.wait -= dt; c.legL.rotation.x = c.legR.rotation.x = 0; continue; }
     const dx = t.tx - p.x, dz = t.tz - p.z, dd = Math.hypot(dx, dz);
-    if (dd < .15) { t.wait = R() < .4 ? 1 + R()*3 : 0; t.tz = R() < .15 ? (p.z < 110 ? 114.6 : 105.4) : p.z; t.tx = -100 + R()*48; continue; }
+    if (dd < .15) { t.wait = R() < .4 ? 1 + R()*3 : 0; t.tz = R() < .15 ? (p.z < STRIP_Z ? STRIP_Z + 6.1 : STRIP_Z - 6.1) : p.z; t.tx = STRIP_X0 + 2 + R()*(STRIP_X1 - STRIP_X0 - 4); continue; }
     const st = Math.min(dd, t.sp*dt); p.x += dx/dd*st; p.z += dz/dd*st; c.g.rotation.y = Math.atan2(dx, dz);
     const sw = Math.sin(time*8 + t.sp*10); c.legL.rotation.x = sw*.6; c.legR.rotation.x = -sw*.6; c.armL.rotation.x = -sw*.4; c.armR.rotation.x = sw*.4;
   }

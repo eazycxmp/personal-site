@@ -4,6 +4,7 @@ const ITEM = {
   grilled:{h:.26, icon:'🐟', dish:1, price:3, sell:3, n:'Grilled fish'},
   log:    {h:.3,  icon:'🪵', sell:1, n:'Logs'},
   meat:   {h:.12, icon:'🥩', sell:2, n:'Meat'},
+  steak:  {h:.1, icon:'🍖', dish:1, price:6, sell:5, n:'Grilled steak'},
   roast:  {h:.37, icon:'🍔', dish:1, price:15, sell:11, n:'Burger'},
   patty:  {h:.08, icon:'🥩', sell:3, n:'Patties'},
   lettuce:{h:.22, icon:'🥬', sell:2, n:'Lettuce'},
@@ -59,6 +60,7 @@ function buildItem(type) {
       mesh(G.box, 0xd8d0b8, [.05, .12, .03], [.12, 0, 0], g); break;
     case 'roast': mesh(G.cyl, 0xe0a050, [.25, .09, .25], [0, -.1, 0], g); mesh(G.cyl, 0x6a3418, [.25, .07, .25], [0, -.02, 0], g); mesh(G.cyl, 0x6cc040, [.27, .03, .27], [0, .03, 0], g); mesh(G.sph, 0xd08a38, [.26, .14, .26], [0, .06, 0], g); break;
     case 'patty': mesh(G.cyl, 0x6a3418, [.22, .07, .22], [0, 0, 0], g); break;
+    case 'steak': mesh(G.sph, 0x7a3a18, [.25, .07, .18], [0, 0, 0], g); for (const x of [-.1, 0, .1]) mesh(G.box, 0x2a140a, [.025, .02, .3], [x, .055, 0], g).rotation.y = .5; break;
     case 'lettuce': mesh(G.sph, 0x6cc040, [.2, .14, .2], [0, 0, 0], g); break;
     case 'wheat': for (let i = 0; i < 3; i++) { const m = mesh(G.cyl, 0xe4bf55, [.06, .7, .06], [0, (i%2)*.06, (i-1)*.09], g); m.rotation.z = Math.PI/2; }
       mesh(G.cyl, 0x9a6a2a, [.13, .05, .13], [0, .03, 0], g).rotation.z = Math.PI/2; break;
@@ -104,7 +106,7 @@ function bake(group) {
   return g;
 }
 const OUTLINE_MAT = new THREE.MeshBasicMaterial({color:0x2a1a12, side:THREE.BackSide});
-const OUTLINED = new Set(['patty', 'lettuce', 'meat', 'roast', 'bread', 'log', 'fish', 'grilled', 'wheat', 'tomato', 'pizza', 'sushi', 'icecream', 'milk', 'beer']);
+const OUTLINED = new Set(['steak', 'patty', 'lettuce', 'meat', 'roast', 'bread', 'log', 'fish', 'grilled', 'wheat', 'tomato', 'pizza', 'sushi', 'icecream', 'milk', 'beer']);
 function propItem(type) {
   const src = MODELS.props3 && MODELS.props3.getObjectByName('item_' + type); if (!src) return null;
   const g = new THREE.Group(), m = src.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); g.add(m); return g;

@@ -185,7 +185,18 @@ function chopTool(e, stone) {
   const key = stone ? 'pick' : 'axe';
   if (!e.tools) e.tools = {};
   if (!e.tools[key]) {
-    const g = new THREE.Group(); g.position.set(0, -.48, .04); e.char.armR.add(g);
+    const g = new THREE.Group(), hand = e.char.bones && e.char.bones.handR;
+    // on the realistic bodies the tool goes in the hand itself, sized back up from the bone's scale
+    if (hand) {
+      // in the hand's own frame the fingers point along +y and index to pinky runs along -z: the handle passes through
+      // the curled fingers along z, the head sits out past the index finger
+      hand.updateWorldMatrix(true, false); const ws = hand.getWorldScale(new THREE.Vector3()).x / (e.char.g.getWorldScale(new THREE.Vector3()).x || 1); g.scale.setScalar(1/ws);
+      mesh(G.cyl, 0x6b4526, [.022, .72, .022], [.01, .075, .2], g).rotation.x = Math.PI/2;
+      if (stone) mesh(G.box, 0x8a8f96, [.05, .4, .05], [.01, .075, .54], g, {metalness:.6});
+      else { mesh(G.box, 0x9aa0a8, [.17, .035, .13], [.09, .075, .5], g, {metalness:.7, roughness:.3}); mesh(G.box, 0xdfe4ea, [.03, .04, .15], [.18, .075, .5], g, {metalness:.8, roughness:.2}); }
+      hand.add(g); e.tools[key] = g; for (const k in e.tools) e.tools[k].visible = k === key; return;
+    }
+    g.position.set(0, -.48, .04); e.char.armR.add(g);
     mesh(G.cyl, 0x6b4526, [.025, .62, .025], [0, -.05, .18], g).rotation.x = Math.PI/2.4;
     if (stone) { const h = mesh(G.box, 0x8a8f96, [.04, .05, .42], [0, .1, .42], g, {metalness:.6}); h.rotation.x = .2; }
     else { mesh(G.box, 0x9aa0a8, [.04, .2, .16], [0, .02, .44], g, {metalness:.7, roughness:.3}); mesh(G.box, 0xdfe4ea, [.045, .2, .03], [0, .02, .53], g, {metalness:.8, roughness:.2}); }
@@ -207,6 +218,7 @@ function harvest(t, e) {
   if (t.logs <= 0 || e.stack.length >= e.cap) return false;
   t.logs--; t.shake = .3;
   e.chopT = e.chopDur = e === player ? (t.item === 'stone' ? .4 : .32) : .45; e.chopAt = [t.x, t.z]; e.chopItem = t.item;
+  qnAct(e.char, t.item === 'stone' ? 'mine' : 'chop', e.chopDur + .5);
   spawnItem(t.item, new THREE.Vector3(t.x, 1.2, t.z), e.stack);
   if (t.item === 'stone') snd(300 + R()*80, .05, 'square', .03); else snd(170 + R()*50, .06, 'square', .035);
   if (t.logs <= 0) { t.regrow = t.item === 'stone' ? 30 : 25; setNode(t, false); }

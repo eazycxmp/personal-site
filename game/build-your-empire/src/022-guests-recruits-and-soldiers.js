@@ -6,7 +6,8 @@ const count = ids => ids.filter(h => W.unlocked.has(h)).length;
 const huts = () => Object.values(hutStage).reduce((a, s) => a + (s === 3 ? 4 : s), 0), houses = () => count(['house1', 'house2', 'house3']) + lotStage.reduce((a, b) => a + b, 0)*.5;
 function availableDishes() {
   const d = ['grilled'];
-  if (ST.spit && ST.lodge) d.push('roast');
+  if (ST.spit && ST.lodge) d.push('steak');   // grilled steaks from the start
+  if (ST.burgerBar) d.push('roast');           // burgers once the burger station is up
   if ((ST.oven && ST.field) || (ST.oven2 && ST.field2)) d.push('bread');
   if (ST.creamery && ST.dairy) d.push('icecream');
   if (ST.pizzeria && ST.tomatoes) d.push('pizza');

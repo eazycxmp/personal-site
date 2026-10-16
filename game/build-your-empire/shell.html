@@ -83,6 +83,15 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 #modal{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
 #modal[hidden]{display:none}
 #modal .card{max-height:92%;overflow:auto}
+.setcard{text-align:left;max-width:480px}.setcard h1{text-align:center}.setcard h2{font-size:17px;margin:16px 0 6px}
+.setcard label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0;font-weight:700}.setcard input[type=range]{flex:1;max-width:220px}
+.setcard button:not(.ghost){border:0;border-radius:10px;padding:6px 12px;font-weight:700;background:#5fd068;color:#fff;cursor:pointer;margin:2px}.setcard button.del{background:#c9584a}
+.setcard .ghost{display:block;margin:12px auto 0}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin:4px 0;border-radius:10px;background:#0000000d}.slot.cur{outline:2px solid #5fd068}
+.slot b{white-space:nowrap}.slot small{flex:1;color:#6a5a4a}.slot span{white-space:nowrap}
+#tut{position:absolute;left:50%;top:108px;transform:translateX(-50%);z-index:8;width:min(440px,calc(100% - 32px));background:var(--panel);color:var(--ink);border-radius:16px;padding:12px 16px;box-shadow:0 6px 0 #0003;font-size:15px}
+#tut[hidden]{display:none}#tut p{margin:4px 0 8px;font-weight:700}#tut small{color:#8a7a6a}#tut span{display:flex;gap:10px;align-items:center}
+#tut button[data-next]{border:0;border-radius:10px;padding:6px 14px;font-weight:800;background:#5fd068;color:#fff;cursor:pointer}#tut .ghost{margin:0}
 .board{display:flex;gap:16px;text-align:left;font-size:14px;margin:8px 0;justify-content:center}
 .board ol{margin:4px 0;padding-left:22px;line-height:1.6;min-width:130px}
 .board h3{margin:0;font-size:14px}
@@ -144,12 +153,13 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bSettings" title="Saves &amp; settings">⚙️</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
         <p>Your empire is on hold: no time passes, nobody earns and nothing attacks until you come back.</p>
-        <button class="big" id="bResume">Resume</button>
+        <button class="big" id="bResume">Resume</button><br>
+        <button class="ghost" id="bPauseSet">⚙️ Saves &amp; settings</button>
       </div>
     </div>
     <div id="overlay">
@@ -158,7 +168,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
         <p>Start with a campfire by the river. Catch fish, feed hungry travelers, and grow your camp into a kingdom, an empire and a skyline.</p>
         <p class="keys">Drag anywhere to walk (or WASD / arrow keys). Stand on a tile to use it.</p>
         <button class="big" id="bPlay">Play</button><br>
-        <button class="ghost" id="bNew" hidden>Start a new camp</button>
+        <button class="ghost" id="bNew" hidden>Start a new camp</button> <button class="ghost" id="bTitleSet">⚙️ Saves &amp; settings</button>
       </div>
     </div>
   </div>

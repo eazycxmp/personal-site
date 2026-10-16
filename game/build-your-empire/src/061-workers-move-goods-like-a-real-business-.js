@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ workers move goods like a real business: trays, wheelbarrows, carts, then trucks
-const TRAY_KINDS = new Set(['bunbaker', 'gardener', 'waiter', 'armorer', 'quartermaster', 'barkeep', 'treasurer', 'porter', 'butcher', 'fisher']);
+const TRAY_KINDS = new Set(['burgercook', 'bunbaker', 'gardener', 'waiter', 'armorer', 'quartermaster', 'barkeep', 'treasurer', 'porter', 'butcher', 'fisher']);
 const CARRY = {
   tray:{z:.42, y:1.02, nx:3, nz:2, sx:.15, sz:.13, step:.5, speed:1},
   scooter:{z:-.62, y:1.02, nx:2, nz:1, sx:.16, sz:.14, step:.5, speed:1.5},

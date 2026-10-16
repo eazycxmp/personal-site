@@ -83,6 +83,15 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 #modal{position:absolute;inset:0;z-index:7;display:flex;align-items:center;justify-content:center;background:#1c1814aa;padding:16px}
 #modal[hidden]{display:none}
 #modal .card{max-height:92%;overflow:auto}
+.setcard{text-align:left;max-width:480px}.setcard h1{text-align:center}.setcard h2{font-size:17px;margin:16px 0 6px}
+.setcard label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0;font-weight:700}.setcard input[type=range]{flex:1;max-width:220px}
+.setcard button:not(.ghost){border:0;border-radius:10px;padding:6px 12px;font-weight:700;background:#5fd068;color:#fff;cursor:pointer;margin:2px}.setcard button.del{background:#c9584a}
+.setcard .ghost{display:block;margin:12px auto 0}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin:4px 0;border-radius:10px;background:#0000000d}.slot.cur{outline:2px solid #5fd068}
+.slot b{white-space:nowrap}.slot small{flex:1;color:#6a5a4a}.slot span{white-space:nowrap}
+#tut{position:absolute;left:50%;top:108px;transform:translateX(-50%);z-index:8;width:min(440px,calc(100% - 32px));background:var(--panel);color:var(--ink);border-radius:16px;padding:12px 16px;box-shadow:0 6px 0 #0003;font-size:15px}
+#tut[hidden]{display:none}#tut p{margin:4px 0 8px;font-weight:700}#tut small{color:#8a7a6a}#tut span{display:flex;gap:10px;align-items:center}
+#tut button[data-next]{border:0;border-radius:10px;padding:6px 14px;font-weight:800;background:#5fd068;color:#fff;cursor:pointer}#tut .ghost{margin:0}
 .board{display:flex;gap:16px;text-align:left;font-size:14px;margin:8px 0;justify-content:center}
 .board ol{margin:4px 0;padding-left:22px;line-height:1.6;min-width:130px}
 .board h3{margin:0;font-size:14px}
@@ -144,12 +153,13 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bSettings" title="Saves &amp; settings">⚙️</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
         <p>Your empire is on hold: no time passes, nobody earns and nothing attacks until you come back.</p>
-        <button class="big" id="bResume">Resume</button>
+        <button class="big" id="bResume">Resume</button><br>
+        <button class="ghost" id="bPauseSet">⚙️ Saves &amp; settings</button>
       </div>
     </div>
     <div id="overlay">
@@ -158,7 +168,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
         <p>Start with a campfire by the river. Catch fish, feed hungry travelers, and grow your camp into a kingdom, an empire and a skyline.</p>
         <p class="keys">Drag anywhere to walk (or WASD / arrow keys). Stand on a tile to use it.</p>
         <button class="big" id="bPlay">Play</button><br>
-        <button class="ghost" id="bNew" hidden>Start a new camp</button>
+        <button class="ghost" id="bNew" hidden>Start a new camp</button> <button class="ghost" id="bTitleSet">⚙️ Saves &amp; settings</button>
       </div>
     </div>
   </div>
@@ -305,11 +315,49 @@ const G = {
 const matCache = {};
 function mat(color, o = {}) {
   const k = color + JSON.stringify(o);
-  return matCache[k] ||= new THREE.MeshStandardMaterial({color, roughness:.72, ...o});
+  return matCache[k] ||= Object.assign(new THREE.MeshStandardMaterial({color, roughness:.72, ...o}), {userData:{shared:true}});
+}
+// ------------------------------------------------------------------ real surfaces for buildings
+// Anything put up while BLD.on (every unlock) gets a photo surface chosen from its colour and shape: wood planks,
+// brick, plaster, stone or roof tiles. The photo is projected in world space from all three sides, so a long wall
+// and a short post show the same size of plank or brick, and it only tints the colour the builder chose.
+const BLD = {on:0, cache:{}};
+const BLD_SIZE = {wood_planks:1.4, red_brick_03:1.6, plastered_wall_02:2.6, rock_face_03:2.4, roof_tiles_14:1.5};
+function bldFamily(geo, color, s, o) {
+  if (o && (o.transparent || o.emissive || (o.metalness || 0) > .35 || o.map)) return null;
+  if (Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2])) < .45) return null;      // small trims and details stay plain
+  const h = {}; new THREE.Color(color).getHSL(h, THREE.SRGBColorSpace); const deg = h.h*360;
+  if (h.l < .14 || (h.s > .78 && h.l > .3)) return null;                              // dark trim, bright paint and signs
+  const roofy = geo === G.cone4 || geo === G.cone || geo === G.roof;
+  if (roofy && h.l < .7 && (deg < 40 || deg > 330 || h.s < .2)) return 'roof_tiles_14';
+  if (deg >= 14 && deg <= 48 && h.s >= .22 && h.l <= .58) return 'wood_planks';
+  if ((deg < 14 || deg > 340) && h.s >= .3 && h.l >= .22 && h.l <= .56) return 'red_brick_03';
+  if (h.s < .16 && h.l >= .3 && h.l < .64) return 'rock_face_03';
+  if (h.l >= .64 && (h.s < .3 || (deg >= 25 && deg <= 65 && h.s < .6))) return 'plastered_wall_02';
+  return null;
+}
+function bldMat(color, id, o) {
+  const k = color + id + JSON.stringify(o || {});
+  if (BLD.cache[k]) return BLD.cache[k];
+  const T = TEX[id], m = new THREE.MeshStandardMaterial({color, roughness:id === 'plastered_wall_02' ? .92 : .85, ...o});
+  m.onBeforeCompile = sh => {
+    sh.uniforms.bldMap = {value:T.map}; sh.uniforms.bldAvg = {value:T.avg.clone()}; sh.uniforms.bldScale = {value:1/BLD_SIZE[id]};
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBldP; varying vec3 vBldN;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  { vec4 bp = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  bp = instanceMatrix * bp;\n  #endif\n  vBldP = (modelMatrix * bp).xyz; vBldN = normalize(mat3(modelMatrix) * objectNormal); }');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D bldMap; uniform vec3 bldAvg; uniform float bldScale; varying vec3 vBldP; varying vec3 vBldN;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+  { vec3 bw = pow(abs(normalize(vBldN)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+    vec3 p = vBldP * bldScale;
+    vec3 t = texture2D(bldMap, p.zy).rgb * bw.x + texture2D(bldMap, p.xz).rgb * bw.y + texture2D(bldMap, p.xy).rgb * bw.z;
+    diffuseColor.rgb *= clamp(mix(vec3(1.0), t / max(bldAvg, vec3(0.04)), 0.85), 0.0, 2.2); }`);
+  };
+  m.customProgramCacheKey = () => 'bld';
+  m.userData.shared = true; return BLD.cache[k] = m;
 }
 function mesh(geo, color, s, p, parent, o) {
   if (geo === G.ico || geo === G.cone4) o = {flatShading:true, ...o};
-  const m = new THREE.Mesh(geo, Array.isArray(color) ? color : mat(color, o));
+  const fam = BLD.on > 0 && !Array.isArray(color) && typeof color === 'number' && bldFamily(geo, color, s, o), id = fam && phOkBld(fam) ? fam : null;
+  const m = new THREE.Mesh(geo, Array.isArray(color) ? color : id ? bldMat(color, id, o) : mat(color, o));
   m.scale.set(...s); m.position.set(...(p || [0, 0, 0]));
   m.castShadow = true; m.receiveShadow = true;
   if (parent) parent.add(m);
@@ -370,6 +418,7 @@ function updFog(dt) {
   if (FOG.dirty) { FOG.dirty = false; FOG.tex.needsUpdate = true; fogSave(); }
 }
 const onIsland = (x, z, pad = 0) => WORLD.islands.some(I => Math.hypot(wrapX(x - I.x), z - I.z) < I.r + pad);
+const phOkBld = id => TEX[id] && TEX[id].map && TEX[id].avg;
 const phOk = id => TEX[id] && TEX[id].map && TEX[id].normalMap && TEX[id].roughnessMap && TEX[id].inv;
 function phPick(color) {
   const h = {}; new THREE.Color(color).getHSL(h, THREE.SRGBColorSpace); const deg = h.h*360;
@@ -410,8 +459,13 @@ const rnd = () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
 // ------------------------------------------------------------------ audio
 let AC = null, muted = false;
 const SOUND = {vol:.34, last:new Map(), recent:[]};
-function snd(f = 440, d = 0.08, type = 'sine', v = 0.05, slide = 0) {
+// settings live apart from the saves: sound and music volume, graphics, which save slot is in use, the tutorial
+const SET_KEY = 'buildyourempire.settings';
+const SET = Object.assign({sfx:1, music:1, gfx:'auto', slot:1, tutDone:false}, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; } catch (e) { return {}; } })());
+function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(SET)); } catch (e) {} }
+function snd(f = 440, d = 0.08, type = 'sine', v = 0.05, slide = 0, music = false) {
   if (muted) return;
+  v *= music ? SET.music : SET.sfx; if (v <= 0) return;
   // keep it calm: the same note never stacks on itself, and only a few sounds play in any second
   const now = performance.now(), key = type + Math.round(f / 20);
   if (now - (SOUND.last.get(key) || -1e9) < 320) return;
@@ -433,6 +487,7 @@ const ITEM = {
   grilled:{h:.26, icon:'🐟', dish:1, price:3, sell:3, n:'Grilled fish'},
   log:    {h:.3,  icon:'🪵', sell:1, n:'Logs'},
   meat:   {h:.12, icon:'🥩', sell:2, n:'Meat'},
+  steak:  {h:.1, icon:'🍖', dish:1, price:6, sell:5, n:'Grilled steak'},
   roast:  {h:.37, icon:'🍔', dish:1, price:15, sell:11, n:'Burger'},
   patty:  {h:.08, icon:'🥩', sell:3, n:'Patties'},
   lettuce:{h:.22, icon:'🥬', sell:2, n:'Lettuce'},
@@ -488,6 +543,7 @@ function buildItem(type) {
       mesh(G.box, 0xd8d0b8, [.05, .12, .03], [.12, 0, 0], g); break;
     case 'roast': mesh(G.cyl, 0xe0a050, [.25, .09, .25], [0, -.1, 0], g); mesh(G.cyl, 0x6a3418, [.25, .07, .25], [0, -.02, 0], g); mesh(G.cyl, 0x6cc040, [.27, .03, .27], [0, .03, 0], g); mesh(G.sph, 0xd08a38, [.26, .14, .26], [0, .06, 0], g); break;
     case 'patty': mesh(G.cyl, 0x6a3418, [.22, .07, .22], [0, 0, 0], g); break;
+    case 'steak': mesh(G.sph, 0x7a3a18, [.25, .07, .18], [0, 0, 0], g); for (const x of [-.1, 0, .1]) mesh(G.box, 0x2a140a, [.025, .02, .3], [x, .055, 0], g).rotation.y = .5; break;
     case 'lettuce': mesh(G.sph, 0x6cc040, [.2, .14, .2], [0, 0, 0], g); break;
     case 'wheat': for (let i = 0; i < 3; i++) { const m = mesh(G.cyl, 0xe4bf55, [.06, .7, .06], [0, (i%2)*.06, (i-1)*.09], g); m.rotation.z = Math.PI/2; }
       mesh(G.cyl, 0x9a6a2a, [.13, .05, .13], [0, .03, 0], g).rotation.z = Math.PI/2; break;
@@ -533,7 +589,7 @@ function bake(group) {
   return g;
 }
 const OUTLINE_MAT = new THREE.MeshBasicMaterial({color:0x2a1a12, side:THREE.BackSide});
-const OUTLINED = new Set(['patty', 'lettuce', 'meat', 'roast', 'bread', 'log', 'fish', 'grilled', 'wheat', 'tomato', 'pizza', 'sushi', 'icecream', 'milk', 'beer']);
+const OUTLINED = new Set(['steak', 'patty', 'lettuce', 'meat', 'roast', 'bread', 'log', 'fish', 'grilled', 'wheat', 'tomato', 'pizza', 'sushi', 'icecream', 'milk', 'beer']);
 function propItem(type) {
   const src = MODELS.props3 && MODELS.props3.getObjectByName('item_' + type); if (!src) return null;
   const g = new THREE.Group(), m = src.clone(true); m.position.set(0, 0, 0); m.rotation.set(0, 0, 0); g.add(m); return g;
@@ -873,9 +929,11 @@ function fire(parent, x, y, z, s = 1) {
 }
 // Tall buildings fade out while the player walks behind them, so the camera never loses you.
 const FADERS = [];
+// a material copy that keeps its shader patch (three.js clones drop onBeforeCompile)
+function cloneMat(m) { const c = m.clone(); if (m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) { c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey; } return c; }
 function fader(g, w, h) {
   const mats = [];
-  g.traverse(o => { if (o.isMesh) { const orig = o.material; o.material = Array.isArray(orig) ? orig.map(m => m.clone()) : orig.clone(); if (orig === WIN) winMats.push(o.material); [].concat(o.material).forEach(m => mats.push(m)); } });
+  g.traverse(o => { if (o.isMesh) { const orig = o.material; o.material = Array.isArray(orig) ? orig.map(cloneMat) : cloneMat(orig); if (orig === WIN) winMats.push(o.material); [].concat(o.material).forEach(m => mats.push(m)); } });
   FADERS.push({g, w, h, mats, op:1});
 }
 function updFaders(dt) {
@@ -1036,14 +1094,68 @@ function signTex(text, bg, fg) {
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 42);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-function palm(parent, x, z) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
-  for (let i = 0; i < 6; i++) mesh(G.cyl, 0x9a7a52, [.09 - i*.008, .55, .09 - i*.008], [i*.05, .27 + i*.52, 0], g).rotation.z = -.05*i;
-  for (let i = 0; i < 7; i++) {
-    const f = new THREE.Group(); f.position.set(.3, 3.2, 0); f.rotation.y = i/7*Math.PI*2; g.add(f);
-    mesh(G.box, i % 2 ? 0x3fae4a : 0x2f8f3a, [1.1, .04, .26], [.5, -.18, 0], f).rotation.z = -.35;
+// ------------------------------------------------------------------ palms: a ringed, tapering, curving trunk and a crown of feathered fronds
+const PALM = {};
+function palmKit() {
+  if (PALM.ready) return PALM;
+  // bark: pale grey-brown with the darker rings left by old fronds
+  const bc = document.createElement('canvas'); bc.width = 64; bc.height = 256; const bg = bc.getContext('2d');
+  bg.fillStyle = '#8a7558'; bg.fillRect(0, 0, 64, 256);
+  for (let y = 0; y < 256; y += 16) { bg.fillStyle = 'rgba(60,44,28,.55)'; bg.fillRect(0, y, 64, 4); bg.fillStyle = 'rgba(190,170,135,.35)'; bg.fillRect(0, y + 5, 64, 3); }
+  for (let i = 0; i < 400; i++) { bg.fillStyle = `rgba(${R() < .5 ? '40,30,20' : '200,185,150'},.18)`; bg.fillRect(R()*64, R()*256, 1 + R()*3, 1); }
+  const bt = new THREE.CanvasTexture(bc); bt.colorSpace = THREE.SRGBColorSpace; bt.wrapS = bt.wrapT = THREE.RepeatWrapping;
+  PALM.bark = new THREE.MeshStandardMaterial({map:bt, roughness:.95});
+  // a frond: the midrib down the middle, leaflets slanting off both sides, fading lighter toward the tips
+  const fc = document.createElement('canvas'); fc.width = 512; fc.height = 128; const fg = fc.getContext('2d');
+  for (let i = 0; i < 70; i++) {
+    const u = i/70, x = 14 + u*490, len = 58*Math.sin(Math.PI*Math.min(1, .15 + u*.95))*(1 - u*.35) + 4;
+    for (const side of [-1, 1]) {
+      const gr = fg.createLinearGradient(x, 64, x + len*.5, 64 + side*len);
+      gr.addColorStop(0, `hsl(${100 + u*12},55%,${24 + u*10}%)`); gr.addColorStop(1, `hsl(${92 + u*15},60%,${34 + u*12}%)`);
+      fg.strokeStyle = gr; fg.lineWidth = 5.5 - u*2.5; fg.lineCap = 'round';
+      fg.beginPath(); fg.moveTo(x, 64); fg.quadraticCurveTo(x + len*.2, 64 + side*len*.5, x + len*.55, 64 + side*len); fg.stroke();
+    }
   }
-  for (const [a, b] of [[.12, .12], [-.1, .08]]) mesh(G.sph, 0x6a4a2a, [.08, .08, .08], [.3 + a, 3.05, b], g);
+  fg.strokeStyle = '#6a7a3a'; fg.lineWidth = 6; fg.beginPath(); fg.moveTo(0, 64); fg.lineTo(512, 64); fg.stroke();
+  const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace; ft.anisotropy = 4;
+  PALM.leaf = new THREE.MeshStandardMaterial({map:ft, alphaTest:.45, side:THREE.DoubleSide, roughness:.65});
+  PALM.dead = new THREE.MeshStandardMaterial({map:ft, alphaTest:.45, side:THREE.DoubleSide, roughness:.9, color:0xb07a40});
+  PALM.depth = new THREE.MeshDepthMaterial({map:ft, alphaTest:.45, depthPacking:THREE.RGBADepthPacking});
+  // frond shapes: a plane bent into an arch that droops toward the tip, the leaflets folded up into a shallow V
+  PALM.frond = [.55, .85, 1.2].map(droop => {
+    const geo = new THREE.PlaneGeometry(1, 1, 14, 2), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const u = p.getX(i) + .5, w = p.getY(i), L = 2.3;
+      p.setXYZ(i, u*L, .55*u*L - droop*u*u*L*.75 + Math.abs(w)*.22, w*.62);
+    }
+    geo.computeVertexNormals(); return geo;
+  });
+  // trunks: rings of eight round a gentle curve, thick at the foot, thin under the crown, slightly knobbly at every ring
+  PALM.trunk = [[.5, 3.9], [1.1, 4.4], [.2, 3.4]].map(([lean, h]) => {
+    const N = 8, S = 24, pos = [], uv = [], idx = [], top = new THREE.Vector3(lean, h, 0);
+    const at = t => new THREE.Vector3(lean*t*t, h*t, 0);
+    for (let j = 0; j <= S; j++) {
+      const t = j/S, c = at(t), r = (.2 - .09*t + (t < .08 ? (.08 - t)*1.6 : 0)) * (1 + .05*Math.sin(t*h*25));
+      for (let k = 0; k <= N; k++) { const a = k/N*Math.PI*2; pos.push(c.x + Math.cos(a)*r, c.y, c.z + Math.sin(a)*r); uv.push(k/N, t*h/1.2); }
+    }
+    for (let j = 0; j < S; j++) for (let k = 0; k < N; k++) { const a = j*(N + 1) + k, b = a + N + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return {geo, top};
+  });
+  PALM.nut = new THREE.MeshStandardMaterial({color:0x6a5428, roughness:.6});
+  PALM.ready = true; return PALM;
+}
+function palm(parent, x, z) {
+  const K = palmKit(), g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  const h = Math.abs(Math.sin(x*12.9898 + z*78.233)*43758.5453) % 1, T = K.trunk[Math.floor(h*3)];
+  g.rotation.y = h*Math.PI*2; g.scale.setScalar(.9 + h*.25);
+  const tr = new THREE.Mesh(T.geo, K.bark); tr.castShadow = tr.receiveShadow = true; g.add(tr);
+  const crown = new THREE.Group(); crown.position.copy(T.top); g.add(crown);
+  const add = (geo, m, yaw, pitch) => { const f = new THREE.Mesh(geo, m); f.rotation.set(0, yaw, pitch, 'YZX'); f.castShadow = true; f.customDepthMaterial = K.depth; crown.add(f); };
+  for (let i = 0; i < 11; i++) add(K.frond[i % 3], K.leaf, i/11*Math.PI*2 + h*.7 + (i % 2)*.18, (i % 3 === 0 ? .42 : i % 3 === 1 ? .18 : -.02));
+  for (let i = 0; i < 2; i++) add(K.frond[2], K.dead, i*2.6 + h*3, -.95);
+  for (let i = 0; i < 4; i++) { const n = new THREE.Mesh(G.sph, K.nut); n.scale.setScalar(.1); n.position.set(Math.cos(i*1.6)*.17, -.16 - (i % 2)*.07, Math.sin(i*1.6)*.17); crown.add(n); }
+  return g;
 }
 function buildHut(key, stage, anim) {
   const H = HUTS[key], {x, z} = H;
@@ -1380,7 +1492,7 @@ function remapKit(P) {
   for (const l of [P.legL, P.legR]) fix(l, m => { m.position.y *= 2; m.scale.y *= 1.6; });
 }
 // ------------------------------------------------------------------ realistic people (Quaternius CC0 bodies, rigged and animated)
-const QN = {ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
+const QN = {smooth:true, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
 // which part of the body each vertex belongs to, from the bone that moves it most: 0 skin, 1 torso, 2 upper arm, 3 forearm, 4 hips and thighs, 5 calves, 6 feet
 const QN_REGION = n => /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
 function qnInit() {
@@ -1440,7 +1552,21 @@ function qnHat(o, top) {
   if (o.acc === 'sunglasses') { for (const sx of [-1, 1]) add(G.box, 0x111114, [.05, .024, .01], [sx*.037, 1.8, .118]); }
   return g.children.length ? g : null;
 }
-function qnDrop(c) { c.mixer.stopAllAction(); c.mixer.uncacheRoot(c.root); c.root.traverse(m => { if (m.isMesh && m.material && m.material !== BLOB.mat) m.material.dispose(); }); }
+// a person who has left: stop their animations and free what they held on the GPU (materials, and the bone texture
+// every skinned body gets the first time it is drawn)
+function qnShared() {
+  // geometry every person borrows (the body models, the shared primitives): never freed with one person
+  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
+  return QN.shared;
+}
+function qnDrop(c) {
+  c.mixer.stopAllAction(); c.mixer.uncacheRoot(c.root); const sh = qnShared();
+  c.g.traverse(m => {
+    if (m.isSkinnedMesh && m.skeleton) m.skeleton.dispose();
+    if (m.isMesh && m.material) [].concat(m.material).forEach(q => { if (q !== BLOB.mat && !q.userData.shared) q.dispose(); });
+    if (m.isMesh && m.geometry && !sh.has(m.geometry)) m.geometry.dispose();
+  });
+}
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
   if (QN.list.length > 300) for (let i = QN.list.length - 1; i >= 0; i--) { const q = QN.list[i]; if (!q.g.parent) { qnDrop(q); QN.list.splice(i, 1); } }
@@ -1535,34 +1661,74 @@ function qnRaise(c, bone, ang) {
   const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, ang);
   wq.premultiply(rot); bone.quaternion.copy(pq.invert().multiply(wq));
 }
+// work: the game says what someone is doing and for how long; the animation follows
+const QN_ACT = {chop:['Sword_Attack', 1.35], mine:['Fixing_Kneeling', 1.6], swing:['Sword_Attack', 2.1], pick:['PickUp_Table', 1.3], serve:['Interact', 1.6],
+  fix:['Fixing_Kneeling', 1.4], cook:['Interact', 1.1], punch:['Punch_Jab', 1.4]};
+// (the free pack's Punch_Cross, Push_Loop, Crouch_*, Idle_Talking_Loop and Pistol_Aim_* are empty T-poses: don't use them)
+function qnAct(c, act, dur, restart = false) {
+  if (!c || !c.mixer) return;
+  const same = c.act === act && c.actT > 0;
+  if (restart || !same) c.actNew = true;
+  c.act = act; c.actT = same ? Math.max(c.actT, dur) : dur;
+}
+const QN_LOCO = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop']);
 function updQN(dt) {
   if (!QN.list.length) return;
+  QN.frame = (QN.frame || 0) + 1;
   QN.pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); QN.frustum.setFromProjectionMatrix(QN.pm);
   for (let i = QN.list.length - 1; i >= 0; i--) {
     const c = QN.list[i], g = c.g;
     if (!g.parent) { if ((c.gone = (c.gone || 0) + dt) > 5) { qnDrop(c); QN.list.splice(i, 1); } continue; }
     c.gone = 0;
-    const p = g.getWorldPosition(QN.tmpV), moved = Math.hypot(p.x - c.last.x, p.z - c.last.z) / Math.max(dt, 1e-3); c.last.copy(p);
-    c.spd += (moved - c.spd) * Math.min(1, dt*8);
+    const p = g.getWorldPosition(QN.tmpV), moved = Math.min(9, Math.hypot(p.x - c.last.x, p.z - c.last.z) / Math.max(dt, 1e-3)); c.last.copy(p);   // a teleport is not a sprint
+    c.spd += (moved - c.spd) * Math.min(1, dt*(QN.smooth ? 4 : 8));
     let vis = g.visible; for (let o = g.parent; vis && o && o !== scene; o = o.parent) vis = o.visible;
     QN.sphere.center.copy(p).setY(p.y + 1); QN.sphere.radius = 1.4;
     if (!vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
+    c.seen = QN.frame;
     // what are they doing? the game poses the stand-in limbs; read the pose and pick the animation
-    const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, fall = g.rotation.x;
+    const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, lgR = c.legR.rotation.x, fall = g.rotation.x;
     let st, rate = 1;
+    const act = (c.actT -= dt) > 0 && c.spd < 1.2 ? QN_ACT[c.act] : null;
     if (fall < -.3) { st = 'Death01'; g.rotation.x = 0; }
-    else if (lg < -1.2) st = 'Sitting_Idle_Loop';
-    else if (lg < -.7) st = 'Driving_Loop';
-    else if (aR < -2) st = 'Dance_Loop';
+    else if (act) { st = act[0]; rate = act[1]; if (c.actNew && c.state === st) c.acts[st].reset().play(); c.actNew = false; }
+    // seated (both legs bent forward together); a walking stride swings them opposite ways, so one bent leg is not a seat
+    else if (lg < -1.2 && lgR < -1.2) st = 'Sitting_Idle_Loop';
+    else if (lg < -.7 && lgR < -.7) st = 'Driving_Loop';
+    else if (aR < -2 && aL < -2) st = 'Dance_Loop';
     else if (c.gun && aR < -1.35 && c.spd < .5) st = 'Pistol_Shoot';
+    else if (QN.smooth) {
+      // walking, jogging and running: separate thresholds up and down, and a short stay in each, so nobody flickers
+      // between clips; the clip's pace follows the ground speed so feet don't slide
+      const v = c.spd, cur = c.loco || 'Idle_Loop';
+      let nx = cur;
+      if (cur === 'Idle_Loop') { if (v > .45) nx = 'Walk_Loop'; }
+      else if (cur === 'Walk_Loop') { if (v < .2) nx = 'Idle_Loop'; else if (v > 3.1) nx = 'Jog_Fwd_Loop'; }
+      else if (cur === 'Jog_Fwd_Loop') { if (v < 2.3) nx = 'Walk_Loop'; else if (v > 5.2) nx = 'Sprint_Loop'; }
+      else if (v < 4.3) nx = 'Jog_Fwd_Loop';
+      if (nx !== cur && (c.locoT || 0) < .35 && cur !== 'Idle_Loop') nx = cur;
+      if (nx !== cur) c.locoT = 0; c.locoT = (c.locoT || 0) + dt; c.loco = st = nx;
+      rate = st === 'Sprint_Loop' ? clamp(v/6.5, .85, 1.4) : st === 'Jog_Fwd_Loop' ? clamp(v/3.6, .8, 1.45) : st === 'Walk_Loop' ? clamp(v/1.45, .7, 1.55) : 1;
+    }
     else if (c.spd > 4.6) { st = 'Sprint_Loop'; rate = c.spd/6.5; }
     else if (c.spd > 2.6) { st = 'Jog_Fwd_Loop'; rate = c.spd/3.6; }
     else if (c.spd > .25) { st = 'Walk_Loop'; rate = Math.max(.6, c.spd/1.5); }
     else st = 'Idle_Loop';
-    const a = qnPlay(c, st, .2, st === 'Death01'); if (a) a.timeScale = Math.min(1.8, rate);
+    if (!QN_LOCO.has(st)) c.loco = null;
+    const prev = c.state, prevA = c.acts[prev], a = qnPlay(c, st, QN.smooth && QN_LOCO.has(st) && QN_LOCO.has(prev) ? .32 : .2, st === 'Death01');
+    // walk, jog and run blend in step: the new clip starts at the same point of the stride
+    if (QN.smooth && a && prev !== st && prevA && QN_LOCO.has(st) && QN_LOCO.has(prev) && st !== 'Idle_Loop' && prev !== 'Idle_Loop') a.time = (prevA.time / prevA.getClip().duration) * a.getClip().duration;
+    if (a) { const want = Math.min(act ? 2.4 : 1.8, rate); a.timeScale = QN.smooth && prev === st ? a.timeScale + (want - a.timeScale)*Math.min(1, dt*6) : want; }
+    // turning: the body eases round to where the game points it (about a tenth of a second) instead of snapping
+    if (QN.smooth) {
+      const target = g.rotation.y; if (c.yawVis == null) c.yawVis = target;
+      let d = target - c.yawVis; d = Math.atan2(Math.sin(d), Math.cos(d));
+      c.yawVis = Math.abs(d) > 2.6 || st === 'Death01' ? target : c.yawVis + d*Math.min(1, dt*11);
+      c.root.rotation.y = c.yawVis - target;
+    }
     c.mixer.update(dt);
     // carrying, holding and aiming: lift the arms forward on top of the animation
-    if (st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
+    if ((!act || act[2]) && st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
       if (aR < -.75) qnRaise(c, c.bones.armR, -aR*.95);
       if (aL < -.75) qnRaise(c, c.bones.armL, -aL*.95);
     }
@@ -1968,7 +2134,18 @@ function chopTool(e, stone) {
   const key = stone ? 'pick' : 'axe';
   if (!e.tools) e.tools = {};
   if (!e.tools[key]) {
-    const g = new THREE.Group(); g.position.set(0, -.48, .04); e.char.armR.add(g);
+    const g = new THREE.Group(), hand = e.char.bones && e.char.bones.handR;
+    // on the realistic bodies the tool goes in the hand itself, sized back up from the bone's scale
+    if (hand) {
+      // in the hand's own frame the fingers point along +y and index to pinky runs along -z: the handle passes through
+      // the curled fingers along z, the head sits out past the index finger
+      hand.updateWorldMatrix(true, false); const ws = hand.getWorldScale(new THREE.Vector3()).x / (e.char.g.getWorldScale(new THREE.Vector3()).x || 1); g.scale.setScalar(1/ws);
+      mesh(G.cyl, 0x6b4526, [.022, .72, .022], [.01, .075, .2], g).rotation.x = Math.PI/2;
+      if (stone) mesh(G.box, 0x8a8f96, [.05, .4, .05], [.01, .075, .54], g, {metalness:.6});
+      else { mesh(G.box, 0x9aa0a8, [.17, .035, .13], [.09, .075, .5], g, {metalness:.7, roughness:.3}); mesh(G.box, 0xdfe4ea, [.03, .04, .15], [.18, .075, .5], g, {metalness:.8, roughness:.2}); }
+      hand.add(g); e.tools[key] = g; for (const k in e.tools) e.tools[k].visible = k === key; return;
+    }
+    g.position.set(0, -.48, .04); e.char.armR.add(g);
     mesh(G.cyl, 0x6b4526, [.025, .62, .025], [0, -.05, .18], g).rotation.x = Math.PI/2.4;
     if (stone) { const h = mesh(G.box, 0x8a8f96, [.04, .05, .42], [0, .1, .42], g, {metalness:.6}); h.rotation.x = .2; }
     else { mesh(G.box, 0x9aa0a8, [.04, .2, .16], [0, .02, .44], g, {metalness:.7, roughness:.3}); mesh(G.box, 0xdfe4ea, [.045, .2, .03], [0, .02, .53], g, {metalness:.8, roughness:.2}); }
@@ -1990,6 +2167,7 @@ function harvest(t, e) {
   if (t.logs <= 0 || e.stack.length >= e.cap) return false;
   t.logs--; t.shake = .3;
   e.chopT = e.chopDur = e === player ? (t.item === 'stone' ? .4 : .32) : .45; e.chopAt = [t.x, t.z]; e.chopItem = t.item;
+  qnAct(e.char, t.item === 'stone' ? 'mine' : 'chop', e.chopDur + .5);
   spawnItem(t.item, new THREE.Vector3(t.x, 1.2, t.z), e.stack);
   if (t.item === 'stone') snd(300 + R()*80, .05, 'square', .03); else snd(170 + R()*50, .06, 'square', .035);
   if (t.logs <= 0) { t.regrow = t.item === 'stone' ? 30 : 25; setNode(t, false); }
@@ -2401,6 +2579,7 @@ const LOOKS = {
   butcher:{body:0x7a2a22, apron:0xe8e0d0, hat:'beanie', hatCol:0x222222},
   gardener:{body:0x5a8a3a, apron:0x8a6a42, hat:'straw', pants:0x4a5a3a},
   bunbaker:{body:0xf2e6cc, apron:0xffffff, hat:'chef'},
+  burgercook:{body:0xd9443a, apron:0xffffff, hat:'chef'},
   baker:{body:0xe8d8b8, apron:0xffffff, hat:'chef'},
   lumber:{body:0x2f7d4a, hat:'beanie', hatCol:0xd9443a, pants:0x3a3a5a},
   mason:{body:0x7a7a82, hat:'beanie', hatCol:0x4a4a52},
@@ -2439,8 +2618,10 @@ const ROUTES = {
   quartermaster:{src:() => TB.mess ? dishOuts(TB.mess) : [], dst:() => TB.mess?.zone, line:'mess'},
   armorer:{src:() => [outZone('smith')], dst:() => TB.mess?.zone, line:'mess'},
   butcher:{src:() => [outZone('lodge')], dst:() => inZone('spit')},
-  gardener:{src:() => [outZone('garden')], dst:() => inZone('spit')},
-  bunbaker:{src:() => [outZone('oven'), outZone('oven2')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('spit')},
+  // the burger station's suppliers: lettuce and tomatoes from the gardens, buns from the ovens, cooked meat from the grill
+  gardener:{src:() => burgerSrc([outZone('garden'), outZone('tomatobed')]), dst:() => inZone('burgerBar')},
+  bunbaker:{src:() => [outZone('oven'), outZone('oven2')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('burgerBar')},
+  burgercook:{src:() => burgerSrc([outZone('spit'), outZone('tomatobed')]), dst:() => inZone('burgerBar')},
   baker:{src:() => [outZone('field')], dst:() => inZone('oven')},
   baker2:{src:() => [outZone('field2')], dst:() => inZone('oven2')},
   baker3:{src:() => [outZone('field3')], dst:() => inZone('oven2')},
@@ -2539,6 +2720,11 @@ function moveTo(e, x, z, dt) {
   return false;
 }
 const dist2 = (e, x, z) => Math.hypot(x - e.pos.x, z - e.pos.z);
+function workAct(w, n0) {
+  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck'].includes(w.carry)) return;
+  if (w.kind === 'builder') qnAct(w.char, w.stack.length < n0 && w.mode === 'deliver' ? 'fix' : 'pick', 1);
+  else qnAct(w.char, w.stack.length < n0 && w.dst && w.dst.kind === 'table' ? 'serve' : 'pick', .7);
+}
 function updWorker(w, dt) {
   const before = w.stack.length;
   const gt = GATHER[w.kind];
@@ -2566,7 +2752,7 @@ function updWorker(w, dt) {
     w.pile = c;
     if (!c) { goTo(w, ...w.home, dt); return; }
     if (goTo(w, c.x, c.z, dt)) {
-      W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
+      qnAct(w.char, 'pick', .8); W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
       c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => w.pos.clone().setY(1.4), .25 + i*.015));
       snd(1046, .06, 'triangle', .03); w.pile = null;
     }
@@ -2591,6 +2777,9 @@ function updWorker(w, dt) {
       // carriers for a table only load as many of a thing as the table has room for
       const type = w.dst.kind === 'table' && w.src.st && ST[w.src.st].out;
       if (type && w.stack.count([type]) >= w.dst.tb.room(type)) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
+      // and for a station that takes several things (the burger station), only as many as its share of the counter
+      const ds = w.dst.kind === 'in' && ST[w.dst.st], ty = ds && ds.ins && w.src.st && (ST[w.src.st].out || ST[w.src.st].gen), gp = ty && ds.ins.find(q => q.includes(ty));
+      if (gp && w.stack.count(gp) >= Math.floor(ds.inStack.cap/ds.ins.length) - ds.inStack.count(gp)) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
       zoneAct(w, w.src, dt);
       w.wait = w.stack.length !== before ? 0 : w.wait + dt;
       if (w.stack.length >= w.cap || (w.stack.length && w.wait > 1.2)) w.state = 'toDst';
@@ -2603,6 +2792,7 @@ function updWorker(w, dt) {
       w.wait = w.stack.length !== before ? 0 : (w.wait || 0) + dt;
       if (!w.stack.length) { w.state = 'idle'; w.wait = 0; }
       else if (w.wait > 3 && w.dst.kind === 'table') w.state = 'toBin';   // leftovers nobody has room for
+      else if (w.wait > 6 && w.dst.kind === 'in' && ST[w.dst.st] && ST[w.dst.st].ins) w.state = 'toBin';
       break;
     case 'toBin': if (goTo(w, binZone.x, binZone.z, dt)) w.state = 'binning'; break;
     case 'binning': zoneAct(w, binZone, dt); if (!w.stack.length) w.state = 'idle'; break;
@@ -2617,7 +2807,8 @@ const count = ids => ids.filter(h => W.unlocked.has(h)).length;
 const huts = () => Object.values(hutStage).reduce((a, s) => a + (s === 3 ? 4 : s), 0), houses = () => count(['house1', 'house2', 'house3']) + lotStage.reduce((a, b) => a + b, 0)*.5;
 function availableDishes() {
   const d = ['grilled'];
-  if (ST.spit && ST.lodge) d.push('roast');
+  if (ST.spit && ST.lodge) d.push('steak');   // grilled steaks from the start
+  if (ST.burgerBar) d.push('roast');           // burgers once the burger station is up
   if ((ST.oven && ST.field) || (ST.oven2 && ST.field2)) d.push('bread');
   if (ST.creamery && ST.dairy) d.push('icecream');
   if (ST.pizzeria && ST.tomatoes) d.push('pizza');
@@ -2829,7 +3020,7 @@ function zoneAct(e, zn, dt) {
       } else { e.tick = .25; if (e.isPlayer) full(); }
       break;
     case 'in': {
-      const s = ST[zn.st], acc = s.ins ? s.ins.filter(gp => s.inStack.count(gp) < s.inStack.cap/3).flat() : [s.in];
+      const s = ST[zn.st], acc = s.ins ? s.ins.filter(gp => s.inStack.count(gp) < Math.floor(s.inStack.cap/s.ins.length)).flat() : [s.in];
       if (s.inStack.length < s.inStack.cap && e.stack.count(acc)) {
         transfer(e.stack, s.inStack, acc); e.tick = .07; dropSnd();
         if (zn.st === 'grill') W.flags.fedGrill = true;
@@ -2911,7 +3102,7 @@ const PADS = [
   {id:'waiter2', x:6.4, z:-2.2, cost:110, cur:'coin', icon:'🧑‍🍳', label:'2nd waiter', after:['bigGrill']},
   {id:'builder', x:9.04, z:-1.96, cost:250, cur:'coin', icon:'👷', label:'Builder', after:['palisade', 'village']},
   {id:'lodge', x:-4.2, z:-10.6, cost:60, cur:'coin', icon:'🏹', label:"Hunter's lodge", after:['palisade']},
-  {id:'spit', x:-4.2, z:-5, cost:50, cur:'coin', icon:'🍖', label:'Roasting spit', after:['palisade']},
+  {id:'spit', x:-4.2, z:-5, cost:50, cur:'coin', icon:'🍖', label:'Meat grill', after:['palisade']},
   {id:'hut2', x:11.4, z:6.2, cost:16, cur:'log', icon:'🛖', label:'Hut', after:['palisade']},
   {id:'lumber', x:3.4, z:-6.2, cost:50, cur:'coin', icon:'🪓', label:'Lumberjack', after:['palisade']},
   {id:'butcher', x:-1.5, z:-8.3, cost:80, cur:'coin', icon:'🔪', label:'Butcher', after:['lodge', 'spit']},
@@ -3054,20 +3245,23 @@ const PADS = [
   {id:'hw_hellas', x:102, z:1.9, cost:700000, cur:'coin', icon:'🛣️', label:'Highway to Hellas', after:['highway'], optional:true, need:() => hwyHeld('hellas')},
   {id:'hw_kumo', x:-100, z:12.1, cost:400000, cur:'coin', icon:'🛣️', label:'Highway to Kumo', after:['highway'], optional:true, need:() => hwyHeld('kumo')},
   {id:'hw_aztlan', x:-104, z:12.1, cost:600000, cur:'coin', icon:'🛣️', label:'Highway to Aztlan', after:['highway'], optional:true, need:() => hwyHeld('aztlan')},
-  {id:'garden', x:20.5, z:5.6, cost:400, cur:'coin', icon:'🥬', label:'Lettuce garden', after:['spit', 'oven']},
+  {id:'garden', x:20.5, z:5.6, cost:400, cur:'coin', icon:'🥬', label:'Lettuce garden', after:['spit', 'oven', 'workshop']},
   {id:'gardener', x:23.8, z:5.6, cost:300, cur:'coin', icon:'🧑‍🌾', label:'Gardener', after:['garden']},
-  {id:'bunbaker', x:17.2, z:5.6, cost:250, cur:'coin', icon:'🥖', label:'Bun baker', after:['spit', 'oven', 'garden']},
+  {id:'tomatobed', x:27.1, z:5.6, cost:500, cur:'coin', icon:'🍅', label:'Tomato bed', after:['garden', 'market']},
+  {id:'burgerBar', x:20.75, z:14.3, cost:900, cur:'coin', icon:'🍔', label:'Burger station', after:['tomatobed', 'gardener', 'market', 'workshop']},
+  {id:'burgercook', x:25.6, z:17.6, cost:400, cur:'coin', icon:'🧑‍🍳', label:'Burger cook', after:['burgerBar']},
+  {id:'bunbaker', x:17.2, z:5.6, cost:250, cur:'coin', icon:'🥖', label:'Bun baker', after:['burgerBar']},
   {id:'scooters', x:45.6, z:8.4, cost:25000, cur:'coin', icon:'🛵', label:'Delivery scooters', after:['fleet1'], region:'east'},
   {id:'foodVans', x:45.6, z:8.4, cost:120000, cur:'coin', icon:'🚐', label:'Food delivery vans', after:['scooters', 'fleet2'], region:'east'},
   {id:'vegas', x:-81.9, z:64.4, cost:250000, cur:'coin', icon:'🎰', label:'The Lucky Strip', after:['gasStation', 'wCathedral']},
-  {id:'slots', x:-96, z:105.2, cost:150000, cur:'coin', icon:'🎰', label:'Slot parlor', after:['vegas']},
-  {id:'chapel', x:-96, z:114.8, cost:120000, cur:'coin', icon:'💒', label:'Wedding chapel', after:['vegas']},
-  {id:'casino1', x:-82.5, z:105.2, cost:400000, cur:'coin', icon:'🦁', label:'Golden Lion casino', after:['slots']},
-  {id:'fountains', x:-82.5, z:114.8, cost:300000, cur:'coin', icon:'⛲', label:'Dancing fountains', after:['casino1']},
-  {id:'casino2', x:-69, z:105.2, cost:900000, cur:'coin', icon:'🔺', label:'Pyramid casino', after:['casino1']},
-  {id:'stripHotel', x:-69, z:114.8, cost:1200000, cur:'coin', icon:'🏨', label:'Strip resort hotel', after:['casino2']},
-  {id:'casino3', x:-55.5, z:105.2, cost:1800000, cur:'coin', icon:'🗼', label:'Sky Tower casino', after:['casino2']},
-  {id:'casino4', x:-55.5, z:114.8, cost:3500000, cur:'coin', icon:'🛶', label:'Canal Palace casino', after:['casino3']},
+  {id:'slots', x:-150, z:143.7, cost:150000, cur:'coin', icon:'🎰', label:'Slot parlor', after:['vegas']},
+  {id:'chapel', x:-150, z:156.3, cost:120000, cur:'coin', icon:'💒', label:'Wedding chapel', after:['vegas']},
+  {id:'casino1', x:-122, z:143.7, cost:400000, cur:'coin', icon:'🦁', label:'Golden Lion casino', after:['slots']},
+  {id:'fountains', x:-122, z:156.3, cost:300000, cur:'coin', icon:'⛲', label:'Dancing fountains', after:['casino1']},
+  {id:'casino2', x:-94, z:143.7, cost:900000, cur:'coin', icon:'🔺', label:'Pyramid casino', after:['casino1']},
+  {id:'stripHotel', x:-94, z:156.3, cost:1200000, cur:'coin', icon:'🏨', label:'Strip resort hotel', after:['casino2']},
+  {id:'casino3', x:-64, z:143.7, cost:1800000, cur:'coin', icon:'🗼', label:'Sky Tower casino', after:['casino2']},
+  {id:'casino4', x:-64, z:156.3, cost:3500000, cur:'coin', icon:'🛶', label:'Canal Palace casino', after:['casino3']},
   {id:'mount1', x:12.16, z:-0.32, cost:2000, cur:'coin', icon:'🐴', label:'Horse', after:['village']},
   {id:'mount2', x:12.16, z:-0.32, cost:6000, cur:'coin', icon:'🚲', label:'Bicycle', after:['mount1', 'townhall']},
   {id:'mount3', x:12.16, z:-0.32, cost:15000, cur:'coin', icon:'🛵', label:'Scooter', after:['mount2', 'workshop']},
@@ -3136,7 +3330,8 @@ const UNLOCK = {
     boxes.push({x0:-5.6, x1:-2.8, z0:-11.6, z1:-9.5});
   },
   spit(a) {
-    station('spit', {name:'burger grill', in:'meat', ins:[['patty', 'meat'], ['bread'], ['lettuce']], inCap:30, out:'roast', t:1, inZ:[-6.6, -5], outZ:[-1.8, -5], fireAt:[-4.2, 1.3, -5]}); buildFx.spit(a);
+    // at first the grill just grills the hunters' meat into steaks; burgers come later (see burgerMenu)
+    station('spit', {name:'meat grill', in:'meat', inCap:30, out:'steak', t:1, inZ:[-6.6, -5], outZ:[-1.8, -5], fireAt:[-4.2, 1.3, -5]}); buildFx.spit(a);
     boxes.push({x0:-5.3, x1:-3.1, z0:-6, z1:-4});
   },
   lumber(a) {
@@ -3326,6 +3521,9 @@ const UNLOCK = {
   garden(a) { lettuceGarden(a); },
   gardener(a) { addWorker('gardener', 23.8, 5.6, a); },
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
+  tomatobed(a) { tomatoBed(a); },
+  burgerBar(a) { burgerBar(a); },
+  burgercook(a) { addWorker('burgercook', 25.6, 17.6, a); },
   scooters(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🛵 Delivery scooters!', 'Waiters and everyone who carries food ride scooters now, half again as fast.'); },
   foodVans(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🚐 Food delivery vans!', 'The food crew drives vans now: nearly twice walking speed, with room for more.'); },
   vegas(a) { stripFx(a); if (a) banner('🎰 The Lucky Strip!', 'A boulevard of neon south of the airfield road. Build casinos: they make crazy money.'); },
@@ -3449,7 +3647,9 @@ function payPad(zn, e) {
 function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id);
-  { const n0 = scene.children.length; UNLOCK[id](anim); PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o)); }
+  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o));
+    // new buildings' shaders compile in the background, so the first frame they show doesn't stall
+    if (anim && renderer.compileAsync) for (const o of PADOBJ[id]) renderer.compileAsync(o, camera, scene).catch(() => {}); }
   if (/^castle/.test(id) && BASE.built) baseTier(anim);
   if (anim) {
     shakeCam(.35);
@@ -3982,7 +4182,7 @@ function collideFighters(a, list) {
   }
 }
 function strike(a, t, ranged, dmg) {
-  a.swing = .3;
+  a.swing = .3; if (!ranged && a.char) qnAct(a.char, 'swing', .75, true);
   const from = new THREE.Vector3(a.pos.x, 1.2, a.pos.z), to = new THREE.Vector3(t.pos.x, 1.1, t.pos.z);
   const hit = R() < (ranged ? .55 : .78);
   if (ranged) {
@@ -4455,8 +4655,8 @@ function startMusic() {
   musicT = setInterval(() => {
     if (muted || document.hidden || !started || paused) return;
     const ch = BARS[Math.floor(beat / 8) % 4], step = beat % 8;
-    if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022);
-    if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012);
+    if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022, 0, true);
+    if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012, 0, true);
     beat++;
   }, 280);
 }
@@ -4551,9 +4751,11 @@ const endJoy = e => { if (e.pointerId !== joy.id) return; if (joy.on && performa
 stage.addEventListener('pointerup', endJoy); stage.addEventListener('pointercancel', endJoy);
 
 // ------------------------------------------------------------------ save
-const SAVE_KEY = 'buildyourempire.v1', SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+// slot 1 keeps the original key so older saves are found where they always were
+const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
-try { if (!localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
+try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
 // (saves from before versions count as version 1)
 const MIGRATE = {
@@ -6496,7 +6698,7 @@ function updConcert(dt) {
 }
 
 // ------------------------------------------------------------------ workers move goods like a real business: trays, wheelbarrows, carts, then trucks
-const TRAY_KINDS = new Set(['bunbaker', 'gardener', 'waiter', 'armorer', 'quartermaster', 'barkeep', 'treasurer', 'porter', 'butcher', 'fisher']);
+const TRAY_KINDS = new Set(['burgercook', 'bunbaker', 'gardener', 'waiter', 'armorer', 'quartermaster', 'barkeep', 'treasurer', 'porter', 'butcher', 'fisher']);
 const CARRY = {
   tray:{z:.42, y:1.02, nx:3, nz:2, sx:.15, sz:.13, step:.5, speed:1},
   scooter:{z:-.62, y:1.02, nx:2, nz:1, sx:.16, sz:.14, step:.5, speed:1.5},
@@ -8713,7 +8915,7 @@ function updSiege(dt) {
       } else if (f.role === 'gate' && SIEGE.gateHp > 0) {
         if (moveTo(f, f.wx, f.wz, dt)) {
           f.yaw = -Math.PI/2;
-          if (e > 12 && (f.cd -= dt) <= 0) { f.cd = 1.1; f.swing = .3; SIEGE.gateHp -= win ? .5 : 1; snd(80, .12, 'square', .04); particle(0x8a5a2b, new THREE.Vector3(f.wx - .6, 1, f.wz), new THREE.Vector3(0, 2, 0), .5, .1, {grav:1});
+          if (e > 12 && (f.cd -= dt) <= 0) { f.cd = 1.1; f.swing = .3; qnAct(f.char, 'swing', .75, true); SIEGE.gateHp -= win ? .5 : 1; snd(80, .12, 'square', .04); particle(0x8a5a2b, new THREE.Vector3(f.wx - .6, 1, f.wz), new THREE.Vector3(0, 2, 0), .5, .1, {grav:1});
             if (SIEGE.gateHp <= 0) { SIEGE.breach += 3; banner('🚪 The gate is broken!', 'They are inside the walls!'); SIEGE.foes.forEach(o => { if (o.role === 'gate') o.role = 'fight'; }); } }
         }
       } else if (e > 8) {
@@ -9854,9 +10056,14 @@ function payRecruit(zn, e) {
   refreshPads(); save();
 }
 // ------------------------------------------------------------------ the Lucky Strip
-const STRIP = {walk:{x0:-102, x1:-50, z0:102.8, z1:117.2}, path:{x0:-77.2, x1:-74.3, z0:66.5, z1:103}, spur:{x0:-80.6, x1:-74.3, z0:66.5, z1:69.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
+// The Strip is a long boulevard south of the wonders park: two lanes either side of a planted median, wide sidewalks,
+// and the resorts on big lots with room round them (28 apart), four to a side. The walk in from the park comes
+// down between the third and fourth lots on the north side.
+const STRIP_Z = 150, STRIP_X0 = -162, STRIP_X1 = -50, STRIP_HALF = 8.7;
+const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-77.2, x1:-74.3, z0:66.5, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-80.6, x1:-74.3, z0:66.5, z1:69.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
 // lot centres: four on the north side (facing south onto the boulevard), four on the south side (facing north)
-const STRIP_LOTS = {slots:[-96, 97.1], casino1:[-82.5, 97.1], casino2:[-69, 97.1], casino3:[-55.5, 97.1], chapel:[-96, 122.9], fountains:[-82.5, 122.9], stripHotel:[-69, 122.9], casino4:[-55.5, 122.9]};
+const STRIP_N = STRIP_Z - STRIP_HALF - 6, STRIP_S = STRIP_Z + STRIP_HALF + 6;
+const STRIP_LOTS = {slots:[-150, STRIP_N], casino1:[-122, STRIP_N], casino2:[-94, STRIP_N], casino3:[-64, STRIP_N], chapel:[-150, STRIP_S], fountains:[-122, STRIP_S], stripHotel:[-94, STRIP_S], casino4:[-64, STRIP_S]};
 const STRIP_PAY = {slots:1, chapel:.5, casino1:3, casino2:7, casino3:14, casino4:28, stripHotel:4};
 function stripNeonTex(text, col, w = 512, h = 128) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -9885,18 +10092,21 @@ function stripFx(anim) {
   if (typeof wondersPark === 'function') wondersPark();
   const g = STRIP.g = new THREE.Group(); scene.add(g);
   const W0 = STRIP.walk, P0 = STRIP.path, S0 = STRIP.spur;
-  clearForest({x0:-103, x1:-49.5, z0:90, z1:130}); clearForest({x0:-81, x1:-73.5, z0:65.5, z1:103});
-  // the desert floor, the walk in from the wonders park, the boulevard and its sidewalks
-  slab(0xd8b47a, 53, 39, -76, 110.4, .003);
+  clearForest({x0:STRIP_X0 - 1, x1:STRIP_X1 + 1, z0:STRIP_N - 13, z1:STRIP_S + 13}); clearForest({x0:-81, x1:-73.5, z0:65.5, z1:STRIP_Z});
+  // the desert floor, the walk in from the wonders park, the boulevard, its median and its sidewalks
+  const L = STRIP_X1 - STRIP_X0, CX = (STRIP_X0 + STRIP_X1)/2;
+  slab(0xd8b47a, L + 2, STRIP_S - STRIP_N + 26, CX, STRIP_Z, .003);
   for (const q of [P0, S0]) slab(0xd8d4cc, q.x1 - q.x0, q.z1 - q.z0, (q.x0 + q.x1)/2, (q.z0 + q.z1)/2, .01);
-  slab(0x34373c, 52, 5, -76, 110, .008); slab(0xd8d4cc, 52, 4.7, -76, 105.15, .012); slab(0xd8d4cc, 52, 4.7, -76, 114.85, .012);
-  for (let x = -101; x < -50; x += 2.2) mesh(G.box, 0xf2c200, [1.1, .02, .12], [x, .02, 110], g);
+  slab(0x34373c, L, 8, CX, STRIP_Z, .008); slab(0xd8d4cc, L, 4.7, CX, STRIP_Z - 6.35, .012); slab(0xd8d4cc, L, 4.7, CX, STRIP_Z + 6.35, .012);
+  slab(0x6a9a4a, L - 4, 1.6, CX, STRIP_Z, .14);
+  for (const dz of [-2.1, 2.1]) for (let x = STRIP_X0 + 1; x < STRIP_X1 - 1; x += 2.2) mesh(G.box, 0xf2f2f2, [1.1, .02, .12], [x, .02, STRIP_Z + dz], g);
   AREAS.push(W0, P0, S0);
-  // palms between the lots on both sidewalks, streetlights in front of them
-  for (const x of [-101.3, -89.25, -62.25, -50.7]) for (const z of [103.6, 116.4]) { palm(g, x, z); circles.push({x, z, r:.25}); }
-  for (const x of [-92.6, -79.1, -65.6, -59]) for (const z of [107.2, 112.8]) { mesh(G.cyl, 0x2a2a2e, [.05, 3.2, .05], [x, 1.6, z], g); STRIP.lamps = (STRIP.lamps || []).concat(bulb(g, x, 3.15, z + (z < 110 ? .35 : -.35), 0xfff2c8, .12)); circles.push({x, z, r:.15}); }
+  // palms down the median and along both sidewalks, streetlights between them
+  for (let x = STRIP_X0 + 4; x < STRIP_X1 - 2; x += 9) { palm(g, x, STRIP_Z); circles.push({x, z:STRIP_Z, r:.3}); }
+  for (let x = STRIP_X0 + 2; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 7.9, STRIP_Z + 7.9]) { if (Math.abs(x + 75.75) < 3) continue; palm(g, x, z); circles.push({x, z, r:.25}); }
+  for (let x = STRIP_X0 + 9; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 4.4, STRIP_Z + 4.4]) { mesh(G.cyl, 0x2a2a2e, [.05, 3.6, .05], [x, 1.8, z], g); STRIP.lamps = (STRIP.lamps || []).concat(bulb(g, x, 3.55, z + (z < STRIP_Z ? .35 : -.35), 0xfff2c8, .12)); circles.push({x, z, r:.15}); }
   // the welcome sign, across from the walk in
-  const sg = new THREE.Group(); sg.position.set(-75.75, 0, 117.9); g.add(sg);
+  const sg = new THREE.Group(); sg.position.set(-75.75, 0, STRIP_Z + STRIP_HALF + .7); g.add(sg);
   for (const x of [-.9, .9]) mesh(G.cyl, 0xd8d4cc, [.08, 2.6, .08], [x, 1.3, 0], sg);
   const board = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:(() => {
     const c = document.createElement('canvas'); c.width = 512; c.height = 320; const q = c.getContext('2d');
@@ -9908,23 +10118,36 @@ function stripFx(anim) {
     for (let i = 0; i < 24; i++) { const a = i/24*Math.PI*2; q.fillStyle = '#ffd040'; q.beginPath(); q.arc(256 + Math.cos(a)*235, 165 + Math.sin(a)*140, 6, 0, 7); q.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })(), transparent:true, toneMapped:false, side:THREE.DoubleSide}));
   board.scale.set(3.2, 2, 1); board.position.set(0, 3.2, 0); sg.add(board); STRIP.neon.push({m:board, ph:0});
-  STRIP.cash = makeCash('vegas', -78.9, 105.2);
+  STRIP.cash = makeCash('vegas', -78.9, STRIP_Z - 6.3);
   if (anim) popIn(g);
 }
 function stripLot(id, anim) {
   if (STRIP.lots[id]) return; if (!STRIP.g) stripFx(false);
-  const [cx, cz] = STRIP_LOTS[id], north = cz < 110, sz = north ? 1 : -1;   // sz: toward the boulevard
+  const [cx, cz] = STRIP_LOTS[id], north = cz < STRIP_Z, sz = north ? 1 : -1;   // sz: toward the boulevard
   // each lot is built in its own frame (front toward local +z), then turned to face the boulevard
-  const g = new THREE.Group(); g.position.set(cx, 0, cz); g.rotation.y = north ? 0 : Math.PI; scene.add(g); STRIP.lots[id] = g;
-  const box = (hw, hd) => boxes.push({x0:cx - hw, x1:cx + hw, z0:cz - hd, z1:cz + hd});
+  // the big resorts stand a third larger, set back on their grounds; the small places stay at the sidewalk
+  const S = {casino1:1.3, casino2:1.3, casino3:1.3, stripHotel:1.3, casino4:1.3}[id] || 1, back = S > 1 ? 2.6 : 0;
   const W2 = (lx, lz) => [cx + lx*sz, cz + lz*sz];   // local to world
-  slab(0xc9b48a, 11, 10.6, cx, cz, .01);
+  const [gx, gz] = W2(0, -back);
+  const g = new THREE.Group(); g.position.set(gx, 0, gz); g.rotation.y = north ? 0 : Math.PI; g.scale.setScalar(S); scene.add(g); STRIP.lots[id] = g;
+  const box = (hw, hd) => boxes.push({x0:gx - hw*S, x1:gx + hw*S, z0:gz - hd*S, z1:gz + hd*S});
+  // a porte-cochere: a lit canopy on gold columns over the drop-off, and a red carpet out to the sidewalk
+  const canopy = (z0) => {
+    const GOLD = {metalness:.9, roughness:.25};
+    mesh(G.box, 0xf4efe4, [4.6, .28, 2.6], [0, 2.75, z0 + 1.3], g); mesh(G.box, 0xd8b04a, [4.7, .1, 2.7], [0, 2.92, z0 + 1.3], g, GOLD);
+    for (const x of [-2.1, 2.1]) mesh(G.cyl, 0xd8b04a, [.12, 2.6, .12], [x, 1.3, z0 + 2.45], g, GOLD);
+    for (let i = 0; i < 4; i++) for (let k = 0; k < 2; k++) bulb(g, -1.5 + i, 2.58, z0 + .7 + k*1.2, 0xfff0c8, .07);
+    mesh(G.box, 0xa8222a, [1.8, .02, (6 - back)/S + 2.6 - z0 + 1], [0, .03, z0 + ((6 - back)/S - z0 + 1)/2 + .6], g);
+  };
+  // the resort's grounds: a forecourt to the street, lawns down the sides, palms at the corners
+  { const [gx, gz] = W2(0, -2); slab(0x8aae5a, 19, 16, gx, gz, .006); } slab(0xc9b48a, 12, 11, cx, cz, .01);
+  for (const [lx, lz] of [[-8.3, 4.6], [8.3, 4.6], [-8.3, -8.6], [8.3, -8.6]]) { const [px, pz] = W2(lx, lz); palm(STRIP.g, px, pz); circles.push({x:px, z:pz, r:.3}); }
   // the name in neon, readable from the street side and from the camera (south) side
   const name = (text, col, w, h, y, z) => { stripSign(g, text, col, w, h, 0, y, z, 0); if (!north) stripSign(g, text, col, w, h, 0, y, -z, Math.PI); };
   if (id === 'slots') {
     mesh(G.box, 0x5a1e8a, [9, 3.4, 8.6], [0, 1.7, 0], g); mesh(G.box, 0x2a0a4a, [9.4, .4, 9], [0, 3.6, 0], g);
     for (let k = 0; k < 14; k++) bulb(g, -4.2 + k*.64, 2.9, 4.35, 0xffd040, .07);
-    name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); box(4.6, 4.4);
+    name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); canopy(4.3); box(4.6, 4.4);
     const [zx, zz] = W2(3, 6.3); STRIP.spin = addZone({kind:'spin', x:zx, z:zz, icon:'🎰', tile:{alpha:1, size:84, label:'Play the slots', fill:'rgba(120,30,140,.6)'}});
   } else if (id === 'chapel') {
     mesh(G.box, 0xf6f2ea, [7, 3, 5], [0, 1.5, 0], g); const roof = mesh(G.cone4, 0xe8a0b8, [5.4, 1.8, 4.4], [0, 3.9, 0], g); roof.rotation.y = Math.PI/4;
@@ -9937,7 +10160,7 @@ function stripLot(id, anim) {
     name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85);
     const L = new THREE.Group(); L.position.set(3.6, 0, 5.2); g.add(L); const GOLD = {metalness:.9, roughness:.25};
     mesh(G.box, 0x6a6a6a, [1.2, .8, 1.2], [0, .4, 0], L); mesh(G.sph, 0xd8b04a, [.5, .5, .75], [0, 1.25, 0], L, GOLD); mesh(G.sph, 0xd8b04a, [.42, .42, .42], [0, 1.7, .45], L, GOLD); mesh(G.sph, 0xc8962a, [.55, .55, .3], [0, 1.72, .3], L, GOLD);
-    box(4.9, 5.3);
+    canopy(4.8); box(4.9, 5.3);
   } else if (id === 'fountains') {
     mesh(G.box, 0xd8d4cc, [10.6, .5, 10], [0, .25, 0], g); mesh(G.box, 0x2a8ac8, [9.8, .1, 9.2], [0, .48, 0], g, {roughness:.05, metalness:.3});
     const JM = new THREE.MeshBasicMaterial({color:0xe8f6ff, transparent:true, opacity:.75, toneMapped:false});
@@ -9956,11 +10179,11 @@ function stripLot(id, anim) {
     mesh(G.cyl, 0xd8d4cc, [1, 20, 1], [0, 13, -1], g); for (const a of [0, 2.1, 4.2]) mesh(G.box, 0xd8d4cc, [.3, 18, 2.4], [Math.cos(a)*.9, 12, -1 + Math.sin(a)*.9], g).rotation.y = -a;
     mesh(G.cyl, 0x3a4a5a, [3, 1.6, 3], [0, 23.8, -1], g, {metalness:.6, roughness:.2}); mesh(G.cyl, 0xe8e4dc, [3.2, .4, 3.2], [0, 24.8, -1], g);
     mesh(G.cone, 0xe8e4dc, [.3, 5, .3], [0, 27.5, -1], g); bulb(g, 0, 30.1, -1, 0xff3a2a, .2);
-    box(4.6, 4.4);
+    canopy(4.3); box(4.6, 4.4);
   } else if (id === 'stripHotel') {
     for (const a of [0, 2.094, 4.189]) { const t = stripTower(g, 2.6, 16, 6, Math.sin(a)*2.4, -.6 + Math.cos(a)*2.4, '#e8e2d4', 4); t.rotation.y = a; }
     mesh(G.box, 0xc8a85a, [10, 2.4, 9.6], [0, 1.2, 0], g); name('RESORT', '#ffd040', 6, 1.4, 3, 4.85);
-    box(5.1, 5);
+    canopy(4.8); box(5.1, 5);
   } else if (id === 'casino4') {
     mesh(G.box, 0xf0e2c4, [10.4, 5, 6.6], [0, 2.5, -1.6], g);
     for (let k = 0; k < 6; k++) { mesh(G.box, 0x6a4a3a, [.9, 1.4, .1], [-4 + k*1.6, 1.2, 1.72], g); mesh(G.box, 0x6a4a3a, [.7, 1, .1], [-4 + k*1.6, 3.4, 1.72], g); }
@@ -9974,7 +10197,7 @@ function stripLot(id, anim) {
     box(5.4, 5.2);
   }
   // tall ones fade while you walk behind them, so they never hide you from the camera
-  const H = {casino1:17, casino2:11, casino3:30, stripHotel:16, casino4:15}[id]; if (H) fader(g, 11, H);
+  const H = {casino1:17, casino2:11, casino3:30, stripHotel:16, casino4:15}[id]; if (H) fader(g, 11*S, H*S);
   if (anim) { popIn(g); puff(cx, cz); }
 }
 const stripTake = () => { let m = 0; for (const [k, v] of Object.entries(STRIP_PAY)) if (STRIP.lots[k]) m += v; return m * (STRIP.lots.fountains ? 1.25 : 1); };
@@ -9993,19 +10216,19 @@ function updStrip(dt) {
   const take = stripTake();
   if (started && take && (STRIP.t -= dt) <= 0) {
     STRIP.t = 10; const v = Math.round((800 + 300*W.era) * take * .7);   // casinos pay well, not wildly
-    addCash(STRIP.cash, v, {x:-76, z:110});
-    if (Math.hypot(player.pos.x + 76, player.pos.z - 110) < 40) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, 110), '#ffe06b');
+    addCash(STRIP.cash, v, {x:-76, z:STRIP_Z});
+    if (Math.hypot(player.pos.x + 76, player.pos.z - STRIP_Z) < 50) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, STRIP_Z), '#ffe06b');
   }
   // tourists stroll the Strip
   const want = Math.min(16, 4 + Object.keys(STRIP.lots).length*2);
   if (STRIP.tourists.length < want && R() < dt) {
-    const c = makeChar({civ:true}), side = R() < .5 ? 105.4 : 114.6; c.g.position.set(-100 + R()*48, 0, side); STRIP.tourists.push({c, tx:-100 + R()*48, tz:side, sp:1.2 + R()*.6, wait:0});
+    const c = makeChar({civ:true}), side = STRIP_Z + (R() < .5 ? -6.1 : 6.1), rx = () => STRIP_X0 + 2 + R()*(STRIP_X1 - STRIP_X0 - 4); c.g.position.set(rx(), 0, side); STRIP.tourists.push({c, tx:rx(), tz:side, sp:1.2 + R()*.6, wait:0});
   }
   for (const t of STRIP.tourists) {
     const c = t.c, p = c.g.position;
     if (t.wait > 0) { t.wait -= dt; c.legL.rotation.x = c.legR.rotation.x = 0; continue; }
     const dx = t.tx - p.x, dz = t.tz - p.z, dd = Math.hypot(dx, dz);
-    if (dd < .15) { t.wait = R() < .4 ? 1 + R()*3 : 0; t.tz = R() < .15 ? (p.z < 110 ? 114.6 : 105.4) : p.z; t.tx = -100 + R()*48; continue; }
+    if (dd < .15) { t.wait = R() < .4 ? 1 + R()*3 : 0; t.tz = R() < .15 ? (p.z < STRIP_Z ? STRIP_Z + 6.1 : STRIP_Z - 6.1) : p.z; t.tx = STRIP_X0 + 2 + R()*(STRIP_X1 - STRIP_X0 - 4); continue; }
     const st = Math.min(dd, t.sp*dt); p.x += dx/dd*st; p.z += dz/dd*st; c.g.rotation.y = Math.atan2(dx, dz);
     const sw = Math.sin(time*8 + t.sp*10); c.legL.rotation.x = sw*.6; c.legR.rotation.x = -sw*.6; c.armL.rotation.x = -sw*.4; c.armR.rotation.x = sw*.4;
   }
@@ -10243,7 +10466,7 @@ function updGreenPad() {
   if (z) { GREENPAD.m.position.set(z.x, .035, z.z); GREENPAD.m.scale.set(z.w*1.04, z.d*1.04, 1); }
 }
 // ------------------------------------------------------------------ burgers: the lettuce garden and the butcher's block
-const BURGER = {block:null, garden:null, chopT:0};
+const BURGER = {block:null, garden:null, tom:null, bar:null, chopT:0};
 function lettuceGarden(anim) {
   if (BURGER.garden) return;
   const g = BURGER.garden = new THREE.Group(); scene.add(g);
@@ -10260,8 +10483,50 @@ function lettuceGarden(anim) {
   ST.garden.body = g; if (anim) popIn(g);
 }
 // what the butcher carries off the lodge becomes patties at his block, one chop at a time
+// ------------------------------------------------------------------ burgers: a tomato bed by the lettuce, and the burger station
+// The grill only grills. Burgers are put together at their own station from four things: a grilled patty off the grill,
+// a bun from the baker, lettuce and a tomato.
+function tomatoBed(anim) {
+  if (BURGER.tom) return;
+  const g = BURGER.tom = new THREE.Group(); scene.add(g);
+  clearForest({x0:24.8, x1:30, z0:6.5, z1:13});
+  mesh(G.box, 0x5a3a24, [4.2, .14, 5.2], [27.3, .07, 9.8], g);
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 4; k++) {
+    const x = 26 + r*1.3, z = 7.9 + k*1.25;
+    mesh(G.cyl, 0x8a6a42, [.03, 1.3, .03], [x, .65, z], g);
+    mesh(G.sph, 0x3f8a2e, [.36, .5, .36], [x, .75, z], g);
+    for (let t = 0; t < 3; t++) mesh(G.sph, 0xd8322a, [.09, .09, .09], [x + Math.cos(t*2.1)*.24, .55 + t*.22, z + Math.sin(t*2.1)*.24], g);
+  }
+  boxes.push({x0:25.1, x1:29.5, z0:7.1, z1:12.5});
+  station('tomatobed', {name:'tomato bed', gen:'tomato', t:2.4, group:'farm', outZ:[27.1, 5.6], outCap:24, genAt:[27.3, .6, 8]});
+  ST.tomatobed.body = g; if (anim) popIn(g);
+}
+function burgerBar(anim) {
+  if (BURGER.bar) return;
+  const g = BURGER.bar = new THREE.Group(); g.position.set(20.75, 0, 17.6); scene.add(g);
+  clearForest({x0:15.5, x1:29, z0:13, z1:21});
+  // a little burger joint: a counter with a flat-top griddle and a prep board, under a red-and-white awning
+  mesh(G.box, 0xf4efe4, [5.2, 1, 1.4], [0, .5, 0], g); mesh(G.box, 0xd9443a, [5.3, .14, 1.5], [0, 1.05, 0], g);
+  mesh(G.box, 0x2a2a2e, [1.6, .06, .9], [-1.4, 1.15, 0], g, {metalness:.6, roughness:.3});
+  mesh(G.box, 0xc89a62, [1.4, .05, .8], [1.3, 1.15, 0], g);
+  for (const x of [-2.5, 2.5]) mesh(G.cyl, 0x8a8f96, [.06, 2.6, .06], [x, 1.3, -.6], g, {metalness:.7});
+  for (let k = 0; k < 7; k++) mesh(G.box, k % 2 ? 0xf4f4f4 : 0xd9443a, [.76, .06, 1.8], [-2.28 + k*.76, 2.65, .1], g).rotation.x = .18;
+  mesh(G.box, 0x2a1a12, [2.6, .7, .08], [0, 3.15, -.55], g);
+  const sg = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('🍔 BURGERS', '#2a1a12', '#ffd040'), toneMapped:false}));
+  sg.scale.set(2.4, .6, 1); sg.position.set(0, 3.15, -.5); sg.rotation.y = Math.PI; g.add(sg);
+  const sg2 = sg.clone(); sg2.position.z = -.6; sg2.rotation.y = 0; g.add(sg2);
+  boxes.push({x0:18, x1:23.5, z0:16.8, z1:18.4});
+  station('burgerBar', {name:'burger station', in:'steak', ins:[['steak', 'patty'], ['bread'], ['lettuce'], ['tomato']], inCap:32, out:'roast', t:1.2,
+    inZ:[17.9, 14.3], outZ:[23.6, 14.3], fireAt:[20.75, 1.3, 17.6]});
+  ST.burgerBar.body = g; if (anim) { popIn(g); banner('🍔 Burgers!', 'Grilled patties, buns, lettuce and tomato go in; burgers come out. Hire a burger cook to keep it stocked.'); }
+}
+// where a supplier should go next: whichever of their sources the burger station is shortest of
+function burgerSrc(list) {
+  const s = ST.burgerBar; list = list.filter(z => z && z.stack.length); if (!s || !list.length) return list.slice(0, 1);
+  return list.sort((a, b) => s.inStack.count([ST[a.st].out || ST[a.st].gen]) - s.inStack.count([ST[b.st].out || ST[b.st].gen])).slice(0, 1);
+}
 function butcherCut(w) {
-  if (w.state !== 'toDst') return;
+  if (w.state !== 'toDst' || !(ST.spit && ST.spit.ins)) return;   // the grill takes meat as it comes; nothing to cut
   const it = w.stack.items.find(q => q.type === 'meat'); if (!it) return;
   if ((BURGER.chopT -= 1/30) > 0) return; BURGER.chopT = .12;
   const m = itemMesh('patty'); m.position.copy(it.mesh.position); scene.remove(it.mesh); it.mesh = m; it.type = 'patty';
@@ -10906,7 +11171,7 @@ function update(dt) {
     }
   }
   if (ST.spit) ST.spit.meat.rotation.x += dt * (ST.spit.busy ? 4 : 1);
-  for (const w of workers) { equip(w); updWorker(w, dt); if (w.kind === 'butcher') butcherCut(w); animEntity(w, dt); poseCarry(w); poseChop(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
+  for (const w of workers) { const n0 = w.stack.length; equip(w); updWorker(w, dt); workAct(w, n0); if (w.kind === 'butcher') butcherCut(w); animEntity(w, dt); poseCarry(w); poseChop(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
   for (const L of Object.values(LINES)) {
     updLine(L, dt);
     const [fx, fz] = L.slot(0);
@@ -11099,7 +11364,7 @@ function render(dt) {
 // put for a few seconds, and per 12x12 patch of ground merge the ones sharing a material into one mesh, so
 // the GPU draws each patch's stone, wood or roof in one go. The originals stay in the scene (hidden by layer), and
 // if any of them moves, changes material, shows or hides, its batch is taken apart and merged again later.
-const BAKE = {cell:12, wait:3.5, clock:0, cap:40000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
+const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
 BAKE.group.name = 'bake'; scene.add(BAKE.group);
 {
   const OBR = THREE.Object3D.prototype.onBeforeRender, OBC = THREE.Material.prototype.onBeforeCompile;
@@ -11178,9 +11443,18 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
     for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
     BAKE.batches.set(key, b); BAKE.merges++;
   }
-  let acc = 0;
+  // The work is spread over frames: each frame gets a few milliseconds of it, so a pass over the whole town never
+  // stalls one frame (doing it all at once every half second made the game hitch twice a second).
+  let acc = 0, job = null, deadline = 0;
+  const SLICE = 3;   // ms per frame
+  const over = () => performance.now() > deadline;
   BAKE.tick = (dt, force) => {
-    BAKE.clock += dt; acc += dt; if (!force && acc < .5) return; acc = 0;
+    BAKE.clock += dt;
+    if (!job) { acc += dt; if (!force && acc < .5) return; acc = 0; job = pass(); }
+    deadline = force ? Infinity : performance.now() + SLICE;
+    if (job.next().done) job = null;
+  };
+  function* pass() {
     const now = BAKE.clock, ready = new Map();
     // a batch whose members moved, hid, or changed their look comes apart
     for (const [key, b] of BAKE.batches) {
@@ -11194,10 +11468,13 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         if (++s.nb >= 2) s.never = true;       // something that keeps moving now and then is left as it is
       }
       if (broke) { unbake(key); BAKE.breaks++; }
+      if (over()) yield;
     }
     if (!BAKE.on) { for (const k of [...BAKE.batches.keys()]) unbake(k); return; }
     const stack = [...scene.children];
+    let n = 0;
     while (stack.length) {
+      if ((++n & 255) === 0 && over()) yield;
       const o = stack.pop();
       if (o === BAKE.group || CHARS.has(o)) continue;
       for (let i = 0; i < o.children.length; i++) stack.push(o.children[i]);
@@ -11215,8 +11492,12 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
     }
     // new still meshes join their batch (or a lone mesh waiting for company); a vertex budget keeps each tick short
     let budget = BAKE.budget;
-    for (const [key, list] of ready) {
+    for (const [key, list0] of ready) {
       if (budget <= 0) { acc = .5; break; }          // more to do: carry on next frame
+      if (over()) yield;
+      // the walk took a few frames: anything that moved meanwhile waits for the next pass
+      const list = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
+      if (!list.length) continue;
       const b = BAKE.batches.get(key), all = list.slice();
       // a batch is capped in size, so taking one apart and merging it again never stalls a frame
       if (b && b.mesh.geometry.attributes.position.count + list.reduce((n, o) => n + o.geometry.attributes.position.count, 0) > BAKE.cap) { for (const o of list) BAKE.seen.get(o).solo = key + '#full'; continue; }
@@ -11261,15 +11542,113 @@ function fit() {
 }
 new ResizeObserver(fit).observe(stage);
 
+// ------------------------------------------------------------------ settings, save slots and the tutorial
+function applyGfx() {
+  if (SET.gfx === 'low') {
+    perf.low = true; renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sun.castShadow = false; POST.on = false;
+    scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); }); fit();
+  } else perf.low = SET.gfx === 'high';     // high: never drop quality on its own; auto: drop once if frames are slow
+}
+function slotInfo(n) {
+  try {
+    const raw = localStorage.getItem(slotKey(n)); if (!raw) return null;
+    const s = JSON.parse(raw);
+    return {builds:(s.unlocked || []).length, hours:(s.playT || 0)/3600, earned:s.earned || 0, at:s.savedAt ? new Date(s.savedAt) : null};
+  } catch (e) { return {broken:true}; }
+}
+const fmtN = v => v >= 1e9 ? (v/1e9).toFixed(1) + 'B' : v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? Math.round(v/1e3) + 'K' : String(Math.round(v));
+function useSlot(n) {
+  if (started) save();
+  SET.slot = n; saveSettings(); location.reload();
+}
+function deleteSlot(n) {
+  const key = slotKey(n), raw = localStorage.getItem(key); if (!raw) return;
+  if (!confirm(`Delete the camp in slot ${n}? A backup is kept for this slot under Backups.`)) return;
+  try {
+    const bk = key + '.backups', list = JSON.parse(localStorage.getItem(bk) || '[]');
+    list.unshift({at:Date.now(), why:'before the slot was deleted', data:raw}); localStorage.setItem(bk, JSON.stringify(list.slice(0, BAK_N)));
+    localStorage.removeItem(key);
+  } catch (e) {}
+  if (n === SET.slot) location.reload(); else openSettings();
+}
+function openSettings() {
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'settings';
+  const slots = [1, 2, 3].map(n => {
+    const i = slotInfo(n), cur = n === SET.slot;
+    const what = !i ? 'Empty' : i.broken ? 'Damaged save' : `${i.builds} builds · ${i.hours.toFixed(1)} h · ${fmtN(i.earned)} 💵 earned${i.at ? ' · ' + i.at.toLocaleDateString() : ''}`;
+    return `<div class="slot${cur ? ' cur' : ''}"><b>Slot ${n}${cur ? ' (playing)' : ''}</b><small>${what}</small>
+      <span>${cur ? '' : `<button data-use="${n}">${i ? 'Play' : 'New camp'}</button>`}${i ? `<button data-del="${n}" class="del">Delete</button>` : ''}</span></div>`;
+  }).join('');
+  const baks = backups().map((b, k) => `<div class="slot"><small>${new Date(b.at).toLocaleString()} · ${b.why}</small><span><button data-bak="${k}">Restore</button></span></div>`).join('') || '<small>No backups yet. One is kept every ten minutes of play.</small>';
+  m.innerHTML = `<div class="card setcard"><h1 style="font-size:26px">⚙️ Settings</h1>
+    <label>🔊 Sound <input type="range" id="stSfx" min="0" max="100" value="${Math.round(SET.sfx*100)}"></label>
+    <label>🎵 Music <input type="range" id="stMusic" min="0" max="100" value="${Math.round(SET.music*100)}"></label>
+    <label>🖥️ Graphics <select id="stGfx"><option value="auto">Auto</option><option value="high">High</option><option value="low">Low (faster)</option></select></label>
+    <h2>💾 Saves</h2>${slots}
+    <p><button id="stExport">Export this save</button> <button id="stImport">Import a save</button><input type="file" id="stFile" accept=".json,application/json" hidden></p>
+    <p id="stMsg" class="keys"></p>
+    <h2>🛟 Backups (this slot)</h2>${baks}
+    <p><button id="stTut">Replay the tutorial</button></p>
+    <button class="ghost" id="stClose">Close</button></div>`;
+  $('stGfx').value = SET.gfx;
+  $('stSfx').oninput = e => { SET.sfx = e.target.value/100; saveSettings(); };
+  $('stSfx').onchange = () => snd(660, .12, 'triangle', .06);
+  $('stMusic').oninput = e => { SET.music = e.target.value/100; saveSettings(); };
+  $('stGfx').onchange = e => { const was = SET.gfx; SET.gfx = e.target.value; saveSettings(); if (was === 'low') location.reload(); else applyGfx(); };
+  m.querySelectorAll('[data-use]').forEach(b => b.onclick = () => useSlot(+b.dataset.use));
+  m.querySelectorAll('[data-del]').forEach(b => b.onclick = () => deleteSlot(+b.dataset.del));
+  m.querySelectorAll('[data-bak]').forEach(b => b.onclick = () => { if (confirm('Go back to this backup? Your current camp is kept as a backup too.')) restoreBackup(+b.dataset.bak); });
+  $('stExport').onclick = exportSave;
+  $('stImport').onclick = () => $('stFile').click();
+  $('stFile').onchange = async e => { const f = e.target.files[0]; if (!f) return; const err = importSave(await f.text()); if (err) $('stMsg').textContent = err; };
+  $('stTut').onclick = () => { m.hidden = true; startTutorial(); };
+  $('stClose').onclick = () => { m.hidden = true; };
+}
+// the tutorial: a few short steps on top of the objective line, each ticked off by doing it
+const COACH = {on:false, i:0, t:0, el:null, base:null};
+const COACH_STEPS = [
+  {txt:'👣 Drag anywhere to walk (or use WASD / the arrow keys).', done:b => Math.hypot(player.pos.x - b.x, player.pos.z - b.z) > 4},
+  {txt:'🎯 The line at the top always says what to do next, and the arrow points the way. Stand on a tile to use it.', done:b => W.earned > b.earned || W.unlocked.size > b.builds},
+  {txt:'💵 Cash piles up by your stalls: walk over a pile to pick it up, then stand on a dashed tile to build something new.', done:b => W.unlocked.size > b.builds},
+  {txt:'🧭 The buttons on the right open the 🌍 world map, 🏛️ your empire, 🏗️ parks and rides, ⏸️ pause and ⚙️ saves & settings.', done:(b, t) => t > 12},
+];
+function startTutorial() {
+  if (!COACH.el) {
+    COACH.el = document.createElement('div'); COACH.el.id = 'tut'; $('stage').appendChild(COACH.el);
+    COACH.el.onclick = e => { if (e.target.dataset.skip != null) endTutorial(); else if (e.target.dataset.next != null) nextTut(); };
+  }
+  COACH.on = true; COACH.i = -1; nextTut();
+}
+function nextTut() {
+  COACH.i++; COACH.t = 0;
+  if (COACH.i >= COACH_STEPS.length) { endTutorial(); banner('🎓 You know the ropes', 'Build your camp into an empire. ⚙️ has the tutorial if you want it again.'); return; }
+  COACH.base = {x:player.pos.x, z:player.pos.z, earned:W.earned, builds:W.unlocked.size};
+  COACH.el.hidden = false;
+  COACH.el.innerHTML = `<small>${COACH.i + 1} / ${COACH_STEPS.length}</small><p>${COACH_STEPS[COACH.i].txt}</p><span><button data-next>${COACH.i === COACH_STEPS.length - 1 ? 'Got it' : 'Next'}</button><button data-skip class="ghost">Skip tutorial</button></span>`;
+}
+function endTutorial() { COACH.on = false; if (COACH.el) COACH.el.hidden = true; SET.tutDone = true; saveSettings(); }
+function updTut(dt) {
+  if (!COACH.on || !started || paused) return;
+  COACH.t += dt;
+  if (COACH_STEPS[COACH.i].done(COACH.base, COACH.t)) { snd(880, .1, 'triangle', .04); nextTut(); }
+}
 // ------------------------------------------------------------------ boot
 const hadSave = load();
 homesFull = hadSave;
 refreshPads();
 if (hadSave) { $('bPlay').textContent = 'Continue'; $('bNew').hidden = false; }
+applyGfx();
+// compile every shader the camp needs up front, in the background (no hitch the first time each thing comes into view)
+if (renderer.compileAsync) renderer.compileAsync(scene, camera).catch(() => {});
+// players who already have a camp have learned the ropes
+if (hadSave && !SET.tutDone) { SET.tutDone = true; saveSettings(); }
 $('bPlay').onclick = () => {
   $('overlay').hidden = true; started = true; snd(523, .15, 'triangle', .05, 1.5); renderer.domElement.focus({preventScroll:true});
   startMusic(); showOffline();
+  if (!SET.tutDone) startTutorial();
 };
+$('bSettings').onclick = openSettings; $('bPauseSet').onclick = openSettings; $('bTitleSet').onclick = openSettings;
+setInterval(() => updTut(.5), 500);
 $('bBoard').onclick = openBoard;
 $('bBuild').onclick = openBuild; $('bTrophy').onclick = openTrophies; $('bTrade').onclick = openTrade; $('bPhoto').onclick = () => togglePhoto(true); $('bPhotoX').onclick = () => togglePhoto(false); $('bSnap').onclick = savePhoto; $('bSpace').onclick = toggleSpace; $('bInvest').onclick = () => openInvest(); $('bPlace').onclick = placeDecor; $('bCancel').onclick = endPlacing;
 addEventListener('keydown', e => { if (BUILD.on && e.key === 'Enter') placeDecor(); if (BUILD.on && e.key === 'Escape') endPlacing(); });
@@ -11302,7 +11681,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

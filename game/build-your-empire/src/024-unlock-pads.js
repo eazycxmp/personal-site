@@ -10,7 +10,7 @@ const PADS = [
   {id:'waiter2', x:6.4, z:-2.2, cost:110, cur:'coin', icon:'🧑‍🍳', label:'2nd waiter', after:['bigGrill']},
   {id:'builder', x:9.04, z:-1.96, cost:250, cur:'coin', icon:'👷', label:'Builder', after:['palisade', 'village']},
   {id:'lodge', x:-4.2, z:-10.6, cost:60, cur:'coin', icon:'🏹', label:"Hunter's lodge", after:['palisade']},
-  {id:'spit', x:-4.2, z:-5, cost:50, cur:'coin', icon:'🍖', label:'Roasting spit', after:['palisade']},
+  {id:'spit', x:-4.2, z:-5, cost:50, cur:'coin', icon:'🍖', label:'Meat grill', after:['palisade']},
   {id:'hut2', x:11.4, z:6.2, cost:16, cur:'log', icon:'🛖', label:'Hut', after:['palisade']},
   {id:'lumber', x:3.4, z:-6.2, cost:50, cur:'coin', icon:'🪓', label:'Lumberjack', after:['palisade']},
   {id:'butcher', x:-1.5, z:-8.3, cost:80, cur:'coin', icon:'🔪', label:'Butcher', after:['lodge', 'spit']},
@@ -153,20 +153,23 @@ const PADS = [
   {id:'hw_hellas', x:102, z:1.9, cost:700000, cur:'coin', icon:'🛣️', label:'Highway to Hellas', after:['highway'], optional:true, need:() => hwyHeld('hellas')},
   {id:'hw_kumo', x:-100, z:12.1, cost:400000, cur:'coin', icon:'🛣️', label:'Highway to Kumo', after:['highway'], optional:true, need:() => hwyHeld('kumo')},
   {id:'hw_aztlan', x:-104, z:12.1, cost:600000, cur:'coin', icon:'🛣️', label:'Highway to Aztlan', after:['highway'], optional:true, need:() => hwyHeld('aztlan')},
-  {id:'garden', x:20.5, z:5.6, cost:400, cur:'coin', icon:'🥬', label:'Lettuce garden', after:['spit', 'oven']},
+  {id:'garden', x:20.5, z:5.6, cost:400, cur:'coin', icon:'🥬', label:'Lettuce garden', after:['spit', 'oven', 'workshop']},
   {id:'gardener', x:23.8, z:5.6, cost:300, cur:'coin', icon:'🧑‍🌾', label:'Gardener', after:['garden']},
-  {id:'bunbaker', x:17.2, z:5.6, cost:250, cur:'coin', icon:'🥖', label:'Bun baker', after:['spit', 'oven', 'garden']},
+  {id:'tomatobed', x:27.1, z:5.6, cost:500, cur:'coin', icon:'🍅', label:'Tomato bed', after:['garden', 'market']},
+  {id:'burgerBar', x:20.75, z:14.3, cost:900, cur:'coin', icon:'🍔', label:'Burger station', after:['tomatobed', 'gardener', 'market', 'workshop']},
+  {id:'burgercook', x:25.6, z:17.6, cost:400, cur:'coin', icon:'🧑‍🍳', label:'Burger cook', after:['burgerBar']},
+  {id:'bunbaker', x:17.2, z:5.6, cost:250, cur:'coin', icon:'🥖', label:'Bun baker', after:['burgerBar']},
   {id:'scooters', x:45.6, z:8.4, cost:25000, cur:'coin', icon:'🛵', label:'Delivery scooters', after:['fleet1'], region:'east'},
   {id:'foodVans', x:45.6, z:8.4, cost:120000, cur:'coin', icon:'🚐', label:'Food delivery vans', after:['scooters', 'fleet2'], region:'east'},
   {id:'vegas', x:-81.9, z:64.4, cost:250000, cur:'coin', icon:'🎰', label:'The Lucky Strip', after:['gasStation', 'wCathedral']},
-  {id:'slots', x:-96, z:105.2, cost:150000, cur:'coin', icon:'🎰', label:'Slot parlor', after:['vegas']},
-  {id:'chapel', x:-96, z:114.8, cost:120000, cur:'coin', icon:'💒', label:'Wedding chapel', after:['vegas']},
-  {id:'casino1', x:-82.5, z:105.2, cost:400000, cur:'coin', icon:'🦁', label:'Golden Lion casino', after:['slots']},
-  {id:'fountains', x:-82.5, z:114.8, cost:300000, cur:'coin', icon:'⛲', label:'Dancing fountains', after:['casino1']},
-  {id:'casino2', x:-69, z:105.2, cost:900000, cur:'coin', icon:'🔺', label:'Pyramid casino', after:['casino1']},
-  {id:'stripHotel', x:-69, z:114.8, cost:1200000, cur:'coin', icon:'🏨', label:'Strip resort hotel', after:['casino2']},
-  {id:'casino3', x:-55.5, z:105.2, cost:1800000, cur:'coin', icon:'🗼', label:'Sky Tower casino', after:['casino2']},
-  {id:'casino4', x:-55.5, z:114.8, cost:3500000, cur:'coin', icon:'🛶', label:'Canal Palace casino', after:['casino3']},
+  {id:'slots', x:-150, z:143.7, cost:150000, cur:'coin', icon:'🎰', label:'Slot parlor', after:['vegas']},
+  {id:'chapel', x:-150, z:156.3, cost:120000, cur:'coin', icon:'💒', label:'Wedding chapel', after:['vegas']},
+  {id:'casino1', x:-122, z:143.7, cost:400000, cur:'coin', icon:'🦁', label:'Golden Lion casino', after:['slots']},
+  {id:'fountains', x:-122, z:156.3, cost:300000, cur:'coin', icon:'⛲', label:'Dancing fountains', after:['casino1']},
+  {id:'casino2', x:-94, z:143.7, cost:900000, cur:'coin', icon:'🔺', label:'Pyramid casino', after:['casino1']},
+  {id:'stripHotel', x:-94, z:156.3, cost:1200000, cur:'coin', icon:'🏨', label:'Strip resort hotel', after:['casino2']},
+  {id:'casino3', x:-64, z:143.7, cost:1800000, cur:'coin', icon:'🗼', label:'Sky Tower casino', after:['casino2']},
+  {id:'casino4', x:-64, z:156.3, cost:3500000, cur:'coin', icon:'🛶', label:'Canal Palace casino', after:['casino3']},
   {id:'mount1', x:12.16, z:-0.32, cost:2000, cur:'coin', icon:'🐴', label:'Horse', after:['village']},
   {id:'mount2', x:12.16, z:-0.32, cost:6000, cur:'coin', icon:'🚲', label:'Bicycle', after:['mount1', 'townhall']},
   {id:'mount3', x:12.16, z:-0.32, cost:15000, cur:'coin', icon:'🛵', label:'Scooter', after:['mount2', 'workshop']},
@@ -235,7 +238,8 @@ const UNLOCK = {
     boxes.push({x0:-5.6, x1:-2.8, z0:-11.6, z1:-9.5});
   },
   spit(a) {
-    station('spit', {name:'burger grill', in:'meat', ins:[['patty', 'meat'], ['bread'], ['lettuce']], inCap:30, out:'roast', t:1, inZ:[-6.6, -5], outZ:[-1.8, -5], fireAt:[-4.2, 1.3, -5]}); buildFx.spit(a);
+    // at first the grill just grills the hunters' meat into steaks; burgers come later (see burgerMenu)
+    station('spit', {name:'meat grill', in:'meat', inCap:30, out:'steak', t:1, inZ:[-6.6, -5], outZ:[-1.8, -5], fireAt:[-4.2, 1.3, -5]}); buildFx.spit(a);
     boxes.push({x0:-5.3, x1:-3.1, z0:-6, z1:-4});
   },
   lumber(a) {
@@ -425,6 +429,9 @@ const UNLOCK = {
   garden(a) { lettuceGarden(a); },
   gardener(a) { addWorker('gardener', 23.8, 5.6, a); },
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
+  tomatobed(a) { tomatoBed(a); },
+  burgerBar(a) { burgerBar(a); },
+  burgercook(a) { addWorker('burgercook', 25.6, 17.6, a); },
   scooters(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🛵 Delivery scooters!', 'Waiters and everyone who carries food ride scooters now, half again as fast.'); },
   foodVans(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🚐 Food delivery vans!', 'The food crew drives vans now: nearly twice walking speed, with room for more.'); },
   vegas(a) { stripFx(a); if (a) banner('🎰 The Lucky Strip!', 'A boulevard of neon south of the airfield road. Build casinos: they make crazy money.'); },
@@ -548,7 +555,9 @@ function payPad(zn, e) {
 function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id);
-  { const n0 = scene.children.length; UNLOCK[id](anim); PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o)); }
+  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o));
+    // new buildings' shaders compile in the background, so the first frame they show doesn't stall
+    if (anim && renderer.compileAsync) for (const o of PADOBJ[id]) renderer.compileAsync(o, camera, scene).catch(() => {}); }
   if (/^castle/.test(id) && BASE.built) baseTier(anim);
   if (anim) {
     shakeCam(.35);

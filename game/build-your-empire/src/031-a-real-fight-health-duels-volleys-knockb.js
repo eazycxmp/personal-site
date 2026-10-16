@@ -11,7 +11,7 @@ function collideFighters(a, list) {
   }
 }
 function strike(a, t, ranged, dmg) {
-  a.swing = .3;
+  a.swing = .3; if (!ranged && a.char) qnAct(a.char, 'swing', .75, true);
   const from = new THREE.Vector3(a.pos.x, 1.2, a.pos.z), to = new THREE.Vector3(t.pos.x, 1.1, t.pos.z);
   const hit = R() < (ranged ? .55 : .78);
   if (ranged) {

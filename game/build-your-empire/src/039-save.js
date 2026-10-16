@@ -1,7 +1,9 @@
 // ------------------------------------------------------------------ save
-const SAVE_KEY = 'buildyourempire.v1', SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+// slot 1 keeps the original key so older saves are found where they always were
+const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
-try { if (!localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
+try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
 // (saves from before versions count as version 1)
 const MIGRATE = {

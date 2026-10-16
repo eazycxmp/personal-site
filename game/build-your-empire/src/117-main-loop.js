@@ -56,7 +56,7 @@ function update(dt) {
     }
   }
   if (ST.spit) ST.spit.meat.rotation.x += dt * (ST.spit.busy ? 4 : 1);
-  for (const w of workers) { equip(w); updWorker(w, dt); if (w.kind === 'butcher') butcherCut(w); animEntity(w, dt); poseCarry(w); poseChop(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
+  for (const w of workers) { const n0 = w.stack.length; equip(w); updWorker(w, dt); workAct(w, n0); if (w.kind === 'butcher') butcherCut(w); animEntity(w, dt); poseCarry(w); poseChop(w, dt); poseRod(w, w.state === 'load' && w.src === fishZone, dt); }
   for (const L of Object.values(LINES)) {
     updLine(L, dt);
     const [fx, fz] = L.slot(0);

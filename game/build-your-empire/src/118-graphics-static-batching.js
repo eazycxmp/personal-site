@@ -3,7 +3,7 @@
 // put for a few seconds, and per 12x12 patch of ground merge the ones sharing a material into one mesh, so
 // the GPU draws each patch's stone, wood or roof in one go. The originals stay in the scene (hidden by layer), and
 // if any of them moves, changes material, shows or hides, its batch is taken apart and merged again later.
-const BAKE = {cell:12, wait:3.5, clock:0, cap:40000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
+const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
 BAKE.group.name = 'bake'; scene.add(BAKE.group);
 {
   const OBR = THREE.Object3D.prototype.onBeforeRender, OBC = THREE.Material.prototype.onBeforeCompile;
@@ -82,9 +82,18 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
     for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
     BAKE.batches.set(key, b); BAKE.merges++;
   }
-  let acc = 0;
+  // The work is spread over frames: each frame gets a few milliseconds of it, so a pass over the whole town never
+  // stalls one frame (doing it all at once every half second made the game hitch twice a second).
+  let acc = 0, job = null, deadline = 0;
+  const SLICE = 3;   // ms per frame
+  const over = () => performance.now() > deadline;
   BAKE.tick = (dt, force) => {
-    BAKE.clock += dt; acc += dt; if (!force && acc < .5) return; acc = 0;
+    BAKE.clock += dt;
+    if (!job) { acc += dt; if (!force && acc < .5) return; acc = 0; job = pass(); }
+    deadline = force ? Infinity : performance.now() + SLICE;
+    if (job.next().done) job = null;
+  };
+  function* pass() {
     const now = BAKE.clock, ready = new Map();
     // a batch whose members moved, hid, or changed their look comes apart
     for (const [key, b] of BAKE.batches) {
@@ -98,10 +107,13 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         if (++s.nb >= 2) s.never = true;       // something that keeps moving now and then is left as it is
       }
       if (broke) { unbake(key); BAKE.breaks++; }
+      if (over()) yield;
     }
     if (!BAKE.on) { for (const k of [...BAKE.batches.keys()]) unbake(k); return; }
     const stack = [...scene.children];
+    let n = 0;
     while (stack.length) {
+      if ((++n & 255) === 0 && over()) yield;
       const o = stack.pop();
       if (o === BAKE.group || CHARS.has(o)) continue;
       for (let i = 0; i < o.children.length; i++) stack.push(o.children[i]);
@@ -119,8 +131,12 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
     }
     // new still meshes join their batch (or a lone mesh waiting for company); a vertex budget keeps each tick short
     let budget = BAKE.budget;
-    for (const [key, list] of ready) {
+    for (const [key, list0] of ready) {
       if (budget <= 0) { acc = .5; break; }          // more to do: carry on next frame
+      if (over()) yield;
+      // the walk took a few frames: anything that moved meanwhile waits for the next pass
+      const list = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
+      if (!list.length) continue;
       const b = BAKE.batches.get(key), all = list.slice();
       // a batch is capped in size, so taking one apart and merging it again never stalls a frame
       if (b && b.mesh.geometry.attributes.position.count + list.reduce((n, o) => n + o.geometry.attributes.position.count, 0) > BAKE.cap) { for (const o of list) BAKE.seen.get(o).solo = key + '#full'; continue; }

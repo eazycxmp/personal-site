@@ -13,7 +13,7 @@ function zoneAct(e, zn, dt) {
       } else { e.tick = .25; if (e.isPlayer) full(); }
       break;
     case 'in': {
-      const s = ST[zn.st], acc = s.ins ? s.ins.filter(gp => s.inStack.count(gp) < s.inStack.cap/3).flat() : [s.in];
+      const s = ST[zn.st], acc = s.ins ? s.ins.filter(gp => s.inStack.count(gp) < Math.floor(s.inStack.cap/s.ins.length)).flat() : [s.in];
       if (s.inStack.length < s.inStack.cap && e.stack.count(acc)) {
         transfer(e.stack, s.inStack, acc); e.tick = .07; dropSnd();
         if (zn.st === 'grill') W.flags.fedGrill = true;

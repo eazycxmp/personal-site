@@ -117,4 +117,5 @@
 116-graphics-sky-light-water-clouds-grass-an.js
 117-main-loop.js
 118-graphics-static-batching.js
+118b-settings-and-tutorial.js
 119-boot.js

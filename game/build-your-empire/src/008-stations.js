@@ -12,9 +12,11 @@ function fire(parent, x, y, z, s = 1) {
 }
 // Tall buildings fade out while the player walks behind them, so the camera never loses you.
 const FADERS = [];
+// a material copy that keeps its shader patch (three.js clones drop onBeforeCompile)
+function cloneMat(m) { const c = m.clone(); if (m.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) { c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey; } return c; }
 function fader(g, w, h) {
   const mats = [];
-  g.traverse(o => { if (o.isMesh) { const orig = o.material; o.material = Array.isArray(orig) ? orig.map(m => m.clone()) : orig.clone(); if (orig === WIN) winMats.push(o.material); [].concat(o.material).forEach(m => mats.push(m)); } });
+  g.traverse(o => { if (o.isMesh) { const orig = o.material; o.material = Array.isArray(orig) ? orig.map(cloneMat) : cloneMat(orig); if (orig === WIN) winMats.push(o.material); [].concat(o.material).forEach(m => mats.push(m)); } });
   FADERS.push({g, w, h, mats, op:1});
 }
 function updFaders(dt) {
@@ -175,14 +177,68 @@ function signTex(text, bg, fg) {
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 128, 42);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-function palm(parent, x, z) {
-  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
-  for (let i = 0; i < 6; i++) mesh(G.cyl, 0x9a7a52, [.09 - i*.008, .55, .09 - i*.008], [i*.05, .27 + i*.52, 0], g).rotation.z = -.05*i;
-  for (let i = 0; i < 7; i++) {
-    const f = new THREE.Group(); f.position.set(.3, 3.2, 0); f.rotation.y = i/7*Math.PI*2; g.add(f);
-    mesh(G.box, i % 2 ? 0x3fae4a : 0x2f8f3a, [1.1, .04, .26], [.5, -.18, 0], f).rotation.z = -.35;
+// ------------------------------------------------------------------ palms: a ringed, tapering, curving trunk and a crown of feathered fronds
+const PALM = {};
+function palmKit() {
+  if (PALM.ready) return PALM;
+  // bark: pale grey-brown with the darker rings left by old fronds
+  const bc = document.createElement('canvas'); bc.width = 64; bc.height = 256; const bg = bc.getContext('2d');
+  bg.fillStyle = '#8a7558'; bg.fillRect(0, 0, 64, 256);
+  for (let y = 0; y < 256; y += 16) { bg.fillStyle = 'rgba(60,44,28,.55)'; bg.fillRect(0, y, 64, 4); bg.fillStyle = 'rgba(190,170,135,.35)'; bg.fillRect(0, y + 5, 64, 3); }
+  for (let i = 0; i < 400; i++) { bg.fillStyle = `rgba(${R() < .5 ? '40,30,20' : '200,185,150'},.18)`; bg.fillRect(R()*64, R()*256, 1 + R()*3, 1); }
+  const bt = new THREE.CanvasTexture(bc); bt.colorSpace = THREE.SRGBColorSpace; bt.wrapS = bt.wrapT = THREE.RepeatWrapping;
+  PALM.bark = new THREE.MeshStandardMaterial({map:bt, roughness:.95});
+  // a frond: the midrib down the middle, leaflets slanting off both sides, fading lighter toward the tips
+  const fc = document.createElement('canvas'); fc.width = 512; fc.height = 128; const fg = fc.getContext('2d');
+  for (let i = 0; i < 70; i++) {
+    const u = i/70, x = 14 + u*490, len = 58*Math.sin(Math.PI*Math.min(1, .15 + u*.95))*(1 - u*.35) + 4;
+    for (const side of [-1, 1]) {
+      const gr = fg.createLinearGradient(x, 64, x + len*.5, 64 + side*len);
+      gr.addColorStop(0, `hsl(${100 + u*12},55%,${24 + u*10}%)`); gr.addColorStop(1, `hsl(${92 + u*15},60%,${34 + u*12}%)`);
+      fg.strokeStyle = gr; fg.lineWidth = 5.5 - u*2.5; fg.lineCap = 'round';
+      fg.beginPath(); fg.moveTo(x, 64); fg.quadraticCurveTo(x + len*.2, 64 + side*len*.5, x + len*.55, 64 + side*len); fg.stroke();
+    }
   }
-  for (const [a, b] of [[.12, .12], [-.1, .08]]) mesh(G.sph, 0x6a4a2a, [.08, .08, .08], [.3 + a, 3.05, b], g);
+  fg.strokeStyle = '#6a7a3a'; fg.lineWidth = 6; fg.beginPath(); fg.moveTo(0, 64); fg.lineTo(512, 64); fg.stroke();
+  const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace; ft.anisotropy = 4;
+  PALM.leaf = new THREE.MeshStandardMaterial({map:ft, alphaTest:.45, side:THREE.DoubleSide, roughness:.65});
+  PALM.dead = new THREE.MeshStandardMaterial({map:ft, alphaTest:.45, side:THREE.DoubleSide, roughness:.9, color:0xb07a40});
+  PALM.depth = new THREE.MeshDepthMaterial({map:ft, alphaTest:.45, depthPacking:THREE.RGBADepthPacking});
+  // frond shapes: a plane bent into an arch that droops toward the tip, the leaflets folded up into a shallow V
+  PALM.frond = [.55, .85, 1.2].map(droop => {
+    const geo = new THREE.PlaneGeometry(1, 1, 14, 2), p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const u = p.getX(i) + .5, w = p.getY(i), L = 2.3;
+      p.setXYZ(i, u*L, .55*u*L - droop*u*u*L*.75 + Math.abs(w)*.22, w*.62);
+    }
+    geo.computeVertexNormals(); return geo;
+  });
+  // trunks: rings of eight round a gentle curve, thick at the foot, thin under the crown, slightly knobbly at every ring
+  PALM.trunk = [[.5, 3.9], [1.1, 4.4], [.2, 3.4]].map(([lean, h]) => {
+    const N = 8, S = 24, pos = [], uv = [], idx = [], top = new THREE.Vector3(lean, h, 0);
+    const at = t => new THREE.Vector3(lean*t*t, h*t, 0);
+    for (let j = 0; j <= S; j++) {
+      const t = j/S, c = at(t), r = (.2 - .09*t + (t < .08 ? (.08 - t)*1.6 : 0)) * (1 + .05*Math.sin(t*h*25));
+      for (let k = 0; k <= N; k++) { const a = k/N*Math.PI*2; pos.push(c.x + Math.cos(a)*r, c.y, c.z + Math.sin(a)*r); uv.push(k/N, t*h/1.2); }
+    }
+    for (let j = 0; j < S; j++) for (let k = 0; k < N; k++) { const a = j*(N + 1) + k, b = a + N + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return {geo, top};
+  });
+  PALM.nut = new THREE.MeshStandardMaterial({color:0x6a5428, roughness:.6});
+  PALM.ready = true; return PALM;
+}
+function palm(parent, x, z) {
+  const K = palmKit(), g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  const h = Math.abs(Math.sin(x*12.9898 + z*78.233)*43758.5453) % 1, T = K.trunk[Math.floor(h*3)];
+  g.rotation.y = h*Math.PI*2; g.scale.setScalar(.9 + h*.25);
+  const tr = new THREE.Mesh(T.geo, K.bark); tr.castShadow = tr.receiveShadow = true; g.add(tr);
+  const crown = new THREE.Group(); crown.position.copy(T.top); g.add(crown);
+  const add = (geo, m, yaw, pitch) => { const f = new THREE.Mesh(geo, m); f.rotation.set(0, yaw, pitch, 'YZX'); f.castShadow = true; f.customDepthMaterial = K.depth; crown.add(f); };
+  for (let i = 0; i < 11; i++) add(K.frond[i % 3], K.leaf, i/11*Math.PI*2 + h*.7 + (i % 2)*.18, (i % 3 === 0 ? .42 : i % 3 === 1 ? .18 : -.02));
+  for (let i = 0; i < 2; i++) add(K.frond[2], K.dead, i*2.6 + h*3, -.95);
+  for (let i = 0; i < 4; i++) { const n = new THREE.Mesh(G.sph, K.nut); n.scale.setScalar(.1); n.position.set(Math.cos(i*1.6)*.17, -.16 - (i % 2)*.07, Math.sin(i*1.6)*.17); crown.add(n); }
+  return g;
 }
 function buildHut(key, stage, anim) {
   const H = HUTS[key], {x, z} = H;

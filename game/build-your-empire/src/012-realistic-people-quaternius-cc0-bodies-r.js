@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ realistic people (Quaternius CC0 bodies, rigged and animated)
-const QN = {ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
+const QN = {smooth:true, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
 // which part of the body each vertex belongs to, from the bone that moves it most: 0 skin, 1 torso, 2 upper arm, 3 forearm, 4 hips and thighs, 5 calves, 6 feet
 const QN_REGION = n => /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
 function qnInit() {
@@ -59,7 +59,21 @@ function qnHat(o, top) {
   if (o.acc === 'sunglasses') { for (const sx of [-1, 1]) add(G.box, 0x111114, [.05, .024, .01], [sx*.037, 1.8, .118]); }
   return g.children.length ? g : null;
 }
-function qnDrop(c) { c.mixer.stopAllAction(); c.mixer.uncacheRoot(c.root); c.root.traverse(m => { if (m.isMesh && m.material && m.material !== BLOB.mat) m.material.dispose(); }); }
+// a person who has left: stop their animations and free what they held on the GPU (materials, and the bone texture
+// every skinned body gets the first time it is drawn)
+function qnShared() {
+  // geometry every person borrows (the body models, the shared primitives): never freed with one person
+  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
+  return QN.shared;
+}
+function qnDrop(c) {
+  c.mixer.stopAllAction(); c.mixer.uncacheRoot(c.root); const sh = qnShared();
+  c.g.traverse(m => {
+    if (m.isSkinnedMesh && m.skeleton) m.skeleton.dispose();
+    if (m.isMesh && m.material) [].concat(m.material).forEach(q => { if (q !== BLOB.mat && !q.userData.shared) q.dispose(); });
+    if (m.isMesh && m.geometry && !sh.has(m.geometry)) m.geometry.dispose();
+  });
+}
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
   if (QN.list.length > 300) for (let i = QN.list.length - 1; i >= 0; i--) { const q = QN.list[i]; if (!q.g.parent) { qnDrop(q); QN.list.splice(i, 1); } }
@@ -154,34 +168,74 @@ function qnRaise(c, bone, ang) {
   const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, ang);
   wq.premultiply(rot); bone.quaternion.copy(pq.invert().multiply(wq));
 }
+// work: the game says what someone is doing and for how long; the animation follows
+const QN_ACT = {chop:['Sword_Attack', 1.35], mine:['Fixing_Kneeling', 1.6], swing:['Sword_Attack', 2.1], pick:['PickUp_Table', 1.3], serve:['Interact', 1.6],
+  fix:['Fixing_Kneeling', 1.4], cook:['Interact', 1.1], punch:['Punch_Jab', 1.4]};
+// (the free pack's Punch_Cross, Push_Loop, Crouch_*, Idle_Talking_Loop and Pistol_Aim_* are empty T-poses: don't use them)
+function qnAct(c, act, dur, restart = false) {
+  if (!c || !c.mixer) return;
+  const same = c.act === act && c.actT > 0;
+  if (restart || !same) c.actNew = true;
+  c.act = act; c.actT = same ? Math.max(c.actT, dur) : dur;
+}
+const QN_LOCO = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop']);
 function updQN(dt) {
   if (!QN.list.length) return;
+  QN.frame = (QN.frame || 0) + 1;
   QN.pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); QN.frustum.setFromProjectionMatrix(QN.pm);
   for (let i = QN.list.length - 1; i >= 0; i--) {
     const c = QN.list[i], g = c.g;
     if (!g.parent) { if ((c.gone = (c.gone || 0) + dt) > 5) { qnDrop(c); QN.list.splice(i, 1); } continue; }
     c.gone = 0;
-    const p = g.getWorldPosition(QN.tmpV), moved = Math.hypot(p.x - c.last.x, p.z - c.last.z) / Math.max(dt, 1e-3); c.last.copy(p);
-    c.spd += (moved - c.spd) * Math.min(1, dt*8);
+    const p = g.getWorldPosition(QN.tmpV), moved = Math.min(9, Math.hypot(p.x - c.last.x, p.z - c.last.z) / Math.max(dt, 1e-3)); c.last.copy(p);   // a teleport is not a sprint
+    c.spd += (moved - c.spd) * Math.min(1, dt*(QN.smooth ? 4 : 8));
     let vis = g.visible; for (let o = g.parent; vis && o && o !== scene; o = o.parent) vis = o.visible;
     QN.sphere.center.copy(p).setY(p.y + 1); QN.sphere.radius = 1.4;
     if (!vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
+    c.seen = QN.frame;
     // what are they doing? the game poses the stand-in limbs; read the pose and pick the animation
-    const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, fall = g.rotation.x;
+    const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, lgR = c.legR.rotation.x, fall = g.rotation.x;
     let st, rate = 1;
+    const act = (c.actT -= dt) > 0 && c.spd < 1.2 ? QN_ACT[c.act] : null;
     if (fall < -.3) { st = 'Death01'; g.rotation.x = 0; }
-    else if (lg < -1.2) st = 'Sitting_Idle_Loop';
-    else if (lg < -.7) st = 'Driving_Loop';
-    else if (aR < -2) st = 'Dance_Loop';
+    else if (act) { st = act[0]; rate = act[1]; if (c.actNew && c.state === st) c.acts[st].reset().play(); c.actNew = false; }
+    // seated (both legs bent forward together); a walking stride swings them opposite ways, so one bent leg is not a seat
+    else if (lg < -1.2 && lgR < -1.2) st = 'Sitting_Idle_Loop';
+    else if (lg < -.7 && lgR < -.7) st = 'Driving_Loop';
+    else if (aR < -2 && aL < -2) st = 'Dance_Loop';
     else if (c.gun && aR < -1.35 && c.spd < .5) st = 'Pistol_Shoot';
+    else if (QN.smooth) {
+      // walking, jogging and running: separate thresholds up and down, and a short stay in each, so nobody flickers
+      // between clips; the clip's pace follows the ground speed so feet don't slide
+      const v = c.spd, cur = c.loco || 'Idle_Loop';
+      let nx = cur;
+      if (cur === 'Idle_Loop') { if (v > .45) nx = 'Walk_Loop'; }
+      else if (cur === 'Walk_Loop') { if (v < .2) nx = 'Idle_Loop'; else if (v > 3.1) nx = 'Jog_Fwd_Loop'; }
+      else if (cur === 'Jog_Fwd_Loop') { if (v < 2.3) nx = 'Walk_Loop'; else if (v > 5.2) nx = 'Sprint_Loop'; }
+      else if (v < 4.3) nx = 'Jog_Fwd_Loop';
+      if (nx !== cur && (c.locoT || 0) < .35 && cur !== 'Idle_Loop') nx = cur;
+      if (nx !== cur) c.locoT = 0; c.locoT = (c.locoT || 0) + dt; c.loco = st = nx;
+      rate = st === 'Sprint_Loop' ? clamp(v/6.5, .85, 1.4) : st === 'Jog_Fwd_Loop' ? clamp(v/3.6, .8, 1.45) : st === 'Walk_Loop' ? clamp(v/1.45, .7, 1.55) : 1;
+    }
     else if (c.spd > 4.6) { st = 'Sprint_Loop'; rate = c.spd/6.5; }
     else if (c.spd > 2.6) { st = 'Jog_Fwd_Loop'; rate = c.spd/3.6; }
     else if (c.spd > .25) { st = 'Walk_Loop'; rate = Math.max(.6, c.spd/1.5); }
     else st = 'Idle_Loop';
-    const a = qnPlay(c, st, .2, st === 'Death01'); if (a) a.timeScale = Math.min(1.8, rate);
+    if (!QN_LOCO.has(st)) c.loco = null;
+    const prev = c.state, prevA = c.acts[prev], a = qnPlay(c, st, QN.smooth && QN_LOCO.has(st) && QN_LOCO.has(prev) ? .32 : .2, st === 'Death01');
+    // walk, jog and run blend in step: the new clip starts at the same point of the stride
+    if (QN.smooth && a && prev !== st && prevA && QN_LOCO.has(st) && QN_LOCO.has(prev) && st !== 'Idle_Loop' && prev !== 'Idle_Loop') a.time = (prevA.time / prevA.getClip().duration) * a.getClip().duration;
+    if (a) { const want = Math.min(act ? 2.4 : 1.8, rate); a.timeScale = QN.smooth && prev === st ? a.timeScale + (want - a.timeScale)*Math.min(1, dt*6) : want; }
+    // turning: the body eases round to where the game points it (about a tenth of a second) instead of snapping
+    if (QN.smooth) {
+      const target = g.rotation.y; if (c.yawVis == null) c.yawVis = target;
+      let d = target - c.yawVis; d = Math.atan2(Math.sin(d), Math.cos(d));
+      c.yawVis = Math.abs(d) > 2.6 || st === 'Death01' ? target : c.yawVis + d*Math.min(1, dt*11);
+      c.root.rotation.y = c.yawVis - target;
+    }
     c.mixer.update(dt);
     // carrying, holding and aiming: lift the arms forward on top of the animation
-    if (st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
+    if ((!act || act[2]) && st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
       if (aR < -.75) qnRaise(c, c.bones.armR, -aR*.95);
       if (aL < -.75) qnRaise(c, c.bones.armL, -aL*.95);
     }

@@ -83,6 +83,11 @@ function moveTo(e, x, z, dt) {
   return false;
 }
 const dist2 = (e, x, z) => Math.hypot(x - e.pos.x, z - e.pos.z);
+function workAct(w, n0) {
+  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck'].includes(w.carry)) return;
+  if (w.kind === 'builder') qnAct(w.char, w.stack.length < n0 && w.mode === 'deliver' ? 'fix' : 'pick', 1);
+  else qnAct(w.char, w.stack.length < n0 && w.dst && w.dst.kind === 'table' ? 'serve' : 'pick', .7);
+}
 function updWorker(w, dt) {
   const before = w.stack.length;
   const gt = GATHER[w.kind];
@@ -110,7 +115,7 @@ function updWorker(w, dt) {
     w.pile = c;
     if (!c) { goTo(w, ...w.home, dt); return; }
     if (goTo(w, c.x, c.z, dt)) {
-      W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
+      qnAct(w.char, 'pick', .8); W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
       c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => w.pos.clone().setY(1.4), .25 + i*.015));
       snd(1046, .06, 'triangle', .03); w.pile = null;
     }
@@ -135,6 +140,9 @@ function updWorker(w, dt) {
       // carriers for a table only load as many of a thing as the table has room for
       const type = w.dst.kind === 'table' && w.src.st && ST[w.src.st].out;
       if (type && w.stack.count([type]) >= w.dst.tb.room(type)) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
+      // and for a station that takes several things (the burger station), only as many as its share of the counter
+      const ds = w.dst.kind === 'in' && ST[w.dst.st], ty = ds && ds.ins && w.src.st && (ST[w.src.st].out || ST[w.src.st].gen), gp = ty && ds.ins.find(q => q.includes(ty));
+      if (gp && w.stack.count(gp) >= Math.floor(ds.inStack.cap/ds.ins.length) - ds.inStack.count(gp)) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
       zoneAct(w, w.src, dt);
       w.wait = w.stack.length !== before ? 0 : w.wait + dt;
       if (w.stack.length >= w.cap || (w.stack.length && w.wait > 1.2)) w.state = 'toDst';
@@ -147,6 +155,7 @@ function updWorker(w, dt) {
       w.wait = w.stack.length !== before ? 0 : (w.wait || 0) + dt;
       if (!w.stack.length) { w.state = 'idle'; w.wait = 0; }
       else if (w.wait > 3 && w.dst.kind === 'table') w.state = 'toBin';   // leftovers nobody has room for
+      else if (w.wait > 6 && w.dst.kind === 'in' && ST[w.dst.st] && ST[w.dst.st].ins) w.state = 'toBin';
       break;
     case 'toBin': if (goTo(w, binZone.x, binZone.z, dt)) w.state = 'binning'; break;
     case 'binning': zoneAct(w, binZone, dt); if (!w.stack.length) w.state = 'idle'; break;

@@ -81,7 +81,7 @@ function updSiege(dt) {
       } else if (f.role === 'gate' && SIEGE.gateHp > 0) {
         if (moveTo(f, f.wx, f.wz, dt)) {
           f.yaw = -Math.PI/2;
-          if (e > 12 && (f.cd -= dt) <= 0) { f.cd = 1.1; f.swing = .3; SIEGE.gateHp -= win ? .5 : 1; snd(80, .12, 'square', .04); particle(0x8a5a2b, new THREE.Vector3(f.wx - .6, 1, f.wz), new THREE.Vector3(0, 2, 0), .5, .1, {grav:1});
+          if (e > 12 && (f.cd -= dt) <= 0) { f.cd = 1.1; f.swing = .3; qnAct(f.char, 'swing', .75, true); SIEGE.gateHp -= win ? .5 : 1; snd(80, .12, 'square', .04); particle(0x8a5a2b, new THREE.Vector3(f.wx - .6, 1, f.wz), new THREE.Vector3(0, 2, 0), .5, .1, {grav:1});
             if (SIEGE.gateHp <= 0) { SIEGE.breach += 3; banner('🚪 The gate is broken!', 'They are inside the walls!'); SIEGE.foes.forEach(o => { if (o.role === 'gate') o.role = 'fight'; }); } }
         }
       } else if (e > 8) {

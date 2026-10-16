@@ -23,8 +23,8 @@ function startMusic() {
   musicT = setInterval(() => {
     if (muted || document.hidden || !started || paused) return;
     const ch = BARS[Math.floor(beat / 8) % 4], step = beat % 8;
-    if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022);
-    if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012);
+    if (step === 0) snd(N[ch[0]] / 2, 1.8, 'sine', .022, 0, true);
+    if (step % 2 === 0 ? R() < .85 : R() < .3) snd(N[ch[R()*3|0]] * (R() < .2 ? 2 : 1), .4, 'triangle', .012, 0, true);
     beat++;
   }, 280);
 }

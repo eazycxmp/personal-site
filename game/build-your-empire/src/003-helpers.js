@@ -12,11 +12,49 @@ const G = {
 const matCache = {};
 function mat(color, o = {}) {
   const k = color + JSON.stringify(o);
-  return matCache[k] ||= new THREE.MeshStandardMaterial({color, roughness:.72, ...o});
+  return matCache[k] ||= Object.assign(new THREE.MeshStandardMaterial({color, roughness:.72, ...o}), {userData:{shared:true}});
+}
+// ------------------------------------------------------------------ real surfaces for buildings
+// Anything put up while BLD.on (every unlock) gets a photo surface chosen from its colour and shape: wood planks,
+// brick, plaster, stone or roof tiles. The photo is projected in world space from all three sides, so a long wall
+// and a short post show the same size of plank or brick, and it only tints the colour the builder chose.
+const BLD = {on:0, cache:{}};
+const BLD_SIZE = {wood_planks:1.4, red_brick_03:1.6, plastered_wall_02:2.6, rock_face_03:2.4, roof_tiles_14:1.5};
+function bldFamily(geo, color, s, o) {
+  if (o && (o.transparent || o.emissive || (o.metalness || 0) > .35 || o.map)) return null;
+  if (Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2])) < .45) return null;      // small trims and details stay plain
+  const h = {}; new THREE.Color(color).getHSL(h, THREE.SRGBColorSpace); const deg = h.h*360;
+  if (h.l < .14 || (h.s > .78 && h.l > .3)) return null;                              // dark trim, bright paint and signs
+  const roofy = geo === G.cone4 || geo === G.cone || geo === G.roof;
+  if (roofy && h.l < .7 && (deg < 40 || deg > 330 || h.s < .2)) return 'roof_tiles_14';
+  if (deg >= 14 && deg <= 48 && h.s >= .22 && h.l <= .58) return 'wood_planks';
+  if ((deg < 14 || deg > 340) && h.s >= .3 && h.l >= .22 && h.l <= .56) return 'red_brick_03';
+  if (h.s < .16 && h.l >= .3 && h.l < .64) return 'rock_face_03';
+  if (h.l >= .64 && (h.s < .3 || (deg >= 25 && deg <= 65 && h.s < .6))) return 'plastered_wall_02';
+  return null;
+}
+function bldMat(color, id, o) {
+  const k = color + id + JSON.stringify(o || {});
+  if (BLD.cache[k]) return BLD.cache[k];
+  const T = TEX[id], m = new THREE.MeshStandardMaterial({color, roughness:id === 'plastered_wall_02' ? .92 : .85, ...o});
+  m.onBeforeCompile = sh => {
+    sh.uniforms.bldMap = {value:T.map}; sh.uniforms.bldAvg = {value:T.avg.clone()}; sh.uniforms.bldScale = {value:1/BLD_SIZE[id]};
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vBldP; varying vec3 vBldN;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  { vec4 bp = vec4(transformed, 1.0);\n  #ifdef USE_INSTANCING\n  bp = instanceMatrix * bp;\n  #endif\n  vBldP = (modelMatrix * bp).xyz; vBldN = normalize(mat3(modelMatrix) * objectNormal); }');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D bldMap; uniform vec3 bldAvg; uniform float bldScale; varying vec3 vBldP; varying vec3 vBldN;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+  { vec3 bw = pow(abs(normalize(vBldN)), vec3(4.0)); bw /= (bw.x + bw.y + bw.z);
+    vec3 p = vBldP * bldScale;
+    vec3 t = texture2D(bldMap, p.zy).rgb * bw.x + texture2D(bldMap, p.xz).rgb * bw.y + texture2D(bldMap, p.xy).rgb * bw.z;
+    diffuseColor.rgb *= clamp(mix(vec3(1.0), t / max(bldAvg, vec3(0.04)), 0.85), 0.0, 2.2); }`);
+  };
+  m.customProgramCacheKey = () => 'bld';
+  m.userData.shared = true; return BLD.cache[k] = m;
 }
 function mesh(geo, color, s, p, parent, o) {
   if (geo === G.ico || geo === G.cone4) o = {flatShading:true, ...o};
-  const m = new THREE.Mesh(geo, Array.isArray(color) ? color : mat(color, o));
+  const fam = BLD.on > 0 && !Array.isArray(color) && typeof color === 'number' && bldFamily(geo, color, s, o), id = fam && phOkBld(fam) ? fam : null;
+  const m = new THREE.Mesh(geo, Array.isArray(color) ? color : id ? bldMat(color, id, o) : mat(color, o));
   m.scale.set(...s); m.position.set(...(p || [0, 0, 0]));
   m.castShadow = true; m.receiveShadow = true;
   if (parent) parent.add(m);
@@ -77,6 +115,7 @@ function updFog(dt) {
   if (FOG.dirty) { FOG.dirty = false; FOG.tex.needsUpdate = true; fogSave(); }
 }
 const onIsland = (x, z, pad = 0) => WORLD.islands.some(I => Math.hypot(wrapX(x - I.x), z - I.z) < I.r + pad);
+const phOkBld = id => TEX[id] && TEX[id].map && TEX[id].avg;
 const phOk = id => TEX[id] && TEX[id].map && TEX[id].normalMap && TEX[id].roughnessMap && TEX[id].inv;
 function phPick(color) {
   const h = {}; new THREE.Color(color).getHSL(h, THREE.SRGBColorSpace); const deg = h.h*360;
