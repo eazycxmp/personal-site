@@ -190,7 +190,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb', props3:'props3.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb', props3:'props3.glb', people:'people.glb'};
   const TL = new THREE.TextureLoader(), texJobs = PH_IDS.flatMap(id => ['diff', 'nor_gl', 'rough'].map(k => TL.loadAsync(`./tex/${id}_${k}_1k.jpg`).then(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (k === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     const T = TEX[id] ||= {}; T[{diff:'map', nor_gl:'normalMap', rough:'roughnessMap'}[k]] = t;
@@ -1319,14 +1319,74 @@ function makeHero(o) {
   scene.add(g);
   return c;
 }
+// ------------------------------------------------------------------ the realistic people kit
+const HAIR_PART = {short:'Short', buzz:'Buzz', sidepart:'Sidepart', afro:'Afro', long:'Long', bun:'Bun', ponytail:'Ponytail', bangs:'Bangs', mohawk:'Mohawk'};
+function buildBodyReal(o, P) {
+  const L = MODELS.people, {g, legL, legR, armL, armR} = P;
+  const fem = o.top === 'dress' || ['long', 'bun', 'ponytail', 'bangs'].includes(o.hair);
+  const skin = o.skin || 0xf1c9a5, top = o.body ?? 0x3f6fb5, top2 = o.body2 ?? shade(top, .8), pants = o.pants || 0x3b3b4a, hairC = o.hairCol ?? 0x2a1a10, shoe = o.shoe ?? 0x2a1d12;
+  const add = (name, col, grp, opt) => { const src = L.getObjectByName(name); if (!src || !src.geometry) return null; const m = new THREE.Mesh(src.geometry, mat(col, opt)); m.position.copy(src.position); m.quaternion.copy(src.quaternion); m.scale.copy(src.scale); m.userData.real = true; grp.add(m); return m; };
+  const addM = (...a) => { const m = mesh(...a); m.userData.real = true; return m; };
+  const metal = o.metal ? {metalness:.6, roughness:.35} : undefined, dress = o.top === 'dress';
+  // the body and the clothes on it
+  add(fem ? 'pp_torsoF_top' : 'pp_torsoM_top', top, g, metal);
+  if (!dress) { add(fem ? 'pp_hipsF_pants' : 'pp_hipsM_pants', pants, g); add('pp_belt_sole', o.trim ?? 0x2a1d12, g); }
+  else add('pp_dress_top', top, g);
+  if (o.belly) add('pp_belly_top', top, g, metal);
+  if (o.top === 'shirt') add('pp_placket_top2', shade(top, .8), g);
+  if (o.top === 'jacket') add('pp_jacket_top2', top2, g);
+  if (o.top === 'suit') { add('pp_jacket_top2', 0x1e1e26, g); add('pp_placket_top2', 0xf4f4f4, g); add('pp_tie_lip', 0xb8322a, g); }
+  if (o.top === 'stripes') add('pp_stripes_top2', top2, g);
+  if (o.top === 'hawaii') add('pp_hawaii_top2', top2, g);
+  if (o.top === 'hoodie' || o.hat === 'hood') add('pp_hoodie_top', o.hat === 'hood' ? (o.hatCol || top) : top, g);
+  if (o.apron) add('pp_apron_top2', o.apron, g);
+  add('pp_neck_skin', skin, g);
+  // the head and face
+  add('pp_head_skin', skin, g); add('pp_eyes_white', 0xf4f2ee, g); add('pp_iris_iris', 0x2a2018, g); add('pp_brows_hair', hairC, g); add('pp_mouth_lip', shade(skin, .62), g);
+  // under a hat only longer hair shows (it hangs below the brim); otherwise the hat sits on a close crop
+  const hatted = o.hat && o.hat !== 'hood', hs0 = o.hair ?? 'short', hs = hatted && !['long', 'ponytail', 'bun', 'bangs'].includes(hs0) ? 'buzz' : hs0;
+  if (HAIR_PART[hs]) add('pp_hair' + HAIR_PART[hs] + '_hair', hairC, g);
+  if (o.face === 'beard' || o.face === 'mustache' || o.face === 'goatee') add('pp_' + o.face + '_hair', hairC, g);
+  if (o.acc === 'sunglasses') { for (const sx of [-1, 1]) addM(G.box, 0x111114, [.05, .026, .01], [sx*.042, 1.91, .122], g); addM(G.box, 0x111114, [.035, .008, .008], [0, 1.915, .122], g); }
+  if (o.acc === 'glasses') for (const sx of [-1, 1]) { addM(G.box, 0x2a2a2e, [.05, .006, .006], [sx*.042, 1.925, .122], g); addM(G.box, 0x2a2a2e, [.05, .006, .006], [sx*.042, 1.898, .122], g); }
+  if (o.acc === 'cap') { addM(G2.sph, top2, [.128, .07, .14], [0, 1.99, .005], g); addM(G.box, top2, [.13, .012, .09], [0, 1.965, .14], g); }
+  if (o.acc === 'bucket') { addM(G2.flare, top2, [.14, .08, .14], [0, 2.0, 0], g); addM(G2.cyl, top2, [.18, .012, .18], [0, 1.96, 0], g); }
+  if (o.acc === 'necklace') { const n = addM(G2.ring, 0xf2c200, [.06, .06, .06], [0, 1.64, .06], g, {metalness:.8, roughness:.25}); n.rotation.x = Math.PI/2.4; }
+  if (o.acc === 'earrings') for (const sx of [-1, 1]) addM(G2.sphS, 0xf2c200, [.012, .012, .012], [sx*.118, 1.86, .01], g, {metalness:.8});
+  // arms: sleeves, forearms and hands
+  const bare = o.top === 'tank' || dress, long = ['hoodie', 'jacket', 'suit'].includes(o.top) || o.long;
+  const sleeve = o.top === 'jacket' ? top2 : o.top === 'suit' ? 0x1e1e26 : top;
+  for (const [k, arm] of [['L', armL], ['R', armR]]) {
+    add(`pp_arm${k}Up_top`, bare ? skin : sleeve, arm, metal); add(`pp_arm${k}Fore_skin`, long ? sleeve : skin, arm); add(`pp_arm${k}Hand_skin`, skin, arm);
+  }
+  // legs: trousers, shorts or bare under a dress, and shoes
+  for (const [k, leg] of [['L', legL], ['R', legR]]) {
+    add(`pp_leg${k}Thigh_pants`, dress ? skin : pants, leg); add(`pp_leg${k}Shin_pants`, dress || o.shorts ? skin : pants, leg);
+    add(`pp_leg${k}Shoe_shoe`, shoe, leg); add(`pp_leg${k}Sole_sole`, 0x1a120c, leg);
+  }
+}
+// hats, helmets, armour, shields and weapons were made for the old figures (big head at 1.6, short limbs): move and
+// resize them onto the realistic body
+function remapKit(P) {
+  const fix = (grp, f) => grp.children.forEach(m => { if (!m.userData.real) f(m); });
+  fix(P.g, m => {
+    const y = m.position.y;
+    if (y > 1.4) { m.position.set(m.position.x*.5, 1.9 + (y - 1.6)*.62, m.position.z*.5); m.scale.multiplyScalar(.5); }
+    else if (y > .6) { m.position.set(m.position.x*.8, 1.08 + (y - .65)*.88, m.position.z*.62); m.scale.set(m.scale.x*.8, m.scale.y*.9, m.scale.z*.62); }
+    else { m.position.y *= 1.7; m.scale.y *= 1.6; }
+  });
+  for (const a of [P.armL, P.armR]) fix(a, m => { m.position.y *= 1.25; m.position.x *= .8; m.position.z *= .8; m.scale.set(m.scale.x*.75, m.scale.y*1.1, m.scale.z*.75); });
+  for (const l of [P.legL, P.legR]) fix(l, m => { m.position.y *= 2; m.scale.y *= 1.6; });
+}
 function makeChar(o) {
   if (o.hero && MODELS.hero && MODELS.hero.getObjectByName('hero0_body')) return makeHero(o);
   if (o.civ) o = {...civLook(o.civ === true ? R()*60|0 : o.civ), ...o, civ:0};
-  const key = JSON.stringify(o);
+  const key = JSON.stringify(o) + (MODELS.people ? '|R' : '');
   if (!CHAR_GEO[key]) {
     // build the figure once from parts, then merge each limb into a single mesh
     const P = {g:new THREE.Group(), legL:new THREE.Group(), legR:new THREE.Group(), armL:new THREE.Group(), armR:new THREE.Group()};
-    buildBody(o, P);
+    const REAL = !o.hero && MODELS.people && MODELS.people.getObjectByName('pp_head_skin');
+    if (REAL) buildBodyReal(o, P); else buildBody(o, P);
     const {g, armL, armR} = P;
     if (o.hero && !o.noPack) { mesh(G.box, 0x6a4422, [.42, .5, .2], [0, .98, -.3], g); mesh(G.box, 0x8a5a2b, [.36, .14, .22], [0, 1.12, -.31], g); }
     // finery for the hero as the empire grows
@@ -1365,14 +1425,16 @@ function makeChar(o) {
   if (o.shield === 'heater') { mesh(G.box, o.trim || 0x2d4fa8, [.06, .4, .36], [-.1, -.25, .12], armL); const t = mesh(G.cone4, o.trim || 0x2d4fa8, [.25, .25, .04], [-.1, -.55, .12], armL); t.rotation.set(Math.PI, Math.PI/2, 0); mesh(G.box, 0xf2c200, [.065, .16, .06], [-.1, -.25, .12], armL); }
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.03, .7, .03], [0, -.72, .06], armR); mesh(G.box, 0x9aa0a8, [.04, .2, .18], [0, -1.02, .14], armR, M); }
   if (o.sword) mesh(G.box, 0xe4e8ee, [.05, .62, .1], [0, -.82, .06], armR, {metalness:.7, roughness:.25});
-    CHAR_GEO[key] = Object.fromEntries(Object.entries(P).map(([k, grp]) => [k, mergeParts(grp)]));
+    if (REAL) remapKit(P);
+    CHAR_GEO[key] = Object.fromEntries(Object.entries(P).map(([k, grp]) => [k, mergeParts(grp)])); CHAR_GEO[key].real = !!REAL;
   }
   const geo = CHAR_GEO[key];
   const g = new THREE.Group(), c = {g, bob:0};
   const legL = new THREE.Group(), legR = new THREE.Group(), armL = new THREE.Group(), armR = new THREE.Group();
-  legL.position.set(-.13, .5, 0); legR.position.set(.13, .5, 0); armL.position.set(-.38*(o.bw || 1), 1.22, 0); armR.position.set(.38*(o.bw || 1), 1.22, 0);
+  if (geo.real) { legL.position.set(-.12, 1.0, 0); legR.position.set(.12, 1.0, 0); armL.position.set(-.25, 1.64, 0); armR.position.set(.25, 1.64, 0); c.real = true; }
+  else { legL.position.set(-.13, .5, 0); legR.position.set(.13, .5, 0); armL.position.set(-.38*(o.bw || 1), 1.22, 0); armR.position.set(.38*(o.bw || 1), 1.22, 0); }
   g.add(legL, legR, armL, armR);
-  for (const [k, part] of Object.entries({g, legL, legR, armL, armR})) geo[k].forEach((gm, i) => {
+  for (const [k, part] of Object.entries({g, legL, legR, armL, armR})) (geo[k] || []).forEach((gm, i) => {
     if (!gm) return;
     const m = new THREE.Mesh(gm, i ? CHAR_METAL : CHAR_MAT); m.castShadow = true; m.receiveShadow = true; part.add(m);
   });
@@ -6211,7 +6273,7 @@ function equip(w) {
   if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
   w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);
   const M = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
-  if (mode === 'tray') M(G.cyl, 0xb8bcc2, [.3, .03, .25], [0, .99, .42], {metalness:.6});
+  if (mode === 'tray') M(G.cyl, 0xb8bcc2, [.3, .03, .25], [0, w.char.real ? 1.27 : .99, .42], {metalness:.6});
   else if (mode === 'barrow') {
     M(G.box, 0x3f7cc0, [.56, .22, .5], [0, .4, .92], {metalness:.3}); M(G.box, 0x2f5c90, [.6, .04, .54], [0, .52, .92]);
     M(G.cyl, 0x1a1a1a, [.16, .06, .16], [0, .16, 1.25]).rotation.z = Math.PI/2;
@@ -6239,7 +6301,7 @@ function equip(w) {
     const per = C.nx*C.nz, l = Math.floor(i / per), k = i % per;
     const lx = ((k % C.nx) - (C.nx - 1)/2)*C.sx*1.8, lz = C.z + (Math.floor(k / C.nx) - (C.nz - 1)/2)*C.sz*1.8;
     const s = Math.sin(w.yaw), c = Math.cos(w.yaw), h = ITEM[it.type].h;
-    return {x:w.pos.x + lx*c + lz*s, y:C.y + l*h*C.step + h/2 + w.char.g.position.y, z:w.pos.z - lx*s + lz*c, ry:w.yaw};
+    return {x:w.pos.x + lx*c + lz*s, y:C.y + (w.char.real && mode === 'tray' ? .28 : 0) + l*h*C.step + h/2 + w.char.g.position.y, z:w.pos.z - lx*s + lz*c, ry:w.yaw};
   };
 }
 function poseCarry(w) {
@@ -10584,6 +10646,7 @@ function update(dt) {
       const seated = L.seats ? c.seat != null && Math.hypot(c.pos.x - L.seats[c.seat][0], c.pos.z - L.seats[c.seat][1]) < .3
         : c === L.q[0] && Math.hypot(c.pos.x - fx, c.pos.z - fz) < .3;
       if (seated) c.char.legL.rotation.x = c.char.legR.rotation.x = -1.45;
+      if (seated && c.char.real) c.char.g.position.y = -.5;
       if (seated && L.seats) {
         c.char.g.rotation.y = c.yaw = Math.PI;
         if (c.mug) c.mug.visible = (c.sip || 0) > 0;
@@ -10970,7 +11033,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
