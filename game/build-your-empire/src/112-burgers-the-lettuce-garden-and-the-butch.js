@@ -73,7 +73,7 @@ function updDistricts(dt) {
   updCityLife(dt); if (BIOME.sky && BIOME.sky.visible) BIOME.sky.position.y = Math.sin(time*.4)*.6;
   if (!wondersOpen && started && W.unlocked.has('bridge1') && regionOpen('airfield')) wondersPark();
   if (started && (AGE_NEED.t = (AGE_NEED.t || 0) - dt) <= 0) { AGE_NEED.t = 1; setEra(AGE_NEED.length - 1, true); }
-  if (!AIRBASE.built && started && W.unlocked.has('hangar') && regionOpen('south')) airbaseFx();
+  if (!AIRBASE.built && started && (W.unlocked.has('hangar') || W.unlocked.has('airfieldGate')) && regionOpen('south')) airbaseFx();   // ready for the fighters' hangar
   updFog(dt); updStrip(dt); updRegiments(dt); updCrossings(dt); updSkyDragon(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
   if (W.unlocked.has('speedboat') && !BOAT.docked) boatDocks();
   updAirstrips();

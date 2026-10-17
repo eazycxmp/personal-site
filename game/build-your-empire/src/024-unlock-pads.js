@@ -41,6 +41,9 @@ const PADS = [
   {id:'house2', x:58.5, z:-3, cost:25, cur:'stone', icon:'🏠', label:'Stone house', after:['house1'], region:'east'},
   {id:'house3', x:58, z:10, cost:30, cur:'stone', icon:'🏠', label:'Stone house', after:['house2'], region:'east'},
   {id:'builder2', x:12.3, z:-5.6, cost:900, cur:'coin', icon:'👷', label:'2nd builder', after:['builder', 'house1']},
+  {id:'builder3', x:12.3, z:-5.6, cost:3000, cur:'coin', icon:'👷', label:'3rd builder', after:['builder2', 'market']},
+  {id:'builder4', x:12.3, z:-5.6, cost:9000, cur:'coin', icon:'👷', label:'4th builder', after:['builder3', 'townhall']},
+  {id:'builder5', x:12.3, z:-5.6, cost:25000, cur:'coin', icon:'👷', label:'5th builder', after:['builder4', 'workshop']},
   {id:'bag3', x:.2, z:4.6, cost:900, cur:'coin', icon:'🎒', label:'Giant pack', after:['bag2', 'house1']},
   {id:'mason2', x:-2.6, z:-47.4, cost:600, cur:'coin', icon:'🧱', label:'2nd stonemason', after:['mason', 'house1'], region:'north'},
   {id:'library', x:55.5, z:-9.6, cost:30, cur:'stone', icon:'📚', label:'Library', after:['house1'], region:'east'},
@@ -82,13 +85,14 @@ const PADS = [
   {id:'brewer', x:46.2, z:75.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
   {id:'beerGarden', x:56, z:87.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
   {id:'barkeep', x:59.4, z:85.4, cost:900, cur:'coin', icon:'🧑‍🍳', label:'Barkeep', after:['beerGarden'], region:'farm'},
+  {id:'studyHall', x:49.9, z:-2.6, cost:1500, cur:'coin', icon:'📚', label:'Study hall', after:['library', 'sciWheel'], region:'east'},
   {id:'university', x:59.6, z:-5.6, w:1.9, cost:15, cur:'scroll', icon:'🎓', label:'University', after:['library', 'house2'], region:'east'},
   {id:'labs', x:59.6, z:-5.6, w:1.9, cost:20, cur:'tools', icon:'🔬', label:'Research lab', after:['university', 'workshop'], region:'east'},
   {id:'aiLab', x:59.6, z:-5.6, w:1.9, cost:40, cur:'scroll', icon:'🤖', label:'AI lab', after:['labs', 'exchange'], region:'east'},
   {id:'superAI', x:59.6, z:-5.6, w:1.9, cost:250000, cur:'coin', icon:'🧠', label:'Superintelligence', after:['aiLab'], region:'east'},
   {id:'sciFlight', x:52.4, z:-9.2, cost:25, cur:'scroll', icon:'✈️', label:'Aviation', after:['labs'], region:'east', sci:1},
   {id:'airfieldGate', x:-9.4, z:9.6, w:1.8, cost:60, cur:'stone', icon:'🌉', label:'Bridge & airfield', after:['sciFlight']},
-  {id:'hangar', x:-81.5, z:-8, cost:20, cur:'tools', icon:'🛩️', label:'Hangar', after:['airfieldGate'], region:'airfield'},
+  {id:'hangar', x:18.5, z:109.5, cost:20, cur:'tools', icon:'🛩️', label:'Fighter hangar', after:['airfieldGate', 'southGate'], region:'south'},
   {id:'plane1', x:26.5, z:90.6, cost:25, cur:'tools', icon:'✈️', label:'Fighter plane', after:['hangar', 'southGate']},
   {id:'plane2', x:26.5, z:95.4, cost:40000, cur:'coin', icon:'✈️', label:'2nd fighter plane', after:['plane1']},
   {id:'plane3', x:26.5, z:100.2, cost:60000, cur:'coin', icon:'✈️', label:'3rd fighter plane', after:['plane2']},
@@ -106,6 +110,7 @@ const PADS = [
   {id:'quartermaster', x:6.4, z:82.6, cost:1500, cur:'coin', icon:'🍲', label:'Quartermaster', after:['barracks'], region:'south'},
   {id:'warTable', x:12.3, z:82.6, cost:1200, cur:'coin', icon:'⚔️', label:'War table', after:['barracks'], region:'south'},
   {id:'castle', x:-5.5, z:87.6, cost:6000, cur:'coin', icon:'🪵', label:'Wooden fort', after:['barracks', 'armorer'], army:10, region:'south'},
+  {id:'siegeWorks', x:-5.6, z:75.2, cost:6, cur:'tools', icon:'🛞', label:'Siege workshop', after:['barracks', 'workshop'], region:'south'},
   {id:'troop1', x:-8.6, z:81, cost:30, cur:'ingot', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
   {id:'troop2', x:-8.6, z:81, cost:40, cur:'ingot', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
   {id:'troop3', x:-8.6, z:81, cost:60, cur:'ingot', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
@@ -290,13 +295,22 @@ const UNLOCK = {
   porter2(a) { addWorker('porter', 47.2, 12.2, a); },
   house1(a) { house(55, -3, a); }, house2(a) { house(58.5, -3, a); }, house3(a) { house(58, 10, a); },
   library(a) {
-    station('library', {name:'library', in:'bread', out:'scroll', t:3.5, inZ:[54, -6.9], outZ:[57.2, -6.9], fireAt:[55.5, 1.5, -8.2], outCap:20});
+    station('library', {name:'library', in:'bread', out:'scroll', t:6, inZ:[54, -6.9], outZ:[57.2, -6.9], fireAt:[55.5, 1.5, -8.2], outCap:20});
     buildFx.library(a); boxes.push({x0:53.7, x1:57.3, z0:-11, z1:-8.2}); setEra(4, a);
   },
   scholar(a) { addWorker('scholar', 52.4, -4, a); },
+  studyHall(a) {
+    STUDY.zone = addZone({kind:'study', x:49.9, z:-2.6, icon:'📚', tile:studyTile()});
+    const g = new THREE.Group(); g.position.set(49.9, 0, -3.75); scene.add(g);
+    mesh(G.box, 0x6b4526, [.7, .9, .35], [0, .45, 0], g); mesh(G.box, 0x8a5d36, [.8, .06, .45], [0, .93, .02], g).rotation.x = -.25;
+    for (let i = 0; i < 4; i++) mesh(G.cyl, 0xf1e2b8, [.06, .5, .06], [-.25 + i*.16, 1.02, .02], g).rotation.z = Math.PI/2;
+    addWorker('researcher', 51.6, -3.2, a);
+    if (a) banner('📚 Study hall!', `Bring scrolls here: every ${studyNeed(studyLvl())} scrolls finish a research level that lifts all your income for good.`);
+  },
   tinker(a) { addWorker('tinker', 12, -50, a); },
   builder(a) { addWorker('builder', 8.6, -3.4, a); },
   builder2(a) { addWorker('builder', 12.3, -5.6, a); },
+  builder3(a) { addWorker('builder', 12.3, -5.6, a); }, builder4(a) { addWorker('builder', 12.3, -5.6, a); }, builder5(a) { addWorker('builder', 12.3, -5.6, a); },
   sciMedicine() { BOOST.patience = 1.6; },
   sciTactics() { BOOST.tactics = .7; },
   stoneRoads(a) { groundStage(1, a); }, roads2(a) { groundStage(2, a); }, roads3(a) { groundStage(3, a); },
@@ -432,6 +446,7 @@ const UNLOCK = {
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
   tomatobed(a) { tomatoBed(a); },
   burgerBar(a) { burgerBar(a); },
+  siegeWorks(a) { siegeYard(a); },
   bulldozers(a) { for (const w of workers) if (DOZER_KINDS.has(w.kind)) { w.carry = null; equip(w); } if (a) banner('🚜 Bulldozers!', 'Builders and stonemasons drive bulldozers now: faster, and the blade carries a bigger load.'); },
   burgercook(a) { addWorker('burgercook', 25.6, 17.6, a); },
   scooters(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🛵 Delivery scooters!', 'Waiters and everyone who carries food ride scooters now, half again as fast.'); },

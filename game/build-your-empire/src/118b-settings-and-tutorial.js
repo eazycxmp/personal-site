@@ -1,5 +1,11 @@
 // ------------------------------------------------------------------ settings, save slots and the tutorial
 function applyGfx() {
+  // auto: a sharp-enough image at 1.5x and a 2048 shadow map; high: full retina and 4096
+  if (SET.gfx !== 'low' && !MOBILE) {
+    const hi = SET.gfx === 'high', pr = Math.min(hi ? 2 : 1.5, window.devicePixelRatio || 1), ms = hi ? 4096 : 2048;
+    if (renderer.getPixelRatio() !== pr) { renderer.setPixelRatio(pr); fit(); }
+    if (sun.shadow.mapSize.x !== ms) { sun.shadow.mapSize.set(ms, ms); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  }
   if (SET.gfx === 'low') {
     perf.low = true; renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sun.castShadow = false; POST.on = false;
     scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); }); fit();

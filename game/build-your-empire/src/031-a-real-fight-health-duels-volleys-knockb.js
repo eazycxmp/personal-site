@@ -60,8 +60,15 @@ function battleSoldier(s, i, dt) {
   const guns = W.unlocked.has('guns'), alive = enemies.filter(e => e.alive);
   s.vel.set(0, 0, 0); s.speed = 3.6;
   if (!s.down) {
-    if (!s.target || !s.target.alive) s.target = nearest(s, alive);
+    // at most three on any one enemy (with guns, any number can shoot): the rest hold the line until a foe is free
+    const busy = e => soldiers.filter(o => o !== s && !o.down && o.target === e).length;
+    if (!s.target || !s.target.alive || (!guns && busy(s.target) >= 3)) s.target = nearest(s, guns ? alive : alive.filter(e => busy(e) < 3));
     const t = s.target;
+    if (!t && !guns && alive.length) {
+      const hx = BF.x - 4.4 + (i % 8)*1.25, hz = BF.z - 2.4 - Math.floor(i / 8)*1.2;
+      if (Math.hypot(hx - s.pos.x, hz - s.pos.z) > .3) moveTo(s, hx, hz, dt);
+      const n = nearest(s, alive); if (n) s.yaw = Math.atan2(n.pos.x - s.pos.x, n.pos.z - s.pos.z);
+    }
     if (t) {
       const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z), melee = d < 1.15, reach = guns ? 9 : .95;
       if (!guns && d > reach) { moveTo(s, t.pos.x, t.pos.z, dt); collideFighters(s, soldiers); }

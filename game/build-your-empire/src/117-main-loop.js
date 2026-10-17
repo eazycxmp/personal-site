@@ -96,7 +96,7 @@ function update(dt) {
       const face = vb ? Math.atan2(BOSS.on.g.position.x - s.pos.x, BOSS.on.g.position.z - s.pos.z) : out ? 0 : sea ? -Math.PI/2 : Math.PI;
       let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
       const gun = W.unlocked.has('guns');
-      s.char.armR.rotation.x = vb ? -1.5 + Math.sin(time*14 + i)*.15 : out && ph <= 22 ? (gun ? -1.5 : -1.6 + Math.sin(time*12 + i)*1.1) : -1.3 + Math.sin(time*3 + s.drill)*.9;
+      s.char.armR.rotation.x = vb ? -1.5 + Math.sin(time*14 + i)*.15 : out && ph <= 22 ? (gun ? -1.5 : -1.6 + Math.sin(time*12 + i)*1.1) : 0;   // at home: at attention, still
     }
   });
   navGrid();
@@ -104,11 +104,11 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
-  updWar(dt);
+  updWar(dt); updTribes(dt); if (started) scoutNextCamp();
   if ((W.unrestT = (W.unrestT || 0) + dt) > (W.unlocked.has('police') ? 45 : 90)) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
   if (ST.mill) ST.mill.rotation.z += dt * 1.2;
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;

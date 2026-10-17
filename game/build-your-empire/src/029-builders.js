@@ -3,11 +3,11 @@
 // builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
-function builderJob(w) {
+function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
-  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
   if (!open.length) return null;
-  const others = workers.filter(o => o !== w && o.kind === 'builder' && o.job);
+  const others = workers.filter(o => o !== w && (o.kind === 'builder' || o.hauling) && o.job);
   const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
   const goal = OBJ.z && OBJ.z.pad ? OBJ.z : null;
   const score = z => {
@@ -25,13 +25,13 @@ function builderPile(w, cur, want, pz) {
   return piles.map(z => ({z, cost:Math.hypot(z.x - w.pos.x, z.z - w.pos.z) + Math.hypot(z.x - pz.x, z.z - pz.z) + (z.stack.count([cur]) >= want ? 0 : 6) + (taken.has(z) && z.stack.count([cur]) < want*2 ? 5 : 0)}))
     .sort((a, b) => a.cost - b.cost)[0]?.z || null;
 }
-function updBuilder(w, dt) {
+function updBuilder(w, dt, only) {
   if (w.lastP) BSTAT.dist += Math.hypot(w.pos.x - w.lastP.x, w.pos.z - w.lastP.z); else w.lastP = new THREE.Vector3();
   w.lastP.copy(w.pos);
   // look again every few seconds in case you moved on to something else
   if ((w.rethink = (w.rethink || 0) - dt) <= 0 && w.mode === 'fetch' && !w.stack.length) { w.rethink = 4; w.job = null; }
   if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
-    w.job = builderJob(w);
+    w.job = builderJob(w, only);
     w.mode = 'fetch'; w.wait = 0; w.pile = null;
     if (!w.job) { goTo(w, ...w.home, dt); return; }
   }
@@ -66,3 +66,17 @@ function treasurerPile(w) {
   return Object.values(CASH).filter(c => c.value > 0 && !taken.has(c)).sort((a, b) => b.value/(Math.hypot(b.x - w.pos.x, b.z - w.pos.z) + 4) - a.value/(Math.hypot(a.x - w.pos.x, a.z - w.pos.z) + 4))[0] || null;
 }
 
+// stonemasons with a full stone pile don't stand about: they carry the stone to whatever tile is waiting for it,
+// then go back to the quarry once nothing needs it
+function masonHaul(w, dt) {
+  const pile = GATHER[w.kind].pile().outStack;
+  if (!w.hauling) {
+    if (pile.length < pile.cap - 2 || (w.haulCheck = (w.haulCheck || 0) - dt) > 0) return false;
+    w.haulCheck = 2;
+    if (!builderJob(w, 'stone')) return false;
+    w.hauling = true; w.job = null;
+  }
+  updBuilder(w, dt, 'stone');
+  if (!w.job && !w.stack.count(['stone'])) { w.hauling = false; w.state = 'idle'; }
+  return true;
+}

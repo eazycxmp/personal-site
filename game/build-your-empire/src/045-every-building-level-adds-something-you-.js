@@ -131,7 +131,28 @@ function addons(id) {
   if (L < 2) return;
   const g = new THREE.Group(); b.add(g); b.userData.addG = g;
   addons.cur = id;
-  tierBuild(g, theme, L, b.userData.bb0, id);
+  tierBuild(g, theme, L, clearOfTiles(b, b.userData.bb0), id);
+}
+// a growing building keeps off the tiles round it: any side that would reach a tile (with a little room for the
+// roof's overhang) is pulled back, never below a small shop's size
+function clearOfTiles(b, f) {
+  const sc = b.scale.x || 1, p = b.position, M = .35, OVER = .12;
+  let x0 = p.x + (f.cx - f.w/2)*sc, x1 = p.x + (f.cx + f.w/2)*sc, z0 = p.z + (f.cz - f.d/2)*sc, z1 = p.z + (f.cz + f.d/2)*sc;
+  const grow = 1 + OVER;   // the walls stand inside the roof
+  for (const zn of zones) {
+    if (!zn.active || !zn.mesh || zn.mesh.visible === false) continue;
+    const tx0 = zn.x - zn.w/2 - M, tx1 = zn.x + zn.w/2 + M, tz0 = zn.z - zn.d/2 - M, tz1 = zn.z + zn.d/2 + M;
+    const cx = (x0 + x1)/2, cz = (z0 + z1)/2, hw = (x1 - x0)/2*grow, hd = (z1 - z0)/2*grow;
+    if (cx + hw <= tx0 || cx - hw >= tx1 || cz + hd <= tz0 || cz - hd >= tz1) continue;
+    // pull back the side facing the tile, on whichever axis needs the smaller cut
+    const cutX = zn.x > cx ? (cx + hw) - tx0 : tx1 - (cx - hw), cutZ = zn.z > cz ? (cz + hd) - tz0 : tz1 - (cz - hd);
+    if (cutX <= cutZ) { if (zn.x > cx) x1 -= cutX/grow; else x0 += cutX/grow; }
+    else { if (zn.z > cz) z1 -= cutZ/grow; else z0 += cutZ/grow; }
+  }
+  const MIN = 1.4;
+  if (x1 - x0 < MIN) { const c = (x0 + x1)/2; x0 = c - MIN/2; x1 = c + MIN/2; }
+  if (z1 - z0 < MIN) { const c = (z0 + z1)/2; z0 = c - MIN/2; z1 = c + MIN/2; }
+  return {...f, cx:((x0 + x1)/2 - p.x)/sc, cz:((z0 + z1)/2 - p.z)/sc, w:(x1 - x0)/sc, d:(z1 - z0)/sc};
 }
 let smokeAddT = 0;
 function updAddons(dt, night) {

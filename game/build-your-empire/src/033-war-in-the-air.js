@@ -94,7 +94,10 @@ function makePlane(x, z) {
   mesh(G.box, 0x2a2a2a, [.09, 1.3, .04], [0, 0, 0], prop); mesh(G.box, 0x2a2a2a, [1.3, .09, .04], [0, 0, 0], prop);
   for (const sx of [-.5, .5]) mesh(G.cyl, 0x1a1a1a, [.15, .1, .15], [sx, -.42, .5], body).rotation.z = Math.PI/2;
   g.position.set(x, 0, z); g.rotation.y = Math.PI;
-  const p = {g, prop, park:[x, z], bombT:0, rw:x > 0 ? AIRBASE.rw : RUNWAY}; planes.push(p); airbaseFx(); return p;
+  const n = planes.length;
+  // a pilot's style: orbit radius, circling direction, cruising height, timing, how much they weave, and whether they roll
+  const style = {r:7.5 + (n % 3)*1.8, dir:n % 2 ? -1 : 1, alt:8 + (n % 4)*1.1, ph:n*1.3, weave:n % 3 === 1 ? 4 : n % 3 === 2 ? 2 : 0, sp:.9 + (n % 3)*.12, roll:n % 2 === 0};
+  const p = {g, prop, park:[x, z], bombT:0, rw:x > 0 ? AIRBASE.rw : RUNWAY, style}; planes.push(p); airbaseFx(); return p;
 }
 // taxi, take off, climb over the ridges, dive-bomb the valley in passes, pull up, fly home and land
 function airPos(e, p, tx, tz) {
@@ -103,12 +106,16 @@ function airPos(e, p, tx, tz) {
   if (e < 0) return [px, 0, pz];
   if (e < 4) { const u = e/4; return [L(px, RW.x, u), 0, L(pz, RW.z0, u)]; }
   if (e < 9) { const u = (e - 4)/5; return [RW.x, u > .45 ? (u - .45)/.55*5 : 0, L(RW.z0, RW.z1, u)]; }
-  if (e < 17) { const u = (e - 9)/8; return [L(RW.x, tx - 9, u), 5 + 7*Math.sin(Math.min(1, u*1.6)*Math.PI/2) - (u > .75 ? (u - .75)/.25*3 : 0), L(RW.z1, tz, u)]; }
+  // each pilot flies their own way: a weave on the way in, their own orbit (size, direction, height) and dive rhythm
+  const S = p.style || {r:9, dir:1, alt:9, ph:0, weave:0, sp:1};
+  const orbit = k => { const a = Math.PI + S.dir*k*.55*S.sp + S.ph; return [tx + Math.cos(a)*S.r, tz + Math.sin(a)*S.r]; };
+  const [ox0, oz0] = orbit(0);
+  if (e < 17) { const u = (e - 9)/8, w = Math.sin(u*Math.PI*2.5 + S.ph)*S.weave*(1 - u); return [L(RW.x, ox0, u) + w, 5 + (S.alt - 2)*Math.sin(Math.min(1, u*1.6)*Math.PI/2) - (u > .75 ? (u - .75)/.25*3 : 0), L(RW.z1, oz0, u) + w*.4]; }
   if (e < 29) {
-    const k = e - 17, a = Math.PI + k*.55, dive = Math.pow(Math.max(0, Math.sin(k*1.05 - .6)), 3);
-    return [tx + Math.cos(a)*9, 9 - 5.8*dive, tz + Math.sin(a)*9];
+    const k = e - 17, [x, z] = orbit(k), dive = Math.pow(Math.max(0, Math.sin(k*1.05*S.sp - .6 + S.ph*.5)), 3);
+    return [x, S.alt - (S.alt - 3.2)*dive, z];
   }
-  const a = Math.PI + 12*.55, ex = tx + Math.cos(a)*9, ez = tz + Math.sin(a)*9;
+  const [ex, ez] = orbit(12);
   if (e < 36) { const u = (e - 29)/7; return [L(ex, RW.x, u), 9 + 3*Math.sin(u*Math.PI) - 4*u, L(ez, RW.z1 - 8, u)]; }
   if (e < 40) { const u = (e - 36)/4; return [RW.x, 5*(1 - u)*(1 - u), L(RW.z1 - 8, RW.z0 - 2, u)]; }
   const u = (e - 40)/2; return [L(RW.x, px, u), 0, L(RW.z0 - 2, pz, u)];
@@ -170,7 +177,9 @@ function updAir(dt) {
     p.g.position.set(a[0], a[1], a[2]); p.alt = a[1];
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], hz = Math.hypot(dx, dz);
     if (hz > .002) { p.g.rotation.y = Math.atan2(dx, dz); p.g.rotation.x = -Math.atan2(dy, hz); }
-    p.g.rotation.z = flying && e > 17 && e < 29 ? .5 : 0;
+    // banked into the orbit (each the way they circle), and a barrel roll on the way in for the show-offs
+    const S = p.style || {dir:1};
+    p.g.rotation.z = flying && e > 17 && e < 29 ? .5*S.dir : flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0;
     p.prop.rotation.z += dt * (flying && e > 0 && e < 42 ? 40 : 0);
     // bombs go only at the bottom of each dive
     if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
@@ -239,16 +248,18 @@ function hangarLook(anim) {
   const t = hangarTier(), m = kit2('hangar' + t, [0, 5.2, 5.8, 6.4][t]); if (!m || t === HANGAR.tier) return;
   if (HANGAR.g) { HANGAR.g.clear(); HANGAR.g.add(m); HANGAR.tier = t; if (anim) { popIn(HANGAR.g); banner(['', '', '🛩️ A bigger hangar', '✨ A glass-and-steel hangar'][t], 'Room for your growing air force.'); } }
 }
+// the fighters' hangar stands at the military airbase, where they take off (not at the airport)
+const HANGAR_AT = [18.5, 109.5];
 function hangar(anim) {
   if (MODELS.b2) {
-    const g = HANGAR.g = new THREE.Group(); g.position.set(-81.5, 0, -8); scene.add(g); HANGAR.tier = 0; hangarLook(false);
-    boxes.push({x0:-83.9, x1:-79.1, z0:-10.3, z1:-5.7}); if (anim) popIn(g); return;
+    const g = HANGAR.g = new THREE.Group(); g.position.set(HANGAR_AT[0], 0, HANGAR_AT[1]); scene.add(g); HANGAR.tier = 0; hangarLook(false);
+    boxes.push({x0:HANGAR_AT[0] - 2.4, x1:HANGAR_AT[0] + 2.4, z0:HANGAR_AT[1] - 2.3, z1:HANGAR_AT[1] + 2.3}); if (anim) popIn(g); return;
   }
-  const g = new THREE.Group(); g.position.set(-81.5, 0, -8); scene.add(g);
+  const g = new THREE.Group(); g.position.set(HANGAR_AT[0], 0, HANGAR_AT[1]); scene.add(g);
   const roof = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 4.6, 16, 1, false, 0, Math.PI), mat(0x9aa0a8, {metalness:.4, roughness:.4}));
   roof.rotation.z = Math.PI/2; roof.rotation.y = Math.PI/2; roof.position.y = 0; g.add(roof); roof.castShadow = true;
   mesh(G.box, 0x2a2e36, [3.6, 2.1, .1], [0, 1.05, 2.3], g);
-  boxes.push({x0:-83.9, x1:-79.1, z0:-10.3, z1:-5.7});
+  boxes.push({x0:HANGAR_AT[0] - 2.4, x1:HANGAR_AT[0] + 2.4, z0:HANGAR_AT[1] - 2.3, z1:HANGAR_AT[1] + 2.3});
   fader(g, 5, 2.6);
   if (anim) popIn(g);
 }

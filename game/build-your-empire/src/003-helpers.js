@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ helpers
 const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
-  sph: new THREE.SphereGeometry(1, 16, 12),
+  sph: new THREE.SphereGeometry(1, 12, 9),   // round enough for fruit, heads and foliage, at half the triangles
   cyl: new THREE.CylinderGeometry(1, 1, 1, 14),
   cone: new THREE.ConeGeometry(1, 1, 12),
   cone4: new THREE.ConeGeometry(1, 1, 4),

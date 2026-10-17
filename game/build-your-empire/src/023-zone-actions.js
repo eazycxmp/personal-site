@@ -3,6 +3,18 @@ const SELLABLE = Object.keys(ITEM).filter(k => ITEM[k].sell);
 function zoneAct(e, zn, dt) {
   e.tick -= dt; if (e.tick > 0) return;
   switch (zn.kind) {
+    case 'study': {
+      // scrolls in, research out: every level needs more of them, and every level lifts all income
+      const it = e.stack.items.find(q => q.type === 'scroll'); if (!it) { e.tick = .25; break; }
+      e.stack.items.splice(e.stack.items.indexOf(it), 1); flyAway(it.mesh, new THREE.Vector3(zn.x, .6, zn.z), .2); e.tick = .09;
+      const S = W.flags.study ||= {lvl:0, n:0}; S.n++;
+      if (S.n >= studyNeed(S.lvl)) {
+        S.n = 0; S.lvl++; snd(880, .2, 'triangle', .05, 1.5);
+        banner(`📚 Research level ${S.lvl}!`, `Everything you earn is now worth +${Math.round((studyMult() - 1)*100)}%. Next level: ${studyNeed(S.lvl)} scrolls.`);
+      }
+      drawTile(zn.tc.g, '📚', studyTile()); zn.tc.t.needsUpdate = true;
+      break;
+    }
     case 'source':
       if (e.stack.length < e.cap) {
         spawnItem(zn.item, zn.from(), e.stack, zn.item === 'fish' ? fishSpecies() : null);
@@ -83,3 +95,6 @@ function full() { if (fullT <= 0) { popText('FULL', player.pos.clone().setY(3.2)
 function pickSnd(e) { snd(420 + e.stack.length*28, .05, 'triangle', .035); }
 function dropSnd() { snd(300, .04, 'square', .02); }
 
+// the study hall's tile shows how far along the next research level is
+const STUDY = {zone:null};
+function studyTile() { const S = W.flags.study || {lvl:0, n:0}; return {alpha:1, size:84, label:`Research Lv ${S.lvl}: ${S.n}/${studyNeed(S.lvl)}`, fill:'rgba(70,50,120,.6)'}; }

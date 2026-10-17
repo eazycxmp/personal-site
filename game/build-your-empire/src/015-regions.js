@@ -111,6 +111,9 @@ function openWorldMap() {
   for (const [style, S] of Object.entries(STYLE_SPOTS)) if (DISTRICT.built[style]) { const c = S.centre || (S.site ? [COAST.sites[S.site].x, -84] : [0, 0]); pin(c[0], c[1], S.flag); }
   if (typeof RTOWN !== 'undefined') for (const r of EMP.list) { const T = RTOWN[r.id], c = r.at || (STYLE_SPOTS[RT_STYLE[r.id]] || {}).centre; if (T && T.lvl >= 0 && c && seen(c[0], c[1])) { pin(c[0], c[1], r.icon, 30); g.font = '20px system-ui'; g.fillStyle = '#fff'; g.fillText(`${r.n} (${TIERS[T.lvl][1]})`, X(c[0]), Z(c[1]) + 26); } }
   if (typeof AIRSTRIPS !== 'undefined') for (const A of Object.values(AIRSTRIPS)) pin(A.tile[0], A.tile[1], '✈️', 18);
+  // the campaign targets: the places your army fights (a flag once taken)
+  CAMPAIGNS.forEach((c, ci) => { const p = campPlace(ci); if (!p || !seen(p[0], p[1])) return; pin(p[0], p[1], ci < W.conquests ? '🚩' : c.icon, 24);
+    g.font = 'bold 18px system-ui'; g.fillStyle = '#1a1410'; g.fillText(c.name, X(p[0]), Z(p[1]) + 26); });
   if (BOAT.docked) for (const d of DOCKS) pin(d.land[0], d.land[1], '⚓', 18);
   if (BOAT.g && !BOAT.on) pin(BOAT.pos.x, BOAT.pos.z, '🛥️', 20);
   // the cloud over everything unexplored

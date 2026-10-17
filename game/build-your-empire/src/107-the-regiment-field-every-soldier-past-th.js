@@ -3,8 +3,10 @@ const REGT = {rect:{x0:22.4, x1:41.4, z0:47, z1:73.4}, built:false, n:-1, col:0,
 const UNIFORM = [[0x8a6a4a, 0x6a5038], [0xa8322a, 0xc8a24a], [0x7a828a, 0x9aa2aa], [0xb8221a, 0x1a1a22], [0x6a6a44, 0x4a5030], [0x2e3a2e, 0x1e221e]];
 const recruitCost = () => 10*(220 + 110*W.era);
 function regtSlot(k) {
-  // blocks of a hundred (10 x 10), three blocks across and four deep
-  const b = Math.floor(k / 100), i = k % 100, bx = b % 3, bz = Math.floor(b / 3);
+  // blocks of a hundred (10 x 10): full-size soldiers stand two blocks across and three deep, the old figures three by four
+  const b = Math.floor(k / 100), i = k % 100;
+  if (REGT.real) { const bx = b % 2, bz = Math.floor(b / 2); return [REGT.rect.x0 + 1.4 + bx*9.2 + (i % 10)*.75, REGT.rect.z0 + 1.6 + bz*8.6 + Math.floor(i / 10)*.75]; }
+  const bx = b % 3, bz = Math.floor(b / 3);
   return [REGT.rect.x0 + 1.1 + bx*6.25 + (i % 10)*.55, REGT.rect.z0 + 1.2 + bz*6.3 + Math.floor(i / 10)*.55];
 }
 function regtBuild() {
@@ -22,11 +24,25 @@ function regtBuild() {
   for (const x of [16.5, 19.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.6, .05], [x, 1.3, 59.3], scene);
   // the soldiers themselves: five instanced parts, enough for the field and a marching column
   const N = REGT.cap + REGT.colCap, part = (geo, sc, pos) => { const g = geo.clone(); g.scale(...sc); g.translate(...pos); return g; };
-  const defs = [[part(G.box, [.3, .44, .18], [0, .24, 0]), 0x2a2a30], [part(G.box, [.36, .48, .22], [0, .7, 0]), 0], [part(G.sph, [.12, .13, .12], [0, 1.08, 0]), 0xe0b08a],
-    [part(G.sph, [.14, .08, .14], [0, 1.19, 0]), 1], [part(G.box, [.04, 1.15, .04], [.22, .85, .06]), 0x5a4a3a]];
-  REGT.ims = defs.map(([geo, c]) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({color:typeof c === 'number' && c > 1 ? c : 0x888888, roughness:.75}), N); im.count = 0; im.castShadow = true; im.frustumCulled = false; im.colorRole = c; scene.add(im); return im; });
+  // the soldiers: the same realistic soldier as in the yard, standing at ease (two instanced parts: the uniform,
+  // tinted for the age, and skin, boots and hair), and a spear; the old block figures if the model is missing
+  const RS = MODELS.regt, ru = RS && RS.getObjectByName('regt_uniform'), rr = RS && RS.getObjectByName('regt_rest');
+  let defs;
+  if (ru && rr) {
+    REGT.real = true; REGT.cap = 600; RS.updateMatrixWorld(true);
+    const bake = m => m.geometry.clone().applyMatrix4(m.matrixWorld).scale(QN.S, QN.S, QN.S);
+    defs = [[bake(ru), 'uni'], [bake(rr), 'rest'], [part(G.box, [.05, 2.1, .05], [.36, 1.15, .12]), 0x5a4a3a]];
+  } else defs = [[part(G.box, [.3, .44, .18], [0, .24, 0]), 0x2a2a30], [part(G.box, [.36, .48, .22], [0, .7, 0]), 0], [part(LOSPH, [.12, .13, .12], [0, 1.08, 0]), 0xe0b08a],
+    [part(LOSPH, [.14, .08, .14], [0, 1.19, 0]), 1], [part(G.box, [.04, 1.15, .04], [.22, .85, .06]), 0x5a4a3a]];
+  const NN = REGT.cap + REGT.colCap;
+  REGT.ims = defs.map(([geo, c]) => {
+    const material = c === 'rest' ? new THREE.MeshStandardMaterial({vertexColors:true, roughness:.75}) : new THREE.MeshStandardMaterial({color:typeof c === 'number' && c > 1 ? c : 0x888888, roughness:c === 'uni' ? .85 : .75});
+    const im = new THREE.InstancedMesh(geo, material, NN); im.count = 0; im.castShadow = !REGT.real; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); return im;
+  });
   REGT.tile = addZone({kind:'recruit', x:21.4, z:60.9, icon:'🪖', tile:{alpha:1, size:84, label:'', fill:'rgba(60,70,40,.6)'}});
 }
+// a regiment is hundreds of tiny heads: a low sphere is plenty
+const LOSPH = new THREE.SphereGeometry(1, 8, 4);
 const REGT_O = new THREE.Object3D();
 function regtPut(k, x, z, yaw, bob) { REGT_O.position.set(x, bob || 0, z); REGT_O.rotation.set(0, yaw, 0); REGT_O.updateMatrix(); for (const im of REGT.ims) im.setMatrixAt(k, REGT_O.matrix); }
 function updRegiments(dt) {
@@ -35,7 +51,7 @@ function updRegiments(dt) {
   const C = W.camp, extra = Math.max(0, (W.army || 0) - Math.min(W.army || 0, 24));
   // their uniform follows the army's age
   const tr = Math.min(5, W.troop || 0);
-  if (tr !== REGT.troop) { REGT.troop = tr; const [a, b] = UNIFORM[tr]; REGT.ims[1].material.color.set(a); REGT.ims[3].material.color.set(b); }
+  if (tr !== REGT.troop) { REGT.troop = tr; const [a, b] = UNIFORM[tr]; if (REGT.real) REGT.ims[0].material.color.set(a); else { REGT.ims[1].material.color.set(a); REGT.ims[3].material.color.set(b); } }
   // the recruiting office: ten at a time
   const cost = recruitCost(), label = `+10 🛡️ · ${cost} 💵`;
   if (REGT.tile.label !== label) { REGT.tile.label = label; drawTile(REGT.tile.tc.g, '🪖', {alpha:1, size:84, label, fill:'rgba(60,70,40,.6)'}); REGT.tile.tc.t.needsUpdate = true; }

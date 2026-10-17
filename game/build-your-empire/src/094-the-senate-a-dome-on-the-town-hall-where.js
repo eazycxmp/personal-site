@@ -45,14 +45,21 @@ function empireHTML() {
   if (!EMP.list.some(r => es(r).met)) return '<p class="empHint">🧭 No rivals found yet. Follow the roads east and west, or sail the oceans, to find them.</p>';
   const P = powerParts(), mine = myPower(), d = s => s.rel >= 60 ? '❤️ friendly' : s.rel >= 0 ? '😐 wary' : s.rel > -50 ? '😠 hostile' : '💢 furious';
   const cards = EMP.list.map((r, i) => {
-    if (!es(r).met) return `<div class="ec dim"><b>❔ Unexplored</b><span>Somewhere ${r.via === 'sea' ? 'across the ocean' : r.via === 'south' ? 'to the south' : `along the ${r.via} road`}. Explore 🌍 to find them.</span></div>`;
+    if (!es(r).met) {
+      const where = r.via === 'sea' ? 'across the ocean' : r.via === 'south' ? 'to the south' : `along the ${r.via} road`, sc = scoutState(r);
+      const act = r.sky && !W.unlocked.has('moonLanding') ? '<em>Beyond the sky: reach the Moon first</em>'
+        : sc.out ? `<em>🧭 Scouts on the way · ${sc.left}s</em>`
+        : W.conquests < 2 ? '<em>🧭 Scouts can go after your second campaign</em>'
+        : `<button data-sc="${i}" ${W.coins < scoutCost(r) ? 'disabled' : ''}>🧭 Send scouts · ${scoutCost(r)} 💵</button>`;
+      return `<div class="ec dim"><b>❔ Unexplored</b><span>Somewhere ${where}. Send scouts to find them, or go there yourself.</span><div class="eb">${act}</div></div>`;
+    }
     const s = es(r), B = (a, t, dis) => `<button data-e="${i}" data-a="${a}" ${dis ? 'disabled' : ''}>${t}</button>`;
     const busy = !!(W.camp || W.raid), fleetOk = r.sea && W.unlocked.has('tradeShip') && (s.fleetT || 0) <= W.playT;
     let btns = '';
     if (s.owned) btns = '<em>🏴 Part of your empire</em>';
     else if (s.stance === 'ally') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('unally', '💔 Break');
     else if (s.stance === 'peace') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + B('ally', '🤝 Ally', s.rel < 60) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('war', '⚔️ War', busy);
-    else btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + (r.land ? B('land', `🛡️ Attack · ${mine >= s.pow ? 'you win' : 'you lose'}`, busy || W.army < 5) : '') + (r.sea ? B('sea', `⚓ By sea · ${mine >= s.pow ? 'you win' : 'you lose'}`, busy || !W.unlocked.has('warship')) : '');
+    else btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + `<button data-pa="${i}" ${busy ? 'disabled' : ''}>⚔️ Plan attack</button>`;
     return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
       <div class="rel"><i style="width:${(s.rel + 100)/2}%"></i></div><div class="eb">${btns}</div></div>`;
   }).join('');
@@ -67,6 +74,8 @@ function bindEmpire(m) {
   const again = () => { if (m.dataset.panel === 'empire' && !m.hidden) openEmpire(); };
   m.querySelectorAll('.emp button[data-e]').forEach(b => b.onclick = () => { empAct(+b.dataset.e, b.dataset.a); if (!m.hidden && m.dataset.panel === 'trade') openEmpire(); else again(); });
   m.querySelectorAll('.emp button[data-l]').forEach(b => b.onclick = () => retake(b.dataset.l));
+  m.querySelectorAll('.emp button[data-sc]').forEach(b => b.onclick = () => { sendScouts(+b.dataset.sc); again(); });
+  m.querySelectorAll('.emp button[data-pa]').forEach(b => b.onclick = () => planAttack(+b.dataset.pa));
   m.querySelectorAll('.emp button[data-g]').forEach(b => b.onclick = () => sendGovernor(b.dataset.g));
 }
 // send a governor from the Empire panel: they build roads and listen, so loyalty climbs
@@ -82,3 +91,45 @@ function openEmpire() {
   bindEmpire(m); $('empClose').onclick = () => { m.hidden = true; m.dataset.panel = ''; };
 }
 
+// ------------------------------------------------------------------ scouts: they ride out and come back with a rival's whereabouts
+const scoutDist = r => Math.hypot(r.at[0], r.at[1]);
+const scoutCost = r => Math.round(400 + scoutDist(r)*12 + 150*W.era);
+function scoutState(r) { const t = (W.flags.scouts || {})[r.id]; return t ? {out:true, left:Math.max(0, Math.ceil(t - W.playT))} : {out:false}; }
+function sendScouts(i) {
+  const r = EMP.list[i], c = scoutCost(r); if (W.coins < c || scoutState(r).out) return;
+  spend(c); (W.flags.scouts ||= {})[r.id] = W.playT + Math.round(30 + scoutDist(r)*.25);
+  banner(`🧭 Scouts ride out`, `They follow the ${r.via === 'sea' ? 'coast by boat' : r.via + ' road'} to find whoever lives there.`);
+}
+function updScouts() {
+  const S = W.flags.scouts; if (!S) return;
+  for (const [id, t] of Object.entries(S)) {
+    if (W.playT < t) continue;
+    delete S[id]; const r = EMP.list.find(q => q.id === id); if (!r) continue;
+    // what they saw: the city, and the way there
+    reveal(r.at[0], r.at[1], 36);
+    if (r.via === 'east' || r.via === 'west') for (let x = 0; Math.abs(x) < Math.abs(r.at[0]); x += Math.sign(r.at[0])*20) reveal(x, r.via === 'east' ? 1.9 : 12.1, 14);
+    FOG.dirty = true;
+  }
+}
+// ------------------------------------------------------------------ planning an attack on a rival: who goes, against what, and the odds
+function planAttack(i) {
+  const r = EMP.list[i], s = es(r), mine = myPower(), m = $('modal'); m.hidden = false; m.dataset.panel = 'attack';
+  const walled = r.bf && r.id !== 'ostberg', overseas = r.via === 'sea';
+  const opts = [];
+  if (r.land) {
+    const need = Math.round(s.pow*spec(r, 'army')), boats = !overseas || W.unlocked.has('boatyard') || W.unlocked.has('warship');
+    const why = W.army < 5 ? 'Train at least 5 soldiers' : walled && !W.unlocked.has('siegeWorks') ? 'Their city is walled: build the Siege workshop' : !boats ? 'Across the sea: build a boatyard for troop boats' : '';
+    opts.push({a:'land', icon:'🪖', n:overseas ? 'Army, by troop boat' : 'Army', how:walled ? 'March to their walls with rams and catapults' : 'March out and meet them in the field', need, ok:!why, why});
+  }
+  if (r.sea) {
+    const need = Math.round(s.pow*spec(r, 'navy'));
+    opts.push({a:'sea', icon:'⚓', n:'Navy', how:'Warships bombard their harbour', need, ok:W.unlocked.has('warship'), why:W.unlocked.has('warship') ? '' : 'Build a warship first'});
+  }
+  m.innerHTML = `<div class="card"><h1 style="font-size:24px">⚔️ Attack ${r.icon} ${r.n}?</h1>
+    <p>Your strength ⚔️ ${mine}. Choose who goes; a loss costs men and makes them angrier.</p>
+    <div class="votes">${opts.map(o => `<button data-a="${o.a}" ${o.ok ? '' : 'disabled style="opacity:.45;cursor:default"'}><b>${o.icon} ${o.n}</b><small>${o.how}</small>
+      <small>Their strength ⚔️ ${o.need} · ${mine >= o.need ? '✅ you should win' : '⚠️ you will probably lose'}</small>${o.why ? `<small>🔒 ${o.why}</small>` : ''}</button>`).join('')}</div>
+    <button class="ghost" id="paClose">Not now</button></div>`;
+  m.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { if (b.disabled) return; m.hidden = true; empAct(i, b.dataset.a); });
+  $('paClose').onclick = () => { m.hidden = true; };
+}

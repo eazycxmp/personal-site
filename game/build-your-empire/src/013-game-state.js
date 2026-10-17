@@ -57,7 +57,12 @@ function makeCash(id, x, z) {
   c.zone = addZone({kind:'cash', cash:c, x, z, icon:'💵', tile:{alpha:1, size:92, label:'Cash'}});
   return c;
 }
+// research done at the study hall lifts every takings for good
+const studyLvl = () => (W.flags.study && W.flags.study.lvl) || 0;
+const studyMult = () => { const L = studyLvl(); return Math.min(2, 1 + .05*Math.min(L, 10) + .02*Math.max(0, L - 10)); };
+const studyNeed = L => Math.round(10 * Math.pow(1.4, L));
 function addCash(c, value, from) {
+  value = Math.round(value * studyMult());
   c.value += value; W.earned += value;
   for (let i = 0; i < Math.min(value, 12) && c.stack.length < 45; i++) {
     const m = itemMesh('coin'); m.position.set(from.x + R()*.4 - .2, 1.2, from.z + R()*.4 - .2); c.stack.push({type:'coin', mesh:m});

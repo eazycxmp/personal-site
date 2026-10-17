@@ -121,7 +121,7 @@ const CAMPAIGNS = [
   {name:'Hill clans', icon:'⛰️', army:14, reward:8000},
   {name:'The old empire', icon:'🏯', army:20, ships:1, reward:15000},
   {name:'Mountain fortress', icon:'🏰', army:18, planes:1, reward:30000, target:0},
-  {name:'Far continent', icon:'🗺️', army:24, planes:2, reward:60000, target:1},
+  {name:'High Pass citadel', icon:'🏔️', army:24, planes:2, reward:60000, target:1},
 ];
 const campType = c => c.planes ? 'air' : c.ships ? 'sea' : 'land';
 const planesBuilt = () => count(['plane1', 'plane2', 'plane3', 'plane4', 'plane5']);
@@ -144,7 +144,8 @@ function forcePower(branch) {
 function forceOptions(c) {
   const goal = campType(c), need = campNeed(c);
   return [
-    {b:'army', icon:'🪖', n:'Army', pow:forcePower('army'), ok:true, how:goal === 'sea' ? 'Lands from troop boats' : goal === 'air' ? 'Marches over the hills' : 'Marches out the south gate'},
+    // a sea target (the pirate cove, the old empire) needs ships to carry the army over
+    {b:'army', icon:'🪖', n:'Army', pow:forcePower('army'), ok:goal !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship'), how:goal === 'sea' ? (W.unlocked.has('boatyard') || W.unlocked.has('warship') ? 'Lands from troop boats' : 'Build a boatyard first: your army needs boats') : goal === 'air' ? 'Marches over the hills' : 'Marches out the south gate'},
     {b:'navy', icon:'⚓', n:'Navy', pow:forcePower('navy'), ok:goal === 'sea', how:goal === 'sea' ? (W.unlocked.has('warship') ? 'Warship and marines' : 'Build a warship first') : 'No coast to sail to'},
     {b:'air', icon:'✈️', n:'Air force', pow:forcePower('air'), ok:planesBuilt() > 0, how:planesBuilt() ? `${planesBuilt()} plane${planesBuilt() > 1 ? 's' : ''} fly the raid` : 'Build a fighter plane first'},
   ].map(o => ({...o, need, win:o.ok && o.pow >= need}));
@@ -175,6 +176,9 @@ function launchCamp(c, branch) {
   const at = goal === 'air' ? AIR_TARGETS[c.target] : goal === 'sea' ? [COAST.sites[site].x, COAST.z] : [BF.x, BF.z + 4];
   const n = type === 'air' ? planesBuilt() : 0, dur = {land:30, sea:44, air:42 + .7*Math.max(0, n - 1)}[type];
   W.camp = {t:dur, dur, type, goal, branch, ships:type === 'sea', ci:W.conquests, tx:at[0], tz:at[1], n};
+  // a tribe with its own place: the army marches out to it and fights there
+  const tsite = type === 'land' && goal === 'land' && TRIBE_SITES[W.conquests];
+  if (tsite) { const C = W.camp; C.away = true; C.bf = tsite; C.path = tribePath(tsite); C.id = Math.random(); C.t = C.dur = dur + Math.min(50, pathLen(C.path)/6.5); BF.x = tsite[0]; BF.z = tsite[1]; }
   if (goal === 'air') startAir(c);
   if (type === 'land') startBattle(c); else if (type === 'sea') startSea(); else if (goal === 'sea') { COAST.cur = coastFort(site); fortReset(COAST.cur); }
   banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
@@ -187,7 +191,8 @@ function updWar(dt) {
   if (W.camp.side) { endSideCamp(); return; }
   const c = CAMPAIGNS[W.conquests];
   const type = W.camp.type, goal = W.camp.goal || type;
-  W.camp = null; W.conquests++;
+  const was = W.camp; W.camp = null; W.conquests++;
+  if (was.away) { for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
   if (type === 'land') setTimeout(endBattle, 2500);
   if (goal === 'land') outpost(W.conquests - 1, true);
   if (type === 'sea' || goal === 'sea') endSea();

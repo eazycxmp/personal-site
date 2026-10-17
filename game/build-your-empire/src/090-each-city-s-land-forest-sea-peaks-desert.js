@@ -145,6 +145,8 @@ function empAct(i, a) {
     banner(`⛵ Trade fleet to ${r.icon} ${r.n}`, `Down the river and along the coast: +${pay} 💵 and better relations.`);
   } else if (a === 'land' || a === 'sea') {
     if (W.camp || W.raid) return;
+    // a walled city needs rams and catapults to break in
+    if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
     if (s.stance !== 'war') empAct(i, 'war');
     const win = myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
     W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random()};

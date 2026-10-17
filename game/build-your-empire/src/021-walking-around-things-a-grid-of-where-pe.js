@@ -91,6 +91,7 @@ function workAct(w, n0) {
 function updWorker(w, dt) {
   const before = w.stack.length;
   const gt = GATHER[w.kind];
+  if (gt && w.kind === 'mason' && masonHaul(w, dt)) return;
   if (gt) {
     const pile = gt.pile().outStack;
     if (w.state === 'idle' || w.state === 'toSrc') {
@@ -143,6 +144,8 @@ function updWorker(w, dt) {
       // and for a station that takes several things (the burger station), only as many as its share of the counter
       const ds = w.dst.kind === 'in' && ST[w.dst.st], ty = ds && ds.ins && w.src.st && (ST[w.src.st].out || ST[w.src.st].gen), gp = ty && ds.ins.find(q => q.includes(ty));
       if (gp && w.stack.count(gp) >= Math.floor(ds.inStack.cap/ds.ins.length) - ds.inStack.count(gp)) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
+      // the researcher stops once the library is down to the ten scrolls kept for the player
+      if (w.kind === 'researcher' && w.src.stack.length <= 10) { w.state = w.stack.length ? 'toDst' : 'idle'; break; }
       zoneAct(w, w.src, dt);
       w.wait = w.stack.length !== before ? 0 : w.wait + dt;
       if (w.stack.length >= w.cap || (w.stack.length && w.wait > 1.2)) w.state = 'toDst';

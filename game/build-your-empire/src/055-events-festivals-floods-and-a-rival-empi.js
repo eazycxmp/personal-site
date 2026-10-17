@@ -30,6 +30,12 @@ function updEvents(dt) {
   if (W.raid && !W.raid.siege) {
     W.raid.t -= dt;
     if (W.raid.t <= 0 && W.raid.revolt) { const k = W.raid.revolt; W.raid = null; setTimeout(endBattle, 2500); endRevolt(k); }
+    else if (W.raid.t <= 0 && W.raid.tribe != null) {
+      const R0 = W.raid, c = CAMPAIGNS[R0.tribe]; W.raid = null; setTimeout(() => { endBattle(); BT.lose = BT.noCap = false; }, 2500);
+      if (R0.win) { const loot = 300 + 200*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8}); banner(`🛡️ The ${c.name} are beaten off!`, `Your army takes ${loot} 💵 from them.`); }
+      else { const lost = Math.min(Math.floor(W.coins*.12), 5000 + 3000*W.era); spend(lost); banner(`🔥 The ${c.name} raid you!`, `They carry off ${lost} 💵. Train more soldiers before they come back.`); }
+      save();
+    }
     else if (W.raid.t <= 0) {
       W.raid = null; setTimeout(endBattle, 2500);
       W.rivalWins = (W.rivalWins || 0) + 1;

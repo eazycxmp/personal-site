@@ -20,6 +20,7 @@ const LOOKS = {
   tinker:{body:0x5a4a3a, apron:0x8a6a3a, hat:'helmet', hatCol:0x8a8f96},
   brewer:{body:0x8a5a2b, apron:0xd9c89a, hat:'beanie', hatCol:0x5a3a1a},
   barkeep:{body:0x2f6a4a, apron:0xffffff, hat:'beanie', hatCol:0x1f4a3a},
+  researcher:{body:0x5a3a7a, trim:0xe8e0d0, hat:'beanie', hatCol:0x2a1a3a},
   scholar:{body:0x2a3a6a, trim:0xe8e0d0, hat:'beanie', hatCol:0x1a1a3a},
   milkman:{body:0xf4f4f4, apron:0x3f7cc0, hat:'straw'},
   picker:{body:0x3f8a3a, hat:'straw', pants:0x5a4a3a},
@@ -55,6 +56,8 @@ const ROUTES = {
   brewer:{src:() => [outZone('field2'), outZone('field3'), outZone('field')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('brewery')},
   barkeep:{src:() => [outZone('brewery')], dst:() => TB.garden?.zone, line:'garden'},
   scholar:{src:() => [outZone('oven2'), outZone('oven')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('library')},
+  // only the surplus: the first ten scrolls stay in the library for the player's own scroll builds
+  researcher:{src:() => [outZone('library')].filter(z => z && z.stack.length > 10), dst:() => STUDY.zone},
   miner:{ranger:true, src:() => [oreZone], dst:() => inZone('smelter')},
   hauler:{ranger:true, src:() => [outZone('smelter')], dst:() => inZone('smith')},
   milkman:{src:() => [outZone('dairy')], dst:() => inZone('creamery')},

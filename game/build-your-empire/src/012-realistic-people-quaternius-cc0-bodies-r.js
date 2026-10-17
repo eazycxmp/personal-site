@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ realistic people (Quaternius CC0 bodies, rigged and animated)
-const QN = {smooth:true, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
+const QN = {smooth:true, DRAW:55, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
 // which part of the body each vertex belongs to, from the bone that moves it most: 0 skin, 1 torso, 2 upper arm, 3 forearm, 4 hips and thighs, 5 calves, 6 feet
 const QN_REGION = n => /^(hand|thumb|index|middle|ring|pinky)/.test(n) ? 7 : /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
 function qnInit() {
@@ -193,7 +193,8 @@ function makeQN(o) {
   if (!MOBILE) { const sh = new THREE.Mesh(G.plane, BLOB.mat); sh.rotation.x = -Math.PI/2; sh.position.y = .035; sh.scale.set(.8, .8, 1); sh.renderOrder = 1; g.add(sh); }
   // animation: one mixer, the clips started as they are first needed
   c.mixer = new THREE.AnimationMixer(root); c.acts = {}; c.state = ''; c.last = new THREE.Vector3(); c.spd = 0; c.ph = R();
-  c.root = root;
+  c.root = root; c.isHero = !!o.hero;
+  if (!o.hero) g.traverse(q => { if (q.isMesh && q.material !== BLOB.mat) q.castShadow = false; });
   QN.list.push(c); scene.add(g);
   return c;
 }
@@ -237,7 +238,10 @@ function updQN(dt) {
     c.spd += (moved - c.spd) * Math.min(1, dt*(QN.smooth ? 4 : 8));
     let vis = g.visible; for (let o = g.parent; vis && o && o !== scene; o = o.parent) vis = o.visible;
     QN.sphere.center.copy(p).setY(p.y + 1); QN.sphere.radius = 1.4;
-    if (!vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
+    // past the draw distance a person is a speck: don't draw or animate them (the hero always shows)
+    const far = !c.isHero && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
+    if (c.root.visible === far) c.root.visible = !far;
+    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
     c.seen = QN.frame;
     // what are they doing? the game poses the stand-in limbs; read the pose and pick the animation
     const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, lgR = c.legR.rotation.x, fall = g.rotation.x;
@@ -416,10 +420,12 @@ function collide(p, prev, fly) {
     const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), min = c.r + r;
     if (d < min && d > 1e-4) { p.x = c.x + dx/d*min; p.z = c.z + dz/d*min; }
   }
-  // stay on open ground: slide along the edge, or stop
-  if (!inArea(p.x, p.z)) {
-    if (inArea(p.x, prev.z)) p.z = prev.z;
-    else if (inArea(prev.x, p.z)) p.x = prev.x;
+  // stay on open ground: slide along the edge, or stop. You can roam the whole map, anywhere but the water (bridges
+  // and piers are open ground); everyone else keeps to the paths and plazas
+  const you = p === player.pos, ok = (x, z) => inArea(x, z) || (you && !isWater(x, z));
+  if (!ok(p.x, p.z)) {
+    if (ok(p.x, prev.z)) p.z = prev.z;
+    else if (ok(prev.x, p.z)) p.x = prev.x;
     else { p.x = prev.x; p.z = prev.z; }
   }
 }

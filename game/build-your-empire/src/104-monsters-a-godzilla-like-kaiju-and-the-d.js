@@ -39,7 +39,37 @@ function bossHit(from, to, color, size, dur, arc) {
   const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color, toneMapped:false})); b.scale.setScalar(size); b.position.copy(from); scene.add(b);
   flyers.push({m:b, from:from.clone(), to:to.clone(), t:0, dur, arc, done:() => { for (let i = 0; i < 6; i++) particle(i % 2 ? 0xff7a2a : 0xffd040, to, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), .6, .3, {grav:1}); }});
 }
+// the dragon lives here from the hamlet on: it flies a wide figure-eight over the land, banking into its turns,
+// now and then breathing fire at the sky, and every so often sweeps low over the camp. It only attacks later (above).
+const WILD_DRAGON = {g:null, a:0, fireT:20, swoop:0};
+function updWildDragon(dt) {
+  const D = WILD_DRAGON, show = W.era >= 1 && !BOSS.on && !TRIP.on;
+  if (!show) { if (D.g) D.g.visible = false; return; }
+  if (!D.g) { D.g = dragonModel(.9); if (!D.g) return; scene.add(D.g); D.g.traverse(o => { if (o.isMesh) o.castShadow = true; }); }
+  D.g.visible = true;
+  D.a += dt*.045;
+  // a low pass over the camp about once every few minutes
+  if ((D.swoop -= dt) < -24) D.swoop = 150 + R()*120;
+  const low = D.swoop < 0 ? Math.sin(-D.swoop/24*Math.PI) : 0;
+  const pos = a => new THREE.Vector3(78*Math.sin(a), 34 - 20*low + 5*Math.sin(a*3), -18 + 52*Math.sin(2*a)*.6);
+  const p = pos(D.a), q = pos(D.a + .01), dir = q.clone().sub(p);
+  D.g.position.copy(p);
+  const yaw = Math.atan2(dir.x, dir.z), turn = Math.atan2(Math.sin(yaw - (D.yaw ?? yaw)), Math.cos(yaw - (D.yaw ?? yaw))) / Math.max(dt, 1e-3);
+  D.yaw = yaw; D.g.rotation.set(-Math.atan2(dir.y, Math.hypot(dir.x, dir.z)), yaw, clamp(-turn*1.6, -.6, .6), 'YXZ');
+  const flap = Math.sin(time*(low ? 7 : 4.5));
+  if (D.g.wings[0]) D.g.wings[0].rotation.z = flap*.55; if (D.g.wings[1]) D.g.wings[1].rotation.z = -flap*.55;
+  if (D.g.parts.tail) D.g.parts.tail.rotation.y = Math.sin(time*2)*.25;
+  // a roar of fire into the sky
+  if ((D.fireT -= dt) <= 0) { D.fireT = 18 + R()*20; D.burst = 1.4; if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 70) snd(90, .6, 'sawtooth', .04, .5); }
+  if (D.burst > 0) {
+    D.burst -= dt; if (D.g.parts.jaw) D.g.parts.jaw.rotation.x = .35;
+    const m = D.g.parts.jaw ? D.g.parts.jaw.getWorldPosition(new THREE.Vector3()) : p.clone();
+    const fw = new THREE.Vector3(Math.sin(yaw), .25, Math.cos(yaw));
+    for (let k = 0; k < 3; k++) particle([0xffe080, 0xff8a2a, 0xd8321a][k], m.clone().addScaledVector(fw, .6), fw.clone().multiplyScalar(9 + R()*4).add(new THREE.Vector3((R() - .5)*2, (R() - .5)*2, (R() - .5)*2)), .7, .5, {grow:1.6, op:.9});
+  } else if (D.g.parts.jaw) D.g.parts.jaw.rotation.x = 0;
+}
 function updBoss(dt) {
+  updWildDragon(dt);
   if (!started) return;
   if (!BOSS.on) { if (W.era >= 4 && !W.camp && !W.raid && (BOSS.t -= dt) <= 0) { BOSS.t = 780 + R()*480; startBoss(); } return; }
   const B = BOSS.on, g = B.g; B.t += dt;

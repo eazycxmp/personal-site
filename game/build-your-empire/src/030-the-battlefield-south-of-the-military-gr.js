@@ -17,12 +17,15 @@ const pathLen = pts => pts.reduce((a, p, i) => a + (i ? Math.hypot(p[0] - pts[i 
 // walk straight to a point (the long roads are open country, so no steering needed)
 function march(e, x, z, dt, sp) {
   const dx = x - e.pos.x, dz = z - e.pos.z, d = Math.hypot(dx, dz);
-  if (d < .6) { e.vel.set(0, 0, 0); return true; }
+  // close enough, or held off the exact spot by the men round you for a couple of seconds: carry on
+  e.nearT = d < 1.5 ? (e.nearT || 0) + dt : 0;
+  if (d < .6 || e.nearT > 2) { e.vel.set(0, 0, 0); e.nearT = 0; return true; }
   const v = Math.min(sp, d/dt); e.vel.set(dx/d*v, 0, dz/d*v); e.pos.x += e.vel.x*dt; e.pos.z += e.vel.z*dt; return false;
 }
 // soldiers on a long march (out to a rival, or home again); true while marching
 function marchSoldier(s, i, dt, C) {
-  const ox = ((i % 4) - 1.5)*.75, oz = (Math.floor(i / 4) % 4)*.75;
+  // four abreast, each soldier with a place of their own in the column
+  const ox = ((i % 4) - 1.5)*.75, oz = Math.floor(i / 4)*.75;
   if (C && C.away && C.type === 'land') {
     const elapsed = C.dur - C.t;
     if (C.sail) {

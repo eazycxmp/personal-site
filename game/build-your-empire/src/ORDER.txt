@@ -29,6 +29,7 @@
 028-building-levels.js
 029-builders.js
 030-the-battlefield-south-of-the-military-gr.js
+030b-tribes-out-east.js
 031-a-real-fight-health-duels-volleys-knockb.js
 032-war-at-sea.js
 033-war-in-the-air.js
