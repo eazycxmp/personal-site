@@ -89,7 +89,7 @@ function updDistricts(dt) {
   // a welcome the first time you walk into each province
   for (const [style, S] of Object.entries(STYLE_SPOTS)) {
     if (!DISTRICT.built[style] || DISTRICT.enter[style]) continue;
-    const rect = S.rect || {x0:COAST.sites[S.site].x - 7.5, x1:COAST.sites[S.site].x + 7.5, z0:-91.6, z1:-80.5};
+    const rect = S.rect || {x0:COAST.sites[S.site].x - 7.5, x1:COAST.sites[S.site].x + 7.5, z0:-79.6, z1:-68.5};
     if (inRect(rect, player.pos.x, player.pos.z)) { DISTRICT.enter[style] = true; banner(`${S.flag} Welcome to ${S.n}`, 'Your province, in its own style.'); }
   }
 }

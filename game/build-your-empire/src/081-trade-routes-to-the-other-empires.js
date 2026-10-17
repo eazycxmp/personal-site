@@ -26,7 +26,7 @@ function ship(i) {
   const pay = Math.round(d.qty * (ITEM[d.good].sell || 2) * d.mult * (ally ? 1.25 : 1) * (1 + W.era*.15) * (onHwy ? 1.3 : 1));
   // a caravan, then a truck, rolls off down the east road
   const v = vehicle(W.era >= 6 ? 0x3f7cc0 : 0x8a5d36, 14, 1.6, W.era >= 6 ? 'car' : 'bus'); v.speed = 5;
-  driveTo(v, [[76, 1.6]], () => { v.g.visible = false; });
+  driveTo(v, [[66, 1.6]], () => { v.g.visible = false; });
   TRADE.trips.push({city:d.c.n, t:onHwy ? Math.round(d.c.far*.5) : d.c.far, pay, v});
   banner(`🚚 Shipment to ${d.c.icon} ${d.c.n}`, `${d.qty} ${ITEM[d.good].n.toLowerCase()} on the road. Back in ${d.c.far}s with ${pay} 💵.`);
   openTrade();

@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ the airport: airliners land, unload at the gate and take off again
 const JETS = [];
 function terminalFx(anim) {
-  const g = new THREE.Group(); g.position.set(-92.1, 0, -4); scene.add(g);
+  const g = new THREE.Group(); g.position.set(-37.1, 0, -4); scene.add(g);
   mesh(G.box, 0xeef1f4, [3, 2, 6], [0, 1, 0], g); mesh(G.box, 0x8fc6e8, [3.02, 1.1, 5.6], [0, 1.15, 0], g, {metalness:.5, roughness:.1});
   const roof = mesh(G.box, 0xdfe4ea, [3.6, .2, 6.6], [0, 2.1, 0], g); roof.rotation.x = .04;
   for (const z of [-2.2, 0, 2.2]) mesh(G.cyl, 0xdfe4ea, [.12, 2, .12], [1.6, 1, z], g);
@@ -9,8 +9,8 @@ function terminalFx(anim) {
   mesh(G.box, 0xb8bcc2, [1.6, .7, .7], [2.2, 1.6, -1], g, {metalness:.4}); mesh(G.cyl, 0x8a8f96, [.12, 1.3, .12], [2.8, .65, -1], g);
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('AIRPORT', '#0a2a5a', '#ffffff'), toneMapped:false}));
   sign.scale.set(2, .6, 1); sign.rotation.y = Math.PI/2; sign.position.set(1.52, 2.45, 0); g.add(sign);
-  slab(0x6a6e76, 3.2, 10, -89.6, -4, .006);
-  boxes.push({x0:-93.6, x1:-90.6, z0:-7, z1:-1});
+  slab(0x6a6e76, 3.2, 10, -34.6, -4, .006);
+  boxes.push({x0:-38.6, x1:-35.6, z0:-7, z1:-1});
   fader(g, 3.4, 2.6);
   if (anim) popIn(g);
 }
@@ -35,11 +35,11 @@ function makeJet(big, kind = 'pax', slot = 0) {
   else { const t = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('CARGO', '#c8ccd2', '#d97a10'), side:THREE.DoubleSide})); t.scale.set(1.4, .4, 1); t.rotation.y = Math.PI/2; t.position.set(.37, .25, .2); b.add(t); }
   }
   for (const [x, z] of [[0, 1.6], [-.5, 0], [.5, 0]]) mesh(G.cyl, 0x1a1a1a, [.1, .08, .1], [x, -.25, z], b).rotation.z = Math.PI/2;
-  const gate = [[-88.6, -2.6], [-88.6, -10.4], [-83.4, -12.6]][slot];
+  const gate = [[-33.6, -2.6], [-33.6, -10.4], [-28.4, -12.6]][slot];
   JETS[slot] = {g, big, cargo, slot, gate, t:0, leg:'away', wait:6 + slot*9};
   g.visible = false;
 }
-const JET = {hold:[-87, 12], top:[-87, -12]};
+const JET = {hold:[-32, 12], top:[-32, -12]};
 function jetPose(J, x, y, z, nx, ny, nz) {
   J.g.position.set(x, y, z); const dx = nx - x, dy = ny - y, dz = nz - z, h = Math.hypot(dx, dz);
   if (h > .001) { J.g.rotation.y = Math.atan2(dx, dz); J.g.rotation.x = -Math.atan2(dy, h); }
@@ -88,25 +88,25 @@ function landed(J) {
     const Ln = LINES.main; if (!Ln || Ln.q.length >= Ln.max) break;
     spawnIn(Ln); const c = Ln.q[Ln.q.length - 1];
     c.pos.set(gx - .3, 0, gz - .8 - i*.4);
-    c.pre = W.bridge ? [[-89.9, -1], [-89.9, 4.6], [BR.x0 - .4, BR.z], ...WEST_PATH()] : [[-89.9, -1], [-89.9, 9.6], [-78.4, 9.6], [-9.6, 9.6], [-1, 4.6], [5.6, 4.6], [7.2, 2.4]];
+    c.pre = W.bridge ? [[-34.9, -1], [-34.9, 4.6], [BR.x0 - .4, BR.z], ...WEST_PATH()] : [[-34.9, -1], [-34.9, 9.6], [-23.4, 9.6], [-9.6, 9.6], [-1, 4.6], [5.6, 4.6], [7.2, 2.4]];
   }
 }
 function terminal2Fx(anim) {
-  const g = new THREE.Group(); g.position.set(-92.1, 0, -10.6); scene.add(g);
+  const g = new THREE.Group(); g.position.set(-37.1, 0, -10.6); scene.add(g);
   mesh(G.box, 0xeef1f4, [3, 2.2, 4.4], [0, 1.1, 0], g); mesh(G.box, 0x8fc6e8, [3.02, 1.2, 4], [0, 1.25, 0], g, {metalness:.5, roughness:.1});
   const roof = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 4.6, 16, 1, false, 0, Math.PI), mat(0xdfe4ea, {metalness:.3})); roof.rotation.set(0, 0, Math.PI/2); roof.rotation.order = 'ZYX'; roof.rotation.set(Math.PI/2, 0, Math.PI/2); roof.scale.set(.65, 1, .25); roof.position.y = 2.2; g.add(roof);
   mesh(G.box, 0x8fc6e8, [1.2, 1, 1.6], [0, 1, 3.1], g, {metalness:.5, roughness:.1});
   mesh(G.box, 0xb8bcc2, [1.6, .7, .7], [2.2, 1.6, .2], g, {metalness:.4}); mesh(G.cyl, 0x8a8f96, [.12, 1.3, .12], [2.8, .65, .2], g);
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('TERMINAL 2', '#0a2a5a', '#ffffff'), toneMapped:false}));
   sign.scale.set(2.2, .55, 1); sign.rotation.y = Math.PI/2; sign.position.set(1.52, 2.5, 0); g.add(sign);
-  slab(0x6a6e76, 3.2, 5, -89.6, -10.6, .006);
-  boxes.push({x0:-93.6, x1:-90.6, z0:-12.8, z1:-8.4});
+  slab(0x6a6e76, 3.2, 5, -34.6, -10.6, .006);
+  boxes.push({x0:-38.6, x1:-35.6, z0:-12.8, z1:-8.4});
   fader(g, 3.4, 2.8);
   if (anim) popIn(g);
 }
 function cargoApronFx(anim) {
   const g = new THREE.Group(); scene.add(g);
-  slab(0x6a6e76, 5, 3.6, -83.4, -12.4, .006);
+  slab(0x6a6e76, 5, 3.6, -28.4, -12.4, .006);
   for (let i = 0; i < 6; i++) mesh(G.box, [0xd9443a, 0x3f7cc0, 0xf2a21a][i % 3], [.6, .45, .45], [-21.4 + (i % 3)*.7, .22 + Math.floor(i / 3)*.45, -10.4], g);
   if (anim) popIn(g);
 }

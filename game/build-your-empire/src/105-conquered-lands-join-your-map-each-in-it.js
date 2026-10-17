@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ conquered lands join your map, each in its own style
 const STYLE_SPOTS = {
-  austria:{n:'Ostberg', flag:'🇦🇹', rect:{x0:-9, x1:14, z0:111, z1:122.5}, centre:[2.5, 116.5]},
-  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:44, x1:58.5, z0:110, z1:121.5}, centre:[51.2, 115.8]},
+  austria:{n:'Ostberg', flag:'🇦🇹', rect:{x0:-9, x1:14, z0:99, z1:110.5}, centre:[2.5, 104.5]},
+  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:34, x1:48.5, z0:98, z1:109.5}, centre:[41.2, 103.8]},
   mideast:{n:'Pirate cove', flag:'🕌', site:'cove'}, russia:{n:'The old empire', flag:'⛪', site:'empire'},
   brazil:{n:'Port Azul', flag:'🇧🇷'}, china:{n:'Kumo', flag:'🏯'}, egypt:{n:'the Nile Kingdom', flag:'🐪'}, greece:{n:'Hellas', flag:'🏛️'},
   mexico:{n:'Aztlan', flag:'🌵'}, india:{n:'Rajpur', flag:'🐘'}, norway:{n:'the Sky Citadel', flag:'🛸'}};
@@ -53,12 +53,12 @@ function kitModel(kit, name, h) {
   return kit === 'c' ? castleModel(name, h) : styleModel(name, h, 0);
 }
 const LAYOUT2 = {
-  austria:[['c', 'cSpires', 7, 2.5, 118.6], ['s', 'chalet', 3.2, -6.5, 113.6], ['s', 'chalet', 3.2, 11.5, 113.6], ['s', 'chalet', 3.2, -6.5, 119.5], ['c', 'stall', 2.2, -2.2, 112.6], ['c', 'stall', 2.2, 7.4, 112.6], ['c', 'stall', 2.2, 10.8, 119.5]],
-  canada:[['s', 'logCabin', 3, 48, 117.5], ['s', 'logCabin', 3, 54.5, 117.5], ['s', 'maple', 3.6, 46, 112.5], ['s', 'maple', 3.6, 57, 113], ['c', 'stall', 2.2, 51.2, 112.6], ['c', 'stall', 2.2, 51.2, 119.6]],
-  mideast:[['c', 'cPalace', 6.5, 0, -84], ['s', 'souk', 2, -5.6, -82.5], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86]],
-  russia:[['s', 'onionChurch', 5.5, 0, -83.8], ['s', 'kremlinTower', 6, -5.4, -83], ['c', 'stall', 2.2, 5.4, -83.4], ['c', 'stall', 2.2, 5.4, -86.2]],
-  brazil:[['c', 'cTropic', 7, 0, -84.2], ['s', 'colonial', 3, -5.6, -82.6], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86.2]],
-  china:[['c', 'cHimeji', 8, 0, -84], ['s', 'chineseHouse', 2.4, -5.6, -82.6], ['c', 'stall', 2.2, 5.6, -83.4], ['c', 'stall', 2.2, -5.6, -86.2]]};
+  austria:[['c', 'cSpires', 7, 2.5, 106.6], ['s', 'chalet', 3.2, -6.5, 101.6], ['s', 'chalet', 3.2, 11.5, 101.6], ['s', 'chalet', 3.2, -6.5, 107.5], ['c', 'stall', 2.2, -2.2, 100.6], ['c', 'stall', 2.2, 7.4, 100.6], ['c', 'stall', 2.2, 10.8, 107.5]],
+  canada:[['s', 'logCabin', 3, 38, 105.5], ['s', 'logCabin', 3, 44.5, 105.5], ['s', 'maple', 3.6, 36, 100.5], ['s', 'maple', 3.6, 47, 101], ['c', 'stall', 2.2, 41.2, 100.6], ['c', 'stall', 2.2, 41.2, 107.6]],
+  mideast:[['c', 'cPalace', 6.5, 0, -72], ['s', 'souk', 2, -5.6, -70.5], ['c', 'stall', 2.2, 5.6, -71.4], ['c', 'stall', 2.2, -5.6, -74]],
+  russia:[['s', 'onionChurch', 5.5, 0, -71.8], ['s', 'kremlinTower', 6, -5.4, -71], ['c', 'stall', 2.2, 5.4, -71.4], ['c', 'stall', 2.2, 5.4, -74.2]],
+  brazil:[['c', 'cTropic', 7, 0, -72.2], ['s', 'colonial', 3, -5.6, -70.6], ['c', 'stall', 2.2, 5.6, -71.4], ['c', 'stall', 2.2, -5.6, -74.2]],
+  china:[['c', 'cHimeji', 8, 0, -72], ['s', 'chineseHouse', 2.4, -5.6, -70.6], ['c', 'stall', 2.2, 5.6, -71.4], ['c', 'stall', 2.2, -5.6, -74.2]]};
 const DSTYLE = {c2:'mideast', c4:'russia', c5:'canada', ...Object.fromEntries(EMP.list.map(r => ['r:' + r.id, r.style]))};
 const DPARTS = {};   // style -> [{g, x, z, name, zone, stall}]
 function castleModel(name, h) {
@@ -117,7 +117,7 @@ function updMarkets(dt) {
   if (!started || (stallT -= dt) > 0) return; stallT = 30;
   let pay = 0; const dmg = W.flags.dmg || {};
   for (const [style, parts] of Object.entries(DPARTS)) parts.forEach((p, i) => { if (p.stall && !(dmg[style] || []).includes(i)) pay += 150 + 40*W.era; });
-  if (pay && CASH.spoils) addCash(CASH.spoils, pay, {x:12.3, z:84.8});
+  if (pay && CASH.spoils) addCash(CASH.spoils, pay, {x:12.3, z:72.8});
   for (const [style, parts] of Object.entries(DPARTS)) for (const i of (dmg[style] || [])) if (R() < .6) { const p = parts[i]; if (p) for (let k = 0; k < 4; k++) particle(0x555555, new THREE.Vector3(p.x + (R() - .5)*2, 2 + R()*2, p.front - (p.fdir || -1)*1), new THREE.Vector3(0, 1.6, 0), 2.2, .5, {grow:.8, op:.55}); }
 }
 function buildDistrict(style, anim) {
@@ -127,17 +127,17 @@ function buildDistrict(style, anim) {
   if (S.site) {
     // coastal lands: the old fort comes down and the town grows behind the beach
     const f = coastFort(S.site); f.g.visible = false; ox = COAST.sites[S.site].x;
-    rect = {x0:ox - 7.5, x1:ox + 7.5, z0:-91.6, z1:-80.5};
-    clearForest({x0:rect.x0, x1:rect.x1, z0:-92, z1:-80});
-    slab(0xd8c49a, 15, 6, ox, -84, .004);
-    DISTRICT.ferryBack ||= addZone({kind:'ferry', back:true, x:-9, z:-89.2, icon:'⛵', tile:{alpha:1, size:84, label:'Sail home', fill:'rgba(30,90,140,.65)'}});
-    AREAS.push({x0:-120, x1:120, z0:-91.6, z1:-87.9});
+    rect = {x0:ox - 7.5, x1:ox + 7.5, z0:-79.6, z1:-68.5};
+    clearForest({x0:rect.x0, x1:rect.x1, z0:-80, z1:-68});
+    slab(0xd8c49a, 15, 6, ox, -72, .004);
+    DISTRICT.ferryBack ||= addZone({kind:'ferry', back:true, x:-9, z:-77.2, icon:'⛵', tile:{alpha:1, size:84, label:'Sail home', fill:'rgba(30,90,140,.65)'}});
+    AREAS.push({x0:-65, x1:100, z0:-79.6, z1:-75.9});
     if (!DISTRICT.sandbar) { DISTRICT.sandbar = true; for (let i = 0; i < 17; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.55, .12, 2.2], [-19.6 + i*.56, -.1, -89.7], scene); }
   } else {
     clearForest({x0:rect.x0 - 1, x1:rect.x1 + 1, z0:rect.z0 - 1, z1:rect.z1 + 1});
     slab(style === 'austria' ? 0xc8c0b0 : 0xa89a78, rect.x1 - rect.x0, rect.z1 - rect.z0, (rect.x0 + rect.x1)/2, (rect.z0 + rect.z1)/2, .004);
     // the road south across the old battlefield (to the southern lands)
-    if (style === 'austria' || style === 'canada') { AREAS.push({x0:-6, x1:12, z0:90.4, z1:108.8}, {x0:1.5, x1:4.5, z0:108.5, z1:111.5}); slab(0xb98f5c, 3, 3.2, 3, 110, .006); }
+    if (style === 'austria' || style === 'canada') { AREAS.push({x0:-6, x1:12, z0:78.4, z1:96.8}, {x0:1.5, x1:4.5, z0:96.5, z1:99.5}); slab(0xb98f5c, 3, 3.2, 3, 98, .006); }
     if (style === 'austria' && EV.rivalG) { scene.remove(EV.rivalG); EV.rivalG = null; EV.noRival = true; }
   }
   AREAS.push(rect);

@@ -8,12 +8,12 @@ function biomeFx(r) {
   const outside = (x, z) => Object.values(CITY_LAND).every(Q => x < Q.x0 - 1 || x > Q.x1 + 1 || z < Q.z0 - 1 || z > Q.z1 + 1);
   const clearOf = (x, z) => !EMP.list.some(q => q.bf && Math.abs(x - q.bf[0]) < 13 && Math.abs(z - q.bf[1]) < 13) && !WORLD.roads.some(rd => x > rd.x0 - 2 && x < rd.x1 + 2 && z > rd.z0 - 2 && z < rd.z1 + 2);
   if (!r.sky && b !== 'ocean') { clearForest({x0:A.x0, x1:A.x1, z0:A.z0, z1:A.z1}); slab(look.ground, A.x1 - A.x0, A.z1 - A.z0, (A.x0 + A.x1)/2, (A.z0 + A.z1)/2, .002); }
-  if (b === 'forest') ring(320, 40, 70, (x, z) => { if (outside(x, z) && clearOf(x, z) && z > 96 && Math.abs(x - 51) > 12) { const s = .9 + hash01(x, z)*.8; add('cyl', x, .7*s, z, .14*s, 1.4*s, .14*s, 0x5a3a22); add('cone', x, 2.3*s, z, .95*s, 2.6*s, .95*s, hash01(z, x) > .5 ? 0x24502a : 0x2f6a32); } });
+  if (b === 'forest') ring(320, 40, 70, (x, z) => { if (outside(x, z) && clearOf(x, z) && z > 84 && Math.abs(x - 41) > 12) { const s = .9 + hash01(x, z)*.8; add('cyl', x, .7*s, z, .14*s, 1.4*s, .14*s, 0x5a3a22); add('cone', x, 2.3*s, z, .95*s, 2.6*s, .95*s, hash01(z, x) > .5 ? 0x24502a : 0x2f6a32); } });
   if (b === 'desert') {
     slab(look.ground, 90, 124, cx + 5, cz - 12, .001); clearForest({x0:cx - 40, x1:cx + 50, z0:cz - 74, z1:cz + 50});
     ring(46, 36, 60, (x, z) => { if (outside(x, z) && clearOf(x, z) && Math.abs(z - 1.9) > 13) add('sph', x, -.4, z, 4 + hash01(x, 1)*5, 1.6 + hash01(z, 2)*1.6, 3 + hash01(x, z)*4, 0xe4c890, hash01(z, x)*3); });
-    for (const [px, pz, ps] of [[214, -54, 1], [232, -60, .7], [246, -50, .5]]) { const pm = mesh(G.cone4, 0xd8bc84, [11*ps, 10*ps, 11*ps], [px, 5*ps, pz], g); pm.rotation.y = Math.PI/4; boxes.push({x0:px - 7*ps, x1:px + 7*ps, z0:pz - 7*ps, z1:pz + 7*ps}); }
-    for (const [ox, oz] of [[192.5, -30], [192.5, 34]]) { mesh(G.box, 0xe0c890, [.9, 7, .9], [ox, 3.5, oz], g); mesh(G.cone4, 0xf2c200, [.65, 1, .65], [ox, 7.5, oz], g).rotation.y = Math.PI/4; }
+    for (const [px, pz, ps] of [[154, -54, 1], [172, -60, .7], [186, -50, .5]]) { const pm = mesh(G.cone4, 0xd8bc84, [11*ps, 10*ps, 11*ps], [px, 5*ps, pz], g); pm.rotation.y = Math.PI/4; boxes.push({x0:px - 7*ps, x1:px + 7*ps, z0:pz - 7*ps, z1:pz + 7*ps}); }
+    for (const [ox, oz] of [[182.5, -30], [182.5, 34]]) { mesh(G.box, 0xe0c890, [.9, 7, .9], [ox, 3.5, oz], g); mesh(G.cone4, 0xf2c200, [.65, 1, .65], [ox, 7.5, oz], g).rotation.y = Math.PI/4; }
     const O = CITY_OASIS.nile; mesh(G.cyl, 0x2a8ac8, [5.5, .1, 5], [(O.x0 + O.x1)/2, .03, (O.z0 + O.z1)/2], g, {roughness:.05, metalness:.3});
     for (let k = 0; k < 9; k++) { const a = k/9*Math.PI*2; palm(g, (O.x0 + O.x1)/2 + Math.cos(a)*6.4, (O.z0 + O.z1)/2 + Math.sin(a)*6); }
   }
@@ -25,16 +25,16 @@ function biomeFx(r) {
   }
   if (b === 'jungle') ring(380, 34, 66, (x, z) => { if (outside(x, z) && clearOf(x, z)) { const s = 1 + hash01(x, z)*.9; add('cyl', x, 1.1*s, z, .18*s, 2.2*s, .18*s, 0x4a3420); add('sph', x, 2.6*s, z, 1.5*s, 1*s, 1.5*s, hash01(z, x) > .5 ? 0x1e5a24 : 0x2a7a2e); } });
   if (b === 'beach') {
-    slab(0xead8a2, 32, 96, 316, cz, .003); clearForest({x0:300, x1:332, z0:cz - 48, z1:cz + 48});
-    for (let z = cz - 40; z <= cz + 40; z += 7) if (Math.abs(z - cz) > 3) palm(g, 304 + hash01(z, 1)*20, z);
+    slab(0xead8a2, 32, 96, 226, cz, .003); clearForest({x0:210, x1:242, z0:cz - 48, z1:cz + 48});
+    for (let z = cz - 40; z <= cz + 40; z += 7) if (Math.abs(z - cz) > 3) palm(g, 214 + hash01(z, 1)*20, z);
     // a stone pier into the sea with fishing boats along it
     mesh(G.box, 0xd8d4cc, [14, .5, 2.4], [336, .05, cz + 22], g); for (let k = 0; k < 3; k++) { mesh(G.box, 0xf2f2f2, [2.6, .5, 1], [332 + k*4, -.05, cz + 24.2], g); mesh(G.cyl, 0x6b4526, [.05, 1.6, .05], [332 + k*4, .8, cz + 24.2], g); }
   }
-  if (b === 'island') for (let k = 0; k < 26; k++) { const a = k/26*Math.PI*2; palm(g, 410 + Math.cos(a)*28, 50 + Math.sin(a)*28); }
+  if (b === 'island') for (let k = 0; k < 26; k++) { const a = k/26*Math.PI*2; palm(g, 280 + Math.cos(a)*28, 50 + Math.sin(a)*28); }
   if (b === 'ocean') {
     // decks over the water under the civic centre and a boardwalk to the shore; a lighthouse at the outer edge
     const C0 = cityPlan(r).core; slab(0x7a5a3c, C0.x1 - C0.x0, C0.z1 - C0.z0, (C0.x0 + C0.x1)/2, (C0.z0 + C0.z1)/2, .05);
-    slab(0x8a6a48, 3, -91.6 - C0.z1 + 1, cx, (C0.z1 - 91.6)/2, .05); AREAS.push({x0:cx - 1.5, x1:cx + 1.5, z0:C0.z1, z1:-80});
+    slab(0x8a6a48, 3, -79.6 - C0.z1 + 1, cx, (C0.z1 - 79.6)/2, .05); AREAS.push({x0:cx - 1.5, x1:cx + 1.5, z0:C0.z1, z1:-68});
     mesh(G.cyl, 0xf4f4f4, [.9, 8, .9], [cx + 30, 4, cz - 30], g); for (let k = 0; k < 3; k++) mesh(G.cyl, 0xd0302a, [.92, .7, .92], [cx + 30, 1.5 + k*2.2, cz - 30], g); bulb(g, cx + 30, 8.4, cz - 30, 0xfff2a0, .35);
   }
   if (b === 'sky') {
@@ -122,7 +122,7 @@ function updEmpires(dt) {
     s.rel = clamp(s.rel, -100, 100);
     if (s.stance === 'ally') {
       if (s.rel < 20) { s.stance = 'peace'; banner(`💔 ${r.icon} ${r.n} ends your alliance`, 'Send gifts and trade to keep friends.'); }
-      else if ((s.tribT = (s.tribT ?? 60) - t) <= 0) { s.tribT = 60; addCash(CASH.spoils || cash, Math.round(40 + s.pow*3), {x:12.3, z:84.8}); }
+      else if ((s.tribT = (s.tribT ?? 60) - t) <= 0) { s.tribT = 60; addCash(CASH.spoils || cash, Math.round(40 + s.pow*3), {x:12.3, z:72.8}); }
     } else if (s.stance === 'peace' && s.rel <= -50) {
       s.stance = 'war'; s.atkT = 100 + R()*80;
       banner(`⚔️ ${r.icon} ${r.n} declares war!`, `Their ⚔️${Math.round(s.pow)} vs your ${Math.round(mine)}. Grow your army, walls and science, or make peace in 🗺️.`);
@@ -155,8 +155,8 @@ function empAct(i, a) {
       const C = W.camp; C.away = true; C.bf = r.bf;
       if (r.via === 'sea') {
         const east = r.at[0] > 0, sx = east ? 1 : -1, land = [r.bf[0], r.bf[1] - 3];
-        C.sail = r.coast ? {board:6, pts:[[-13.6, -6], [-13.6, -60], [-13.6, -97], [r.bf[0]*.5, -97], [r.bf[0] - 10, -94], land], land}
-          : {board:6, pts:[[-13.6, -6], [-13.6, -60], [-13.6, -97], [sx*200, -104], [sx*345, -104], [sx*362, 10], land.map((v, k) => k ? v : v - sx*24)], land};
+        C.sail = r.coast ? {board:6, pts:[[-13.6, -6], [-13.6, -48], [-13.6, -85], [r.bf[0]*.5, -97], [r.bf[0] - 10, -94], land], land}
+          : {board:6, pts:[[-13.6, -6], [-13.6, -48], [-13.6, -85], [sx*200, -104], [sx*345, -104], [sx*362, 10], land.map((v, k) => k ? v : v - sx*24)], land};
         C.sail.dur = Math.min(40, pathLen(C.sail.pts) / 22); C.path = [];
         dur += C.sail.board + C.sail.dur;
       } else { C.path = armyPath(r); dur += Math.min(60, pathLen(C.path) / 6.5); }
@@ -178,7 +178,7 @@ function sailAway(war) {
 function updFleets(dt) {
   for (const f of [...COAST.fleets]) {
     f.t += dt; f.g.position.z -= dt*5;
-    if (f.g.position.z < -93) { f.g.rotation.y = Math.PI/2; f.g.position.z = -94; f.g.position.x += dt*5; }
+    if (f.g.position.z < -81) { f.g.rotation.y = Math.PI/2; f.g.position.z = -82; f.g.position.x += dt*5; }
     if (f.t > 40) { scene.remove(f.g); COAST.fleets.splice(COAST.fleets.indexOf(f), 1); }
   }
 }
@@ -204,13 +204,13 @@ function conquer(r) {
   const s = es(r), loot = Math.round(s.pow*150);
   s.owned = true; s.stance = 'owned';
   land('r:' + r.id);
-  addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8});
+  addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
   if (r.id === 'ostberg') rivalCity();
   W.flags.conqueredRivals = (W.flags.conqueredRivals || 0) + 1;
   const ownedN = EMP.list.filter(q => es(q).owned).length;
   if (ownedN >= EMP.list.length && !W.flags.worldEmperor) {
     W.flags.worldEmperor = true; const prize = 1000000;
-    setTimeout(() => { banner('👑 The whole world is yours!', `All ${EMP.list.length} rivals have joined your empire. ${prize} 💵 in tribute from every corner of the globe.`); addCash(CASH.spoils || cash, prize, {x:12.3, z:84.8}); [523, 659, 784, 1046, 1318, 1568, 2093].forEach((f, i) => setTimeout(() => snd(f, .25, 'triangle', .05), i*120)); }, 4500);
+    setTimeout(() => { banner('👑 The whole world is yours!', `All ${EMP.list.length} rivals have joined your empire. ${prize} 💵 in tribute from every corner of the globe.`); addCash(CASH.spoils || cash, prize, {x:12.3, z:72.8}); [523, 659, 784, 1046, 1318, 1568, 2093].forEach((f, i) => setTimeout(() => snd(f, .25, 'triangle', .05), i*120)); }, 4500);
   }
   banner(`🏴 ${r.icon} ${r.n} is yours! (${ownedN} of ${EMP.list.length} rivals)`, `Their whole realm joins your empire, with ${loot} 💵 in treasure. Win them over or they will revolt.`);
   [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));

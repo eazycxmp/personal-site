@@ -36,7 +36,7 @@ function updBuilder(w, dt, only) {
   if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
     w.job = builderJob(w, only);
     w.mode = 'fetch'; w.wait = 0; w.pile = null;
-    if (!w.job) { goTo(w, ...w.home, dt); return; }
+    if (!w.job) { if (!only && crewWork(w, dt)) return; goTo(w, ...w.home, dt); return; }
   }
   const p = w.job, cur = p.cur, pz = padZones[p.id], rem = p.cost - (W.paid[p.id] || 0);
   while (w.stack.length > w.stack.count([cur])) { const it = w.stack.take(Object.keys(ITEM).filter(k => k !== cur)); flyAway(it.mesh, w.pos.clone().setY(0), .3); }
@@ -108,5 +108,42 @@ function masonHaul(w, dt) {
   }
   updBuilder(w, dt, 'stone');
   if (!w.job && !w.stack.count(['stone'])) { w.hauling = false; w.state = 'idle'; }
+  return true;
+}
+
+// The extra builders grow into new jobs as the ages advance. When no tile needs materials, the 3rd builder becomes a
+// repair crew (from the Town: burned and ruined buildings at home and abroad), the 4th an upgrade crew (from the
+// Stronghold: building levels, but only while you have three times the price to spare) and the 5th a supply driver
+// (from the Empire: food to the supply depot). Building always comes first.
+const CREW = [{era:3, n:'repair crew', icon:'🛠️'}, {era:5, n:'upgrade crew', icon:'🏗️'}, {era:7, n:'supply driver', icon:'🚚'}];
+function crewRole(w) {
+  const k = workers.filter(o => o.kind === 'builder').indexOf(w) - 2, c = CREW[k];
+  if (!c || W.era < c.era) return null;
+  const seen = W.flags.crews ||= {};
+  if (!seen[k] && started) { seen[k] = 1; banner(`${c.icon} Your ${['3rd', '4th', '5th'][k]} builder becomes a ${c.n}`, k === 0 ? 'When nothing needs building they rebuild what burned or was ruined.' : k === 1 ? 'When nothing needs building they buy building levels with your spare cash.' : 'When nothing needs building they carry food to the supply depot.'); }
+  return k;
+}
+function crewWork(w, dt) {
+  const k = crewRole(w); if (k == null) return false;
+  const near = list => list.sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
+  if (k === 0) {
+    const z = near(zones.filter(q => q.kind === 'rebuild' || q.kind === 'fix')); if (!z || W.coins <= 0) return false;
+    if (goTo(w, z.x, z.z, dt) && (w.tick -= dt) <= 0) { if (z.kind === 'rebuild') payRebuild(z, w); else payFix(z, w); qnAct(w.char, 'fix', 1); }
+    return true;
+  }
+  if (k === 1) {
+    const z = near(Object.values(upZones).filter(q => q.active !== false && upCost(q.st) - (W.upPaid[q.st] || 0) > 0 && W.coins >= 3*(upCost(q.st) - (W.upPaid[q.st] || 0))));
+    if (!z) return false;
+    if (goTo(w, z.x, z.z, dt) && (w.tick -= dt) <= 0) { payUpgrade(z, w); qnAct(w.char, 'fix', 1); }
+    return true;
+  }
+  // the supply driver: from the station your lands want most to the depot
+  if (!SUP.zone) return false;
+  if (!w.stack.length || (w.crewSrc && w.stack.length < w.cap && w.crewSrc.stack.length)) {
+    const src = w.crewSrc && w.crewSrc.stack.length ? w.crewSrc : (w.crewSrc = clerkSrc()[0]); if (!src) { if (!w.stack.length) return false; }
+    else if (w.stack.length < w.cap) { if (goTo(w, src.x, src.z, dt)) zoneAct(w, src, dt); return true; }
+  }
+  w.crewSrc = null;
+  if (goTo(w, SUP.zone.x, SUP.zone.z, dt)) zoneAct(w, SUP.zone, dt);
   return true;
 }

@@ -41,7 +41,7 @@ function tripStep(dt) {
   if (dt > 0 && (T.wake -= dt) <= 0) {
     T.wake = .05;
     const back = new THREE.Vector3(-Math.sin(yaw)*2, 0, -Math.cos(yaw)*2).add(p);
-    if (p.y < .4 && (T.kind !== 'plane' || p.z < -92)) for (const sd of [-1, 1]) particle(0xf4fbff, back.clone().add(new THREE.Vector3(Math.cos(yaw)*sd*.5, .05, -Math.sin(yaw)*sd*.5)), new THREE.Vector3(Math.cos(yaw)*sd*.6, .35, -Math.sin(yaw)*sd*.6), .6, .06, {grow:.25, op:.55});
+    if (p.y < .4 && (T.kind !== 'plane' || p.z < -80)) for (const sd of [-1, 1]) particle(0xf4fbff, back.clone().add(new THREE.Vector3(Math.cos(yaw)*sd*.5, .05, -Math.sin(yaw)*sd*.5)), new THREE.Vector3(Math.cos(yaw)*sd*.6, .35, -Math.sin(yaw)*sd*.6), .6, .06, {grow:.25, op:.55});
   }
   player.pos.set(p.x, 0, p.z);
   if (u >= 1) endTrip();
@@ -56,7 +56,7 @@ function endTrip() {
 }
 // airstrips: home is the big runway; every province you hold gets a strip just outside town, or a seaplane dock on the coast
 const AIRSTRIPS = {};
-const HOME_AIR = {n:'🛫 Home airport', tile:[-85.8, -2.2], off:[-85.8, .2], arrive:[[-87, 16, -78], [-87, 6, -44], [-87, .2, -16], [-87, 0, 2], [-87, 0, 7]]};
+const HOME_AIR = {n:'🛫 Home airport', tile:[-30.8, -2.2], off:[-30.8, .2], arrive:[[-32, 16, -66], [-32, 6, -32], [-32, .2, -16], [-32, 0, 2], [-32, 0, 7]]};
 function stripFor(style) {
   const S = STYLE_SPOTS[style];
   if (S.site) {

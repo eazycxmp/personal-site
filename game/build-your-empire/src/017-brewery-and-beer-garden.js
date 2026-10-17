@@ -1,16 +1,16 @@
 // ------------------------------------------------------------------ brewery and beer garden
 function brewery(anim) {
-  const g = new THREE.Group(); g.position.set(53.5, 0, 75.5); scene.add(g); if (ST.brewery) ST.brewery.body = g;
+  const g = new THREE.Group(); g.position.set(43.5, 0, 63.5); scene.add(g); if (ST.brewery) ST.brewery.body = g;
   mesh(G.box, 0x8a5a3a, [2.4, 1.6, 1.9], [0, .8, 0], g); roofOn(g, 2.8, 2.4, .8, 2, 0x6a3a2a);
   for (const x of [-.6, .6]) { mesh(G.cyl, 0xc87a3a, [.42, .9, .42], [x, .45, 1.2], g, {metalness:.6, roughness:.3}); mesh(G.sph, 0xc87a3a, [.42, .2, .42], [x, .9, 1.2], g, {metalness:.6, roughness:.3}); }
   mesh(G.cyl, 0x7a7a7e, [.12, .8, .12], [.7, 2.4, -.4], g);
-  smokers.push({x:54.2, y:2.9, z:75.1});
+  smokers.push({x:44.2, y:2.9, z:63.1});
   fader(g, 2.6, 2.4);
   if (anim) popIn(g);
 }
 const SEATS = [...Array(6)].map((_, i) => [53.75 + i*.9, 88.95]);
 function beerGardenFx(anim) {
-  const g = new THREE.Group(); g.position.set(56, 0, 87.5); scene.add(g);
+  const g = new THREE.Group(); g.position.set(46, 0, 75.5); scene.add(g);
   mesh(G.box, 0x6b4526, [5.4, .9, 1.2], [0, .45, 0], g); mesh(G.box, 0x9a6a3a, [5.6, .1, 1.4], [0, .95, 0], g);
   mesh(G.box, 0x8a5a2b, [5.6, .12, .45], [0, .44, 1.75], g);
   for (const x of [-2.6, 2.6]) mesh(G.box, 0x5e3f22, [.1, .44, .4], [x, .22, 1.75], g);
@@ -18,7 +18,7 @@ function beerGardenFx(anim) {
   mesh(G.box, 0x5e3f22, [5.8, .05, .05], [0, 2.5, -.5], g);
   for (let i = 0; i < 12; i++) { const b = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:[0xffd36b, 0xff9a5a, 0xfff2b0][i % 3], toneMapped:false})); b.scale.setScalar(.07); b.position.set(-2.7 + i*.49, 2.4, -.5); g.add(b); }
   for (const x of [-4.3, 4.3]) { mesh(G.cyl, 0x5e3f22, [.05, 2, .05], [x, 1, 1.6], g); mesh(G.cone, 0xd9443a, [1, .5, 1], [x, 2.1, 1.6], g); }
-  boxes.push({x0:53.4, x1:58.6, z0:86.8, z1:88.2});
+  boxes.push({x0:43.4, x1:48.6, z0:74.8, z1:76.2});
   fader(g, 5.6, 2.6);
   if (anim) popIn(g);
 }

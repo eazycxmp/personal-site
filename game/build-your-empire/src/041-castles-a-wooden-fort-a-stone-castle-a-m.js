@@ -5,7 +5,7 @@ function castleStage(n, anim) {
   W.castle = n;
   if (castleG) { scene.remove(castleG); const i = FADERS.findIndex(f => f.g === castleG); if (i >= 0) FADERS.splice(i, 1); }
   drawbridge = null; turrets = [];
-  const cx = -4.2, cz = 87.85, g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); castleG = g;
+  const cx = -4.2, cz = 75.85, g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); castleG = g;
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
   const torch = (x, y, z) => { P(G.cyl, 0x3a2a1a, [.03, .35, .03], [x, y, z]); bulb(g, x, y + .25, z, 0xffa040, .07); };
   const banner = (x, y, z, c, ry = 0) => { const b = P(G.box, c, [.42, .9, .03], [x, y, z]); b.rotation.y = ry; P(G.box, 0xf2c200, [.43, .06, .035], [x, y + .42, z]).rotation.y = ry; };
@@ -118,7 +118,7 @@ function castleStage(n, anim) {
   ST.flag3 = P(G.box, n >= 3 ? 0xf2c200 : 0xd9443a, [1.1, .6, .03], [kxF + .56, top + 2.05, 0]);
   // the outer edge of the moat or walls is the footprint you walk around
   const ex = w/2 + (n === 3 ? 1.1 : .75), ez = d/2 + (n === 3 ? 1.1 : .5);
-  const b = boxes.find(b => b.castle); if (b) Object.assign(b, {x0:cx - ex, x1:cx + ex + (n === 3 ? .4 : 0), z0:Math.max(84.95, cz - ez), z1:90.6});
+  const b = boxes.find(b => b.castle); if (b) Object.assign(b, {x0:cx - ex, x1:cx + ex + (n === 3 ? .4 : 0), z0:Math.max(72.95, cz - ez), z1:78.6});
   fader(g, w + 1, top + 1.5);
   if (anim) { popIn(g); banner(CASTLE_NAMES[n], `Your stronghold now earns ${[0, 1, 1.5, 2, 2.5][n]}× the tribute from every soldier.`); }
 }

@@ -3,7 +3,7 @@ const SIEGE = {foes:[], ships:[], ladders:[], archers:[], win:true, r:null, brea
 function castleBox() { return boxes.find(b => b.castle && W.castle); }
 const INV = {on:false, units:[], r:null, t:0};
 function startInvasion(r) {
-  const pts = [...armyPath(r)].reverse().concat([[3, 104]]), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
+  const pts = [...armyPath(r)].reverse().concat([[3, 92]]), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
   Object.assign(INV, {on:true, r, pts, t:0, units:[]});
   for (let i = 0; i < 12; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; INV.units.push(e); }
   const from = r.via === 'east' ? 'east' : 'west';
@@ -48,7 +48,7 @@ function startSiege(r) {
     } else if (cb && i % 5 === 2 && gi < 3) { f.role = 'gate'; f.wx = cb.x1 + .7 + (gi % 2)*.5; f.wz = 87.4 + gi*.45; gi++; }
     SIEGE.foes.push(f);
   }
-  if (r.sea) for (const [x, z] of [[-14.4, 86], [-12.8, 90]]) { const p = makePirate(x, r.id === 'azul' ? -108 : 138); Object.assign(p, {tz:z, hp:win ? 4 : 9, sink:0}); SIEGE.ships.push(p); }
+  if (r.sea) for (const [x, z] of [[-14.4, 74], [-12.8, 78]]) { const p = makePirate(x, r.id === 'azul' ? -108 : 138); Object.assign(p, {tz:z, hp:win ? 4 : 9, sink:0}); SIEGE.ships.push(p); }
   // archers man the stone walls
   if (cb && W.castle >= 2) for (let k = 0; k < Math.min(6, W.castle*2); k++) {
     const c = makeChar(ARMS()); c.g.position.set(cb.x0 + 1 + k*((cb.x1 - cb.x0 - 2)/5), H - .1, cb.z1 - (W.castle === 3 ? 1.3 : .8)); scene.add(c.g); c.armR.rotation.x = -1.5; SIEGE.archers.push(c);
@@ -121,7 +121,7 @@ function updSiege(dt) {
   const afloat = SIEGE.ships.filter(p => !p.sink && Math.abs(p.tz - p.g.position.z) < .3);
   if (afloat.length && e > 10 && e < 42 && (SIEGE.shipT -= dt) <= 0) {
     SIEGE.shipT = 1.1;
-    const p = afloat[R()*afloat.length|0], tp = cb ? new THREE.Vector3(cb.x0 + R()*(cb.x1 - cb.x0), 1.2 + R(), cb.z0 + R()*(cb.z1 - cb.z0)) : new THREE.Vector3(3, 1, 78);
+    const p = afloat[R()*afloat.length|0], tp = cb ? new THREE.Vector3(cb.x0 + R()*(cb.x1 - cb.x0), 1.2 + R(), cb.z0 + R()*(cb.z1 - cb.z0)) : new THREE.Vector3(3, 1, 66);
     broadside(p.g.position, tp, R() < .7, () => particle(0x555555, tp, new THREE.Vector3(0, 2, 0), 1.6, .35, {grow:.6, op:.6}));
   }
   if (afloat.length && e > 12 && (SIEGE.gunT -= dt) <= 0) {
@@ -174,7 +174,7 @@ function endSiege() {
   for (const so of soldiers) if (so.down || so.fall) { so.down = false; so.fall = 0; so.hp = so.maxHp; so.char.g.rotation.x = 0; so.char.g.scale.setScalar(1); if (so.bar) so.bar.visible = false; }
   W.raid = null; BT.noCap = false;
   if (win) {
-    const loot = Math.round(atk*40); addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8});
+    const loot = Math.round(atk*40); addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
     s.pow *= .7; s.rel += 10; W.flags.siegesWon = (W.flags.siegesWon || 0) + 1;
     banner(`🛡️ The siege is broken!`, `${r.n} retreats. Your army takes ${loot} 💵 from their camp.`);
     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));

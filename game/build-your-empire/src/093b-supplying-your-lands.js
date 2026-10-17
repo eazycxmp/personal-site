@@ -19,7 +19,7 @@ const supplyOn = () => W.unlocked.has('supplyDepot');
 const landBaseTier = k => k[0] === 'r' ? (k === 'r:nordheim' ? 3 : 2) : [0, 1, 1, 0, 2, 1, 2][+k.slice(1)] ?? 1;
 function landSup(k) { const L = land(k); L.tier ??= landBaseTier(k); L.fed ??= .5; L.stock ||= {}; return L; }
 function landAt(k) {
-  if (k[0] === 'c') return campPlace(+k.slice(1)) || [3, 100];
+  if (k[0] === 'c') return campPlace(+k.slice(1)) || [3, 88];
   const r = EMP.list.find(q => 'r:' + q.id === k); return r ? r.at : [0, 0];
 }
 // how much of its pay a land keeps up: nothing when hungry, all of it when well fed (and as before, no depot yet)

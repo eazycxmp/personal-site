@@ -8,7 +8,7 @@ function spaceDressing(S) {
     fragmentShader:'uniform vec3 a; uniform vec3 b; varying float h; void main(){ gl_FragColor = vec4(mix(a, b, smoothstep(-.05, .45, h)), 1.0); }'}));
   sky.renderOrder = -1; S.sc.add(sky);
   // a ringed planet hangs in the sky
-  const pl = new THREE.Group(); pl.position.set(60, 55, -120); pl.rotation.set(.3, 0, .35); S.sc.add(pl);
+  const pl = new THREE.Group(); pl.position.set(50, 55, -108); pl.rotation.set(.3, 0, .35); S.sc.add(pl);
   pl.add(new THREE.Mesh(new THREE.SphereGeometry(14, 32, 20), new THREE.MeshStandardMaterial({color:mars ? 0xd8c0a0 : 0xe8d8c0, roughness:.9})));
   const ring = new THREE.Mesh(new THREE.RingGeometry(18, 27, 64), new THREE.MeshBasicMaterial({color:0xf0e0c8, side:THREE.DoubleSide, transparent:true, opacity:.75}));
   ring.rotation.x = Math.PI/2.1; pl.add(ring);
@@ -24,7 +24,7 @@ function spaceDressing(S) {
   }
   // ships overhead: a capital ship cruising high, fighters sweeping past
   const ship = n => MODELS.spacekit && MODELS.spacekit.getObjectByName(n);
-  if (ship('destroyer')) { const d = ship('destroyer').clone(true); d.scale.setScalar(2.2); d.position.set(-40, 42, -60); S.sc.add(d); S.capital = d; }
+  if (ship('destroyer')) { const d = ship('destroyer').clone(true); d.scale.setScalar(2.2); d.position.set(-40, 42, -48); S.sc.add(d); S.capital = d; }
   S.fighters = [];
   if (ship('starfighter')) for (let i = 0; i < 3; i++) { const f = ship('starfighter').clone(true); f.scale.setScalar(.7); S.sc.add(f); S.fighters.push(f); }
 }

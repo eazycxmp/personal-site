@@ -6,8 +6,8 @@ function bridgeStage(n, anim) {
   W.bridge = n;
   if (bridgeG) scene.remove(bridgeG);
   if (n === 1) {
-    makeCash('toll', -6.4, 4.6); clearForest({x0:-87, x1:-18, z0:3.4, z1:5.8}); slab(0xb98f5c, 9, 1.6, -82.3, BR.z, .006); slab(0xb98f5c, 60, 2.8, -48.2, BR.z, .006);
-    AREAS.push({x0:-86.6, x1:BR.x1 + .4, z0:BR.z - .68, z1:BR.z + .68}, {x0:-86.6, x1:BR.x0, z0:BR.z - 1.4, z1:BR.z + 1.4});   // you can walk the bridge and the road beyond
+    makeCash('toll', -6.4, 4.6); clearForest({x0:-32, x1:-18, z0:3.4, z1:5.8}); slab(0xb98f5c, 9, 1.6, -27.3, BR.z, .006); slab(0xb98f5c, 5, 2.8, -20.7, BR.z, .006);
+    AREAS.push({x0:-31.6, x1:BR.x1 + .4, z0:BR.z - .68, z1:BR.z + .68}, {x0:-31.6, x1:BR.x0, z0:BR.z - 1.4, z1:BR.z + 1.4});   // you can walk the bridge and the road beyond
   }
   const g = new THREE.Group(); g.position.set((BR.x0 + BR.x1)/2, 0, BR.z); scene.add(g); bridgeG = g;
   const L = BR.x1 - BR.x0;
@@ -70,13 +70,13 @@ function updBridge(dt) {
   if (!W.bridge) return;
   if (!walkers.length) for (let i = 0; i < 4; i++) {
     const c = makeChar({civ:true});
-    walkers.push({c, x:-86 + i*4, dir:i % 2 ? -1 : 1, sp:1.5 + R()*.6, ph:R()*6});
+    walkers.push({c, x:-31 + i*2, dir:i % 2 ? -1 : 1, sp:1.5 + R()*.6, ph:R()*6});
   }
   const top = DECK[W.bridge];
   for (const w of walkers) {
     w.x += w.dir * w.sp * dt;
     if (w.dir > 0 && w.x > BR.x1 - .4) { w.dir = -1; addCash(CASH.toll, 2 + 3*W.bridge, {x:-6.4, z:BR.z}); }
-    if (w.dir < 0 && w.x < -86) w.dir = 1;
+    if (w.dir < 0 && w.x < -31) w.dir = 1;
     const deck = w.x > BR.x0 && w.x < BR.x1;
     w.c.g.position.set(w.x, deck ? top : 0, BR.z + w.dir*.38);
     w.c.g.rotation.y = w.dir > 0 ? Math.PI/2 : -Math.PI/2;
@@ -85,3 +85,23 @@ function updBridge(dt) {
   }
 }
 
+// the commercial bridge: two lanes wide, for builders, bulldozers and vans, so they stop squeezing over the
+// airfield's footbridge; routes between the camp and the airfield take it first
+const TBR = {z:20, x0:-23.4, x1:-8.6, built:false};
+function tradeBridgeFx(anim) {
+  if (TBR.built) return; TBR.built = true;
+  const g = new THREE.Group(); scene.add(g); const L = TBR.x1 - TBR.x0, cx = (TBR.x0 + TBR.x1)/2;
+  mesh(G.box, 0xb8b4ac, [L, .4, 4.6], [cx, .05, TBR.z], g);                                      // the deck
+  mesh(G.box, 0x34373c, [L, .04, 3.6], [cx, .27, TBR.z], g);                                      // asphalt
+  for (let x = TBR.x0 + 1; x < TBR.x1; x += 2) mesh(G.box, 0xf2c200, [1, .02, .1], [x, .3, TBR.z], g);   // the centre line
+  for (const sz of [-2.2, 2.2]) {
+    mesh(G.box, 0x8a8f96, [L, .45, .12], [cx, .5, TBR.z + sz], g, {metalness:.5, roughness:.4});  // railings
+    for (let x = TBR.x0 + 1.5; x < TBR.x1; x += 4) { mesh(G.cyl, 0x5a5e66, [.05, 2.2, .05], [x, 1.35, TBR.z + sz], g, {metalness:.6}); bulb(g, x, 2.5, TBR.z + sz*.85, 0xffd890, .08); }
+  }
+  // two concrete arches under the deck, over the water
+  for (const x of [-18.6, -13.4]) { mesh(G.box, 0x9a958c, [1, 1.4, 4], [x, -.6, TBR.z], g); }
+  AREAS.push({x0:TBR.x0 - .4, x1:TBR.x1 + .4, z0:TBR.z - 2.1, z1:TBR.z + 2.1});
+  EDGES.unshift(['camp', 'airfield', [[TBR.x1 + .4, TBR.z], [TBR.x0 - .2, TBR.z]]]);
+  for (const w of workers) w.routeKey = null;                       // everyone re-plans their way
+  if (anim) { popIn(g); banner('🌉 The commercial bridge!', 'Two lanes over the river to the airfield: builders, bulldozers and vans take it now.'); }
+}

@@ -70,8 +70,8 @@ function decorSpot() {
   return [player.pos.x + s*1.8, player.pos.z + c*1.8];
 }
 // roads and queues where travelers, recruits and soldiers walk stay clear
-const NO_BUILD = [{x0:35, x1:61, z0:-.4, z1:3.3}, {x0:49.5, x1:61, z0:3, z1:5.4}, {x0:52, x1:61, z0:88.2, z1:91}, {x0:-10.4, x1:7.6, z0:3.7, z1:5.5},
-  {x0:-10.4, x1:2.8, z0:83.2, z1:85.2}, {x0:-10.4, x1:-8.4, z0:83, z1:91}, {x0:4.2, x1:6.2, z0:83, z1:91}];
+const NO_BUILD = [{x0:30.263, x1:51, z0:-.4, z1:3.3}, {x0:39.5, x1:51, z0:3, z1:5.4}, {x0:42, x1:51, z0:76.2, z1:79}, {x0:-10.4, x1:7.6, z0:3.7, z1:5.5},
+  {x0:-10.4, x1:2.8, z0:71.2, z1:73.2}, {x0:-10.4, x1:-8.4, z0:71, z1:79}, {x0:4.2, x1:6.2, z0:71, z1:79}];
 function decorFits(k, x, z) {
   const r = DECOR[k].r;
   if (NO_BUILD.some(a => x + r > a.x0 && x - r < a.x1 && z + r > a.z0 && z - r < a.z1)) return false;

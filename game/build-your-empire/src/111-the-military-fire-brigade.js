@@ -4,11 +4,11 @@ function milFireFx() {
   MILFIRE.built = true;
   const g = new THREE.Group(); scene.add(g);
   // a red-brick fire house with two bays, beside the hangars
-  mesh(G.box, 0xa83a2a, [5.6, 2.6, 3], [26.2, 1.3, 108.6], g); mesh(G.box, 0x6a2418, [6, .3, 3.4], [26.2, 2.75, 108.6], g);
-  for (const x of [24.9, 27.5]) mesh(G.box, 0xe8e4dc, [2, 1.9, .06], [x, .95, 107.08], g);
-  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('BASE FIRE', '#a83a2a', '#ffffff'), toneMapped:false})); sign.scale.set(2.4, .5, 1); sign.position.set(26.2, 2.2, 107.05); sign.rotation.y = Math.PI; g.add(sign);
-  boxes.push({x0:23.4, x1:29, z0:107.2, z1:110.1});
-  for (const x of [24.9, 27.5]) { const v = vehicle(0xc8221a, x, 105.4, 'fire'); v.g.rotation.y = Math.PI; MILFIRE.trucks.push(v); }
+  mesh(G.box, 0xa83a2a, [5.6, 2.6, 3], [80.2, 1.3, 106.6], g); mesh(G.box, 0x6a2418, [6, .3, 3.4], [80.2, 2.75, 106.6], g);
+  for (const x of [78.9, 81.5]) mesh(G.box, 0xe8e4dc, [2, 1.9, .06], [x, .95, 105.08], g);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('BASE FIRE', '#a83a2a', '#ffffff'), toneMapped:false})); sign.scale.set(2.4, .5, 1); sign.position.set(80.2, 2.2, 105.05); sign.rotation.y = Math.PI; g.add(sign);
+  boxes.push({x0:77.4, x1:83, z0:105.2, z1:108.1});
+  for (const x of [78.9, 81.5]) { const v = vehicle(0xc8221a, x, 103.4, 'fire'); v.g.rotation.y = Math.PI; MILFIRE.trucks.push(v); }
 }
 function updMilFire(dt) {
   if (!MILFIRE.built) { if (started && AIRBASE.built && W.unlocked.has('fireStation')) milFireFx(); else return; }
@@ -26,7 +26,7 @@ function updMilFire(dt) {
       continue;
     }
     // otherwise, a war fire burning near the base or the battlefield
-    const F = WARFIRE.list.find(f => f.t < 1e8 && f.t > 1 && !f.truck && Math.hypot(f.x - 8, f.z - 90) < 40);
+    const F = WARFIRE.list.find(f => f.t < 1e8 && f.t > 1 && !f.truck && Math.hypot(f.x - 8, f.z - 78) < 40);
     if (F) { F.truck = T; driveTo(T, [[F.x + 1.4, F.z + 1.4]], () => { T.wait = 2.5; F.t = Math.min(F.t, 2); for (let i = 0; i < 20; i++) particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((F.x - T.g.position.x)*.9 + (R() - .5), 2, (F.z - T.g.position.z)*.9 + (R() - .5)), .6, .09, {grav:1}); T.job = 'home'; }); }
   }
   // done at the job (the hose itself is the shared one in the war code): head home

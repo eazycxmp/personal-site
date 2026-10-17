@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ downtown: six lots that grow into skyscrapers
-const LOTS = [[47.5, -47.5], [52.5, -47.5], [57.5, -47.5], [47.5, -54.5], [52.5, -54.5], [57.5, -54.5]];
+const LOTS = [[37.5, -35.5], [42.5, -35.5], [47.5, -35.5], [37.5, -42.5], [42.5, -42.5], [47.5, -42.5]];
 const LOT_STAGES = [null, {n:'Townhouse', icon:'🏠', rent:30}, {n:'Apartments', icon:'🏢', rent:80}, {n:'Tower', icon:'🏬', rent:200}, {n:'Skyscraper', icon:'🏙️', rent:600}];
 const HOTEL_STAGES = [null, {n:'Motel', icon:'🛏️', rent:40}, {n:'Inn', icon:'🏨', rent:100}, {n:'Grand hotel', icon:'🏨', rent:240}, {n:'Neon hotel tower', icon:'🌃', rent:700}];
 const isHotel = i => i % 2 === 1;
@@ -89,23 +89,23 @@ function buildLot(i, stage, anim) {
   if (stage === 4) setEra(lotStage.every(s => s === 4) ? 9 : 8, anim);
 }
 function downtownStreets() {
-  for (const x of [50, 55]) slab(0x6e737c, 1.4, 16.7, x, -51.25, .004);
-  slab(0x6e737c, 17.2, 1.4, 52, -50.6, .006);
-  for (const [x, z] of [[50, -44], [55, -44], [50, -57.6], [55, -57.6], [45, -50.6], [60, -50.6]]) {
+  for (const x of [40, 45]) slab(0x6e737c, 1.4, 16.7, x, -39.25, .004);
+  slab(0x6e737c, 17.2, 1.4, 42, -38.6, .006);
+  for (const [x, z] of [[40, -32], [45, -32], [40, -45.6], [45, -45.6], [35, -38.6], [50, -38.6]]) {
     mesh(G.cyl, 0x3a3f46, [.06, 2.8, .06], [x + .9, 1.4, z], scene, {metalness:.5});
     const lamp = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xfff2c0, toneMapped:false})); lamp.scale.setScalar(.18); lamp.position.set(x + .9, 2.85, z); scene.add(lamp); lampMats.push(lamp.material);
   }
 }
 
 function windmill() {
-  const g = new THREE.Group(); g.position.set(59.3, 0, 75.6); scene.add(g);
+  const g = new THREE.Group(); g.position.set(49.3, 0, 63.6); scene.add(g);
   mesh(G.cyl, 0xe8dcc0, [1, 3.2, 1], [0, 1.6, 0], g); mesh(G.cone, 0x8a4a2a, [1.25, 1.2, 1.25], [0, 3.8, 0], g);
   const blades = new THREE.Group(); blades.position.set(0, 3.2, 1.05); g.add(blades);
   for (let i = 0; i < 4; i++) { const b = mesh(G.box, 0xf4ecd8, [.35, 2.2, .05], [0, 1.15, 0], new THREE.Group()); const arm = b.parent; arm.rotation.z = i*Math.PI/2; blades.add(arm); }
   ST.mill = blades; fader(g, 2.4, 4.5);
 }
 function digger(anim) {
-  const g = new THREE.Group(); g.position.set(10, 0, -56.5); scene.add(g); if (ST.digger) ST.digger.body = g;
+  const g = new THREE.Group(); g.position.set(10, 0, -44.5); scene.add(g); if (ST.digger) ST.digger.body = g;
   for (const z of [-.7, .7]) mesh(G.box, 0x2a2a2e, [2, .45, .45], [0, .23, z], g);
   mesh(G.box, 0xf2b705, [1.6, .8, 1.3], [0, .85, 0], g);
   mesh(G.box, 0xf2b705, [.8, .8, 1], [-.3, 1.65, 0], g); mesh(G.box, 0x9fd3e8, [.05, .5, .8], [.11, 1.7, 0], g);
@@ -117,21 +117,21 @@ function digger(anim) {
   if (anim) popIn(g);
 }
 function workshopFx(anim) {
-  const g = new THREE.Group(); g.position.set(9.6, 0, -46.6); scene.add(g); if (ST.workshop) ST.workshop.body = g;
+  const g = new THREE.Group(); g.position.set(9.6, 0, -34.6); scene.add(g); if (ST.workshop) ST.workshop.body = g;
   mesh(G.box, 0x8a6a4a, [2, 1.6, 2], [0, .8, 0], g);
   roofOn(g, 2.6, 2.6, .9, 2.1, 0x5a5f6a);
   mesh(G.box, 0x2a2a2e, [.5, .3, .3], [.6, .95, 1.05], g, {metalness:.6});
   mesh(G.cyl, 0x6a6a6e, [.18, 1, .18], [-.6, 2.6, -.5], g);
-  smokers.push({x:9, y:3.2, z:-47.1});
+  smokers.push({x:9, y:3.2, z:-35.1});
   fader(g, 2.6, 2.6);
   if (anim) popIn(g);
 }
 function warTableFx(anim) {
-  const g = new THREE.Group(); g.position.set(12.3, 0, 80.3); scene.add(g);
+  const g = new THREE.Group(); g.position.set(12.3, 0, 68.3); scene.add(g);
   mesh(G.box, 0x7a5a3a, [1.6, .12, 1], [0, .8, 0], g); mesh(G.box, 0xd9c99a, [1.4, .02, .8], [0, .87, 0], g);
   for (const [x, z] of [[-.7, -.4], [.7, -.4], [-.7, .4], [.7, .4]]) mesh(G.box, 0x5e3f22, [.1, .8, .1], [x, .4, z], g);
   for (const [x, z, c] of [[-.3, 0, 0xd9443a], [.2, .2, 0x3f7cc0], [.4, -.2, 0x3f7cc0]]) mesh(G.cone, c, [.07, .2, .07], [x, .98, z], g);
-  boxes.push({x0:11.4, x1:13.2, z0:79.7, z1:80.9});
+  boxes.push({x0:11.4, x1:13.2, z0:67.7, z1:68.9});
   if (anim) popIn(g);
 }
 function house(x, z, anim) {

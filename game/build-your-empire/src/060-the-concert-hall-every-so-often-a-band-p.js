@@ -1,10 +1,10 @@
 // ------------------------------------------------------------------ the concert hall: every so often a band plays to a crowd
-const GIG = {at:[51, 94.2], t:40, on:0, band:[], lights:[], noteT:0, beat:0};
+const GIG = {at:[41, 82.2], t:40, on:0, band:[], lights:[], noteT:0, beat:0};
 function concertFx(anim) {
-  clearForest({x0:44, x1:58, z0:91, z1:101});
-  slab(0x8a8478, 13, 8.6, GIG.at[0], 96.4, .004);
-  slab(0x8a8478, 3, 2.2, GIG.at[0] + 4, 91.5, .004);   // a path down from the farms
-  AREAS.push({x0:44.6, x1:57.4, z0:90.4, z1:100.6});
+  clearForest({x0:34, x1:48, z0:79, z1:89});
+  slab(0x8a8478, 13, 8.6, GIG.at[0], 84.4, .004);
+  slab(0x8a8478, 3, 2.2, GIG.at[0] + 4, 79.5, .004);   // a path down from the farms
+  AREAS.push({x0:34.6, x1:47.4, z0:78.4, z1:88.6});
   boxes.push({x0:GIG.at[0] - 3.6, x1:GIG.at[0] + 3.6, z0:GIG.at[1] - 1.6, z1:GIG.at[1] + 1.6}, {x0:GIG.at[0] - 4.4, x1:GIG.at[0] - 3.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4}, {x0:GIG.at[0] + 3.4, x1:GIG.at[0] + 4.4, z0:GIG.at[1] + .4, z1:GIG.at[1] + 1.4});
   const g = new THREE.Group(); g.position.set(GIG.at[0], 0, GIG.at[1]); scene.add(g); GIG.g = g;
   mesh(G.box, 0x2a2a30, [7, .8, 3], [0, .4, 0], g); mesh(G.box, 0x3a3a42, [7.2, .08, 3.2], [0, .82, 0], g);
@@ -41,7 +41,7 @@ function updConcert(dt) {
     banner(ARENA.lv >= 2 ? '🎤 Stadium concert tonight!' : '🎸 Concert tonight!', 'The band takes the stage at the arena. Fans dance down the front and the whole town cheers up.');
     for (let i = 0; i < 14 && movers.length < MAX_MOVERS; i++) {
       const x = GIG.at[0] - 3 + (i % 7)*1, z = GIG.at[1] + 3.6 + Math.floor(i / 7)*1.1;
-      spawnMover([[59.5 - R()*8, 90.4], [x + (R() - .5)*.4, z]], null, false);
+      spawnMover([[49.5 - R()*8, 78.4], [x + (R() - .5)*.4, z]], null, false);
       const m = movers[movers.length - 1]; m.fan = true; m.path.push([x, z]); GIG.fans++;
     }
   }
@@ -66,11 +66,11 @@ function updConcert(dt) {
   }
   if (GIG.on <= 0) {
     const pay = Math.round(GIG.fans * (150 + 30*W.era) * [1, 1, 2, 3][ARENA.lv]);
-    addCash(CASH.concert, pay, {x:57.6, z:90.1});
-    popText(`🎟️ +${pay} tickets`, new THREE.Vector3(57.6, 3, 90.1), '#ffe06b');
+    addCash(CASH.concert, pay, {x:47.6, z:78.1});
+    popText(`🎟️ +${pay} tickets`, new THREE.Vector3(47.6, 3, 78.1), '#ffe06b');
     for (const s of strollers) if (s.need) s.need.fun = 100;
     // fans head home
-    for (const m of movers) if (m.fan) { m.fan = false; m.wait = 0; m.path.push([59.5 - R()*8, 90.4], [61, 90.4]); }
+    for (const m of movers) if (m.fan) { m.fan = false; m.wait = 0; m.path.push([49.5 - R()*8, 78.4], [51, 78.4]); }
   }
 }
 

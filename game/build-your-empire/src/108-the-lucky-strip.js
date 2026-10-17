@@ -2,11 +2,11 @@
 // The Strip is a long boulevard south of the wonders park: two lanes either side of a planted median, wide sidewalks,
 // and the resorts on big lots with room round them (28 apart), four to a side. The walk in from the park comes
 // down between the third and fourth lots on the north side.
-const STRIP_Z = 150, STRIP_X0 = -162, STRIP_X1 = -50, STRIP_HALF = 8.7;
-const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-77.2, x1:-74.3, z0:66.5, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-80.6, x1:-74.3, z0:66.5, z1:69.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
+const STRIP_Z = 120, STRIP_X0 = -135, STRIP_X1 = -23, STRIP_HALF = 8.7;
+const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-34, x1:-28, z0:79, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-25.6, x1:-19.3, z0:42.5, z1:45.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
 // lot centres: four on the north side (facing south onto the boulevard), four on the south side (facing north)
 const STRIP_N = STRIP_Z - STRIP_HALF - 6, STRIP_S = STRIP_Z + STRIP_HALF + 6;
-const STRIP_LOTS = {slots:[-150, STRIP_N], casino1:[-122, STRIP_N], casino2:[-94, STRIP_N], casino3:[-64, STRIP_N], chapel:[-150, STRIP_S], fountains:[-122, STRIP_S], stripHotel:[-94, STRIP_S], casino4:[-64, STRIP_S]};
+const STRIP_LOTS = {slots:[-123, STRIP_N], casino1:[-95, STRIP_N], casino2:[-67, STRIP_N], casino3:[-37, STRIP_N], chapel:[-123, STRIP_S], fountains:[-95, STRIP_S], stripHotel:[-67, STRIP_S], casino4:[-37, STRIP_S]};
 const STRIP_PAY = {slots:1, chapel:.5, casino1:3, casino2:7, casino3:14, casino4:28, stripHotel:4};
 function stripNeonTex(text, col, w = 512, h = 128) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -71,7 +71,7 @@ function stripFx(anim) {
   if (typeof wondersPark === 'function') wondersPark();
   const g = STRIP.g = new THREE.Group(); scene.add(g);
   const W0 = STRIP.walk, P0 = STRIP.path, S0 = STRIP.spur;
-  clearForest({x0:STRIP_X0 - 1, x1:STRIP_X1 + 1, z0:STRIP_N - 13, z1:STRIP_S + 13}); clearForest({x0:-81, x1:-73.5, z0:65.5, z1:STRIP_Z});
+  clearForest({x0:STRIP_X0 - 1, x1:STRIP_X1 + 1, z0:STRIP_N - 13, z1:STRIP_S + 13}); clearForest({x0:-35, x1:-27, z0:79, z1:STRIP_Z});
   // the desert floor, the walk in from the wonders park, the boulevard, its median and its sidewalks
   const L = STRIP_X1 - STRIP_X0, CX = (STRIP_X0 + STRIP_X1)/2;
   slab(0xd8b47a, L + 2, STRIP_S - STRIP_N + 26, CX, STRIP_Z, .003);
@@ -82,7 +82,7 @@ function stripFx(anim) {
   AREAS.push(W0, P0, S0);
   // palms down the median and along both sidewalks, streetlights between them
   for (let x = STRIP_X0 + 4; x < STRIP_X1 - 2; x += 9) { palm(g, x, STRIP_Z); circles.push({x, z:STRIP_Z, r:.3}); }
-  for (let x = STRIP_X0 + 2; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 7.9, STRIP_Z + 7.9]) { if (Math.abs(x + 75.75) < 3) continue; palm(g, x, z); circles.push({x, z, r:.25}); }
+  for (let x = STRIP_X0 + 2; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 7.9, STRIP_Z + 7.9]) { if (Math.abs(x + 48.75) < 3) continue; palm(g, x, z); circles.push({x, z, r:.25}); }
   for (let x = STRIP_X0 + 9; x < STRIP_X1; x += 14) for (const z of [STRIP_Z - 4.4, STRIP_Z + 4.4]) { mesh(G.cyl, 0x2a2a2e, [.05, 3.6, .05], [x, 1.8, z], g); STRIP.lamps = (STRIP.lamps || []).concat(bulb(g, x, 3.55, z + (z < STRIP_Z ? .35 : -.35), 0xfff2c8, .12)); circles.push({x, z, r:.15}); }
   // the welcome sign, across from the walk in
   const sg = new THREE.Group(); sg.position.set(-75.75, 0, STRIP_Z + STRIP_HALF + .7); g.add(sg);
@@ -97,7 +97,7 @@ function stripFx(anim) {
     for (let i = 0; i < 24; i++) { const a = i/24*Math.PI*2; q.fillStyle = '#ffd040'; q.beginPath(); q.arc(256 + Math.cos(a)*235, 165 + Math.sin(a)*140, 6, 0, 7); q.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })(), transparent:true, toneMapped:false, side:THREE.DoubleSide}));
   board.scale.set(3.2, 2, 1); board.position.set(0, 3.2, 0); sg.add(board); STRIP.neon.push({m:board, ph:0});
-  STRIP.cash = makeCash('vegas', -78.9, STRIP_Z - 6.3);
+  STRIP.cash = makeCash('vegas', -51.9, STRIP_Z - 6.3);
   if (anim) popIn(g);
 }
 function stripLot(id, anim) {
@@ -205,8 +205,8 @@ function updStrip(dt) {
   const take = stripTake();
   if (started && take && (STRIP.t -= dt) <= 0) {
     STRIP.t = 10; const v = Math.round((800 + 300*W.era) * take * .7);   // casinos pay well, not wildly
-    addCash(STRIP.cash, v, {x:-76, z:STRIP_Z});
-    if (Math.hypot(player.pos.x + 76, player.pos.z - STRIP_Z) < 50) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-76, 4, STRIP_Z), '#ffe06b');
+    addCash(STRIP.cash, v, {x:-49, z:STRIP_Z});
+    if (Math.hypot(player.pos.x + 49, player.pos.z - STRIP_Z) < 50) popText(`🎰 +${v.toLocaleString()} casino takings`, new THREE.Vector3(-49, 4, STRIP_Z), '#ffe06b');
   }
   // tourists stroll the Strip
   const want = Math.min(16, 4 + Object.keys(STRIP.lots).length*2);

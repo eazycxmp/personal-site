@@ -4,11 +4,11 @@ const boatIn = new THREE.Vector2();
 // every dock: where you stand to board (land) and where the boat waits (water)
 const DOCKS = [
   {n:'the harbour', land:[-9.2, -2.6], water:[-13.6, -2.6], off:[-8.2, -1.3]},
-  {n:'the coast', land:[-5.6, -89.6], water:[-5.6, -95], off:[-5.6, -88.4]},
-  {n:'the east coast', land:[318, 1.9], water:[338, 1.9], off:[315.6, 1.9]},
-  {n:'the west coast', land:[-318, 12.1], water:[-338, 12.1], off:[-315.6, 12.1]},
-  {n:'the east island', land:[410 - 19, 50], water:[410 - 40, 50], off:[410 - 16.5, 50]},
-  {n:'the west island', land:[-410 + 19, 50], water:[-410 + 40, 50], off:[-410 + 16.5, 50]}];
+  {n:'the coast', land:[-5.6, -77.6], water:[-5.6, -83], off:[-5.6, -76.4]},
+  {n:'the east coast', land:[228, 1.9], water:[248, 1.9], off:[225.6, 1.9]},
+  {n:'the west coast', land:[-258, 12.1], water:[-278, 12.1], off:[-255.6, 12.1]},
+  {n:'the east island', land:[280 - 19, 50], water:[280 - 35, 50], off:[280 - 16.5, 50]},
+  {n:'the west island', land:[-310 + 19, 50], water:[-310 + 35, 50], off:[-310 + 16.5, 50]}];
 function isWater(x, z) {
   const wx = wrapX(x);
   if (onIsland(wx, z, 3.6)) return false;
@@ -63,7 +63,7 @@ function boatStep(dt) {
   // round the world: one full lap, back past home longitude
   if (Math.abs(W.flags.lap || 0) >= 1 && Math.sign(prevX) !== Math.sign(B.pos.x) && Math.abs(B.pos.x) < 60) {
     W.flags.lap = 0; W.flags.circumnav = (W.flags.circumnav || 0) + 1; const pay = 25000 + 5000*W.era;
-    addCash(CASH.spoils || cash, pay, {x:12.3, z:84.8});
+    addCash(CASH.spoils || cash, pay, {x:12.3, z:72.8});
     banner('🌍 You sailed around the world!', `The whole empire cheers. ${pay} 💵 in prize money${W.flags.circumnav > 1 ? ` (lap ${W.flags.circumnav})` : ''}.`);
     [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110)); save();
   }
@@ -78,9 +78,9 @@ function boatStep(dt) {
   if (B.near && keys.q) boatOff(B.near);
 }
 function takeFerry(zn) {
-  const down = [[-12.3, -.26, .9], [-13.6, -.26, -6], [-13.4, -.26, -40], [-13.7, -.26, -75], [-13.2, -.26, -93], [-10.5, -.26, -95.2], [-8.6, -.26, -94.4]];
-  if (startTrip('boat', zn.back ? [...down].reverse() : down, zn.back ? {at:[-8.86, 2.2], title:'⛵ Back at the harbour', sub:'Welcome home.'} : {at:[-9, -90.4], title:'⛵ Ashore on the coast', sub:'Walk along the beach to your coastal provinces.'}, zn.back ? '⛵ Sailing home up the river' : '⛵ Sailing down the river to the coast')) return;
-  const to = zn.back ? [-8.86, 2.2] : [-9, -90.4];
+  const down = [[-12.3, -.26, .9], [-13.6, -.26, -6], [-13.4, -.26, -29.841], [-13.7, -.26, -63], [-13.2, -.26, -81], [-10.5, -.26, -83.2], [-8.6, -.26, -82.4]];
+  if (startTrip('boat', zn.back ? [...down].reverse() : down, zn.back ? {at:[-8.86, 2.2], title:'⛵ Back at the harbour', sub:'Welcome home.'} : {at:[-9, -78.4], title:'⛵ Ashore on the coast', sub:'Walk along the beach to your coastal provinces.'}, zn.back ? '⛵ Sailing home up the river' : '⛵ Sailing down the river to the coast')) return;
+  const to = zn.back ? [-8.86, 2.2] : [-9, -78.4];
   for (let i = 0; i < 16; i++) particle(0xe8f8ff, player.pos.clone().setY(.2), new THREE.Vector3((R() - .5)*3, 1 + R()*2, (R() - .5)*3), .6, .15, {grav:1});
   player.pos.set(to[0], 0, to[1]); camera.position.set(to[0] + 11.8, 19, to[1] + 11.8);
   banner(zn.back ? '⛵ Back at the harbour' : '⛵ Down the river to the coast', zn.back ? 'Welcome home.' : 'Walk along the beach to your coastal provinces.');

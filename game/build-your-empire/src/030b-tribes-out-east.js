@@ -2,9 +2,9 @@
 // The bandit camp, the rival village and the hill clans each live further out along the east road. The army marches
 // there and back to fight, and until it does, the next of them now and then sends a war band against you.
 // out past the eastern mountains (the air war's range, x 77-122), short of the Nile's lands
-const TRIBE_SITES = {0:[132, 8], 1:[152, 8], 3:[172, 8]};
+const TRIBE_SITES = {0:[122, 8], 1:[142, 8], 3:[162, 8]};
 const TRIBE = {built:{}, raidT:420, band:null};
-const tribePath = site => [[3, 46], [3, 13.2], [12.6, 1.6], [45.4, 1.6], [site[0] - 10, 1.9], [site[0] - 3, 4]];
+const tribePath = site => [[3, 34], [3, 13.2], [12.6, 1.6], [35.4, 1.6], [site[0] - 10, 1.9], [site[0] - 3, 4]];
 // a settlement south of the road: huts, a palisade arc and a campfire (it becomes your outpost once taken)
 function tribeVillage(ci) {
   const site = TRIBE_SITES[ci]; if (!site || TRIBE.built[ci]) return; TRIBE.built[ci] = true;
@@ -48,7 +48,7 @@ function updTribes(dt) {
   if (!c || !TRIBE_SITES[ci] || W.era < 1 || !W.unlocked.has('barracks') || W.camp || W.raid || BOSS.on || (typeof INV !== 'undefined' && INV.on)) return;
   if ((TRIBE.raidT -= dt) > 0) return;
   TRIBE.raidT = 360 + R()*180;
-  const site = TRIBE_SITES[ci], pts = [...tribePath(site)].reverse().concat([[3, 104]]), n = Math.min(12, 4 + 2*ci + Math.floor(W.era/2));
+  const site = TRIBE_SITES[ci], pts = [...tribePath(site)].reverse().concat([[3, 92]]), n = Math.min(12, 4 + 2*ci + Math.floor(W.era/2));
   const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, ci)];
   const units = []; for (let i = 0; i < n; i++) { const e = entity(look, site[0] + ((i % 4) - 1.5)*.8, site[1] + Math.floor(i / 4)*.8, 6, 0); e.pi = 0; units.push(e); }
   TRIBE.band = {ci, n, pts, units, t:0};

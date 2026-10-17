@@ -17,7 +17,7 @@ function troopStage(n, anim) {
   if (anim && n !== 4) banner(`${['', '🏛️', '🪓', '🛡️', '', '🎖️'][n]} ${TROOPS[n].n}!`, 'Your soldiers re-equip for a new age. Campaigns need fewer of them.');
 }
 function gunRack(anim) {
-  const g = new THREE.Group(); g.position.set(-5, 0, 78.5); scene.add(g);
+  const g = new THREE.Group(); g.position.set(-5, 0, 66.5); scene.add(g);
   for (const x of [-1.15, -.35]) mesh(G.box, 0x5e3f22, [.08, .9, .08], [x, .45, .75], g);
   mesh(G.box, 0x5e3f22, [.9, .07, .1], [-.75, .8, .75], g);
   for (let i = 0; i < 4; i++) {

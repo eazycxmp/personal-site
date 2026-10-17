@@ -1,19 +1,19 @@
 // ------------------------------------------------------------------ space mining: an asteroid belt, a Moon hotel and a space elevator
 function spaceElevatorFx(anim) {
   const g = new THREE.Group(); scene.add(g); SPACE.elev = g;
-  mesh(G.cyl, 0xdfe4ea, [.12, 220, .12], [-91, 110, 8], g, {metalness:.6});
-  mesh(G.cyl, 0x8a8f96, [1.4, .6, 1.4], [-91, 7.6, 8], g, {metalness:.5});
+  mesh(G.cyl, 0xdfe4ea, [.12, 220, .12], [-36, 110, 8], g, {metalness:.6});
+  mesh(G.cyl, 0x8a8f96, [1.4, .6, 1.4], [-36, 7.6, 8], g, {metalness:.5});
   const car = new THREE.Group(); g.add(car); SPACE.climber = car;
   mesh(G.cyl, 0xf4f6f8, [.5, .8, .5], [0, 0, 0], car, {metalness:.4}); mesh(G.cyl, 0x8fc6e8, [.52, .3, .52], [0, .1, 0], car, {metalness:.5, roughness:.1}); bulb(car, 0, .5, 0, 0x5af0ff, .08);
   if (anim) popIn(g);
 }
 function updSpaceMining(dt) {
-  if (SPACE.climber) { const u = (Math.sin(time*.15) + 1) / 2; SPACE.climber.position.set(-91, 8 + u*60, 8); }
+  if (SPACE.climber) { const u = (Math.sin(time*.15) + 1) / 2; SPACE.climber.position.set(-36, 8 + u*60, 8); }
   if (!started) return;
   if ((SPACE.mineT = (SPACE.mineT ?? 20) - dt) <= 0) {
     SPACE.mineT = 20;
     const pay = (W.unlocked.has('asteroid') ? 30000 : 0) + (W.unlocked.has('moonHotel') ? 20000 : 0) + (W.unlocked.has('spaceElevator') ? 45000 : 0);
-    if (pay) { W.coins += pay; W.earned += pay; popText(`☄️ +${pay} from space`, new THREE.Vector3(-91, 5, 6), '#ffe06b'); }
+    if (pay) { W.coins += pay; W.earned += pay; popText(`☄️ +${pay} from space`, new THREE.Vector3(-36, 5, 6), '#ffe06b'); }
   }
 }
 // the belt and the hotel, seen from space

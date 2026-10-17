@@ -74,25 +74,25 @@ function baseTier(anim) {
 }
 function baseCamp(anim) {
   if (BASE.built || !MODELS.b2) return; BASE.built = true;
-  clearForest({x0:-10.3, x1:13.4, z0:46, z1:74});
+  clearForest({x0:-10.3, x1:13.4, z0:34, z1:62});
   // the drill yard: a sand square with a low fence
-  slab(0xd8c49a, 7.2, 8.6, -2.8, 67.6, .006);
-  for (let x = -6.4; x <= .8; x += .9) for (const z of [63.3, 71.9]) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [x, .35, z], scene);
-  for (let z = 63.3; z <= 71.9; z += .9) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [-6.4, .35, z], scene);
+  slab(0xd8c49a, 7.2, 8.6, -2.8, 55.6, .006);
+  for (let x = -6.4; x <= .8; x += .9) for (const z of [51.3, 59.9]) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [x, .35, z], scene);
+  for (let z = 51.3; z <= 59.9; z += .9) mesh(G.cyl, 0x6b4526, [.05, .7, .05], [-6.4, .35, z], scene);
   // tents, a depot, towers on the corners
-  for (const z of [51, 57, 63]) { const t = kit2('armyTent', 3.4); if (t) { t.position.set(-7.8, 0, z); t.rotation.y = -Math.PI/2; scene.add(t); boxes.push({x0:-9.4, x1:-6.2, z0:z - 1.6, z1:z + 1.6}); if (anim) popIn(t); } }
-  const d = kit2('depot', 3.4); if (d) { d.position.set(8.4, 0, 58.6); scene.add(d); boxes.push({x0:6.8, x1:10, z0:57.4, z1:59.8}); }
-  for (const [x, z] of [[-8.6, 47.4], [11.6, 47.4], [-8.6, 72.8], [11.8, 72.8]]) { const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); BASE.towers.push(g); boxes.push({x0:x - .9, x1:x + .9, z0:z - .9, z1:z + .9}); }
+  for (const z of [39, 45, 51]) { const t = kit2('armyTent', 3.4); if (t) { t.position.set(-7.8, 0, z); t.rotation.y = -Math.PI/2; scene.add(t); boxes.push({x0:-9.4, x1:-6.2, z0:z - 1.6, z1:z + 1.6}); if (anim) popIn(t); } }
+  const d = kit2('depot', 3.4); if (d) { d.position.set(8.4, 0, 46.6); scene.add(d); boxes.push({x0:6.8, x1:10, z0:45.4, z1:47.8}); }
+  for (const [x, z] of [[-8.6, 35.4], [11.6, 35.4], [-8.6, 60.8], [11.8, 60.8]]) { const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); BASE.towers.push(g); boxes.push({x0:x - .9, x1:x + .9, z0:z - .9, z1:z + .9}); }
   // a fence line along the north edge, open where the road comes in
-  for (let x = -10; x <= 13; x += 1.1) if (Math.abs(x - 3) > 2.4) { mesh(G.box, 0x6a6e70, [.08, 1.1, .08], [x, .55, 46.3], scene); mesh(G.box, 0x8a8e90, [1.1, .05, .05], [x + .55, 1.0, 46.3], scene); }
+  for (let x = -10; x <= 13; x += 1.1) if (Math.abs(x - 3) > 2.4) { mesh(G.box, 0x6a6e70, [.08, 1.1, .08], [x, .55, 34.3], scene); mesh(G.box, 0x8a8e90, [1.1, .05, .05], [x + .55, 1.0, 34.3], scene); }
   BASE.tier = 0; baseTier(false);
   if (W.unlocked.has('tanks')) motorPool(false);
 }
 // the motor pool: a shed with bays where the tank division parks between fights
 function motorPool(anim) {
   if (BASE.pool || !MODELS.b2) return;
-  const g = BASE.pool = kit2('motorPool', 7); if (!g) return; g.position.set(9.2, 0, 52); g.rotation.y = Math.PI; scene.add(g);
-  boxes.push({x0:5.7, x1:12.7, z0:49.6, z1:50.9});
+  const g = BASE.pool = kit2('motorPool', 7); if (!g) return; g.position.set(9.2, 0, 40); g.rotation.y = Math.PI; scene.add(g);
+  boxes.push({x0:5.7, x1:12.7, z0:37.6, z1:38.9});
   for (let i = 0; i < 3; i++) { const t = model('tank', 2.4, 'z'); if (!t) break; t.position.set(6.9 + i*2.3, 0, 52.8); scene.add(t); BASE.tanks.push(t); }
   if (anim) { popIn(g); banner('🪖 The motor pool', 'Your tanks park here and roll out when danger comes.'); }
 }

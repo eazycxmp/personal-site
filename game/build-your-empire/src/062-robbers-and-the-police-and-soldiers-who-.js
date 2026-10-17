@@ -5,15 +5,15 @@ function robberLook() { return {body:0x1e1e22, body2:0xf4f4f4, top:'stripes', pa
 function startRobbery() {
   const piles = Object.values(CASH).filter(c => c.value > 60 && inRect(BOUNDS, c.x, c.z) || (c.value > 60 && regionOf(c.x, c.z) !== 'camp' && regionOpen(regionOf(c.x, c.z))));
   const pile = piles.sort((a, b) => b.value - a.value)[0]; if (!pile) return;
-  const e = entity(robberLook(), 70, 0, 4.4, 0);
+  const e = entity(robberLook(), 60, 0, 4.4, 0);
   mesh(G.sph, 0xd8c8a0, [.22, .26, .2], [0, .9, -.35], e.char.g);   // the swag bag
   robber = e; e.pile = pile; e.state = 'in'; e.loot = 0; lastRobCaught = false;
   banner('🦹 A robber is after your cash!', W.unlocked.has('police') || W.army ? 'Your police and soldiers give chase.' : 'Hire police or raise an army to catch robbers.');
   snd(880, .2, 'square', .04); setTimeout(() => snd(660, .3, 'square', .04), 200);
   // the chase: police from the station, soldiers from the yard
   const chasers = [];
-  if (W.unlocked.has('police')) for (let i = 0; i < 2; i++) chasers.push(entity({body:0x1f3a7a, body2:0x1f3a7a, top:'shirt', pants:0x1a2440, hat:'helmet', hatCol:0x1f3a7a, hair:'short'}, 66.5 + i*.6, 4, 6.4, 0));
-  if (W.army) for (let i = 0; i < 2; i++) chasers.push(entity(ARMS(), 7 + i*1.2, 77.5, 5.6, 0));
+  if (W.unlocked.has('police')) for (let i = 0; i < 2; i++) chasers.push(entity({body:0x1f3a7a, body2:0x1f3a7a, top:'shirt', pants:0x1a2440, hat:'helmet', hatCol:0x1f3a7a, hair:'short'}, 56.5 + i*.6, 4, 6.4, 0));
+  if (W.army) for (let i = 0; i < 2; i++) chasers.push(entity(ARMS(), 7 + i*1.2, 65.5, 5.6, 0));
   e.chasers = chasers;
 }
 function updRobber(dt) {
@@ -32,7 +32,7 @@ function updRobber(dt) {
       e.state = 'out'; e.speed = 4.8;
     }
   } else if (e.state === 'out') {
-    if (moveTo(e, 74, 1.6, dt) || e.pos.x > 71) { endRobbery(false); return; }
+    if (moveTo(e, 54, 1.6, dt) || e.pos.x > 61) { endRobbery(false); return; }
   } else if (e.state === 'caught') {
     e.vel.set(0, 0, 0); e.char.armL.rotation.x = e.char.armR.rotation.x = -2.9;
     if ((e.t -= dt) <= 0) { endRobbery(true); return; }

@@ -34,9 +34,9 @@ const grassPlane = ground(0x5f7a38, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0
 if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
 phDress(grassPlane.material, 0x557133, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, 'aerial_grass_rock', 8, .45);
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
-slab(0xb98f5c, 40, 2.4, 55, 1.6, .012);
-slab(0xb98f5c, 16, 1.8, 68, 3.6, .012);
-slab(0xb98f5c, 1.8, 16.4, -9.5, 98.8, .012);   // the recruits' road, west of the battlefield
+slab(0xb98f5c, 40, 2.4, 45, 1.6, .012);
+slab(0xb98f5c, 16, 1.8, 58, 3.6, .012);
+slab(0xb98f5c, 1.8, 16.4, -9.5, 86.8, .012);   // the recruits' road, west of the battlefield
 // river
 const water = ground(0x2fb0e2, 9, 320, -15.1, 0, -.2);
 water.material = new THREE.MeshStandardMaterial({color:0x2fb0e2, roughness:.15, metalness:.15});
@@ -53,7 +53,7 @@ for (let i = 0; i < 9; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1
 [[-14.7, .2], [-14.7, 1.8], [-12.4, .2], [-12.4, 1.8]].forEach(([x, z]) => mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [x, .1, z], scene));
 
 // open land in the spread-out world: every region, the roads between them and the plots kept for later growth
-const OPEN_LAND = [{x0:-103, x1:-49.5, z0:91.5, z1:129}, ...LAND.camp, {x0:ZOOPARK.x0 - 2, x1:ZOOPARK.x1 + 2, z0:ZOOPARK.z0 - 2, z1:ZOOPARK.z1 + 2}, {x0:87, x1:93, z0:3, z1:23}, ...WORLD.roads.map(r => ({x0:r.x0, x1:r.x1, z0:r.z0 - 1, z1:r.z1 + 1})), {x0:-9.5, x1:-5.9, z0:-44.9, z1:-12.1}, {x0:12.6, x1:45.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:75.8}, {x0:47.8, x1:51.4, z0:12.9, z1:75}, {x0:12.4, x1:44.6, z0:81, z1:84.6}, {x0:43.2, x1:46.8, z0:-44, z1:-12.2}, {x0:-78.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:44.4, z0:-54.3, z1:-50.7}, {x0:-78.4, x1:-9.8, z0:-52.8, z1:-49.2}];
+const OPEN_LAND = [{x0:-76, x1:-49.5, z0:79.5, z1:99}, ...LAND.camp, {x0:ZOOPARK.x0 - 2, x1:ZOOPARK.x1 + 2, z0:ZOOPARK.z0 - 2, z1:ZOOPARK.z1 + 2}, {x0:77, x1:83, z0:3, z1:23}, ...WORLD.roads.map(r => ({x0:r.x0, x1:r.x1, z0:r.z0 - 1, z1:r.z1 + 1})), {x0:-9.5, x1:-5.9, z0:-32.9, z1:-12.1}, {x0:12.6, x1:35.4, z0:-0.2, z1:3.4}, {x0:1.2, x1:4.8, z0:13.2, z1:63.8}, {x0:37.8, x1:41.4, z0:12.9, z1:63}, {x0:12.4, x1:34.6, z0:69, z1:82.6}, {x0:33.2, x1:36.8, z0:-32, z1:-12.2}, {x0:-23.4, x1:-9.6, z0:7.8, z1:11.4}, {x0:12.8, x1:34.4, z0:-42.3, z1:-38.7}, {x0:-23.4, x1:-9.8, z0:-40.8, z1:-37.2}];
 // decorative forest (instanced) outside the camp
 const FOREST = {};
 // tree colours: bright, warm greens and a soft brown bark
@@ -66,8 +66,8 @@ function treeMat(m) {
   const spots = []; seed = 11;
   const GRIDF = new Map(), gk = (x, z) => (Math.floor(x/1.65) + 1000)*4000 + Math.floor(z/1.65) + 1000;
   for (let n = 0; n < 120000 && spots.length < (MOBILE ? 1700 : 3800); n++) {
-    const x = WORLD.cx0 + 10 + rnd()*(WORLD.cx1 - WORLD.cx0 - 20), z = -84 + rnd()*(WORLD.cz1 + 76);
-    if (!(x > -106 && x < 92 && z < 122) && rnd() < .6) continue;      // thick woods at home, thinner wilds beyond
+    const x = WORLD.cx0 + 10 + rnd()*(WORLD.cx1 - WORLD.cx0 - 20), z = -72 + rnd()*(WORLD.cz1 + 64);
+    if (!(x > -150 && x < 120 && z < 156) && rnd() < .6) continue;      // thick woods at home, thinner wilds beyond
     { let near = false; for (let dx = -1; dx <= 1 && !near; dx++) for (let dz = -1; dz <= 1 && !near; dz++) for (const q of GRIDF.get(gk(x + dx*1.65, z + dz*1.65)) || []) if (Math.hypot(q[0] - x, q[1] - z) < 1.65) { near = true; break; } if (near) continue; }
     if (x > -11 && x < 15 && z > -14 && z < 15.2) continue;          // the camp
     if (x > -21 && x < -9.6) continue;                                // the river
@@ -82,7 +82,7 @@ function treeMat(m) {
     FOREST.matFor = m => /leafBroad/.test(m.name) ? LEAFB : /leaf/i.test(m.name) ? LEAFC : BARKM;
     const KINDS = [['pineR', 3.7], ['spruceR', 3.3], ['oakR', 3.1], ['oakL', 3.1]].filter(k => MODELS[k[0]]);
     // the detailed broadleaf at home, its lighter twin out in the wilds where you only pass by
-    const kindOf = i => { const h = (i*2654435761 >>> 0) % 10, x = spots[i][0], z = spots[i][1]; return h < 4 ? 0 : h < 7 ? 1 : (KINDS[3] && !(x > -106 && x < 92 && z < 122)) ? 3 : 2; };
+    const kindOf = i => { const h = (i*2654435761 >>> 0) % 10, x = spots[i][0], z = spots[i][1]; return h < 4 ? 0 : h < 7 ? 1 : (KINDS[3] && !(x > -150 && x < 120 && z < 156)) ? 3 : 2; };
     // one instanced mesh per kind per east-west strip of the map, so whole strips off screen are skipped
     // blocks of 44 x 44 so the camera only draws the woods near it
     const NBX = 16, NBZ = 8, NCH = NBX*NBZ, chunkOf = (x, z) => Math.max(0, Math.min(NBX - 1, Math.floor((x + 352) / 44))) + NBX*Math.max(0, Math.min(NBZ - 1, Math.floor((z + 92) / 44)));
@@ -148,15 +148,15 @@ function treeMat(m) {
 // mountains and the cliff the mine is dug into, north of everything
 {
   seed = 31;
-  for (let x = -94; x <= 74; x += 5 + rnd()*3) {
-    const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -68 - rnd()*6;
+  for (let x = -50; x <= 64; x += 5 + rnd()*3) {
+    const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -56 - rnd()*6;
     if (Math.abs(x + 13.6) < r + 2.5) continue;   // the river runs north between the mountains
     mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
     mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
   }
   for (let x = -9.4; x <= 16; x += 1.6) {
     const h = 2.6 + rnd()*1.6;
-    mesh(G.box, rnd() < .5 ? 0x8b8f96 : 0x9a9ea5, [1.9, h, 1.6 + rnd()], [x, h/2 - .24, -61.4 - rnd()*.5], scene, {flatShading:true}).rotation.y = (rnd() - .5)*.3;
+    mesh(G.box, rnd() < .5 ? 0x8b8f96 : 0x9a9ea5, [1.9, h, 1.6 + rnd()], [x, h/2 - .24, -49.4 - rnd()*.5], scene, {flatShading:true}).rotation.y = (rnd() - .5)*.3;
   }
 }
 

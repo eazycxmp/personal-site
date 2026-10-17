@@ -9,7 +9,7 @@ function longTable(x, z, alongXAxis) {
 function roofOn(g, w, d, h, y, color) { const r = mesh(G.cone4, color, [1, h, 1], [0, y, 0], g); r.rotation.y = Math.PI/4; r.scale.set(w*.72, h, d*.72); return r; }
 Object.assign(buildFx, {
   mine(anim) {
-    const g = new THREE.Group(); g.position.set(0, 0, -60.4); scene.add(g);
+    const g = new THREE.Group(); g.position.set(0, 0, -48.4); scene.add(g);
     mesh(G.box, 0x1a1410, [2, 2.2, .6], [0, 1.1, 0], g);
     for (const x of [-1.1, 1.1]) mesh(G.box, 0x6b4526, [.28, 2.6, .28], [x, 1.3, .3], g);
     mesh(G.box, 0x6b4526, [2.6, .3, .32], [0, 2.55, .3], g);
@@ -21,23 +21,23 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   masonry(anim) {
-    const g = new THREE.Group(); g.position.set(-6, 0, -49.3); scene.add(g);
+    const g = new THREE.Group(); g.position.set(-6, 0, -37.3); scene.add(g);
     for (let i = 0; i < 3; i++) mesh(G.box, 0xa3a6ab, [.7, .4, .5], [(i - 1)*.72, .2, 0], g);
     mesh(G.box, 0x9a9da2, [.7, .4, .5], [-.36, .6, 0], g); mesh(G.box, 0x9a9da2, [.7, .4, .5], [.36, .6, 0], g);
-    circles.push({x:-6, z:-49.3, r:.7});
+    circles.push({x:-6, z:-37.3, r:.7});
     if (anim) popIn(g);
   },
   smelter(anim) {
-    const g = new THREE.Group(); g.position.set(6.5, 0, -52); scene.add(g);
+    const g = new THREE.Group(); g.position.set(6.5, 0, -40); scene.add(g);
     mesh(G.cyl, 0x7a6a5a, [.95, 1.6, .95], [0, .8, 0], g);
     mesh(G.cone, 0x6a5a4a, [1, .8, 1], [0, 2, 0], g);
     mesh(G.cyl, 0x5a4a3a, [.22, 1.4, .22], [0, 2.9, 0], g);
     const glow = new THREE.Mesh(G.box, new THREE.MeshBasicMaterial({color:0xff7a1a})); glow.scale.set(.6, .45, .05); glow.position.set(0, .6, .95); g.add(glow);
-    smokers.push({x:6.5, y:3.7, z:-52}); if (ST.smelter) ST.smelter.body = g;
+    smokers.push({x:6.5, y:3.7, z:-40}); if (ST.smelter) ST.smelter.body = g;
     if (anim) popIn(g);
   },
   smithy(anim) {
-    const g = new THREE.Group(); g.position.set(-5, 0, 78.5); scene.add(g); if (ST.smith) ST.smith.body = g;
+    const g = new THREE.Group(); g.position.set(-5, 0, 66.5); scene.add(g); if (ST.smith) ST.smith.body = g;
     for (const [x, z] of [[-1.1, -.9], [1.1, -.9], [-1.1, .9], [1.1, .9]]) mesh(G.cyl, 0x5e3f22, [.09, 2.2, .09], [x, 1.1, z], g);
     roofOn(g, 2.8, 2.4, .9, 2.6, 0x7a4a2a); fader(g, 3, 3.1);
     mesh(G.box, 0x6a6058, [1, .9, .9], [-.3, .45, 0], g);
@@ -46,19 +46,19 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   pavilion(anim) {
-    const g = new THREE.Group(); g.position.set(52, 0, 7); scene.add(g);
+    const g = new THREE.Group(); g.position.set(42, 0, 7); scene.add(g);
     // open-air hall: posts strung with bunting, so the camera can see the table
     for (const [x, z] of [[-2.9, -1], [2.9, -1], [-2.9, 1], [2.9, 1]]) mesh(G.cyl, 0x6b4526, [.12, 2.6, .12], [x, 1.3, z], g);
     for (const z of [-1, 1]) {
       mesh(G.box, 0x5e3f22, [5.8, .06, .06], [0, 2.55, z], g);
       for (let i = 0; i < 12; i++) { const f = mesh(G.cone4, [0xd9443a, 0xf0c030, 0x3f7cc0, 0x3f9a6a][i % 4], [.16, .3, .03], [-2.6 + i*.47, 2.36, z], g); f.rotation.x = Math.PI; }
     }
-    longTable(52, 7, true);
+    longTable(42, 7, true);
     for (const x of [-2.9, 2.9]) { const l = new THREE.Mesh(G.sph, new THREE.MeshBasicMaterial({color:0xffd36b})); l.scale.setScalar(.14); l.position.set(x, 2.2, 1.1); g.add(l); }
     if (anim) popIn(g);
   },
   market(anim) {
-    const g = new THREE.Group(); g.position.set(50, 0, -8.2); scene.add(g);
+    const g = new THREE.Group(); g.position.set(40, 0, -8.2); scene.add(g);
     mesh(G.box, 0x9a6a3a, [2.4, .9, 1], [0, .45, 0], g);
     for (const x of [-1.15, 1.15]) mesh(G.cyl, 0x5e3f22, [.07, 2.2, .07], [x, 1.1, .45], g);
     for (let i = 0; i < 6; i++) mesh(G.box, i % 2 ? 0xffffff : 0xd9443a, [.42, .06, 1.3], [-1.05 + i*.42, 2.2, .1], g).rotation.x = -.25;
@@ -66,7 +66,7 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   library(anim) {
-    const g = new THREE.Group(); g.position.set(55.5, 0, -9.6); scene.add(g); if (ST.library) ST.library.body = g;
+    const g = new THREE.Group(); g.position.set(45.5, 0, -9.6); scene.add(g); if (ST.library) ST.library.body = g;
     mesh(G.box, 0xd8d2c4, [4, .3, 3], [0, .15, 0], g);
     mesh(G.box, 0xe8e2d4, [3.6, 2.2, 2.6], [0, 1.4, 0], g);
     for (let i = 0; i < 4; i++) mesh(G.cyl, 0xf4f0e6, [.14, 2.2, .14], [-1.35 + i*.9, 1.4, 1.4], g);
@@ -78,8 +78,8 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   mess(anim) {
-    const g = longTable(2, 82, true);
-    ground(0xd9bf8a, 7.4, 5.4, 9, 78.2, .013);
+    const g = longTable(2, 70, true);
+    ground(0xd9bf8a, 7.4, 5.4, 9, 66.2, .013);
     for (let i = 0; i < 3; i++) {
       const d = new THREE.Group(); d.position.set(12.4, 0, 76 + i*1.8); scene.add(d);
       mesh(G.cyl, 0x6b4526, [.08, 1.1, .08], [0, .55, 0], d); mesh(G.cyl, 0xd9c08a, [.25, .6, .25], [0, 1.25, 0], d); mesh(G.box, 0xd9c08a, [.8, .12, .12], [0, 1.3, 0], d);
@@ -88,8 +88,8 @@ Object.assign(buildFx, {
   },
   barracks(anim) {
     baseCamp(anim);
-    if (MODELS.b2) { const g = BASE.hq = new THREE.Group(); g.position.set(9.5, 0, 87.5); scene.add(g); BASE.tier = 0; baseTier(false); fader(g, 5.6, 4); if (anim) popIn(g); return; }
-    const g = new THREE.Group(); g.position.set(9.5, 0, 87.5); scene.add(g);
+    if (MODELS.b2) { const g = BASE.hq = new THREE.Group(); g.position.set(9.5, 0, 75.5); scene.add(g); BASE.tier = 0; baseTier(false); fader(g, 5.6, 4); if (anim) popIn(g); return; }
+    const g = new THREE.Group(); g.position.set(9.5, 0, 75.5); scene.add(g);
     mesh(G.box, 0x8a6a4a, [5, 2, 3], [0, 1, 0], g);
     roofOn(g, 5.8, 3.6, 1.2, 2.6, 0x3a4a6a);
     mesh(G.box, 0x3a2414, [.9, 1.3, .1], [0, .65, -1.52], g);
@@ -100,7 +100,7 @@ Object.assign(buildFx, {
     if (anim) popIn(g);
   },
   castle(anim) {
-    const g = new THREE.Group(); g.position.set(-5.5, 0, 87.6); scene.add(g); castleG = g;
+    const g = new THREE.Group(); g.position.set(-5.5, 0, 75.6); scene.add(g); castleG = g;
     mesh(G.box, 0x9a9a98, [4.4, 3.6, 3.8], [0, 1.8, 0], g);
     for (let i = -2; i <= 2; i++) for (const z of [-1.9, 1.9]) mesh(G.box, 0x8a8a88, [.45, .5, .3], [i*.95, 3.85, z], g);
     for (const [x, z] of [[-2.3, -2], [2.3, -2], [-2.3, 2], [2.3, 2]]) {

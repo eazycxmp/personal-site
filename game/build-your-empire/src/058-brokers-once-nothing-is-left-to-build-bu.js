@@ -2,11 +2,11 @@
 const BROKER = {top:'suit', body:0xf4f4f4, body2:0x1e1e26, pants:0x1e1e26, hair:'sidepart', hairCol:0x2a1a10, acc:'sunglasses', shoe:0x111114, skin:0xe8b892};
 const MKT = {t:2, idx:[100], ex:null, led:null, ledT:0};
 const brokers = () => workers.filter(w => w.kind === 'broker');
-const exchangeAt = () => [47, -9.3];
+const exchangeAt = () => [37, -9.3];
 function buildingDone() { return PADS.every(p => p.cur === 'coin' || W.unlocked.has(p.id)); }
 function exchangeFx(anim) {
   // a grand exchange: marble steps, columns, a pediment, a ticker board and a golden bull
-  const g = new THREE.Group(); g.position.set(49, 0, -11.4); g.scale.z = .82; scene.add(g); MKT.ex = g;
+  const g = new THREE.Group(); g.position.set(39, 0, -11.4); g.scale.z = .82; scene.add(g); MKT.ex = g;
   const MARB = 0xeee8dc, MARB2 = 0xd9d2c2;
   for (let i = 0; i < 3; i++) mesh(G.box, MARB2, [4.4 - i*.2, .14, 3.2 - i*.2], [0, .07 + i*.14, .1 - i*.05], g);
   mesh(G.box, MARB, [3.8, 2.6, 2.2], [0, 1.72, -.3], g);
@@ -26,7 +26,7 @@ function exchangeFx(anim) {
   mesh(G.box, 0xd9a52a, [.5, .4, .9], [0, .5, 0], bull, GOLD); mesh(G.box, 0xd9a52a, [.36, .34, .3], [0, .62, .58], bull, GOLD);
   for (const sx of [-1, 1]) { mesh(G.cone, 0xd9a52a, [.06, .28, .06], [sx*.2, .86, .66], bull, GOLD).rotation.z = -sx*.9; for (const zz of [-.3, .3]) mesh(G.box, 0xd9a52a, [.1, .32, .1], [sx*.16, .16, zz], bull, GOLD); }
   mesh(G.box, 0x8a8478, [.9, .1, 1.3], [0, -.02, 0], bull);
-  boxes.push({x0:46.9, x1:51.1, z0:-12.75, z1:-10.05});
+  boxes.push({x0:36.9, x1:41.1, z0:-12.75, z1:-10.05});
   fader(g, 4.4, 4);
   if (anim) popIn(g);
   drawLed();
@@ -40,7 +40,7 @@ function drawLed() {
 }
 function addTraders(n) {
   for (let i = 0; i < n; i++) {
-    const w = addWorker('broker', 6.1 + i*1.2, 77.6, false);
+    const w = addWorker('broker', 6.1 + i*1.2, 65.6, false);
     scene.remove(w.char.g); w.char = makeChar(BROKER); w.char.g.position.set(w.pos.x, 0, w.pos.z);
     mesh(G.box, 0x2a1a10, [.08, .26, .36], [0, -.58, 0], w.char.armR); w.state = 'walk';
   }

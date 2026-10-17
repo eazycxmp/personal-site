@@ -38,7 +38,7 @@ const outZone = st => zones.find(z => z.kind === 'out' && z.st === st);
 const dishOuts = tb => zones.filter(z => z.kind === 'out' && ITEM[ST[z.st].out]?.dish && tb.takes().includes(ST[z.st].out));
 const GATHER = {
   lumber:{ranger:true, nodes:() => trees, pile:() => ST.logs, drop:[3.4, -5.1]},
-  mason:{nodes:() => rocks, pile:() => ST.stones, drop:[-6, -47.5]},
+  mason:{nodes:() => rocks, pile:() => ST.stones, drop:[-6, -35.5]},
 };
 const ROUTES = {
   fisher:{ranger:true, src:() => { const h = outZone('harbor'); return [h && h.stack.length ? h : null, fishZone]; }, dst:() => inZone('grill')},

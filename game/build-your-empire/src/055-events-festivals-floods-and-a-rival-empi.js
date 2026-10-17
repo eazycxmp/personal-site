@@ -3,16 +3,16 @@ const EV = {t:150, rival:null, rivalG:null};
 function rivalCity() {
   if (EV.rivalG) scene.remove(EV.rivalG);
   const g = new THREE.Group(); scene.add(g); EV.rivalG = g;
-  clearForest({x0:-9, x1:14, z0:111, z1:122});
-  slab(0x8a7a5a, 22, 9, 3, 116.5, .002);
+  clearForest({x0:-9, x1:14, z0:99, z1:110});
+  slab(0x8a7a5a, 22, 9, 3, 104.5, .002);
   if (EV.noRival) return;
   const lv = Math.max(W.rival || 0, ostLevel()); seed = 41;
   if (!(MODELS.castles && MODELS.styles)) for (let i = 0; i < 6 + lv*3; i++) {
-    const x = -7 + (i % 8)*2.6 + rnd()*.5, z = 113.5 + Math.floor(i / 8)*2.6, h = 1 + rnd()*1.4 + lv*.4;
+    const x = -7 + (i % 8)*2.6 + rnd()*.5, z = 101.5 + Math.floor(i / 8)*2.6, h = 1 + rnd()*1.4 + lv*.4;
     mesh(G.box, [0x5a3a3a, 0x4a4a5a, 0x3a2a2a][i % 3], [1.5, h, 1.4], [x, h/2, z], g); mesh(G.cone4, 0x2a1a1a, [1.2, .7, 1.1], [x, h + .35, z], g).rotation.y = Math.PI/4;
   }
-  for (const x of [-8, 14]) { mesh(G.cyl, 0x3a3a3e, [.5, 3 + lv*.5, .5], [x, 1.5 + lv*.25, 112.4], g); mesh(G.cone, 0x6a1a1a, [.6, 1, .6], [x, 3.6 + lv*.5, 112.4], g); }
-  mesh(G.cyl, 0x2a2a2e, [.05, 3, .05], [3, 1.5, 112], g); mesh(G.box, W.rivalAlly || ostOurs() ? 0xf2c200 : 0x6a1a1a, [.9, .5, .03], [3.47, 2.7, 112], g);
+  for (const x of [-8, 14]) { mesh(G.cyl, 0x3a3a3e, [.5, 3 + lv*.5, .5], [x, 1.5 + lv*.25, 100.4], g); mesh(G.cone, 0x6a1a1a, [.6, 1, .6], [x, 3.6 + lv*.5, 100.4], g); }
+  mesh(G.cyl, 0x2a2a2e, [.05, 3, .05], [3, 1.5, 100], g); mesh(G.box, W.rivalAlly || ostOurs() ? 0xf2c200 : 0x6a1a1a, [.9, .5, .03], [3.47, 2.7, 100], g);
 }
 function updEvents(dt) {
   if (!started) return;
@@ -32,20 +32,20 @@ function updEvents(dt) {
     if (W.raid.t <= 0 && W.raid.revolt) { const k = W.raid.revolt; W.raid = null; setTimeout(endBattle, 2500); endRevolt(k); }
     else if (W.raid.t <= 0 && W.raid.tribe != null) {
       const R0 = W.raid, c = CAMPAIGNS[R0.tribe]; W.raid = null; setTimeout(() => { endBattle(); BT.lose = BT.noCap = false; }, 2500);
-      if (R0.win) { const loot = 300 + 200*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8}); banner(`🛡️ The ${c.name} are beaten off!`, `Your army takes ${loot} 💵 from them.`); }
+      if (R0.win) { const loot = 300 + 200*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8}); banner(`🛡️ The ${c.name} are beaten off!`, `Your army takes ${loot} 💵 from them.`); }
       else { const lost = Math.min(Math.floor(W.coins*.12), 5000 + 3000*W.era); spend(lost); banner(`🔥 The ${c.name} raid you!`, `They carry off ${lost} 💵. Train more soldiers before they come back.`); }
       save();
     }
     else if (W.raid.t <= 0) {
       W.raid = null; setTimeout(endBattle, 2500);
       W.rivalWins = (W.rivalWins || 0) + 1;
-      const loot = 400 + 250*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:84.8});
+      const loot = 400 + 250*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
       if (W.rivalWins >= 4 && !W.rivalAlly) { W.rivalAlly = true; banner('🤝 The rival empire surrenders!', 'They join you and pay tribute every season.'); rivalCity(); }
       else banner('🛡️ Raid beaten off!', `Your army takes ${loot} 💵 from the raiders.`);
       save();
     }
   }
-  if (W.rivalAlly && (EV.tribT = (EV.tribT ?? 30) - dt) <= 0) { EV.tribT = 30; addCash(CASH.spoils || cash, 200 + 100*W.era, {x:12.3, z:84.8}); }
+  if (W.rivalAlly && (EV.tribT = (EV.tribT ?? 30) - dt) <= 0) { EV.tribT = 30; addCash(CASH.spoils || cash, 200 + 100*W.era, {x:12.3, z:72.8}); }
   if ((EV.t -= dt) > 0) return;
   EV.t = 120 + R()*90;
   const si = seasonIdx(), roll = R();

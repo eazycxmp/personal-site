@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ stalls: a table, then a pop-up tent, then a proper store
 const STALL = {
   main:{at:[4, 1], w:2, d:6, alongZ:true, sign:'STORE', groups:null},
-  hall:{at:[52, 7], w:6, d:2.4, alongZ:false, sign:'MARKET', groups:null},
+  hall:{at:[42, 7], w:6, d:2.4, alongZ:false, sign:'MARKET', groups:null},
 };
 const STALL_FX = [{serve:1, max:0, mult:1}, {serve:1.4, max:3, mult:1.2}, {serve:2, max:6, mult:1.5}];
 function stallStage(id, n, anim) {

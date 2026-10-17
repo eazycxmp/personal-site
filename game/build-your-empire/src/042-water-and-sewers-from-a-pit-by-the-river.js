@@ -41,9 +41,9 @@ function waterStage(n, anim) {
       // the aqueduct runs along the north wall from the hills
       const aq = new THREE.Group(); scene.add(aq); waterStage.aq = aq;
       const STONE = 0xcdb994, archG = new THREE.RingGeometry(.42, .62, 14, 1, 0, Math.PI);
-      for (let x = -5.6; x <= 44; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -43.55], aq);
+      for (let x = -5.6; x <= 34; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -31.55], aq);
       mesh(G.box, STONE, [20, .45, .62], [4.2, 2.8, -13.55], aq); mesh(G.box, BLUE, [20, .04, .3], [4.2, 3.04, -13.55], aq);
-      for (let x = -4.9; x < 44; x += 1.4) {
+      for (let x = -4.9; x < 34; x += 1.4) {
         const a = new THREE.Mesh(archG, mat(0xbfa982, {side:THREE.DoubleSide})); a.position.set(x, 1.95, -13.28); aq.add(a);
       }
       if (anim) popIn(aq);
@@ -83,7 +83,7 @@ function waterStage(n, anim) {
     if (!waterStage.manholes) {
       // cast-iron manholes over the new sewers, all over town
       waterStage.manholes = true;
-      for (const [x, z] of [[0, -3.4], [6.6, -1.4], [-7.6, -2.4], [2.6, 9.8], [11.4, 1.2], [-2.8, 75.8], [48, -.6], [51.6, -6], [50.5, 78], [5.8, -47.2], [47.2, -51], [-6.8, 12.6], [7.6, 81.2]]) {
+      for (const [x, z] of [[0, -3.4], [6.6, -1.4], [-7.6, -2.4], [2.6, 9.8], [11.4, 1.2], [-2.8, 63.8], [38, -.6], [41.6, -6], [40.5, 66], [5.8, -35.2], [37.2, -39], [-6.8, 12.6], [7.6, 69.2]]) {
         mesh(G.cyl, 0x34363a, [.3, .03, .3], [x, .025, z], scene, {metalness:.6, roughness:.5});
         mesh(G.cyl, 0x4a4c50, [.2, .035, .2], [x, .03, z], scene, {metalness:.6, roughness:.5});
       }
@@ -98,14 +98,14 @@ function waterStage(n, anim) {
     for (let i = 0; i < 3; i++) mesh(G.cyl, 0x9aa0a8, [.07, .5, .07], [-1.3 + i*.6, .25, -.65], g, {metalness:.6});
     if (!clarifiers.length) {
       // the sewage plant, out past the railway
-      clearForest({x0:65, x1:73, z0:-10.5, z1:-2});
+      clearForest({x0:55, x1:63, z0:-10.5, z1:-2});
       const p = new THREE.Group(); scene.add(p);
-      for (const [x, z] of [[67.2, -7.4], [70.6, -4.4]]) {
+      for (const [x, z] of [[57.2, -7.4], [60.6, -4.4]]) {
         mesh(G.cyl, 0xb8bcc2, [1.6, .7, 1.6], [x, .1, z], p); mesh(G.cyl, 0x4a8fb0, [1.45, .02, 1.45], [x, .46, z], p, {roughness:.1, metalness:.2});
         const arm = new THREE.Group(); arm.position.set(x, .62, z); p.add(arm); mesh(G.box, 0xf2c200, [3, .1, .18], [0, 0, 0], arm); clarifiers.push(arm);
       }
-      mesh(G.box, 0xdfe4ea, [2.2, 1.4, 1.6], [70.6, .7, -8.2], p); mesh(G.box, 0x8fc6e8, [2.22, .3, 1.62], [70.6, .9, -8.2], p, {metalness:.5, roughness:.15});
-      mesh(G.cyl, 0x9aa0a8, [.12, 3.4, .12], [68.9, .2, -5.9], p, {metalness:.6}).rotation.x = Math.PI/2;
+      mesh(G.box, 0xdfe4ea, [2.2, 1.4, 1.6], [60.6, .7, -8.2], p); mesh(G.box, 0x8fc6e8, [2.22, .3, 1.62], [60.6, .9, -8.2], p, {metalness:.5, roughness:.15});
+      mesh(G.cyl, 0x9aa0a8, [.12, 3.4, .12], [58.9, .2, -5.9], p, {metalness:.6}).rotation.x = Math.PI/2;
       if (anim) popIn(p);
     }
   }

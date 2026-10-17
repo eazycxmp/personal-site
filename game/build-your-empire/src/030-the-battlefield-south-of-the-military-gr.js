@@ -1,16 +1,16 @@
 // ------------------------------------------------------------------ the battlefield, south of the military grounds
-const BF = {x:3, z:100}, BF_HOME = {x:3, z:100};
+const BF = {x:3, z:88}, BF_HOME = {x:3, z:88};
 const atBattle = s => Math.abs(s.pos.x - BF.x) < 13 && s.pos.z > BF.z - 7 && s.pos.z < BF.z + 12;
-clearForest({x0:-6, x1:12, z0:91, z1:108});
-clearForest({x0:-10.8, x1:-8.2, z0:90, z1:108});   // the recruits' road
-slab(0x9a8a5a, 18, 17.6, 3, 99.8, 0);
+clearForest({x0:-6, x1:12, z0:79, z1:96});
+clearForest({x0:-10.8, x1:-8.2, z0:78, z1:96});   // the recruits' road
+slab(0x9a8a5a, 18, 17.6, 3, 87.8, 0);
 const enemies = [];
 let enemyCamp = null;
 // the road from the barracks to a rival's battlefield: through your regions, then along the long road
 function armyPath(r) {
-  const start = {x:5.2, z:91}, [bx, bz] = r.bf;
-  if (r.via === 'east') return [...route(start, 50, 1.6), [64, 1.9], [77.3, 1.9], [bx - 8, 1.9], [bx, bz - 3]];
-  if (r.via === 'west') return [...route(start, -85.8, 12), [-94, 12.1], [bx + 8, 12.1], [bx, bz - 3]];
+  const start = {x:5.2, z:79}, [bx, bz] = r.bf;
+  if (r.via === 'east') return [...route(start, 50, 1.6), [54, 1.9], [67.3, 1.9], [bx - 8, 1.9], [bx, bz - 3]];
+  if (r.via === 'west') return [...route(start, -85.8, 12), [-39, 12.1], [bx + 8, 12.1], [bx, bz - 3]];
   return [[bx, bz - 3]];
 }
 const pathLen = pts => pts.reduce((a, p, i) => a + (i ? Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);

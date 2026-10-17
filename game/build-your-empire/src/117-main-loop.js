@@ -21,7 +21,7 @@ function update(dt) {
   const ps = player.speed * (W.mount ? MOUNTS[W.mount].speed : 1) * (policy('speed') || 1);
   player.vel.set(ix * ps, 0, iz * ps);
   prevPos.copy(player.pos);
-  if (TRIP.on) tripStep(dt); else if (BOAT.on) boatStep(dt); else { player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, W.mount === 5 && (player.rideY || 0) > .8); }
+  if (TRIP.on) tripStep(dt); else if (BOAT.on) boatStep(dt); else { player.pos.addScaledVector(player.vel, dt); collide(player.pos, prevPos, heroFlies() && (player.rideY || 0) > .8); }
   if (Math.abs(player.pos.x) > WORLD.w/2) { const d = player.pos.x > 0 ? -WORLD.w : WORLD.w; player.pos.x += d; prevPos.x += d; camera.position.x += d; W.flags.lap = (W.flags.lap || 0) - Math.sign(d); }
   player.cap = W.cap;
   // a tile works once you stop on it (or linger), so running straight across one does nothing
@@ -90,7 +90,7 @@ function update(dt) {
     if (out) { tx = BF.x - 4.4 + (i % 8)*1.25; tz = BF.z - 2.4 - Math.floor(i / 8)*1.2; }
     if (sea) { tx = -9.2 + (i % 4)*.55; tz = -5.6 + Math.floor(i / 4)*.5; }
     s.char.g.visible = !(sea && C.dur - C.t > 9);
-    const at = sea || vb || (!C && s.pos.z < 74) ? goTo(s, tx, tz, dt) : soldierGo(s, tx, tz, dt);
+    const at = sea || vb || (!C && s.pos.z < 62) ? goTo(s, tx, tz, dt) : soldierGo(s, tx, tz, dt);
     animEntity(s, dt);
     if (at) {
       const face = vb ? Math.atan2(BOSS.on.g.position.x - s.pos.x, BOSS.on.g.position.z - s.pos.z) : out ? 0 : sea ? -Math.PI/2 : Math.PI;
@@ -114,9 +114,9 @@ function update(dt) {
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;
   if (W.unlocked.has('barracks') && W.army > 0 && (tributeT -= dt) <= 0) {
     const trib = Math.round(W.army * 2 * (1 + .5*((W.castle || 1) - 1)));
-    tributeT = 12; addCash(CASH.tribute, trib, {x:9.5, z:85.6});
-    if (CASH.spoils) { const tb = landTribute(); if (tb) addCash(CASH.spoils, tb, {x:12.3, z:84.8}); }   // conquered lands pay tribute too
-    popText(`+${trib} tribute`, new THREE.Vector3(9.5, 3.5, 85.6), '#ffe06b');
+    tributeT = 12; addCash(CASH.tribute, trib, {x:9.5, z:73.6});
+    if (CASH.spoils) { const tb = landTribute(); if (tb) addCash(CASH.spoils, tb, {x:12.3, z:72.8}); }   // conquered lands pay tribute too
+    popText(`+${trib} tribute`, new THREE.Vector3(9.5, 3.5, 73.6), '#ffe06b');
   }
   updBoats(dt);
   leapingFish(dt);
@@ -173,7 +173,7 @@ function render(dt) {
   const watching = war;
   const wf = watching ? warFocus() : null;
   const fx = wf ? wf[0] : (follow || player).pos.x, fz = wf ? wf[1] : (follow || player).pos.z;
-  const fy = wf && wf[2] ? wf[2] : TRIP.on ? TRIP.g.position.y*.85 : 0;
+  const fy = wf && wf[2] ? wf[2] : TRIP.on ? TRIP.g.position.y*.85 : !wf && heroFlies() ? (player.rideY || 0)*.8 : 0;
   camWant.set(fx + ox + .6, H + fy, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);

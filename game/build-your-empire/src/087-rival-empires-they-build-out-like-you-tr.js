@@ -1,13 +1,13 @@
 // ------------------------------------------------------------------ rival empires: they build out like you, trade, ally, declare war and besiege your castle
 const EMP = {list:[
-  {id:'ostberg', amb:.7, n:'Ostberg', icon:'🏰', land:true, sea:false, base:14, grow:1.1, temper:-60, start:-45, min:2, look:3, style:'austria', at:[2.5, 116.5], bf:[3, 100], via:'south'},
-  {id:'azul', amb:.85, n:'Port Azul', icon:'⚓', land:true, sea:true, base:24, grow:1.2, temper:-10, start:0, min:3, look:2, style:'brazil', at:[140, -124], bf:[140, -84], via:'sea', coast:true},
-  {id:'kumo', amb:.9, n:'Kumo', icon:'🏯', land:true, sea:false, base:26, grow:1.25, temper:10, start:15, min:5, look:4, style:'china', at:[-150, 12.1], bf:[-131, 6.7], via:'west'},
-  {id:'nile', amb:1, n:'the Nile Kingdom', icon:'🐪', land:true, sea:false, base:34, grow:1.3, temper:-20, start:-5, min:5, look:3, style:'egypt', at:[210, 1.9], bf:[191, -3.5], via:'east'},
-  {id:'aztlan', amb:1.05, n:'Aztlan', icon:'🌵', land:true, sea:false, base:38, grow:1.35, temper:-35, start:-20, min:5, look:3, style:'mexico', at:[-230, 12.1], bf:[-211, 6.7], via:'west'},
-  {id:'hellas', amb:1.1, n:'Hellas', icon:'🏛️', land:true, sea:true, base:46, grow:1.4, temper:5, start:10, min:5, look:4, style:'greece', at:[285, 1.9], bf:[266, -3.5], via:'east'},
-  {id:'rajpur', amb:1.2, n:'Rajpur', icon:'🐘', land:true, sea:true, base:56, grow:1.5, temper:0, start:5, min:5, look:4, style:'india', at:[410, 52], bf:[392, 46], via:'sea'},
-  {id:'nordheim', amb:1.3, n:'the Sky Citadel', icon:'🛸', sky:true, land:true, sea:true, base:60, grow:1.6, temper:-40, start:-25, min:5, look:4, style:'norway', at:[-410, 52], bf:[-392, 46], via:'sea'}], tick:0, loaded:false, revoltCd:0, ostLv:-1};
+  {id:'ostberg', amb:.7, n:'Ostberg', icon:'🏰', land:true, sea:false, base:14, grow:1.1, temper:-60, start:-45, min:2, look:3, style:'austria', at:[2.5, 104.5], bf:[3, 88], via:'south'},
+  {id:'azul', amb:.85, n:'Port Azul', icon:'⚓', land:true, sea:true, base:24, grow:1.2, temper:-10, start:0, min:3, look:2, style:'brazil', at:[120, -112], bf:[120, -72], via:'sea', coast:true},
+  {id:'kumo', amb:.9, n:'Kumo', icon:'🏯', land:true, sea:false, base:26, grow:1.25, temper:10, start:15, min:5, look:4, style:'china', at:[-100, 12.1], bf:[-81, 6.7], via:'west'},
+  {id:'nile', amb:1, n:'the Nile Kingdom', icon:'🐪', land:true, sea:false, base:34, grow:1.3, temper:-20, start:-5, min:5, look:3, style:'egypt', at:[150, 1.9], bf:[131, -3.5], via:'east'},
+  {id:'aztlan', amb:1.05, n:'Aztlan', icon:'🌵', land:true, sea:false, base:38, grow:1.35, temper:-35, start:-20, min:5, look:3, style:'mexico', at:[-160, 12.1], bf:[-141, 6.7], via:'west'},
+  {id:'hellas', amb:1.1, n:'Hellas', icon:'🏛️', land:true, sea:true, base:46, grow:1.4, temper:5, start:10, min:5, look:4, style:'greece', at:[195, 1.9], bf:[176, -3.5], via:'east'},
+  {id:'rajpur', amb:1.2, n:'Rajpur', icon:'🐘', land:true, sea:true, base:56, grow:1.5, temper:0, start:5, min:5, look:4, style:'india', at:[280, 52], bf:[262, 46], via:'sea'},
+  {id:'nordheim', amb:1.3, n:'the Sky Citadel', icon:'🛸', sky:true, land:true, sea:true, base:60, grow:1.6, temper:-40, start:-25, min:5, look:4, style:'norway', at:[-310, 52], bf:[-292, 46], via:'sea'}], tick:0, loaded:false, revoltCd:0, ostLv:-1};
 function es(r) {
   const all = W.flags.emp ||= {};
   if (!all[r.id]) all[r.id] = {pow:r.base + .2*r.amb*(W.flags.peakPow || 0), seenPeak:W.flags.peakPow || 0, rel:r.id === 'ostberg' && W.rivalAlly ? 70 : r.start, stance:r.id === 'ostberg' && W.rivalAlly ? 'ally' : 'peace', atkT:300, owned:false};

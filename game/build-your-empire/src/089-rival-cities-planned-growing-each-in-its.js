@@ -11,8 +11,8 @@ const SPEC = {
 const spec = (r, k) => (SPEC[r.id] || {})[k] || 1;
 const CITY = {}, CITY_BIOME = {ostberg:'forest', azul:'ocean', kumo:'mountain', nile:'desert', aztlan:'jungle', hellas:'beach', rajpur:'island', nordheim:'sky'};
 // where each city may grow: away from the road (or shore) you arrive by
-const CITY_LAND = {ostberg:{x0:-34, x1:40, z0:104, z1:166}, azul:{x0:110, x1:170, z0:-160, z1:-99}, kumo:{x0:-196, x1:-137, z0:-24, z1:46},
-  nile:{x0:197, x1:256, z0:-38, z1:42}, aztlan:{x0:-276, x1:-217, z0:-38, z1:54}, hellas:{x0:272, x1:328, z0:-38, z1:42}, rajpur:{x0:397, x1:452, z0:8, z1:94}, nordheim:{x0:-440, x1:-380, z0:22, z1:82}};
+const CITY_LAND = {ostberg:{x0:-34, x1:30, z0:92, z1:154}, azul:{x0:90, x1:150, z0:-148, z1:-87}, kumo:{x0:-126, x1:-87, z0:-24, z1:46},
+  nile:{x0:137, x1:166, z0:-38, z1:42}, aztlan:{x0:-216, x1:-147, z0:-38, z1:54}, hellas:{x0:182, x1:238, z0:-38, z1:42}, rajpur:{x0:267, x1:322, z0:8, z1:94}, nordheim:{x0:-340, x1:-280, z0:22, z1:82}};
 const CITY_KIT = {austria:['s', 'chalet', 3.2], brazil:['s', 'colonial', 3], china:['s', 'chineseHouse', 2.4], egypt:['n', 'mudHouseEG', 2.6], greece:['n', 'whiteHouseGR', 3.2], mexico:['n', 'adobeMX', 2.6], india:['n', 'haveliIN', 3.4]};
 const BIOME_LOOK = {
   forest:{street:0x8a8478, ground:0x4f6a38, lot:0x6e8a4a, com:0xb0a898, ind:0x7a5a3a},
@@ -45,13 +45,13 @@ function cityPlan(r) {
   const bf = r.bf ? {x0:r.bf[0] - 11, x1:r.bf[0] + 11, z0:r.bf[1] - 11, z1:r.bf[1] + 13} : null;
   const keepOut = [core, bf, ...Object.values(REGIONS).map(g => ({x0:g.rect.x0 - 9, x1:g.rect.x1 + 9, z0:g.rect.z0 - 9, z1:g.rect.z1 + 9})),
     {x0:ZOOPARK.x0 - 3, x1:ZOOPARK.x1 + 3, z0:ZOOPARK.z0 - 3, z1:ZOOPARK.z1 + 3}, STYLE_SPOTS.canada.rect && {x0:STYLE_SPOTS.canada.rect.x0 - 4, x1:STYLE_SPOTS.canada.rect.x1 + 4, z0:STYLE_SPOTS.canada.rect.z0 - 4, z1:STYLE_SPOTS.canada.rect.z1 + 4},
-    {x0:-8, x1:14, z0:88, z1:110}, AIRBASE.rect, CITY_OASIS[r.id], ...EMP.list.filter(q => q !== r && q.bf).map(q => ({x0:q.bf[0] - 11, x1:q.bf[0] + 11, z0:q.bf[1] - 11, z1:q.bf[1] + 13}))].filter(Boolean);
+    {x0:-8, x1:14, z0:76, z1:98}, AIRBASE.rect, CITY_OASIS[r.id], ...EMP.list.filter(q => q !== r && q.bf).map(q => ({x0:q.bf[0] - 11, x1:q.bf[0] + 11, z0:q.bf[1] - 11, z1:q.bf[1] + 13}))].filter(Boolean);
   const hit = (x0, x1, z0, z1) => keepOut.some(k => x1 > k.x0 && x0 < k.x1 && z1 > k.z0 && z0 < k.z1);
   const cells = [];
   for (let i = -8; i <= 8; i++) for (let j = -9; j <= 9; j++) {
     const x = cx + i*CELL, z = cz + CELL/2 + j*CELL, x0 = x - CELL/2, x1 = x + CELL/2, z0 = z - CELL/2, z1 = z + CELL/2;
     if (x0 < A.x0 || x1 > A.x1 || z0 < A.z0 || z1 > A.z1 || hit(x0, x1, z0, z1)) continue;
-    if (biome === 'island' && Math.hypot(x - 410, z - 50) > 40) continue;
+    if (biome === 'island' && Math.hypot(x - 280, z - 50) > 40) continue;
     if (biome === 'sky' && Math.hypot(x - cx, z - cz) > 27) continue;
     if (biome !== 'ocean' && biome !== 'island' && biome !== 'sky' && (x0 < WORLD.cx0 + 3 || x1 > WORLD.cx1 - 2 || z0 < WORLD.cz0 + 3 || z1 > WORLD.cz1 - 3)) continue;
     const d = Math.hypot(x - cx, z - cz), h = hash01(i + r.base, j - r.base);
@@ -62,7 +62,7 @@ function cityPlan(r) {
   cells.forEach((c, k) => { c.zone = c.d < 19 ? 'com' : c.d < 31 ? (c.h > .86 ? 'park' : 'res') : (c.h < .42*spec(r, 'ind') ? 'ind' : c.h > .9 ? 'park' : 'res'); });
   return {cells, core, y:r.sky ? 24 : 0};
 }
-const CITY_OASIS = {nile:{x0:238, x1:252, z0:-36, z1:-22}};
+const CITY_OASIS = {nile:{x0:178, x1:162, z0:-36, z1:-22}};
 function cityCount(s) { return Math.max(3, Math.floor(s.pow / 3.2)); }
 function cityBuild(r, s, anim) {
   const C = CITY[r.id] ||= {plan:cityPlan(r), n:-1, g:null, boxes:[], areas:[]};

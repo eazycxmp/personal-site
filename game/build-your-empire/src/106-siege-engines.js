@@ -90,12 +90,12 @@ function updSiegeEngines(dt) {
 }
 // the siege workshop: a timber shed with a ram and a catapult parked outside
 function siegeYard(anim) {
-  const g = new THREE.Group(); g.position.set(-5.6, 0, 72.4); scene.add(g);
+  const g = new THREE.Group(); g.position.set(-5.6, 0, 60.4); scene.add(g);
   mesh(G.box, 0x6b4526, [3.4, .2, 2.2], [0, .1, 0], g);
   for (const [x, z] of [[-1.6, -1], [1.6, -1], [-1.6, 1], [1.6, 1]]) mesh(G.cyl, 0x5e3f22, [.09, 2, .09], [x, 1, z], g);
   const roof = mesh(G.cone4, 0x7a5232, [3.2, 1, 2.4], [0, 2.4, 0], g); roof.rotation.y = Math.PI/4; roof.scale.set(2.6, 1, 1.9);
   const ram = engineMesh('ram'); if (ram) { ram.position.set(-.6, 0, .1); ram.scale.multiplyScalar(.7); g.add(ram); }
   const cat = engineMesh('catapult'); if (cat) { cat.position.set(2.9, 0, .2); cat.scale.multiplyScalar(.7); g.add(cat); }
-  boxes.push({x0:-7.4, x1:-3.8, z0:71.2, z1:73.6});
+  boxes.push({x0:-7.4, x1:-3.8, z0:59.2, z1:61.6});
   if (anim) { popIn(g); banner('🛞 Siege workshop!', 'Rams and catapults roll out with your army whenever it storms a castle.'); }
 }

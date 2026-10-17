@@ -34,8 +34,8 @@ water.material.onBeforeCompile = sh => {
       float edge = abs(vWP.x + 15.1)*.667;   // scaled so the 9-wide river reads like the old 6-wide one
       // a dark channel in the middle, teal shallows over sand at the banks; out at sea, deeper the further from the beach
       vec2 cq = vWP.xz; float wrapx = mod(cq.x + 480., 960.) - 480.;
-      float rectD = max(max(-91.6 - cq.y, cq.y - 230.), max(cq.x - 330., -330. - cq.x));
-      float islD = min(length(vec2(wrapx - 410., cq.y - 50.)) - 34., length(vec2(wrapx + 410., cq.y - 50.)) - 34.);
+      float rectD = max(max(-79.6 - cq.y, cq.y - 218.), max(cq.x - 240., -270. - cq.x));
+      float islD = min(length(vec2(wrapx - 280., cq.y - 50.)) - 34., length(vec2(wrapx + 310., cq.y - 50.)) - 34.);
       float shoreD = min(rectD, islD); bool seaW = shoreD > -.5;   // the open sea: outside the continent and the islands
       float deep = seaW ? smoothstep(-.5, 16., shoreD) : 1. - smoothstep(.5, 2.7, edge);
       diffuseColor.rgb = mix(vec3(.24, .62, .62), vec3(.03, .2, .34), deep);
@@ -67,9 +67,9 @@ if (self.SEA_MESH) self.SEA_MESH.material = water.material; for (const m of self
   const o = new THREE.Object3D(), c = new THREE.Color();
   seed = 123; let k = 0, f = 0;
   for (let n = 0; n < N * 4 && k < N * 3; n++) {
-    const x = -100 + rnd()*175, z = -80 + rnd()*200;
+    const x = -130 + rnd()*240, z = -70 + rnd()*210;
     if (x > -17.4 && x < -9.9) continue;                          // the river and its sand
-    if (x > -10.6 && x < 43.6 && z > -43.2 && z < 74.2) continue;  // the camp
+    if (x > -10.6 && x < 33.6 && z > -31.2 && z < 62.2) continue;  // the camp
     for (let b = 0; b < 3 && k < N * 3; b++, k++) {
       o.position.set(x + (rnd() - .5)*.22, GY, z + (rnd() - .5)*.22); o.rotation.set((rnd() - .5)*.5, rnd()*6, (rnd() - .5)*.5); o.scale.setScalar(.7 + rnd()*.7);
       o.updateMatrix(); blades.setMatrixAt(k, o.matrix);
@@ -125,7 +125,7 @@ function addGlows() {
 const flies = (() => {
   const n = MOBILE ? 40 : 90, pos = new Float32Array(n*3), base = [];
   seed = 55;
-  for (let i = 0; i < n; i++) { const x = -90 + rnd()*170, z = -70 + rnd()*180; if (x > -11 && x < 14 && z > -13 && z < 14) { i--; continue; } base.push([x, .4 + rnd()*1.2, z, rnd()*6]); }
+  for (let i = 0; i < n; i++) { const x = -130 + rnd()*240, z = -70 + rnd()*220; if (x > -11 && x < 14 && z > -13 && z < 14) { i--; continue; } base.push([x, .4 + rnd()*1.2, z, rnd()*6]); }
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const p = new THREE.Points(geo, new THREE.PointsMaterial({color:0xfff27a, size:.16, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
   p.frustumCulled = false; scene.add(p); p.base = base; return p;

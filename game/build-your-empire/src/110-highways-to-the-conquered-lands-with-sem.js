@@ -2,7 +2,7 @@
 const HWY = {built:{}, sides:{}, trucks:[], t:10, g:{}, cash:null};
 function hwyHeld(id) { const r = EMP.list.find(q => q.id === id), s = r && W.flags.emp && W.flags.emp[r.id]; return !!s && (s.owned || s.stance === 'ally'); }
 // the paved stretch on each side runs from town to the farthest city you have a highway to
-function hwyEnds(side) { const ids = Object.keys(HWY.built).filter(id => EMP.list.find(r => r.id === id).via === side); if (!ids.length) return null; const xs = ids.map(id => EMP.list.find(r => r.id === id).at[0]); return side === 'east' ? [78.6, Math.max(...xs) - 14] : [Math.min(...xs) + 14, -94]; }
+function hwyEnds(side) { const ids = Object.keys(HWY.built).filter(id => EMP.list.find(r => r.id === id).via === side); if (!ids.length) return null; const xs = ids.map(id => EMP.list.find(r => r.id === id).at[0]); return side === 'east' ? [68.6, Math.max(...xs) - 14] : [Math.min(...xs) + 14, -39]; }
 function hwyPave(side) {
   if (HWY.g[side]) scene.remove(HWY.g[side]);
   const e = hwyEnds(side); if (!e) return;
@@ -23,7 +23,7 @@ function hwyPave(side) {
 function hwyBuild(id, anim) {
   const r = EMP.list.find(q => q.id === id); if (!r || HWY.built[id]) return;
   HWY.built[id] = true; hwyPave(r.via);
-  if (!HWY.cash) HWY.cash = makeCash('freight', 72, 9.6);
+  if (!HWY.cash) HWY.cash = makeCash('freight', 62, 9.6);
   if (anim) banner(`🛣️ The highway to ${r.n}!`, 'Semi-trucks run both ways now. Freight takings pile up by the east-road interchange.');
 }
 function semiTruck(col) {
@@ -38,7 +38,7 @@ function updHighways(dt) {
   // trucks: a few per highway, each lane its own way, from town to the city and back
   const want = ids.reduce((a, id) => a + 3 + Math.min(3, Math.floor(es(EMP.list.find(r => r.id === id)).pow/120)), 0);
   if (HWY.trucks.length < Math.min(24, want) && R() < dt*1.5) {
-    const id = ids[R()*ids.length|0], r = EMP.list.find(q => q.id === id), e = [78.6, r.at[0] - 14], w = [r.at[0] + 14, -94], [a, b] = r.via === 'east' ? e : w;
+    const id = ids[R()*ids.length|0], r = EMP.list.find(q => q.id === id), e = [68.6, r.at[0] - 14], w = [r.at[0] + 14, -39], [a, b] = r.via === 'east' ? e : w;
     const out = R() < .5, zc = r.via === 'east' ? 1.9 : 12.1, lane = zc + (out === (r.via === 'east') ? -.8 : .8);
     const g = semiTruck([0xc8322a, 0x2a5aa8, 0x3a8a4a, 0xe8a020][R()*4|0]); const x0 = out ? (r.via === 'east' ? a : b) : (r.via === 'east' ? b : a), x1 = out ? (r.via === 'east' ? b : a) : (r.via === 'east' ? a : b);
     g.position.set(x0, 0, lane); g.rotation.y = x1 > x0 ? Math.PI/2 : -Math.PI/2; HWY.trucks.push({g, x1, sp:9 + R()*3});
@@ -52,7 +52,7 @@ function updHighways(dt) {
   if ((HWY.t -= dt) <= 0) {
     HWY.t = 10;
     const v = Math.round(ids.reduce((a, id) => { const r = EMP.list.find(q => q.id === id), st = es(r), tier = TIERS.findIndex(t => st.pow < t[0]); return a + (500 + 220*W.era)*(1 + Math.max(0, tier))*(st.owned ? 1.5 : 1); }, 0));
-    addCash(HWY.cash, v, {x:76, z:6});
-    if (Math.hypot(player.pos.x - 72, player.pos.z - 9.6) < 40) popText(`🚛 +${v.toLocaleString()} freight`, new THREE.Vector3(72, 3, 9.6), '#ffe06b');
+    addCash(HWY.cash, v, {x:66, z:6});
+    if (Math.hypot(player.pos.x - 62, player.pos.z - 9.6) < 40) popText(`🚛 +${v.toLocaleString()} freight`, new THREE.Vector3(62, 3, 9.6), '#ffe06b');
   }
 }

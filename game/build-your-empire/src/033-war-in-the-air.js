@@ -1,11 +1,11 @@
 // ------------------------------------------------------------------ war in the air
 // the enemy holds a mountain range to the east: ridges, snowy peaks and pine forest, with fortresses in two valleys
-const AIR_TARGETS = [[94, -20], [96, 13]];
-const TERR = {x0:77, x1:122, z0:-46, z1:40};
+const AIR_TARGETS = [[84, -20], [86, 13]];
+const TERR = {x0:67, x1:112, z0:-46, z1:40};
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t*t*(3 - 2*t); };
 function terrainH(x, z) {
   let h = 4.4 + 3.4*Math.sin(x*.21 + 1.3)*Math.cos(z*.17) + 2.3*Math.sin(x*.47 + z*.31) + 1.3*Math.sin(z*.6 + x*.13)*Math.sin(x*.9) + .5*Math.sin(x*1.7 + z*1.3);
-  h += Math.max(0, x - 102) * .22;
+  h += Math.max(0, x - 92) * .22;
   for (const [tx, tz] of AIR_TARGETS) h *= smooth(6.5, 13, Math.hypot(x - tx, z - tz));
   h *= smooth(2.6, 8, Math.abs(z - 1.9));
   for (const r of [ZOOPARK, ZOOPARK.path]) { const dx = Math.max(r.x0 - x, 0, x - r.x1), dz = Math.max(r.z0 - z, 0, z - r.z1); h *= smooth(1, 7, Math.hypot(dx, dz)); }
@@ -36,7 +36,7 @@ function terrainH(x, z) {
   spots.forEach(([x, y, z, s], i) => { o.position.set(x, y + .9*s, z); o.scale.set(.55*s, 1.9*s, .55*s); o.updateMatrix(); tr.setMatrixAt(i, o.matrix); });
   tr.castShadow = true; scene.add(tr);
   // a lake in a hollow between the two valleys
-  const lake = new THREE.Mesh(new THREE.CircleGeometry(4, 24), mat(0x2a7ab0, {roughness:.08, metalness:.2})); lake.rotation.x = -Math.PI/2; lake.position.set(87, .05, -9); scene.add(lake);
+  const lake = new THREE.Mesh(new THREE.CircleGeometry(4, 24), mat(0x2a7ab0, {roughness:.08, metalness:.2})); lake.rotation.x = -Math.PI/2; lake.position.set(77, .05, -9); scene.add(lake);
 }
 for (const [x, z] of AIR_TARGETS) slab(0x8a7a5a, 12, 12, x, z, 0);
 const forts = {};
@@ -71,9 +71,9 @@ function fortress(ti, captured) {
   return f;
 }
 const planes = [];
-const RUNWAY = {x:-87, z0:10, z1:-12};
+const RUNWAY = {x:-32, z0:10, z1:-12};
 // the military airbase, south-east of the army base: the fighters take off and land here
-const AIRBASE = {rect:{x0:16, x1:42.4, z0:86.2, z1:112}, rw:{x:39.6, z0:108, z1:88}, built:false};
+const AIRBASE = {rect:{x0:70, x1:96.4, z0:84.2, z1:110}, rw:{x:93.6, z0:106, z1:86}, built:false};
 function makePlane(x, z) {
   const g = new THREE.Group(); g.rotation.order = 'YXZ'; scene.add(g);
   // the same jet fighter that scrambles against the kaiju, parked or flying
@@ -125,24 +125,24 @@ function airbaseFx() {
   const r = AIRBASE.rect, rw = AIRBASE.rw, g = new THREE.Group(); scene.add(g); AIRBASE.g = g;
   clearForest({x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1});
   slab(0x9a9a92, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .004);
-  slab(0x3e4248, 3.6, 24, rw.x, 98, .008);
-  for (let z = 87.5; z <= 108.5; z += 2.2) slab(0xf4f4f4, .22, 1.1, rw.x, z, .012);
-  for (const z of [86.9, 109.1]) for (let k = -1; k <= 1; k++) slab(0xf4f4f4, .18, .9, rw.x + k*.6, z, .012);
-  slab(0x55595f, 9, 1.4, 34, 98, .01);   // the taxiway to the runway
+  slab(0x3e4248, 3.6, 24, rw.x, 96, .008);
+  for (let z = 85.5; z <= 106.5; z += 2.2) slab(0xf4f4f4, .22, 1.1, rw.x, z, .012);
+  for (const z of [84.9, 107.1]) for (let k = -1; k <= 1; k++) slab(0xf4f4f4, .18, .9, rw.x + k*.6, z, .012);
+  slab(0x55595f, 9, 1.4, 88, 96, .01);   // the taxiway to the runway
   // two arched hangars, a control tower, a fuel tank and the airbase's flag
-  for (const z of [91, 101]) {
+  for (const z of [89, 99]) {
     const h = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 6, 18, 1, false, 0, Math.PI), mat(0x6a7058, {roughness:.6, metalness:.3}));
     h.rotation.z = Math.PI/2; h.rotation.y = Math.PI/2; h.position.set(19.6, 0, z); h.castShadow = true; g.add(h);
     mesh(G.box, 0x2a2e26, [.1, 2.2, 3.6], [22.62, 1.1, z], g);
-    boxes.push({x0:16.6, x1:22.7, z0:z - 2.7, z1:z + 2.7});
+    boxes.push({x0:70.6, x1:76.7, z0:z - 2.7, z1:z + 2.7});
   }
-  mesh(G.box, 0xd8d4cc, [1.6, 5, 1.6], [37, 2.5, 110], g); mesh(G.box, 0x3a6a8a, [2.4, 1.2, 2.4], [37, 5.6, 110], g, {metalness:.5, roughness:.15}); mesh(G.box, 0xd8d4cc, [2.6, .2, 2.6], [37, 6.3, 110], g);
-  bulb(g, 37, 6.6, 110, 0xff3a2a, .12); boxes.push({x0:35.9, x1:38.1, z0:108.9, z1:111.1});
-  mesh(G.cyl, 0xc8ccd0, [1.1, 2, 1.1], [18.4, 1, 108.6], g, {metalness:.4}); circles.push({x:18.4, z:108.6, r:1.2});
-  mesh(G.cyl, 0x5e3f22, [.05, 3.6, .05], [17, 1.8, 87.2], g); mesh(G.box, 0xf2c200, [1, .6, .03], [17.52, 3.3, 87.2], g);
+  mesh(G.box, 0xd8d4cc, [1.6, 5, 1.6], [91, 2.5, 108], g); mesh(G.box, 0x3a6a8a, [2.4, 1.2, 2.4], [91, 5.6, 108], g, {metalness:.5, roughness:.15}); mesh(G.box, 0xd8d4cc, [2.6, .2, 2.6], [91, 6.3, 108], g);
+  bulb(g, 91, 6.6, 108, 0xff3a2a, .12); boxes.push({x0:89.9, x1:92.1, z0:106.9, z1:109.1});
+  mesh(G.cyl, 0xc8ccd0, [1.1, 2, 1.1], [72.4, 1, 106.6], g, {metalness:.4}); circles.push({x:72.4, z:106.6, r:1.2});
+  mesh(G.cyl, 0x5e3f22, [.05, 3.6, .05], [71, 1.8, 85.2], g); mesh(G.box, 0xf2c200, [1, .6, .03], [71.52, 3.3, 85.2], g);
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('AIRBASE', '#3a4a2a', '#ffffff'), toneMapped:false, side:THREE.DoubleSide}));
-  sign.scale.set(2.2, .6, 1); sign.position.set(29, 2, 86.4); g.add(sign); for (const x of [27.9, 30.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.3, .05], [x, 1.15, 86.4], g);
-  AREAS.push({x0:r.x0, x1:rw.x - 2, z0:r.z0, z1:r.z1}, {x0:13, x1:r.x0 + .5, z0:86.5, z1:97});
+  sign.scale.set(2.2, .6, 1); sign.position.set(83, 2, 84.4); g.add(sign); for (const x of [81.9, 84.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.3, .05], [x, 1.15, 84.4], g);
+  AREAS.push({x0:r.x0, x1:rw.x - 2, z0:r.z0, z1:r.z1}, {x0:13, x1:r.x0 + .5, z0:84.5, z1:95});
 }
 function startAir(c) { fortress(c.target, false); }
 function planeVsBoss(p, i, B, dt) {
@@ -230,7 +230,7 @@ function endAir(c) {
 function airfieldFx() {
   slab(0x4a4f57, 3.4, 27, RUNWAY.x, -1, .004);
   for (let z = -12; z <= 11; z += 2.2) slab(0xf4f4f4, .22, 1.1, RUNWAY.x, z, .008);
-  slab(0x5a5f67, 6, 1.4, -83.5, -1, .006);
+  slab(0x5a5f67, 6, 1.4, -28.5, -1, .006);
   // the bridge over the river
   const g = new THREE.Group(); scene.add(g);
   mesh(G.box, 0x9a958c, [7.6, .22, 1.6], [-13.95, -.06, 9.6], g);
@@ -238,9 +238,9 @@ function airfieldFx() {
   for (let x = -17.5; x <= -10.4; x += .9) for (const z of [8.85, 10.35]) mesh(G.box, 0xdcd6cc, [.12, .55, .12], [x, .28, z], g);
   for (const z of [8.85, 10.35]) mesh(G.box, 0xdcd6cc, [7.4, .08, .1], [-13.95, .55, z], g);
   // control tower
-  const t = new THREE.Group(); t.position.set(-80.6, 0, 6); scene.add(t);
+  const t = new THREE.Group(); t.position.set(-25.6, 0, 6); scene.add(t);
   mesh(G.box, 0xdfe2e6, [1.4, 3.6, 1.4], [0, 1.8, 0], t); mesh(G.box, 0x8fc6e8, [1.9, .9, 1.9], [0, 4, 0], t, {metalness:.5, roughness:.15}); mesh(G.box, 0xf4f4f4, [2.1, .15, 2.1], [0, 4.5, 0], t);
-  boxes.push({x0:-81.3, x1:-79.9, z0:5.3, z1:6.7});
+  boxes.push({x0:-26.3, x1:-24.9, z0:5.3, z1:6.7});
 }
 const HANGAR = {tier:0, g:null};
 const hangarTier = () => planesBuilt() >= 5 || W.era >= 9 ? 3 : planesBuilt() >= 3 || W.era >= 6 ? 2 : 1;
@@ -249,7 +249,7 @@ function hangarLook(anim) {
   if (HANGAR.g) { HANGAR.g.clear(); HANGAR.g.add(m); HANGAR.tier = t; if (anim) { popIn(HANGAR.g); banner(['', '', '🛩️ A bigger hangar', '✨ A glass-and-steel hangar'][t], 'Room for your growing air force.'); } }
 }
 // the fighters' hangar stands at the military airbase, where they take off (not at the airport)
-const HANGAR_AT = [18.5, 109.5];
+const HANGAR_AT = [72.5, 107.5];
 function hangar(anim) {
   if (MODELS.b2) {
     const g = HANGAR.g = new THREE.Group(); g.position.set(HANGAR_AT[0], 0, HANGAR_AT[1]); scene.add(g); HANGAR.tier = 0; hangarLook(false);
@@ -280,7 +280,7 @@ function warFocus() {
   if (!C && INV.on && INV.units.length) { const m = mid(INV.units); if (m) return [m[0], m[1] + 1.5]; }
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
-  if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -93); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -80]; }
+  if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }
   const c = CAMPAIGNS[C.ci], [tx, tz] = C.tx != null ? [C.tx, C.tz] : AIR_TARGETS[c.target], e = C.dur - C.t;
   const lead = planes[0]; return lead && (lead.alt || 0) > .5 ? [lead.g.position.x, lead.g.position.z, lead.g.position.y*.8] : [tx, tz, 0];
 }

@@ -31,13 +31,13 @@ function arenaStage(n, anim) {
   ARENA.lv = Math.max(ARENA.lv, n);
   const [cx, cz] = RUGBY.at, P = ARENA.parts;
   if (!ARENA.g) {
-    clearForest({x0:64, x1:79, z0:73.5, z1:91});
+    clearForest({x0:54, x1:69, z0:61.5, z1:79});
     slab(0x8a8478, 13.4, 16, cx, cz, .004);
-    AREAS.push({x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:65, x1:78, z0:74.6, z1:90.2});
+    AREAS.push({x0:50.4, x1:56.6, z0:77, z1:78.2}, {x0:55, x1:68, z0:62.6, z1:78.2});
     // a path round the west side of the bowl joins the stadium to the zoo strip (the civic block fills the strip further south)
-    clearForest({x0:63.2, x1:65.5, z0:73.4, z1:90.4});
-    AREAS.push({x0:63.4, x1:65.3, z0:73.6, z1:90.2}, {x0:63.4, x1:67.2, z0:73.6, z1:74.8});
-    slab(0xb98f5c, 1.9, 16.6, 64.35, 81.9, .012); slab(0xb98f5c, 3.8, 1.2, 65.3, 74.2, .012);
+    clearForest({x0:53.2, x1:55.5, z0:61.4, z1:78.4});
+    AREAS.push({x0:53.4, x1:55.3, z0:61.6, z1:78.2}, {x0:53.4, x1:57.2, z0:61.6, z1:62.8});
+    slab(0xb98f5c, 1.9, 16.6, 54.35, 69.9, .012); slab(0xb98f5c, 3.8, 1.2, 55.3, 62.2, .012);
     ARENA.g = new THREE.Group(); ARENA.g.position.set(cx, 0, cz); scene.add(ARENA.g);
     // the floor: a lawn for the amphitheater, a striped pitch later
     const lawn = new THREE.Mesh(new THREE.CircleGeometry(1, 48), mat(0x5aa83c, {roughness:.95})); lawn.rotation.x = -Math.PI/2; lawn.scale.set(ARX, ARY, 1); lawn.position.y = .012; lawn.receiveShadow = true; ARENA.g.add(lawn); P.lawn = lawn;

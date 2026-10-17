@@ -1,10 +1,10 @@
 // ------------------------------------------------------------------ the rugby stadium: matchdays with two teams, a ball and a roaring crowd
-const RUGBY = {at:[71.5, 82], t:60, on:0, players:[], ball:null, score:[0, 0], crowd:null, board:null};
+const RUGBY = {at:[61.5, 70], t:60, on:0, players:[], ball:null, score:[0, 0], crowd:null, board:null};
 function stadiumFx(anim) {
   const [cx, cz] = RUGBY.at;
-  clearForest({x0:65, x1:78.5, z0:74, z1:90});
+  clearForest({x0:55, x1:68.5, z0:62, z1:78});
   slab(0x8a8478, 13, 15, cx, cz, .004);
-  AREAS.push({x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:65, x1:78, z0:74.6, z1:90.2});
+  AREAS.push({x0:50.4, x1:56.6, z0:77, z1:78.2}, {x0:55, x1:68, z0:62.6, z1:78.2});
   for (const sx of [-1, 1]) boxes.push({x0:cx + Math.min(sx*4, sx*6.5), x1:cx + Math.max(sx*4, sx*6.5), z0:cz - 5, z1:cz + 5});
   boxes.push({x0:cx - 7.2, x1:cx - 6.8, z0:cz - 1.6, z1:cz + 1.6});
   const g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g); RUGBY.g = g;
@@ -81,7 +81,7 @@ function updRugby(dt) {
   }
   if (RUGBY.on <= 0) {
     const pay = 2500 + 300*W.era; W.coins += pay; W.earned += pay;
-    popText(`🎟️ +${pay} gate takings`, new THREE.Vector3(60, 3, 82), '#ffe06b');
+    popText(`🎟️ +${pay} gate takings`, new THREE.Vector3(50, 3, 70), '#ffe06b');
     news(`Rugby: ${RUGBY.score[0]}–${RUGBY.score[1]} in front of a full house`);
   }
 }

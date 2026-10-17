@@ -20,8 +20,8 @@ function stool(x, z) {
   mesh(G.cyl, 0x8a5a2b, [.26, .08, .26], [0, .44, 0], g); mesh(G.cyl, 0x5e3f22, [.07, .42, .07], [0, .21, 0], g);
 }
 function makeLine(id, o) { if (!o.noStool) { const [sx, sz] = o.slot(0); stool(sx, sz); } return LINES[id] = {id, q:[], leaving:[], spawnT:2, mult:1, ...o}; }
-makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[70, 1],
-  slot:k => k === 0 ? [5.75, 1] : [6.5 + k*1.3, 1], exit:[[7, 2.4], [72, 2.4]],
+makeLine('main', {table:TB.main, cash, face:-Math.PI/2, max:9, spawn:[60, 1],
+  slot:k => k === 0 ? [5.75, 1] : [6.5 + k*1.3, 1], exit:[[7, 2.4], [62, 2.4]],
   active:() => W.tut >= 1, interval:() => 7 / (1 + .45*huts() + .3*W.era + .35*houses() + .3*(W.bridge || 0) + .4*(W.train || 0)), order:() => travelerOrder(2, 2)});
 function spawnIn(L) {
   const recruit = L.id === 'mess', col = recruit ? 0x8a7a5a : CLOTHES[R()*CLOTHES.length|0];
@@ -94,10 +94,10 @@ function payOut(c, L) {
 // a fed and armed recruit becomes a soldier drilling in the yard
 const soldiers = [];
 const BASE_SLOTS = [
-  ...[...Array(12)].map((_, k) => [-4.4 + (k % 3)*1.6, 65.2 + Math.floor(k / 3)*1.7]),          // the drill yard
-  [-5.4, 50.2], [-5.4, 51.4], [-5.4, 56.2], [-5.4, 57.4], [-5.4, 62.2], [-5.4, 63.4],              // by the tents
-  [-8, 48.6], [11.2, 48.6], [-8.2, 72.4], [11.4, 72.4],                                              // guards at the towers
-  [7.4, 60.8], [8.6, 60.8]];                                                                          // hands at the depot
+  ...[...Array(12)].map((_, k) => [-4.4 + (k % 3)*1.6, 53.2 + Math.floor(k / 3)*1.7]),          // the drill yard
+  [-5.4, 38.2], [-5.4, 39.4], [-5.4, 44.2], [-5.4, 45.4], [-5.4, 50.2], [-5.4, 51.4],              // by the tents
+  [-8, 36.6], [11.2, 36.6], [-8.2, 60.4], [11.4, 60.4],                                              // guards at the towers
+  [7.4, 48.8], [8.6, 48.8]];                                                                          // hands at the depot
 const yardSlot = i => BASE_SLOTS[i % BASE_SLOTS.length];
 function makeSoldier(x, z) {
   if (soldiers.length >= 24) return null;
@@ -197,7 +197,7 @@ function updWar(dt) {
   if (goal === 'land') outpost(W.conquests - 1, true);
   if (type === 'sea' || goal === 'sea') endSea();
   if (goal === 'air') endAir(c);
-  addCash(CASH.spoils, campReward(c), {x:12.3, z:84.8});
+  addCash(CASH.spoils, campReward(c), {x:12.3, z:72.8});
   banner(`🏆 Victory over the ${c.name}!`, `Your army brings home ${campReward(c)} 💵 in spoils.`);
   [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));
   if (W.conquests >= CAMPAIGNS.length) setEra(10, true);

@@ -106,14 +106,14 @@ function endBattle() {
 }
 // soldiers walk a corridor past the mess table instead of through it
 function soldierGo(s, tx, tz, dt) {
-  const goingOut = tz > 90 && s.pos.z < 90.5, goingHome = tz < 84 && s.pos.z > 84.5;
-  if (goingOut) { if (s.pos.z < 84.3) return moveTo(s, 5.2, 84.5, dt) && false; return moveTo(s, 5.2, 91, dt) && false; }
-  if (goingHome && s.pos.z > 90.5) return moveTo(s, 5.2, 91, dt) && false;
-  if (goingHome) return moveTo(s, 5.2, 84.5, dt) && false;
+  const goingOut = tz > 78 && s.pos.z < 78.5, goingHome = tz < 72 && s.pos.z > 72.5;
+  if (goingOut) { if (s.pos.z < 72.3) return moveTo(s, 5.2, 60.5, dt) && false; return moveTo(s, 5.2, 67, dt) && false; }
+  if (goingHome && s.pos.z > 78.5) return moveTo(s, 5.2, 67, dt) && false;
+  if (goingHome) return moveTo(s, 5.2, 72.5, dt) && false;
   return moveTo(s, tx, tz, dt);
 }
 // every conquered land leaves a watchtower flying your colours
-const OUTPOSTS = [[-4.4, 104.6], [10.4, 104.6], [-4.4, 94.2], [10.4, 94.2], [3, 107.6]];
+const OUTPOSTS = [[-4.4, 92.6], [10.4, 92.6], [-4.4, 82.2], [10.4, 82.2], [3, 95.6]];
 function outpost(i, anim) {
   if (!OUTPOSTS[i]) return;
   const [x, z] = OUTPOSTS[i];

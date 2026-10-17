@@ -58,7 +58,7 @@ function zoneAct(e, zn, dt) {
       const it = e.isPlayer && e.stack.take(SELLABLE);
       if (it) {
         const v = ITEM[it.type].sell * (it.size > 1.2 ? 2 : 1);
-        W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(50, 1, -8.2), .25);
+        W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(40, 1, -8.2), .25);
         popText(`+${v}`, e.pos.clone().setY(2.4 + R()*.4), '#ffe06b'); snd(760 + R()*200, .04, 'triangle', .03); e.tick = .09;
       } else e.tick = .2;
       break;

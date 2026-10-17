@@ -1,14 +1,14 @@
 // ------------------------------------------------------------------ the coast: the river runs into the sea, with a fort or a town on every beach
-const COAST = {z:-89.6, sites:{
-  cove:{x:4, n:'Pirate cove'}, empire:{x:-92, n:'The old empire'}, azul:{x:52, n:'Port Azul'}, kumo:{x:72, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
-clearForest({x0:-150, x1:150, z0:-130, z1:-87});
+const COAST = {z:-77.6, sites:{
+  cove:{x:4, n:'Pirate cove'}, empire:{x:-37, n:'The old empire'}, azul:{x:32, n:'Port Azul'}, kumo:{x:52, n:'Kumo'}}, forts:{}, cur:null, fleets:[]};
+clearForest({x0:-95, x1:130, z0:-118, z1:-75});
 {
-  const sea = ground(0x2fb0e2, 3000, 1408, 0, -796, -.2); sea.material = water.material; self.SEA_MESH = sea;
+  const sea = ground(0x2fb0e2, 3000, 1408, 0, -784, -.2); sea.material = water.material; self.SEA_MESH = sea;
   self.SEA_MORE = [ground(0x2fb0e2, 3000, 1270, 0, WORLD.cz1 + 635, -.2), ground(0x2fb0e2, 1170, WORLD.cz1 + 92, WORLD.cx1 + 585, (WORLD.cz1 - 92)/2, -.2), ground(0x2fb0e2, 1170, WORLD.cz1 + 92, WORLD.cx0 - 585, (WORLD.cz1 - 92)/2, -.2)];
   for (const m of self.SEA_MORE) m.material = water.material;
-  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 4.6, 0, -90.1, -.215);
-  for (const sx of [-1, 1]) ground(0xe8d49a, 8, WORLD.cz1 + 92, sx*(WORLD.cx1 - 4), (WORLD.cz1 - 92)/2, -.215);
-  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 5, 0, WORLD.cz1 - 2.5, -.215);
+  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 4.6, (WORLD.cx0 + WORLD.cx1)/2, -78.1, -.215);
+  for (const sx of [-1, 1]) ground(0xe8d49a, 8, WORLD.cz1 + 92, sx > 0 ? WORLD.cx1 - 4 : WORLD.cx0 + 4, (WORLD.cz1 - 92)/2, -.215);
+  ground(0xe8d49a, WORLD.cx1 - WORLD.cx0, 5, (WORLD.cx0 + WORLD.cx1)/2, WORLD.cz1 - 2.5, -.215);
   for (const I of WORLD.islands) for (const dx of [0, I.x > 0 ? -WORLD.w : WORLD.w]) {
     const sand = new THREE.Mesh(new THREE.CircleGeometry(I.r + 4, 48), new THREE.MeshStandardMaterial({color:0xe8d49a, roughness:1}));
     phDress(sand.material, 0xe8d49a, (I.r + 4)*2, (I.r + 4)*2, 'coast_sand_01', 5); sand.rotation.x = -Math.PI/2; sand.position.set(I.x + dx, -.17, I.z); sand.receiveShadow = true; scene.add(sand);
@@ -16,7 +16,7 @@ clearForest({x0:-150, x1:150, z0:-130, z1:-87});
     phDress(turf.material, 0x557133, I.r*2, I.r*2, 'aerial_grass_rock', 8, .45); turf.rotation.x = -Math.PI/2; turf.position.set(I.x + dx, -.14, I.z); turf.receiveShadow = true; scene.add(turf);
     for (let k = 0; k < 9; k++) { const a = k/9*Math.PI*2 + .3, p = model('palm', 3.6 + (k % 3)*.6, 'y'); if (p) { p.position.set(I.x + dx + Math.cos(a)*(I.r - 3), -.14, I.z + Math.sin(a)*(I.r - 3)); p.rotation.y = a*2; scene.add(p); } }
   }
-  const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -92.5); scene.add(foam); COAST.foam = foam;
+  const foam = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.5})); foam.rotation.x = -Math.PI/2; foam.scale.set(320, .35, 1); foam.position.set(0, -.19, -80.5); scene.add(foam); COAST.foam = foam;
   for (let i = 0; i < 26; i++) { const r = mesh(G.ico, 0x8a8478, [.5 + R()*.6, .3 + R()*.3, .5 + R()*.5], [-150 + i*11.6 + R()*2, -.1, -88.4 - R()*.6], scene); r.rotation.y = R()*3; }
 }
 function coastFort(id) {

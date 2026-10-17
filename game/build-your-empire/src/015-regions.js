@@ -1,19 +1,19 @@
 // ------------------------------------------------------------------ regions
 const REGIONS = {
-  north:{name:'the Northern Quarry', rect:{x0:-10.3, x1:13.4, z0:-59.6, z1:-42.9}, gap:['n', -9.2, -6.2], gate:[[-7.7, -12.1], [-7.7, -44.9]], ground:0xbfa57a},
-  east:{name:'the Market Quarter', rect:{x0:43.4, x1:60.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [45.4, 1.6]], ground:0xcfae78},
-  south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:46, z1:90.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 75.8]], ground:0xc4a070},
-  farm:{name:'the Farmlands', rect:{x0:43.4, x1:60.6, z0:73.9, z1:90.6}, ground:0xb9a865},
-  downtown:{name:'Downtown', rect:{x0:43.4, x1:60.6, z0:-59.6, z1:-42.9}, ground:0x9ea3ad},
-  airfield:{name:'the Airfield', rect:{x0:-94, x1:-77.6, z0:-12.9, z1:29.9}, extra:{x0:-20.7, x1:-10.2, z0:8.85, z1:10.35}, ground:0x8fa86a},
-  ranch:{name:'the Ranch', rect:{x0:-94, x1:-77.6, z0:-60, z1:-44}, extra:{x0:-20.8, x1:-10.2, z0:-51.68, z1:-50.32}, ground:0x9fb06a},
+  north:{name:'the Northern Quarry', rect:{x0:-10.3, x1:13.4, z0:-47.6, z1:-30.9}, gap:['n', -9.2, -6.2], gate:[[-7.7, -12.1], [-7.7, -32.9]], ground:0xbfa57a},
+  east:{name:'the Market Quarter', rect:{x0:33.4, x1:50.6, z0:-12.9, z1:13.9}, gate:[[12.6, 1.6], [35.4, 1.6]], ground:0xcfae78},
+  south:{name:'the Military Grounds', rect:{x0:-10.3, x1:13.4, z0:34, z1:78.6}, gap:['s', 1.5, 4.5], gate:[[3, 13.2], [3, 63.8]], ground:0xc4a070},
+  farm:{name:'the Farmlands', rect:{x0:33.4, x1:50.6, z0:61.9, z1:78.6}, ground:0xb9a865},
+  downtown:{name:'Downtown', rect:{x0:33.4, x1:50.6, z0:-47.6, z1:-30.9}, ground:0x9ea3ad},
+  airfield:{name:'the Airfield', rect:{x0:-39, x1:-22.6, z0:-12.9, z1:28.633}, extra:{x0:-20.7, x1:-10.2, z0:8.85, z1:10.35}, ground:0x8fa86a},
+  ranch:{name:'the Ranch', rect:{x0:-39, x1:-22.6, z0:-48, z1:-32}, extra:{x0:-20.8, x1:-10.2, z0:-39.68, z1:-38.32}, ground:0x9fb06a},
 };
 // how regions connect, with the waypoints to cross between them
 const EDGES = [
-  ['camp', 'north', [[-7.7, -12.1], [-7.7, -44.9]]], ['camp', 'east', [[12.6, 1.6], [45.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 75.8]]],
-  ['east', 'farm', [[49.6, 12.9], [49.6, 75]]], ['south', 'farm', [[12.4, 82.8], [44.6, 82.8]]],
-  ['east', 'downtown', [[45, -12.2], [45, -44]]], ['camp', 'airfield', [[-9.6, 9.6], [-78.4, 9.6]]], ['north', 'downtown', [[12.8, -52.5], [44.4, -52.5]]],
-  ['north', 'ranch', [[-9.8, -51], [-78.4, -51]]],
+  ['camp', 'north', [[-7.7, -12.1], [-7.7, -32.9]]], ['camp', 'east', [[12.6, 1.6], [35.4, 1.6]]], ['camp', 'south', [[3, 13.2], [3, 63.8]]],
+  ['east', 'farm', [[39.6, 12.9], [39.6, 63]]], ['south', 'farm', [[12.4, 70.8], [34.6, 70.8]]],
+  ['east', 'downtown', [[35, -12.2], [35, -32]]], ['camp', 'airfield', [[-9.6, 9.6], [-23.4, 9.6]]], ['north', 'downtown', [[12.8, -40.5], [34.4, -40.5]]],
+  ['north', 'ranch', [[-9.8, -39], [-23.4, -39]]],
 ];
 const regionOpen = id => id === 'camp' || W.unlocked.has(id + 'Gate');
 function regionOf(x, z) {
@@ -39,7 +39,7 @@ function openRegion(id, anim) {
   if (paved) pave(r.slab);
   fence(false);
   if (id === 'north') spawnRocks();
-  if (id === 'farm') { windmill(); AREAS.push({x0:60.4, x1:63, z0:71.5, z1:79.3}); }   // the strip by the railway
+  if (id === 'farm') { windmill(); AREAS.push({x0:50.4, x1:53, z0:59.5, z1:67.3}); }   // the strip by the railway
   if (id === 'downtown') downtownStreets();
   if (id === 'airfield') airfieldFx();
   gapRoads();
@@ -88,7 +88,7 @@ function travelSpots() {
     const p = e[0] === id ? e[2][0] : e[2][1];
     out.push([`${{north:'⛏️', east:'💰', south:'⚔️', farm:'🌾', downtown:'🏙️', airfield:'✈️', ranch:'🐄'}[id] || '🗺️'} ${r.name.replace(/^the /, 'The ')}`, p[0], p[1]]);
   }
-  if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -90.4]);
+  if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -78.4]);
   return out;
 }
 function openWorldMap() {
@@ -108,7 +108,7 @@ function openWorldMap() {
   g.fillStyle = 'rgba(250,235,190,.95)'; g.fillRect(X(BOUNDS.x0), Z(BOUNDS.z0), (BOUNDS.x1 - BOUNDS.x0)*sx, (BOUNDS.z1 - BOUNDS.z0)*sz);
   const pin = (x, z, t, size = 26) => { if (!seen(x, z)) return; g.font = `${size}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, X(x), Z(z)); };
   pin(1.5, .5, '🏠', 30);
-  for (const [style, S] of Object.entries(STYLE_SPOTS)) if (DISTRICT.built[style]) { const c = S.centre || (S.site ? [COAST.sites[S.site].x, -84] : [0, 0]); pin(c[0], c[1], S.flag); }
+  for (const [style, S] of Object.entries(STYLE_SPOTS)) if (DISTRICT.built[style]) { const c = S.centre || (S.site ? [COAST.sites[S.site].x, -72] : [0, 0]); pin(c[0], c[1], S.flag); }
   if (typeof RTOWN !== 'undefined') for (const r of EMP.list) { const T = RTOWN[r.id], c = r.at || (STYLE_SPOTS[RT_STYLE[r.id]] || {}).centre; if (T && T.lvl >= 0 && c && seen(c[0], c[1])) { pin(c[0], c[1], r.icon, 30); g.font = '20px system-ui'; g.fillStyle = '#fff'; g.fillText(`${r.n} (${TIERS[T.lvl][1]})`, X(c[0]), Z(c[1]) + 26); } }
   if (typeof AIRSTRIPS !== 'undefined') for (const A of Object.values(AIRSTRIPS)) pin(A.tile[0], A.tile[1], '✈️', 18);
   // the campaign targets: the places your army fights (a flag once taken)
@@ -163,9 +163,9 @@ function goTo(e, x, z, dt) {
 const rocks = [];
 function spawnRocks() {
   seed = 23;
-  const avoid = [[-7.7, -44.5], [-7.7, -47], [0, -57.2], [6.5, -52], [4.1, -52], [8.9, -52], [-6, -47.5], [-6, -49.2], [-2.5, -53], [-2.6, -47.4], [9.6, -46.6], [7.2, -46.6], [12, -46.6], [10, -56.5], [10, -54.1], [12, -50], [6.5, -49.4], [9.6, -44.4], [12.4, -56.5]];
+  const avoid = [[-7.7, -32.5], [-7.7, -35], [0, -45.2], [6.5, -40], [4.1, -40], [8.9, -40], [-6, -35.5], [-6, -37.2], [-2.5, -41], [-2.6, -35.4], [9.6, -34.6], [7.2, -34.6], [12, -34.6], [10, -44.5], [10, -42.1], [12, -38], [6.5, -37.4], [9.6, -32.4], [12.4, -44.5]];
   for (let n = 0; n < 3000 && rocks.length < 10; n++) {
-    const x = -9 + rnd()*21, z = -56.5 + rnd()*11.5;
+    const x = -9 + rnd()*21, z = -44.5 + rnd()*11.5;
     if (avoid.some(([ax, az]) => Math.hypot(ax - x, az - z) < 2.7)) continue;
     if (rocks.some(r => Math.hypot(r.x - x, r.z - z) < 2.1)) continue;
     const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);

@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ the regiment field: every soldier past the 24 in the yard
-const REGT = {rect:{x0:22.4, x1:41.4, z0:47, z1:73.4}, built:false, n:-1, col:0, cap:1200, colCap:360, troop:-1, ims:[], tile:null, lastMid:null, dir:[0, 1]};
+const REGT = {rect:{x0:19.4, x1:38.4, z0:35, z1:61.4}, built:false, n:-1, col:0, cap:1200, colCap:360, troop:-1, ims:[], tile:null, lastMid:null, dir:[0, 1]};
 const UNIFORM = [[0x8a6a4a, 0x6a5038], [0xa8322a, 0xc8a24a], [0x7a828a, 0x9aa2aa], [0xb8221a, 0x1a1a22], [0x6a6a44, 0x4a5030], [0x2e3a2e, 0x1e221e]];
 const recruitCost = () => 10*(220 + 110*W.era);
 function regtSlot(k) {
@@ -12,16 +12,16 @@ function regtSlot(k) {
 function regtBuild() {
   REGT.built = true;
   const r = REGT.rect;
-  clearForest({x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1}); clearForest({x0:13, x1:22.6, z0:59, z1:62.8});
-  slab(0xc4a676, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .004); slab(0xb98f5c, 9.6, 3, 17.8, 60.9, .006);
-  AREAS.push(r, {x0:13, x1:22.8, z0:59.6, z1:62.2});
+  clearForest({x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1}); clearForest({x0:13, x1:19.6, z0:47, z1:50.8});
+  slab(0xc4a676, r.x1 - r.x0, r.z1 - r.z0, (r.x0 + r.x1)/2, (r.z0 + r.z1)/2, .004); slab(0xb98f5c, 9.6, 3, 17.8, 48.9, .006);
+  AREAS.push(r, {x0:13, x1:19.8, z0:47.6, z1:50.2});
   // flags round the field and a sign at the way in
   for (const [x, z] of [[r.x0 + .4, r.z0 + .4], [r.x1 - .4, r.z0 + .4], [r.x0 + .4, r.z1 - .4], [r.x1 - .4, r.z1 - .4]]) {
     mesh(G.cyl, 0x5e3f22, [.05, 3.2, .05], [x, 1.6, z], scene); mesh(G.box, 0xf2c200, [.9, .55, .03], [x + .46, 2.9, z], scene); boxes.push({x0:x - .2, x1:x + .2, z0:z - .2, z1:z + .2});
   }
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('REGIMENT FIELD', '#5a3a1a', '#ffffff'), toneMapped:false, side:THREE.DoubleSide}));
-  sign.scale.set(2.6, .7, 1); sign.position.set(17.8, 2.2, 59.3); scene.add(sign);
-  for (const x of [16.5, 19.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.6, .05], [x, 1.3, 59.3], scene);
+  sign.scale.set(2.6, .7, 1); sign.position.set(17.8, 2.2, 47.3); scene.add(sign);
+  for (const x of [16.5, 19.1]) mesh(G.cyl, 0x5e3f22, [.05, 2.6, .05], [x, 1.3, 47.3], scene);
   // the soldiers themselves: five instanced parts, enough for the field and a marching column
   const N = REGT.cap + REGT.colCap, part = (geo, sc, pos) => { const g = geo.clone(); g.scale(...sc); g.translate(...pos); return g; };
   // the soldiers: the same realistic soldier as in the yard, standing at ease (two instanced parts: the uniform,
@@ -39,7 +39,7 @@ function regtBuild() {
     const material = c === 'rest' ? new THREE.MeshStandardMaterial({vertexColors:true, roughness:.75}) : new THREE.MeshStandardMaterial({color:typeof c === 'number' && c > 1 ? c : 0x888888, roughness:c === 'uni' ? .85 : .75});
     const im = new THREE.InstancedMesh(geo, material, NN); im.count = 0; im.castShadow = !REGT.real; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); return im;
   });
-  REGT.tile = addZone({kind:'recruit', x:21.4, z:60.9, icon:'🪖', tile:{alpha:1, size:84, label:'', fill:'rgba(60,70,40,.6)'}});
+  REGT.tile = addZone({kind:'recruit', x:18.4, z:48.9, icon:'🪖', tile:{alpha:1, size:84, label:'', fill:'rgba(60,70,40,.6)'}});
 }
 // a regiment is hundreds of tiny heads: a low sphere is plenty
 const LOSPH = new THREE.SphereGeometry(1, 8, 4);

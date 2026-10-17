@@ -27,7 +27,7 @@ function startBoss() {
   scene.add(g);
   const hp = kind === 'kaiju' ? 90 + 15*W.era : 50 + 8*W.era, F = bossForces(), dps = Object.values(F).reduce((a, b) => a + b, 0);
   const tough = Math.max(hp, Math.round(dps*40));
-  BOSS.on = {kind, g, hp:tough, maxHp:tough, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -48), target:null, breath:0};
+  BOSS.on = {kind, g, hp:tough, maxHp:tough, t:0, burnT:6, shotT:0, F, dps, pos:new THREE.Vector3(-13.6, -9, -36), target:null, breath:0};
   $('bossBar').hidden = false; $('bossName').textContent = kind === 'dragon' ? '🐉 The Red Dragon' : '🦖 The Kaiju';
   const have = Object.entries(F).filter(([, v]) => v > 0).map(([k]) => ({soldiers:'🪖 soldiers', tanks:'🛡️ tanks', planes:'✈️ planes', warship:'⚓ warship', castle:'🏰 castle guns'})[k]);
   banner(kind === 'dragon' ? '🐉 A dragon attacks!' : '🦖 A kaiju rises from the river!', have.length ? `Fighting back: ${have.join(', ')}.` : 'You have nothing that can fight it. It will wreck the town until it leaves.');
@@ -76,7 +76,7 @@ function updBoss(dt) {
   if (B.kind === 'dragon') {
     // wide loops over the kingdom; every few seconds it picks a building, swoops low and burns it
     B.fx ||= {}; B.vel ||= new THREE.Vector3(); B.mode ||= 'loop';
-    if (B.t < .05) g.position.set(-60, 14, -40);
+    if (B.t < .05) g.position.set(-60, 14, -29.841);
     let want, sp = 11;
     if (B.mode === 'loop') {
       const a = B.t*.22; want = new THREE.Vector3(10 + Math.cos(a)*34, 7.5 + Math.sin(B.t*.9)*1.5, 14 + Math.sin(a*2)*26);

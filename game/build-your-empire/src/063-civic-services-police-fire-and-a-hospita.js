@@ -1,10 +1,10 @@
 // ------------------------------------------------------------------ civic services: police, fire and a hospital, east of the railway
 const CIVIC = {fire:null, truck:null, amb:null, patrol:null};
 function civicBlock(kind, anim) {
-  clearForest({x0:65.5, x1:76, z0:-.5, z1:10.5});
-  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 71, 1.6, .007); AREAS.push({x0:66.4, x1:76.4, z0:.35, z1:9.8}); }
-  boxes.push({police:{x0:66.9, x1:69.5, z0:3.5, z1:6.1}, fire:{x0:70, x1:72.8, z0:3.5, z1:6.1}, hospital:{x0:73.1, x1:76.1, z0:4, z1:6.8}}[kind]);
-  const at = {police:[68.2, 4.8], fire:[71.4, 4.8], hospital:[74.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
+  clearForest({x0:55.5, x1:66, z0:-.5, z1:10.5});
+  if (!civicBlock.road) { civicBlock.road = true; slab(0x6a6e76, 10, 1.4, 61, 1.6, .007); AREAS.push({x0:56.4, x1:66.4, z0:.35, z1:9.8}); }
+  boxes.push({police:{x0:56.9, x1:59.5, z0:3.5, z1:6.1}, fire:{x0:60, x1:62.8, z0:3.5, z1:6.1}, hospital:{x0:63.1, x1:66.1, z0:4, z1:6.8}}[kind]);
+  const at = {police:[58.2, 4.8], fire:[61.4, 4.8], hospital:[64.6, 5.4]}[kind], g = new THREE.Group(); g.position.set(at[0], 0, at[1]); scene.add(g);
   const sign = (t, bg, fg, y) => { const s = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex(t, bg, fg), toneMapped:false})); s.scale.set(1.7, .5, 1); s.position.set(0, y, 1.33); g.add(s); };
   if (kind === 'police') {
     mesh(G.box, 0xeef1f4, [2.6, 1.8, 2.6], [0, .9, 0], g); mesh(G.box, 0x1f3a7a, [2.62, .35, 2.62], [0, 1.6, 0], g);
@@ -22,9 +22,9 @@ function civicBlock(kind, anim) {
   }
   fader(g, 3, 2.6);
   if (anim) popIn(g);
-  if (kind === 'fire') CIVIC.truck = vehicle(0xd9443a, 71.4, 6.7, 'fire');
-  if (kind === 'hospital') CIVIC.amb = vehicle(0xf4f6f8, 74.6, 7.4, 'amb');
-  if (kind === 'police') CIVIC.patrol = vehicle(0xf4f6f8, 68.2, 6.7, 'police');
+  if (kind === 'fire') CIVIC.truck = vehicle(0xd9443a, 61.4, 6.7, 'fire');
+  if (kind === 'hospital') CIVIC.amb = vehicle(0xf4f6f8, 64.6, 7.4, 'amb');
+  if (kind === 'police') CIVIC.patrol = vehicle(0xf4f6f8, 58.2, 6.7, 'police');
 }
 const A_SIREN = [];
 function vehicle(col, x, z, kind) {
@@ -52,7 +52,7 @@ function updVehicle(v, dt) {
   v.lights.forEach((l, i) => { l.visible = on ? Math.sin(time*12 + i*Math.PI) > 0 : false; });
 }
 // the road in from the east, then straight to the job
-const TOWN_ROUTE = (x, z) => [[68, 1.6], [14, 1.6], [12.6, 1.6], [x, z]];
+const TOWN_ROUTE = (x, z) => [[58, 1.6], [14, 1.6], [12.6, 1.6], [x, z]];
 function updCivic(dt) {
   if (!started) return;
   // fire trucks put out fires so you don't have to
@@ -67,7 +67,7 @@ function updCivic(dt) {
         for (let i = 0; i < 30; i++) setTimeout(() => particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((x - T.g.position.x)*.8 + (R() - .5), 2, (z - T.g.position.z)*.8 + (R() - .5)), .6, .08, {grav:1}), i*90);
         setTimeout(() => {
           if (st.broken) { st.broken = false; if (st.repairZone) removeZone(st.repairZone); st.repairZone = null; puff(x, z); popText(`🚒 Fire out at the ${st.name}`, new THREE.Vector3(x, 2.8, z), '#b8f0a0'); }
-          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [68, 1.6], T.home], () => { T.busy = false; });
+          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [58, 1.6], T.home], () => { T.busy = false; });
         }, 3000);
       });
     }
@@ -75,7 +75,7 @@ function updCivic(dt) {
   updVehicle(T, dt);
   // the ambulance goes out to the battlefield after every land battle
   const Am = CIVIC.amb;
-  if (Am && !Am.busy && W.camp && W.camp.type === 'land' && !W.camp.away && W.camp.t < 9 && W.camp.t > 8) driveTo(Am, [[68, 1.6], [61, 1.6], [61, 91.5], [BF.x + 2, 93]], () => { Am.wait = 4; driveTo(Am, [[61, 91.5], [61, 1.6], [68, 1.6], Am.home], () => { Am.busy = false; }); });
+  if (Am && !Am.busy && W.camp && W.camp.type === 'land' && !W.camp.away && W.camp.t < 9 && W.camp.t > 8) driveTo(Am, [[58, 1.6], [51, 1.6], [51, 79.5], [BF.x + 2, 93]], () => { Am.wait = 4; driveTo(Am, [[51, 79.5], [51, 1.6], [58, 1.6], Am.home], () => { Am.busy = false; }); });
   updVehicle(Am, dt);
   // a patrol car loops through town
   const Pc = CIVIC.patrol;

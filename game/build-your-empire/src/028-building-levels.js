@@ -3,9 +3,9 @@
 // upgrade tiles sit outside the plot each building grows into, on the side facing the camera
 const UPG = {
   grill:{base:60, at:[-4.2, -1.7]}, spit:{base:100, at:[.4, -5]}, oven:{base:150, at:[-1.8, 4.95]}, lodge:{base:120, at:[-7.6, -9.3]},
-  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -49.4]}, workshop:{base:400, at:[7.1, -12.1]}, digger:{base:400, at:[11.9, -54.75]},
-  smith:{base:400, at:[-5, 81.95]}, library:{base:500, at:[55.6, -5.2]}, field2:{base:250, at:[44.8, 79.5]}, field3:{base:250, at:[44.8, 86.5]},
-  oven2:{base:300, at:[55.5, 77.6]}, brewery:{base:400, at:[56.8, 13]},
+  field:{base:120, at:[-.7, 12.4]}, smelter:{base:300, at:[6.5, -37.4]}, workshop:{base:400, at:[7.1, -12.1]}, digger:{base:400, at:[11.9, -42.75]},
+  smith:{base:400, at:[-5, 69.95]}, library:{base:500, at:[45.6, -5.2]}, field2:{base:250, at:[34.8, 67.5]}, field3:{base:250, at:[34.8, 74.5]},
+  oven2:{base:300, at:[45.5, 65.6]}, brewery:{base:400, at:[46.8, 13]},
 };
 const MAXLV = 5;
 const lvl = id => Math.min(MAXLV, W.levels[id] || 1);
@@ -48,7 +48,7 @@ function kit2(name, width) {
 function libraryStage(stage, anim) {
   const st = ST.library; if (!st) return;
   if (st.body) { scene.remove(st.body); const i = FADERS.findIndex(f => f.g === st.body); if (i >= 0) FADERS.splice(i, 1); }
-  const g = new THREE.Group(); g.position.set(55.5, 0, -9.6); scene.add(g);
+  const g = new THREE.Group(); g.position.set(45.5, 0, -9.6); scene.add(g);
   if (stage === 2) {
     // a university: a long hall of columns and a clock tower
     mesh(G.box, 0xe8e0cc, [4, .35, 3], [0, .17, 0], g); mesh(G.box, 0xd9cdb0, [3.8, 2.4, 2.6], [0, 1.55, 0], g);
@@ -78,7 +78,7 @@ function libraryStage(stage, anim) {
   fader(g, 4.2, stage === 2 ? 5.6 : 4);
   st.body = g; st.body.userData.lvShown = 0;
   refreshUpgrades();
-  if (anim) { popIn(g); shakeCam(.4); puff(55.5, -9.6); }
+  if (anim) { popIn(g); shakeCam(.4); puff(45.5, -9.6); }
 }
 function refreshUpgrades() {
   for (const [id, u] of Object.entries(UPG)) {

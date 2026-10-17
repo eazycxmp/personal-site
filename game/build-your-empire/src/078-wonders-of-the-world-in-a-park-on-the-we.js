@@ -1,17 +1,17 @@
 // ------------------------------------------------------------------ wonders of the world, in a park on the west bank
 const WONDERS = [
-  {id:'wStone', n:'Stonehenge', icon:'🪨', at:[-89.5, 78.4]}, {id:'wPyramid', n:'The Great Pyramid', icon:'🔺', at:[-82.6, 78.4]},
-  {id:'wColosseum', n:'The Colosseum', icon:'🏟️', at:[-89.5, 83.8]}, {id:'wCathedral', n:'The Cathedral', icon:'⛪', at:[-82.6, 83.8]},
-  {id:'wTower', n:'The Iron Tower', icon:'🗼', at:[-89.5, 89]}, {id:'wNeedle', n:'The Space Needle', icon:'🛸', at:[-82.6, 89]},
+  {id:'wStone', n:'Stonehenge', icon:'🪨', at:[-34.5, 66.4]}, {id:'wPyramid', n:'The Great Pyramid', icon:'🔺', at:[-27.6, 66.4]},
+  {id:'wColosseum', n:'The Colosseum', icon:'🏟️', at:[-34.5, 71.8]}, {id:'wCathedral', n:'The Cathedral', icon:'⛪', at:[-27.6, 71.8]},
+  {id:'wTower', n:'The Iron Tower', icon:'🗼', at:[-34.5, 77]}, {id:'wNeedle', n:'The Space Needle', icon:'🛸', at:[-27.6, 77]},
 ];
 const wonderCount = () => WONDERS.filter(w => W.unlocked.has(w.id)).length;
 let wondersOpen = false;
 function wondersPark() {
   if (wondersOpen) return; wondersOpen = true;
-  clearForest({x0:-94, x1:-77.4, z0:74.6, z1:91.5}); clearForest({x0:-83.4, x1:-80.4, z0:5, z1:75});
-  slab(0x9fb86a, 16.4, 16.6, -85.8, 83.2, .004); slab(0xc9b48a, 3.2, 70, -81.9, 40, .006);
-  for (let z = 76; z <= 91; z += 2.5) slab(0xd8ccb0, 1.2, .6, -86.05, z, .008);
-  AREAS.push({x0:-83.6, x1:-80.2, z0:5.2, z1:75.4}, {x0:-94, x1:-77.6, z0:75, z1:91.4});
+  clearForest({x0:-39, x1:-22.4, z0:62.6, z1:79.5}); clearForest({x0:-28.4, x1:-25.4, z0:5, z1:63});
+  slab(0x9fb86a, 16.4, 16.6, -30.8, 71.2, .004); slab(0xc9b48a, 3.2, 70, -26.9, 32, .006);
+  for (let z = 64; z <= 79; z += 2.5) slab(0xd8ccb0, 1.2, .6, -31.05, z, .008);
+  AREAS.push({x0:-28.6, x1:-25.2, z0:5.2, z1:63.4}, {x0:-39, x1:-22.6, z0:63, z1:79.4});
 }
 function wonderFx(id, anim) {
   wondersPark();
@@ -57,7 +57,7 @@ function updWonders(dt) {
   const n = wonderCount(); if (!n || !started || (tourT -= dt) > 0) return;
   tourT = 30;
   const pay = n * (300 + 80*W.era); W.coins += pay; W.earned += pay;
-  popText(`📸 +${pay} tourists`, new THREE.Vector3(-85.8, 4, 83), '#ffe06b');
-  for (let i = 0; i < Math.min(3, n) && movers.length < MAX_MOVERS; i++) { const w = WONDERS.filter(q => W.unlocked.has(q.id))[i]; spawnMover([[-86.05, 75.4], [-86.05, w.at[1]], [w.at[0] + (w.at[0] < -26 ? 2.6 : -2.6), w.at[1]], [-86.05, w.at[1]], [-86.05, 75.4]], null, false); }
+  popText(`📸 +${pay} tourists`, new THREE.Vector3(-30.8, 4, 71), '#ffe06b');
+  for (let i = 0; i < Math.min(3, n) && movers.length < MAX_MOVERS; i++) { const w = WONDERS.filter(q => W.unlocked.has(q.id))[i]; spawnMover([[-31.05, 63.4], [-86.05, w.at[1]], [w.at[0] + (w.at[0] < -26 ? 2.6 : -2.6), w.at[1]], [-86.05, w.at[1]], [-31.05, 63.4]], null, false); }
 }
 

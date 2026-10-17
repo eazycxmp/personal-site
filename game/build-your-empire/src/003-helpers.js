@@ -84,9 +84,9 @@ function groundTex(rep) {
 const SLAB_TOPS = [];
 // open building land: the camp's from the start, each region's when it opens
 const LAND = {camp:[{x0:14.6, x1:30, z0:-22, z1:-1}, {x0:14.6, x1:30, z0:4.6, z1:26}, {x0:-9.4, x1:.4, z0:15.2, z1:28}, {x0:5.6, x1:14, z0:15.2, z1:28}, {x0:-5.2, x1:13.4, z0:-24, z1:-14.2}], open:new Set(), rects:[]};
-const ZOOPARK = {x0:84, x1:130, z0:22, z1:50, path:{x0:88.6, x1:91.4, z0:3.2, z1:22.4}};
-const WORLD = {w:960, cx0:-330, cx1:330, cz0:-91.6, cz1:230, islands:[{x:410, z:50, r:30}, {x:-410, z:50, r:30}],
-  roads:[{x0:78.6, x1:322, z0:.4, z1:3.4}, {x0:-322, x1:-94, z0:10.6, z1:13.6}]};
+const ZOOPARK = {x0:74, x1:120, z0:22, z1:50, path:{x0:78.6, x1:81.4, z0:3.2, z1:22.4}};
+const WORLD = {w:960, cx0:-270, cx1:240, cz0:-79.6, cz1:218, islands:[{x:280, z:50, r:30}, {x:-310, z:50, r:30}],
+  roads:[{x0:68.6, x1:232, z0:.4, z1:3.4}, {x0:-262, x1:-39, z0:10.6, z1:13.6}]};
 const wrapX = x => ((x + WORLD.w/2) % WORLD.w + WORLD.w) % WORLD.w - WORLD.w/2;
 const FOG = {cell:6, nx:160, nz:100, z0:-320, data:new Uint8Array(160*100), dirty:false, t:0, tex:null};
 FOG.tex = new THREE.DataTexture(FOG.data, FOG.nx, FOG.nz, THREE.RedFormat); FOG.tex.magFilter = FOG.tex.minFilter = THREE.LinearFilter; FOG.tex.wrapS = THREE.RepeatWrapping; FOG.tex.needsUpdate = true;
@@ -102,7 +102,7 @@ function reveal(x, z, r) {
 function fogLoad() {
   const f = W.flags.fog;
   if (f) { const bin = atob(f); for (let k = 0; k < FOG.data.length; k++) FOG.data[k] = (bin.charCodeAt(k >> 3) >> (k & 7)) & 1 ? 255 : 0; }
-  else for (let x = -112; x <= 96; x += 6) for (let z = -96; z <= 130; z += 6) reveal(x, z, 6);   // the home country is known from the start
+  else for (let x = -150; x <= 116; x += 6) for (let z = -86; z <= 156; z += 6) reveal(x, z, 6);   // the home country is known from the start
   FOG.tex.needsUpdate = true;
 }
 function fogSave() {

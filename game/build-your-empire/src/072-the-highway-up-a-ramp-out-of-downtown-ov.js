@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ the highway: up a ramp out of downtown, over the railway on pillars, into a tunnel to the next city
-const HW = {pts:[[67.5, -66.6, 0], [67.5, -63, 1.6], [66.2, -60.9, 3.2], [61.4, -60.9, 3.4], [57.5, -60.9, 3.2], [53.8, -60.9, 1.7], [50.8, -60.3, .2], [49.2, -59.6, 0]], cars:[], len:0, segs:[], lights:[]};
+const HW = {pts:[[57.5, -54.6, 0], [57.5, -51, 1.6], [56.2, -48.9, 3.2], [51.4, -48.9, 3.4], [47.5, -48.9, 3.2], [43.8, -48.9, 1.7], [40.8, -48.3, .2], [39.2, -47.6, 0]], cars:[], len:0, segs:[], lights:[]};
 function hwAt(u, lane) {
   // u runs 0..1 out of the tunnel to downtown on one lane, then back on the other
   let d = (u % 1) * HW.len*2, back = d > HW.len; if (back) d = HW.len*2 - d;
@@ -11,7 +11,7 @@ function hwAt(u, lane) {
   const s = HW.segs[HW.segs.length - 1]; return {x:s.b[0], z:s.b[1], h:0, yaw:s.yaw, pitch:0};
 }
 function highwayFx(anim) {
-  clearForest({x0:59, x1:70, z0:-70, z1:-57});
+  clearForest({x0:49, x1:60, z0:-58, z1:-45});
   const g = new THREE.Group(); scene.add(g); HW.g = g;
   const CON = 0xb8b4ac, ASP = 0x3a3d42;
   HW.segs = []; HW.len = 0;
@@ -39,21 +39,21 @@ function highwayFx(anim) {
     HW.lights.push(bulb(g, x + .8, h + 1.55, z, 0xfff2c8, .09));
   }
   // a big green sign over the road
-  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DOWNTOWN ▸', '#1d6b3a', '#ffffff'), toneMapped:false})); sign.scale.set(2, .55, 1); sign.position.set(65, 5.3, -60.9); sign.rotation.y = Math.PI/2; g.add(sign);
-  for (const z of [-62.1, -59.7]) mesh(G.box, 0x8a8f96, [.08, 5.6, .08], [65, 2.8, z], g, {metalness:.6});
-  mesh(G.box, 0x8a8f96, [.08, .08, 2.6], [65, 5.6, -60.9], g, {metalness:.6});
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DOWNTOWN ▸', '#1d6b3a', '#ffffff'), toneMapped:false})); sign.scale.set(2, .55, 1); sign.position.set(55, 5.3, -48.9); sign.rotation.y = Math.PI/2; g.add(sign);
+  for (const z of [-50.1, -47.7]) mesh(G.box, 0x8a8f96, [.08, 5.6, .08], [55, 2.8, z], g, {metalness:.6});
+  mesh(G.box, 0x8a8f96, [.08, .08, 2.6], [55, 5.6, -48.9], g, {metalness:.6});
   // the tunnel to the next city
-  mesh(G.cone, 0x7d838a, [5.5, 8.5, 5.5], [67.5, 3.6, -71.5], g, {flatShading:true});
-  mesh(G.box, 0x9a958c, [3.4, 3, .9], [67.5, 1.5, -67], g); mesh(G.box, 0x15120f, [2.4, 2.1, .1], [67.5, 1.05, -66.5], g);
-  for (const x of [66.6, 68.4]) bulb(g, x, 2.3, -66.4, 0xffd890, .08);
+  mesh(G.cone, 0x7d838a, [5.5, 8.5, 5.5], [57.5, 3.6, -59.5], g, {flatShading:true});
+  mesh(G.box, 0x9a958c, [3.4, 3, .9], [57.5, 1.5, -55], g); mesh(G.box, 0x15120f, [2.4, 2.1, .1], [57.5, 1.05, -54.5], g);
+  for (const x of [56.6, 58.4]) bulb(g, x, 2.3, -54.4, 0xffd890, .08);
   // cars both ways
   const cols = [0xd9443a, 0x3f7cc0, 0xf2c200, 0xf4f4f4, 0x1e1e22, 0x3f9a6a, 0xb04f86, 0xff8a3a];
   for (let i = 0; i < 8; i++) { const v = vehicle(cols[i], 0, 0, 'car'); v.u = i/8; v.lane = .55; HW.cars.push(v); }
   if (anim) popIn(g);
 }
 // the interstate runs north-south between the camp and the east districts, up on viaducts over the three cross roads
-const IHW_LINKS = [{x0:-51, x1:-39, z0:-52.8, z1:-49.2}, {x0:-51, x1:-39, z0:3.2, z1:6}, {x0:-51, x1:-39, z0:7.8, z1:11.4}];
-const IHW = {links:IHW_LINKS, x:-45, z0:-62, z1:126, cross:[-51, 4.6, 9.6], built:false, open:false, cars:[], rect:{x0:-49.4, x1:-40.6, z0:-62, z1:126}, lanes:[-47.8, -46.2, -43.8, -42.2]};
+const IHW_LINKS = [{x0:-51, x1:-39, z0:-40.8, z1:-37.2}, {x0:-51, x1:-39, z0:3.2, z1:6}, {x0:-51, x1:-39, z0:7.8, z1:11.4}];
+const IHW = {links:IHW_LINKS, x:-45, z0:-50, z1:93, cross:[-39, 4.6, 9.6], built:false, open:false, cars:[], rect:{x0:-49.4, x1:-40.6, z0:-50, z1:93}, lanes:[-47.8, -46.2, -43.8, -42.2]};
 const ihwH = z => IHW.cross.reduce((h, c) => Math.max(h, 3.2*clamp((16 - Math.abs(z - c))/10, 0, 1)), 0);
 function interstateFx(anim) {
   if (IHW.built) return; IHW.built = true;
@@ -100,16 +100,16 @@ function interstateFx(anim) {
   if (anim) { popIn(g); banner('🛣️ The interstate!', 'Four lanes north to south, up over the cross roads. Drive it in your car, on your motorcycle or with a jetpack.'); }
 }
 // the gas station by the exit: a corner store that grows into a giant travel stop
-const GAS2 = {plot:{x0:-39.5, x1:-18, z0:28, z1:43}, at:[-28.7, 35.5], g:null, lv:0, q:[], t:4, zone:null};
+const GAS2 = {plot:{x0:-39.5, x1:-18, z0:31, z1:46}, at:[-28.7, 38.5], g:null, lv:0, q:[], t:4, zone:null};
 const gasLvl = () => Math.min(5, W.levels.gas || 1);
 const gasCost = () => Math.round(30000 * Math.pow(2.6, gasLvl() - 1));
 function gasPlotFx() {
   if (GAS2.ready) return; GAS2.ready = true;
-  const P0 = GAS2.plot; clearForest({x0:P0.x0 - 1, x1:P0.x1 + 1, z0:P0.z0 - 1, z1:P0.z1 + 1}); clearForest({x0:-30.6, x1:-26.2, z0:10, z1:29});
-  slab(0xb98f5c, 2.4, 17.4, -28.4, 19.7, .01);                                 // the access road from the airfield road
-  AREAS.push({x0:-29.6, x1:-27.2, z0:10, z1:28.4}, P0);
+  const P0 = GAS2.plot; clearForest({x0:P0.x0 - 1, x1:P0.x1 + 1, z0:P0.z0 - 1, z1:P0.z1 + 1}); clearForest({x0:-30.6, x1:-26.2, z0:10, z1:32});
+  slab(0xb98f5c, 2.4, 20.4, -28.4, 21.2, .01);                                 // the access road from the airfield road
+  AREAS.push({x0:-29.6, x1:-27.2, z0:10, z1:31.4}, P0);
   // the off-ramp and on-ramp from the southbound lanes
-  for (const pts of [[[-42.2, 20], [-40.4, 25], [-38.5, 30]], [[-38.5, 41], [-40.4, 46], [-42.2, 51]]]) for (let i = 0; i < pts.length - 1; i++) {
+  for (const pts of [[[-42.2, 20], [-40.4, 25], [-38.5, 28.667]], [[-38.5, 32.333], [-40.4, 34], [-42.2, 39]]]) for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1], l = Math.hypot(bx - ax, bz - az), r = mesh(G.box, 0x34373c, [2.4, .05, l + .3], [(ax + bx)/2, .02, (az + bz)/2], scene); r.rotation.y = Math.atan2(bx - ax, bz - az);
   }
 }
@@ -127,7 +127,7 @@ function refreshGasTile() {
   if (!W.unlocked.has('gasStation')) return;
   if (GAS2.zone && gasLvl() >= 5) { removeZone(GAS2.zone); GAS2.zone = null; return; }
   if (gasLvl() >= 5) return;
-  if (!GAS2.zone) GAS2.zone = addZone({kind:'gasup', x:-28.4, z:25.6, w:1.6, d:1.6, icon:'⬆️', tile:{}});
+  if (!GAS2.zone) GAS2.zone = addZone({kind:'gasup', x:-28.4, z:28.6, w:1.6, d:1.6, icon:'⬆️', tile:{}});
   const paid = W.upPaid.gas || 0, cost = gasCost(), key = gasLvl() + ':' + paid;
   if (GAS2.zone.key !== key) { GAS2.zone.key = key; drawTile(GAS2.zone.tc.g, '⬆️', {cost:cost - paid, cur:'💵', prog:paid/cost, title:`⛽ Lv ${gasLvl() + 1}`}); GAS2.zone.tc.t.needsUpdate = true; }
 }
@@ -158,9 +158,9 @@ function updInterstate(dt) {
     const pz = v.z; v.z += v.dir*v.sp*dt;
     if (v.z > IHW.z1) v.z = IHW.z0; if (v.z < IHW.z0) v.z = IHW.z1;
     // take the exit to the pumps when there is room
-    if (pumps && v.dir === 1 && v.lane === -42.2 && pz < 20 && v.z >= 20 && GAS2.q.length < pumps && R() < .5) {
+    if (pumps && v.dir === 1 && v.lane === -42.2 && pz < 23 && v.z >= 23 && GAS2.q.length < pumps && R() < .5) {
       const k = GAS2.q.length, px = GAS2.at[0] - 5 + (k % 5)*2.5, pz = GAS2.at[1] - 2 + Math.floor(k / 5)*3.5;
-      v.fuel = {path:[[-40.4, 25], [-38.5, 30], [px, pz - 3], [px, pz], [px, pz + 3], [-38.5, 41], [-40.4, 46], [-42.2, 51]], i:0, pump:3, wait:0}; GAS2.q.push(v); continue;
+      v.fuel = {path:[[-40.4, 28], [-38.5, 33], [px, pz - 3], [px, pz], [px, pz + 3], [-38.5, 44], [-40.4, 49], [-42.2, 54]], i:0, pump:3, wait:0}; GAS2.q.push(v); continue;
     }
     const h = ihwH(v.z), h2 = ihwH(v.z + v.dir);
     v.g.position.set(v.lane, h + .06, v.z); v.g.rotation.order = 'YXZ'; v.g.rotation.set(-v.dir*Math.atan2(h2 - h, 1)*(v.dir), v.dir > 0 ? 0 : Math.PI, 0);
@@ -176,8 +176,8 @@ function updHighway(dt) {
     const p = hwAt(v.u, v.lane);
     v.g.position.set(p.x, p.h + .12, p.z); v.g.rotation.order = 'YXZ'; v.g.rotation.set(p.pitch, p.yaw, 0);
     // hidden while inside the tunnel
-    v.g.visible = Math.hypot(p.x - 67.5, p.z + 66.6) > .6;
+    v.g.visible = Math.hypot(p.x - 57.5, p.z + 54.6) > .6;
   }
-  if (started && (tollT -= dt) <= 0) { tollT = 15; const pay = 300 + 60*W.era; W.coins += pay; W.earned += pay; popText(`🛣️ +${pay} tolls`, new THREE.Vector3(61.4, 5, -60.9), '#ffe06b'); }
+  if (started && (tollT -= dt) <= 0) { tollT = 15; const pay = 300 + 60*W.era; W.coins += pay; W.earned += pay; popText(`🛣️ +${pay} tolls`, new THREE.Vector3(51.4, 5, -48.9), '#ffe06b'); }
 }
 

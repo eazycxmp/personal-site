@@ -1,7 +1,10 @@
 // ------------------------------------------------------------------ getting around: a horse, a bicycle, a scooter, a car and finally a jetpack
 const MOUNTS = [null,
   {n:'Horse', icon:'🐴', speed:1.25, y:.55}, {n:'Bicycle', icon:'🚲', speed:1.4, y:.28}, {n:'Scooter', icon:'🛵', speed:1.6, y:.32},
-  {n:'Car', icon:'🚗', speed:1.85, y:.3}, {n:'Jetpack', icon:'🎒', speed:2.1, y:.15}, {n:'Motorcycle', icon:'🏍️', speed:2.0, y:.32}];
+  {n:'Car', icon:'🚗', speed:1.85, y:.3}, {n:'Jetpack', icon:'🎒', speed:2.1, y:.15}, {n:'Motorcycle', icon:'🏍️', speed:2.0, y:.32},
+  // flying mounts: they climb to their cruising height while you move and land when you stop (so tiles still work)
+  {n:'Your own plane', icon:'🛩️', speed:3.2, y:.7, fly:9}, {n:'Your own dragon', icon:'🐉', speed:3.6, y:.9, fly:7}];
+const heroFlies = () => W.mount === 5 || !!(MOUNTS[W.mount] && MOUNTS[W.mount].fly);
 let mountG = null, jetFlame = null;
 function mountStage(n, anim) {
   W.mount = n;
@@ -35,27 +38,64 @@ function mountStage(n, anim) {
     P(G.box, 0xd9443a, [1, .45, 1.9], [0, .45, 0], {metalness:.4, roughness:.3}); P(G.box, 0x8fc6e8, [.9, .3, .8], [0, .82, -.05], {metalness:.5, roughness:.1});
     for (const [x, z] of [[-.5, .6], [.5, .6], [-.5, -.6], [.5, -.6]]) P(G.cyl, 0x1a1a1a, [.2, .12, .2], [x, .2, z]).rotation.z = Math.PI/2;
     for (const x of [-.3, .3]) bulb(g, x, .5, .96, 0xfff2c8, .05);
+  } else if (n === 7) {
+    // the same jet as the air force's, yours to fly; you sit in the cockpit
+    const jet = model('fighter', 3.4, 'x');
+    // the cockpit (forward of the middle) goes under the seat
+    if (jet) { jet.position.set(0, .55, -.95); g.add(jet); jet.traverse(o => { if (o.isMesh) o.castShadow = true; }); }
+    else { P(G.cyl, 0xd9443a, [.3, 2.6, .3], [0, .5, 0]).rotation.x = Math.PI/2; P(G.box, 0xd9443a, [3.4, .07, .7], [0, .5, .1]); P(G.box, 0xd9443a, [1.2, .06, .4], [0, .55, -1.1]); }
+    g.plane = true;
+  } else if (n === 8) {
+    // a dragon of your own, tamed after you beat one: you sit between its shoulders
+    const d = dragonModel(.42);
+    if (d) { d.position.set(0, -.15, -.35); g.add(d); g.dragon = d; }
+    else { P(G.sph, 0x3a7a3a, [.7, .6, 1.6], [0, .6, 0]); g.dragon = null; }
   } else if (n === 5) {
     P(G.box, 0x8a8f96, [.45, .55, .25], [0, 1.15, -.3], {metalness:.7, roughness:.3});
     for (const x of [-.14, .14]) P(G.cyl, 0x3a3e44, [.08, .3, .08], [x, .8, -.3], {metalness:.6});
     jetFlame = new THREE.Group(); g.add(jetFlame);
     for (const x of [-.14, .14]) { const f = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0x5af0ff, toneMapped:false})); f.scale.set(.08, .35, .08); f.rotation.x = Math.PI; f.position.set(x, .5, -.3); jetFlame.add(f); }
   }
-  if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 ? ' And you fly over buildings.' : ''}`); }
+  if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 || M.fly ? ' And you fly over buildings.' : ''} Switch rides with 🐎 (M).`); }
+  W.flags.mountSel = n; updMountBtn();
 }
 function updMount(dt) {
   // riding: the hero sits (or hovers, on the jetpack) instead of running along
+  // the ride you chose last time, once the camp has loaded (unlocking replays every ride in order)
+  if (!updMount.restored && started) { updMount.restored = true; const s = W.flags.mountSel; if (s != null && s !== W.mount && (s === 0 || W.unlocked.has('mount' + s))) { if (s) mountStage(s, false); else dismount(); } updMountBtn(); }
   player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
-  const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
+  // flying rides never come down onto water: over the river or the sea they hold their height until there is land below
+  const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3, aloft = moving || isWater(player.pos.x, player.pos.z), up = M.fly ? (aloft ? M.fly : M.y) : W.mount === 5 && aloft ? 1.3 : M.y;
   // (starts from 0: a camp loaded with a mount had no rideY yet, and undefined + n left the mount at NaN, unseen)
-  player.rideY = (player.rideY || 0) + ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
-  if (mountG) mountG.position.y = -player.rideY;
+  player.rideY = (player.rideY || 0) + (up - (player.rideY || 0)) * Math.min(1, dt*(M.fly ? 1.3 : 4));
+  // what you ride under you stays put; things you wear or sit in (jetpack, plane, dragon) rise with you
+  if (mountG) mountG.position.y = W.mount === 5 || M.fly ? -M.y : -player.rideY;
+  if (mountG && M.fly) {
+    // bank into turns and lift the nose on the climb; the dragon beats its wings, faster as it climbs
+    const yawRate = mountG.lastYaw == null ? 0 : Math.atan2(Math.sin(player.yaw - mountG.lastYaw), Math.cos(player.yaw - mountG.lastYaw)) / Math.max(dt, 1e-3);
+    mountG.lastYaw = player.yaw;
+    mountG.rotation.z += (clamp(-yawRate*.25, -.6, .6) - mountG.rotation.z) * Math.min(1, dt*3);
+    mountG.rotation.x += (clamp(-(up - player.rideY)*.08, -.35, .35) - mountG.rotation.x) * Math.min(1, dt*3);
+    if (mountG.dragon) flapDragon(mountG.dragon, time, player.rideY > 1 ? (up > player.rideY + .5 ? 9 : 5) : 2);
+    if (mountG.plane && moving && R() < dt*12) particle(0xf4fbff, player.pos.clone().setY(player.rideY + .4), new THREE.Vector3(-player.vel.x*.2, .1, -player.vel.z*.2), .9, .12, {grow:.6, op:.5});
+  }
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });
   if (jetFlame) { jetFlame.visible = moving; jetFlame.scale.y = .8 + Math.sin(time*30)*.2; if (moving && R() < dt*20) particle(0xd8f0ff, player.pos.clone().setY(player.rideY + .3), new THREE.Vector3((R() - .5), -1.5, (R() - .5)), .5, .1, {grow:.5, op:.5}); }
   // riding: legs out on the horse, bike and scooter; tucked away in the car
-  if (W.mount <= 3 || W.mount === 6) { player.char.legL.rotation.x = player.char.legR.rotation.x = -1.2; player.char.legL.rotation.z = .3; player.char.legR.rotation.z = -.3; }
+  if (W.mount <= 3 || W.mount >= 6) { player.char.legL.rotation.x = player.char.legR.rotation.x = -1.2; player.char.legL.rotation.z = .3; player.char.legR.rotation.z = -.3; }
   else { player.char.legL.rotation.z = player.char.legR.rotation.z = 0; }
 }
 
+// switching rides: every ride you own, and walking, in turn (the 🐎 button or M)
+const ownedMounts = () => [1, 2, 3, 4, 5, 6, 7, 8].filter(n => W.unlocked.has('mount' + n));
+function dismount() { if (mountG) player.char.g.remove(mountG); mountG = null; jetFlame = null; W.mount = 0; W.flags.mountSel = 0; player.rideY = 0; player.char.ride = null; updMountBtn(); }
+function cycleMount() {
+  const list = [0, ...ownedMounts()]; if (list.length < 2) return;
+  const next = list[(list.indexOf(W.mount || 0) + 1) % list.length];
+  if (next) mountStage(next, false); else dismount();
+  puff(player.pos.x, player.pos.z); note(next ? `${MOUNTS[next].icon} ${MOUNTS[next].n}` : '🚶 On foot', 'Switch rides with 🐎 or M.');
+  updMountBtn();
+}
+function updMountBtn() { const b = $('bMount'); if (!b) return; b.hidden = ownedMounts().length === 0; b.textContent = W.mount ? MOUNTS[W.mount].icon : '🚶'; }

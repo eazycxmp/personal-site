@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ trains: ore carts in the mine, and a line to the next towns
-const MINE_PATH = [[-1.4, -59.6], [3.35, -59.6], [3.35, -53.3]];
+const MINE_PATH = [[-1.4, -47.6], [3.35, -47.6], [3.35, -41.3]];
 function polyAt(P, s) {
   for (let i = 0; i < P.length - 1; i++) {
     const [ax, az] = P[i], [bx, bz] = P[i + 1], l = Math.hypot(bx - ax, bz - az);
@@ -54,7 +54,7 @@ function updMineTrain(dt) {
   });
 }
 // the main line runs north to south past the farms, from a mountain tunnel to the next town
-const RAIL = {x:63.6, z0:-67.5, z1:118, stop:75.4};
+const RAIL = {x:53.6, z0:-55.5, z1:106, stop:75.4};
 let railTrain = null;
 function makeTrain(kind) {
   if (railTrain) { scene.remove(railTrain.g); }
@@ -120,14 +120,14 @@ function updTrain(dt) {
 }
 function trainArrives(T) {
   const fare = [50, 120, 420][T.kind] + 30*W.era;
-  addCash(CASH.rail, fare, {x:62, z:RAIL.stop});
+  addCash(CASH.rail, fare, {x:52, z:RAIL.stop});
   popText(`+${fare} 🚉 fares`, new THREE.Vector3(32, 3.4, RAIL.stop), '#ffe06b');
   snd(660, .25, 'triangle', .05); setTimeout(() => snd(550, .35, 'triangle', .05), 260);
   // riders step off with their bags and head into town, while others board
   const doorX = T.kind === 0 ? RAIL.x - 1 : RAIL.x - .58;
   for (let i = 0; i < [2, 4, 6][T.kind] && movers.length < MAX_MOVERS; i++) {
     const z = RAIL.stop - 3 + i*1.1 + R()*.4;
-    spawnMover([[doorX, z], [RAIL.x - 1.4, z], [RAIL.x - 1.4, RAIL.stop - 4.6], [61.3, 4.6]], null, R() < .7);
+    spawnMover([[doorX, z], [RAIL.x - 1.4, z], [RAIL.x - 1.4, RAIL.stop - 4.6], [51.3, 4.6]], null, R() < .7);
   }
   for (let i = 0; i < [1, 3, 5][T.kind] && movers.length < MAX_MOVERS; i++) {
     const z = RAIL.stop - 2.6 + i*1.2;

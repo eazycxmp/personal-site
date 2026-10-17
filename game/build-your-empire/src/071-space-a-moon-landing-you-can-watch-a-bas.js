@@ -24,7 +24,7 @@ function spaceScene(planet) {
   sc.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xffffff, size:1.6, sizeAttenuation:false})));
   // home, hanging in the sky
   const earth = new THREE.Mesh(new THREE.SphereGeometry(mars ? 2 : 11, 32, 20), new THREE.MeshStandardMaterial({map:planetTex('earth'), roughness:.7}));
-  earth.position.set(-50, mars ? 60 : 38, -110); sc.add(earth);
+  earth.position.set(-50, mars ? 60 : 38, -98); sc.add(earth);
   if (mars) for (const [x, y, s] of [[40, 50, 2.5], [70, 35, 1.6]]) { const m = new THREE.Mesh(G.ico, mat(0x8a7a6a, {flatShading:true})); m.position.set(x, y, -120); m.scale.setScalar(s); sc.add(m); }
   // the ground: craters on the Moon, red dunes and rocks on Mars
   seed = mars ? 61 : 47; const craters = [];

@@ -1,6 +1,6 @@
 // ------------------------------------------------------------------ oil: once the stone is no longer needed, the quarry becomes an oil field and refinery
 const OIL = {jacks:[], flare:null, t:{well:20}, car:null, men:[]};
-const REFINERY = {x0:-8.7, x1:-2.4, z0:-55.4, z1:-50.6};
+const REFINERY = {x0:-8.7, x1:-2.4, z0:-43.4, z1:-38.6};
 const oilReady = () => PADS.every(p => p.cur !== 'stone' || W.unlocked.has(p.id));
 function pipeline(pts, parent, y = 2.3) {
   // overhead pipes on tall stands: you can walk underneath
@@ -52,12 +52,12 @@ function refineryFx(anim) {
   for (let i = 0; i < 5; i++) bulb(g, cx - 2.4 + i*1.2, 3.4 + (i % 2)*.8, cz - .4, 0xffe08a, .06);
   boxes.push({...REFINERY});
   // a pipeline in from the field
-  pipeline([[2.2, -48.6], [2.2, -52.6], [REFINERY.x1, -52.6]], g);
+  pipeline([[2.2, -36.6], [2.2, -40.6], [REFINERY.x1, -52.6]], g);
   if (anim) popIn(g);
 }
-const GAS = {at:[49.2, -62.9]};
+const GAS = {at:[39.2, -50.9]};
 function gasStationFx(anim) {
-  if (MODELS.road) { gasPlotFx(); gasStationLook(anim); OIL.car = null; if (W.unlocked.has('refinery')) pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -58.9], [-28.4, -58.9], [-28.4, 28]], scene, 2.6); return; }
+  if (MODELS.road) { gasPlotFx(); gasStationLook(anim); OIL.car = null; if (W.unlocked.has('refinery')) pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -46.9], [-28.4, -46.9], [-28.4, 31]], scene, 2.6); return; }
   // just off the highway where it lands downtown, fed by a pipe from the refinery
   const g = new THREE.Group(); g.position.set(GAS.at[0], 0, GAS.at[1]); scene.add(g);
   slab(0x3a3d42, 6, 3.6, GAS.at[0], GAS.at[1], .006);
@@ -67,8 +67,8 @@ function gasStationFx(anim) {
   mesh(G.box, 0xeef1f4, [1.4, 1.3, 1.2], [-2.6, .65, -.8], g); mesh(G.box, 0x8fc6e8, [1.42, .5, 1.22], [-2.6, .8, -.8], g, {metalness:.5, roughness:.1});
   const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('GAS', '#d9443a', '#ffffff'), toneMapped:false})); sign.scale.set(1, .4, 1); sign.position.set(0, 2.5, 1.32); g.add(sign);
   for (let i = 0; i < 6; i++) bulb(g, -1.8 + i*.72, 2.3, 1.32, 0xffffff, .05);
-  pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -58.9], [46.4, -62.9]], scene, 2.6);
-  OIL.car = vehicle(0x3f7cc0, 50.8, -60.3, 'car'); OIL.car.g.visible = false; OIL.car.speed = 4;
+  pipeline([[REFINERY.x1 - .5, REFINERY.z0], [REFINERY.x1 - .5, -58.9], [12.6, -46.9], [36.4, -50.9]], scene, 2.6);
+  OIL.car = vehicle(0x3f7cc0, 40.8, -48.3, 'car'); OIL.car.g.visible = false; OIL.car.speed = 4;
   if (anim) popIn(g);
 }
 let oilCarT = 6;
@@ -78,25 +78,25 @@ function updOil(dt) {
   // oil workers do the rounds of the pump jacks
   for (const w of OIL.men) {
     if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); continue; }
-    if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -50]; }
+    if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -38]; }
     if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
   }
   if (!started) return;
   // crude sells as it is pumped; refined fuel sells for far more
   if (W.unlocked.has('oilField') && (OIL.t.well -= dt) <= 0) {
     OIL.t.well = 20; const pay = (W.unlocked.has('refinery') ? 2500 : 600) + 120*W.era; W.coins += pay; W.earned += pay;
-    popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -51), '#ffe06b');
+    popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -39), '#ffe06b');
   }
   // cars come down off the highway to fill up
   const C = OIL.car;
   if (C) {
     if (!C.busy && (oilCarT -= dt) <= 0) {
-      oilCarT = 10 + R()*6; C.g.visible = true; C.g.position.set(53.8, 0, -60.9);
-      driveTo(C, [[50.8, -60.3], [49.6, -62.6]], () => {
+      oilCarT = 10 + R()*6; C.g.visible = true; C.g.position.set(43.8, 0, -48.9);
+      driveTo(C, [[40.8, -48.3], [39.6, -50.6]], () => {
         C.wait = 3;
         const pay = 400 + 60*W.era; W.coins += pay; W.earned += pay;
-        popText(`⛽ +${pay}`, new THREE.Vector3(49.4, 3, -62.8), '#ffe06b');
-        setTimeout(() => driveTo(C, [[47.6, -62.4], [49.2, -59.6], [51, -59]], () => { C.busy = false; C.g.visible = false; }), 0);
+        popText(`⛽ +${pay}`, new THREE.Vector3(39.4, 3, -50.8), '#ffe06b');
+        setTimeout(() => driveTo(C, [[37.6, -50.4], [39.2, -47.6], [41, -47]], () => { C.busy = false; C.g.visible = false; }), 0);
       });
     }
     updVehicle(C, dt);

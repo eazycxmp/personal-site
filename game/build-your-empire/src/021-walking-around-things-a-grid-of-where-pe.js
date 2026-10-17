@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ walking around things: a grid of where people can't go, and A* paths around it
-const NAV = {x0:-104, z0:-110, cs:.5, nx:400, nz:480, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
+const NAV = {x0:-150, z0:-100, cs:.5, nx:540, nz:540, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
 function navGrid() {
   const k = boxes.length*10000 + circles.length; if (k === NAV.key) return; NAV.key = k; NAV.ver++;
   const {x0, z0, cs, nx, nz} = NAV, g = NAV.grid = new Uint8Array(nx*nz), r = .3;

@@ -2,7 +2,7 @@
 let railRoadG = null, railsG = null, depotG = null;
 function railStage(n, anim) {
   if (n === 1) {
-    clearForest({x0:61, x1:67.5, z0:-36, z1:60}); clearForest({x0:65, x1:77, z0:107, z1:120});
+    clearForest({x0:51, x1:57.5, z0:-28.381, z1:48}); clearForest({x0:55, x1:67, z0:95, z1:108});
     railRoadG = slab(0xa58a62, 2.4, RAIL.z1 - RAIL.z0, RAIL.x, (RAIL.z0 + RAIL.z1)/2, .004);
     railRoadG.material[2].map = groundTex([1, 20]);
     const g = new THREE.Group(); scene.add(g);
@@ -11,7 +11,7 @@ function railStage(n, anim) {
     mesh(G.box, 0x9a958c, [3, 2.8, .8], [0, 1.4, .2], tn); mesh(G.box, 0x15120f, [1.8, 2.1, .1], [0, 1.05, .62], tn);
     seed = 77;
     for (let i = 0; i < 10; i++) {
-      const x = 66.5 + (i % 4)*2.4 + rnd()*.6, z = 109 + Math.floor(i / 4)*3 + rnd()*.6, h = 1.2 + rnd()*1.6, col = [0xe8d8b0, 0xd9a0a0, 0xa0c4d9, 0xe0c890, 0xb8d8a8][i % 5];
+      const x = 56.5 + (i % 4)*2.4 + rnd()*.6, z = 97 + Math.floor(i / 4)*3 + rnd()*.6, h = 1.2 + rnd()*1.6, col = [0xe8d8b0, 0xd9a0a0, 0xa0c4d9, 0xe0c890, 0xb8d8a8][i % 5];
       mesh(G.box, col, [1.6, h, 1.5], [x, h/2, z], g); mesh(G.cone4, [0x8a3a2a, 0x4a5a6a, 0x6a3a2a][i % 3], [1.3, .8, 1.2], [x, h + .4, z], g).rotation.y = Math.PI/4;
       mesh(G.box, WIN, [.05, .35, .3], [x - .82, h*.55, z], g);
     }
@@ -23,7 +23,7 @@ function railStage(n, anim) {
     for (let i = 0; i < cnt; i++) { o.position.set(RAIL.x, .03, RAIL.z0 + i*.6); o.scale.set(1.5, .06, .2); o.updateMatrix(); sl.setMatrixAt(i, o.matrix); }
     sl.receiveShadow = true; railsG.add(sl);
     for (const s of [-.42, .42]) mesh(G.box, 0x9aa0a8, [.07, .08, RAIL.z1 - RAIL.z0], [RAIL.x + s, .09, (RAIL.z0 + RAIL.z1)/2], railsG, {metalness:.8, roughness:.3});
-    for (const z of [1.6, 3.6, 89.6]) for (const s of [-.9, .9]) mesh(G.box, 0xf4f4f4, [.25, .01, 1.4], [RAIL.x + s, .02, z], railsG);
+    for (const z of [1.6, 3.6, 77.6]) for (const s of [-.9, .9]) mesh(G.box, 0xf4f4f4, [.25, .01, 1.4], [RAIL.x + s, .02, z], railsG);
     railRoadG.material[2].color.set(0x8f8a82); railRoadG.material[2].map = groundTex([1, 30]);
   }
   if (n === 3) {

@@ -1,13 +1,13 @@
 // ------------------------------------------------------------------ footbridges over the railway, so nobody walks in front of a train
-const XING = {h:2.7, list:[{zc:1.9, z0:.35, z1:3.45, sn:-.15, ss:3.95}, {zc:89.6, z0:88.95, z1:90.25, sn:88.6, ss:90.6}],
-  foot:[{z0:5.0, z1:6.1}, {z0:87.15, z1:88.25}], built:false, blink:0};
-const OV_H = 2.35, OVERPASS = [{x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:.15, z1:4.95}, {x0:60.8, x1:62.4, x2:64.8, x3:66.4, z0:88.9, z1:90.3}];
+const XING = {h:2.7, list:[{zc:1.9, z0:.35, z1:3.45, sn:-.15, ss:3.95}, {zc:77.6, z0:76.95, z1:78.25, sn:76.6, ss:78.6}],
+  foot:[{z0:5.0, z1:6.1}, {z0:75.15, z1:76.25}], built:false, blink:0};
+const OV_H = 2.35, OVERPASS = [{x0:50.8, x1:52.4, x2:54.8, x3:56.4, z0:.15, z1:4.95}, {x0:50.8, x1:52.4, x2:54.8, x3:56.4, z0:76.9, z1:78.3}];
 function elevAt(x, z) {
-  if (railsG && x > 61.4 && x < 62.95 && Math.abs(z - RAIL.stop) < 4) return .36;   // the station platform
+  if (railsG && x > 51.4 && x < 52.95 && Math.abs(z - RAIL.stop) < 4) return .36;   // the station platform
   if (x < -10.25 && x > -14.8 && z > .1 && z < 1.9) return .29;   // the fishing dock
   if (W.bridge && x > BR.x0 && x < BR.x1 && Math.abs(z - BR.z) < 1) return DECK[W.bridge];
-  if (railsG) for (const f of XING.foot) if (z > f.z0 && z < f.z1 && x > 59.6 && x < 67.6)
-    return x < 61.8 ? XING.h * (x - 59.6) / 2.2 : x > 65.4 ? XING.h * (67.6 - x) / 2.2 : XING.h;
+  if (railsG) for (const f of XING.foot) if (z > f.z0 && z < f.z1 && x > 49.6 && x < 57.6)
+    return x < 51.8 ? XING.h * (x - 49.6) / 2.2 : x > 55.4 ? XING.h * (57.6 - x) / 2.2 : XING.h;
   return 0;
 }
 function stripeTex() {
@@ -49,10 +49,10 @@ function levelCrossings(anim) {
   for (const f of XING.foot) {
     const zc = (f.z0 + f.z1)/2, wz = f.z1 - f.z0, H = XING.h;
     mesh(G.box, 0xb8b2a6, [3.6, .18, wz], [63.6, H - .09, zc], g);
-    for (const [a, b] of [[59.6, 61.8], [67.6, 65.4]]) for (let i = 0; i < 9; i++) { const h = H*(i + 1)/9; mesh(G.box, i % 2 ? 0xc9c4ba : 0xbdb8ae, [Math.abs(b - a)/9 + .01, .16, wz], [a + (b - a)*(i + .5)/9, h - .08, zc], g); }
-    for (const x of [62.0, 65.2]) for (const z of [f.z0 + .15, f.z1 - .15]) mesh(G.box, 0x9a958c, [.2, H, .2], [x, H/2, z], g);
-    for (const z of [f.z0 + .03, f.z1 - .03]) { mesh(G.box, 0x3a6a5a, [3.6, .05, .05], [63.6, H + .9, z], g, {metalness:.5}); for (let x = 61.9; x <= 65.4; x += .5) mesh(G.box, 0x3a6a5a, [.04, .9, .04], [x, H + .45, z], g, {metalness:.5}); }
-    AREAS.push({x0:59.4, x1:67.8, z0:f.z0 - .3, z1:f.z1 + .3});
+    for (const [a, b] of [[49.6, 51.8], [57.6, 55.4]]) for (let i = 0; i < 9; i++) { const h = H*(i + 1)/9; mesh(G.box, i % 2 ? 0xc9c4ba : 0xbdb8ae, [Math.abs(b - a)/9 + .01, .16, wz], [a + (b - a)*(i + .5)/9, h - .08, zc], g); }
+    for (const x of [52.0, 55.2]) for (const z of [f.z0 + .15, f.z1 - .15]) mesh(G.box, 0x9a958c, [.2, H, .2], [x, H/2, z], g);
+    for (const z of [f.z0 + .03, f.z1 - .03]) { mesh(G.box, 0x3a6a5a, [3.6, .05, .05], [53.6, H + .9, z], g, {metalness:.5}); for (let x = 51.9; x <= 55.4; x += .5) mesh(G.box, 0x3a6a5a, [.04, .9, .04], [x, H + .45, z], g, {metalness:.5}); }
+    AREAS.push({x0:49.4, x1:57.8, z0:f.z0 - .3, z1:f.z1 + .3});
   }
   if (anim) popIn(g);
 }
@@ -95,7 +95,7 @@ function xingLimit(T, dir) {
 }
 function overpasses(anim) {
   levelCrossings(anim);
-  clearForest({x0:75.5, x1:79.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 77.3, 7.6, .01); AREAS.push({x0:76, x1:78.6, z0:.35, z1:14.8}, {x0:66.4, x1:76.4, z0:.35, z1:14.8}, {x0:60.4, x1:66.6, z0:.35, z1:4.75}, {x0:60.4, x1:66.6, z0:89, z1:90.2}, {x0:60.4, x1:62.9, z0:71.5, z1:79.3});
+  clearForest({x0:65.5, x1:69.2, z0:0, z1:15.2}); slab(0xb98f5c, 2.4, 14.4, 67.3, 7.6, .01); AREAS.push({x0:66, x1:68.6, z0:.35, z1:14.8}, {x0:56.4, x1:66.4, z0:.35, z1:14.8}, {x0:50.4, x1:56.6, z0:.35, z1:4.75}, {x0:50.4, x1:56.6, z0:77, z1:78.2}, {x0:50.4, x1:52.9, z0:59.5, z1:67.3});
   const g = new THREE.Group(); scene.add(g);
   const IRON = 0x3a6a5a;
   for (const o of []) {   // (the old ramps over the tracks: replaced by level crossings and footbridges)
