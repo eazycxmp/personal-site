@@ -30,6 +30,42 @@ function stripTower(parent, w, h, d, x, z, base, cols, y0 = 0) {
   const t = stripWinTex(cols, Math.round(h*1.6), base), m = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({map:t, emissiveMap:t, emissive:0xffffff, emissiveIntensity:.15, roughness:.35, metalness:.3}));
   m.scale.set(w, h, d); m.position.set(x, y0 + h/2, z); m.castShadow = true; parent.add(m); STRIP.windows = (STRIP.windows || []).concat(m); return m;
 }
+// street-level glass: tall windows between mullions, warm light inside, a lit band above (glows brighter after dark)
+const STOREFRONT = {tex:null};
+function storefrontTex() {
+  if (STOREFRONT.tex) return STOREFRONT.tex;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = '#1a1410'; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 8; i++) {
+    const x = 8 + i*63, gr = g.createLinearGradient(0, 70, 0, 250); gr.addColorStop(0, '#ffe2a8'); gr.addColorStop(.55, '#f0b060'); gr.addColorStop(1, '#8a5a30');
+    g.fillStyle = gr; g.fillRect(x, 70, 55, 180);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.moveTo(x, 70); g.lineTo(x + 22, 70); g.lineTo(x, 150); g.fill();
+    g.fillStyle = 'rgba(40,20,10,.55)'; for (let k = 0; k < 3; k++) g.fillRect(x + 6 + k*16, 200 - (k % 2)*20, 9, 50);   // people inside
+  }
+  g.fillStyle = '#c8a040'; g.fillRect(0, 54, 512, 10);
+  for (let i = 0; i < 32; i++) { g.fillStyle = i % 2 ? '#fff2b0' : '#ffd040'; g.beginPath(); g.arc(8 + i*16, 30, 5, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return STOREFRONT.tex = t;
+}
+function storefront(parent, w, h, x, z, ry = 0) {
+  const t = storefrontTex(), m = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({map:t, emissiveMap:t, emissive:0xffffff, emissiveIntensity:.25, roughness:.3, metalness:.2}));
+  m.scale.set(w, h, 1); m.position.set(x, h/2 + .02, z); m.rotation.y = ry; parent.add(m); STRIP.windows = (STRIP.windows || []).concat(m); return m;
+}
+// a tall Vegas pylon: a pole, a vertical board with the name in lights, chasing bulbs down both edges
+function stripPylon(parent, text, col, x, z, h = 9) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  mesh(G.box, 0x2a2a30, [.5, h, .5], [0, h/2, 0], g, {metalness:.6, roughness:.3});
+  const c = document.createElement('canvas'); c.width = 128; c.height = 512; const q = c.getContext('2d');
+  q.fillStyle = '#120a1e'; q.fillRect(0, 0, 128, 512); q.strokeStyle = col; q.lineWidth = 8; q.strokeRect(6, 6, 116, 500);
+  q.font = 'bold 54px system-ui'; q.textAlign = 'center'; q.shadowColor = col; q.shadowBlur = 18; q.fillStyle = '#fff';
+  const letters = text.replace(/ /g, '').slice(0, 8).split(''), step = 470/letters.length;
+  letters.forEach((L, i) => q.fillText(L, 64, 50 + i*step));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  for (const ry of [0, Math.PI]) { const b = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:t, toneMapped:false})); b.scale.set(1.5, 5.6, 1); b.position.set(0, h - 2.6, ry ? -.27 : .27); b.rotation.y = ry; g.add(b); STRIP.neon.push({m:b, ph:R()*6}); }
+  const rows = 10; for (let k = 0; k < rows; k++) for (const sx of [-.82, .82]) { const bl = bulb(g, sx, h - 5.3 + k*.6, .3, 0xffe080, .07); STRIP.chase = (STRIP.chase || []).concat({m:bl, k}); }
+  mesh(G.box, 0xd8b04a, [1.8, .2, .7], [0, h + .1, 0], g, {metalness:.9, roughness:.25});
+  parent.updateMatrixWorld(true); const w = g.getWorldPosition(new THREE.Vector3()); circles.push({x:w.x, z:w.z, r:.45});
+  return g;
+}
 function stripFx(anim) {
   if (STRIP.g) return;
   if (typeof wondersPark === 'function') wondersPark();
@@ -91,6 +127,7 @@ function stripLot(id, anim) {
     mesh(G.box, 0x5a1e8a, [9, 3.4, 8.6], [0, 1.7, 0], g); mesh(G.box, 0x2a0a4a, [9.4, .4, 9], [0, 3.6, 0], g);
     for (let k = 0; k < 14; k++) bulb(g, -4.2 + k*.64, 2.9, 4.35, 0xffd040, .07);
     name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); canopy(4.3); box(4.6, 4.4);
+    storefront(g, 8.6, 2.6, 0, 4.32); stripPylon(g, 'SLOTS', '#ff3ad8', -5.6, 4.2, 8);
     const [zx, zz] = W2(3, 6.3); STRIP.spin = addZone({kind:'spin', x:zx, z:zz, icon:'🎰', tile:{alpha:1, size:84, label:'Play the slots', fill:'rgba(120,30,140,.6)'}});
   } else if (id === 'chapel') {
     mesh(G.box, 0xf6f2ea, [7, 3, 5], [0, 1.5, 0], g); const roof = mesh(G.cone4, 0xe8a0b8, [5.4, 1.8, 4.4], [0, 3.9, 0], g); roof.rotation.y = Math.PI/4;
@@ -100,7 +137,8 @@ function stripLot(id, anim) {
   } else if (id === 'casino1') {
     mesh(G.box, 0x1e5a3a, [10, 3, 9.6], [0, 1.5, 0], g, {metalness:.5, roughness:.25});
     const t = stripTower(g, 6, 14, 6, 0, -1.2, '#8a6a1a', 6, 3); t.material.color.set(0xffd27a); t.material.metalness = .7;
-    name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85);
+    name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85); storefront(g, 9.6, 2.7, 0, 4.82); for (const sx of [-1, 1]) storefront(g, 9.2, 2.7, sx*5.02, 0, sx*Math.PI/2);
+    stripPylon(g, 'LION', '#ffd040', -5.2, 4.6, 10);
     const L = new THREE.Group(); L.position.set(3.6, 0, 5.2); g.add(L); const GOLD = {metalness:.9, roughness:.25};
     mesh(G.box, 0x6a6a6a, [1.2, .8, 1.2], [0, .4, 0], L); mesh(G.sph, 0xd8b04a, [.5, .5, .75], [0, 1.25, 0], L, GOLD); mesh(G.sph, 0xd8b04a, [.42, .42, .42], [0, 1.7, .45], L, GOLD); mesh(G.sph, 0xc8962a, [.55, .55, .3], [0, 1.72, .3], L, GOLD);
     canopy(4.8); box(4.9, 5.3);
@@ -110,8 +148,13 @@ function stripLot(id, anim) {
     for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) { const j = new THREE.Mesh(G.cyl, JM); j.position.set(-4 + i*2, .5, -3.6 + k*1.8); g.add(j); STRIP.jets.push({m:j, i, k}); }
     box(5.3, 5);
   } else if (id === 'casino2') {
-    const P = mesh(G.cone4, 0x14141a, [7.4, 11, 7.4], [0, 5.5, -.4], g, {metalness:.85, roughness:.12}); P.rotation.y = Math.PI/4;
-    mesh(G.box, 0xc8a85a, [3, 2.2, 1.6], [0, 1.1, 4.4], g); name('THE PYRAMID', '#40c8ff', 6, 1.2, 2.8, 5.25);
+    // dark glass in a grid of panes, a few lit from inside
+    const pc = document.createElement('canvas'); pc.width = pc.height = 256; const pq = pc.getContext('2d');
+    pq.fillStyle = '#0c1018'; pq.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 16) for (let x = 0; x < 256; x += 16) { pq.fillStyle = R() < .06 ? '#5a4a2a' : `rgb(${16 + R()*10|0},${22 + R()*10|0},${34 + R()*14|0})`; pq.fillRect(x + 1, y + 1, 14, 14); }
+    const ptx = new THREE.CanvasTexture(pc); ptx.colorSpace = THREE.SRGBColorSpace; ptx.wrapS = ptx.wrapT = THREE.RepeatWrapping; ptx.repeat.set(4, 3);
+    const P = new THREE.Mesh(G.cone4, new THREE.MeshStandardMaterial({map:ptx, metalness:.7, roughness:.18, flatShading:true})); P.scale.set(7.4, 11, 7.4); P.position.set(0, 5.5, -.4); P.castShadow = true; g.add(P); P.rotation.y = Math.PI/4;
+    mesh(G.box, 0xc8a85a, [3, 2.2, 1.6], [0, 1.1, 4.4], g); name('THE PYRAMID', '#40c8ff', 6, 1.2, 2.8, 5.25); stripPylon(g, 'PYRAMID', '#40c8ff', 5.2, 4.6, 10);
     const beam = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xfff6d0, transparent:true, opacity:.25, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
     beam.scale.set(.35, 80, .35); beam.position.set(0, 51, -.4); g.add(beam); STRIP.beams.push(beam);
     const S = new THREE.Group(); S.position.set(-3.6, 0, 4.6); g.add(S);
@@ -119,6 +162,7 @@ function stripLot(id, anim) {
     box(5.3, 5.3);
   } else if (id === 'casino3') {
     mesh(G.box, 0xe8e4dc, [9, 3, 8.6], [0, 1.5, 0], g); name('SKY TOWER', '#ff6a3a', 7, 1.4, 3.5, 4.35);
+    storefront(g, 8.6, 2.6, 0, 4.32); for (const sx of [-1, 1]) storefront(g, 8.2, 2.6, sx*4.52, 0, sx*Math.PI/2); stripPylon(g, 'SKY', '#ff6a3a', 5.2, 4.4, 9);
     mesh(G.cyl, 0xd8d4cc, [1, 20, 1], [0, 13, -1], g); for (const a of [0, 2.1, 4.2]) mesh(G.box, 0xd8d4cc, [.3, 18, 2.4], [Math.cos(a)*.9, 12, -1 + Math.sin(a)*.9], g).rotation.y = -a;
     mesh(G.cyl, 0x3a4a5a, [3, 1.6, 3], [0, 23.8, -1], g, {metalness:.6, roughness:.2}); mesh(G.cyl, 0xe8e4dc, [3.2, .4, 3.2], [0, 24.8, -1], g);
     mesh(G.cone, 0xe8e4dc, [.3, 5, .3], [0, 27.5, -1], g); bulb(g, 0, 30.1, -1, 0xff3a2a, .2);
@@ -126,6 +170,7 @@ function stripLot(id, anim) {
   } else if (id === 'stripHotel') {
     for (const a of [0, 2.094, 4.189]) { const t = stripTower(g, 2.6, 16, 6, Math.sin(a)*2.4, -.6 + Math.cos(a)*2.4, '#e8e2d4', 4); t.rotation.y = a; }
     mesh(G.box, 0xc8a85a, [10, 2.4, 9.6], [0, 1.2, 0], g); name('RESORT', '#ffd040', 6, 1.4, 3, 4.85);
+    storefront(g, 9.6, 2.2, 0, 4.82); stripPylon(g, 'RESORT', '#40e0ff', 5.2, 4.6, 10);
     canopy(4.8); box(5.1, 5);
   } else if (id === 'casino4') {
     mesh(G.box, 0xf0e2c4, [10.4, 5, 6.6], [0, 2.5, -1.6], g);
@@ -136,7 +181,7 @@ function stripLot(id, anim) {
     const gd = new THREE.Group(); g.add(gd); mesh(G.box, 0x111111, [2.2, .25, .5], [0, .2, 0], gd); mesh(G.box, 0x111111, [.12, .5, .12], [1.05, .45, 0], gd);
     mesh(G.box, 0xf4f4f4, [.2, .6, .25], [-.7, .65, 0], gd); mesh(G.box, 0x6b4526, [.04, 1.4, .04], [-.7, .7, .2], gd).rotation.z = .3;
     STRIP.gondola = {g:gd, z:3.4, x0:-4.6, x1:4.6};
-    name('CANAL PALACE', '#5ad0ff', 7, 1.3, 4.6, 1.85);
+    name('CANAL PALACE', '#5ad0ff', 7, 1.3, 4.6, 1.85); stripPylon(g, 'CANAL', '#5ad0ff', 5.4, 4.6, 9);
     box(5.4, 5.2);
   }
   // tall ones fade while you walk behind them, so they never hide you from the camera
@@ -152,6 +197,7 @@ function updStrip(dt) {
   for (const b of STRIP.beams) b.material.opacity = .06 + night*.35;
   for (const m of STRIP.windows || []) m.material.emissiveIntensity = .15 + night*1.1;
   for (const l of STRIP.lamps || []) l.visible = night > .3;
+  for (const b of STRIP.chase || []) b.m.visible = ((time*8 + b.k) | 0) % 3 !== 0;
   // the fountains: rows rise and fall in turn
   for (const j of STRIP.jets) { const h = Math.max(.1, 2.6*Math.max(0, Math.sin(time*1.6 + (Math.sin(time*.3) > 0 ? j.i : j.k)*.7))); j.m.scale.set(.09, h, .09); j.m.position.y = .5 + h/2; }
   if (STRIP.gondola) { const G0 = STRIP.gondola, u = (Math.sin(time*.25) + 1)/2; G0.g.position.set(G0.x0 + (G0.x1 - G0.x0)*u, 0, G0.z); G0.g.rotation.y = Math.cos(time*.25) > 0 ? 0 : Math.PI; }

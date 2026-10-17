@@ -7,6 +7,7 @@ const CARRY = {
   barrow:{z:.9, y:.48, nx:3, nz:2, sx:.16, sz:.14, step:.45, speed:1},
   cart:{z:1.1, y:.66, nx:3, nz:3, sx:.19, sz:.17, step:.42, speed:1.15},
   truck:{z:-.62, y:.74, nx:3, nz:3, sx:.22, sz:.2, step:.4, speed:1.6},
+  dozer:{z:1.12, y:.95, nx:3, nz:2, sx:.22, sz:.18, step:.42, speed:1.75},
 };
 const fleetLvl = () => ['fleet1', 'fleet2', 'fleet3', 'fleet4'].filter(id => W.unlocked.has(id)).length;
 const FLEET_N = ['', '🚐 Delivery vans', '🚚 Box trucks', '🚛 Semi-trucks', '🔋 Electric fleet'];
@@ -15,11 +16,13 @@ function fleetUp(n, anim) {
   for (const w of workers) { w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); w.carry = null; equip(w); }
   if (anim) banner(`${FLEET_N[n]}!`, `Every hauler drives now: ${Math.round((1.6 + .4*n)/1.6*100 - 100)}% faster than the old trucks, and carrying more.`);
 }
-const carryMode = w => TRAY_KINDS.has(w.kind) ? (W.unlocked.has('foodVans') ? 'van' : W.unlocked.has('scooters') ? 'scooter' : 'tray') : W.era >= 7 || fleetLvl() ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
+// builders and stonemasons drive bulldozers once there are tools to build them
+const DOZER_KINDS = new Set(['builder', 'mason']);
+const carryMode = w => DOZER_KINDS.has(w.kind) && W.unlocked.has('bulldozers') ? 'dozer' : TRAY_KINDS.has(w.kind) ? (W.unlocked.has('foodVans') ? 'van' : W.unlocked.has('scooters') ? 'scooter' : 'tray') : W.era >= 7 || fleetLvl() ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
 function equip(w) {
   if (w.kind === 'broker' || w.kind === 'oilman') return;
   const mode = carryMode(w), C = CARRY[mode];
-  w.speed = WORKER.speed * (mode === 'truck' ? C.speed + .4*fleetLvl() : C.speed);
+  w.speed = WORKER.speed * (mode === 'truck' || mode === 'dozer' ? C.speed + .4*fleetLvl() : C.speed);
   if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
   if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
   w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);
@@ -51,6 +54,20 @@ function equip(w) {
     M(G.box, 0x8a5d36, [.8, .1, .74], [0, .58, 1.1]);
     for (const sx of [-1, 1]) { M(G.box, 0x7a5232, [.05, .2, .74], [sx*.4, .7, 1.1]); M(G.cyl, 0x5e3f22, [.3, .06, .3], [sx*.46, .3, 1.1]).rotation.z = Math.PI/2; M(G.box, 0x6b4526, [.04, .04, .8], [sx*.22, .62, .45]); }
     M(G.box, 0x7a5232, [.8, .2, .05], [0, .7, 1.47]);
+  } else if (mode === 'dozer') {
+    // a yellow bulldozer: steel tracks, an engine deck, a glass cab, and the blade raised in front with the load on it
+    const Y = 0xf2b51a, D = 0x2a2a2e;
+    for (const sx of [-1, 1]) { M(G.box, D, [.24, .3, 1.5], [sx*.42, .17, 0], {roughness:.8}); for (const z of [-.6, -.2, .2, .6]) M(G.cyl, 0x5a5a60, [.12, .26, .12], [sx*.42, .17, z], {metalness:.6}).rotation.z = Math.PI/2; }
+    M(G.box, Y, [.62, .32, 1.2], [0, .48, -.05], {roughness:.45}); M(G.box, Y, [.58, .22, .5], [0, .74, -.42], {roughness:.45});
+    M(G.box, 0x1a1a1e, [.5, .5, .5], [0, .9, .12]); M(G.box, 0x8fc6e8, [.46, .34, .02], [0, .95, .38], {metalness:.5, roughness:.1});
+    for (const sx of [-1, 1]) M(G.box, 0x8fc6e8, [.02, .3, .4], [sx*.255, .95, .12], {metalness:.5, roughness:.1});
+    M(G.box, Y, [.56, .05, .56], [0, 1.17, .12]);
+    M(G.cyl, 0x3a3a3e, [.04, .4, .04], [.2, 1, -.5], {metalness:.6});
+    // the arms and the blade
+    for (const sx of [-1, 1]) { const a = M(G.box, Y, [.06, .06, .8], [sx*.36, .62, .62]); a.rotation.x = -.35; }
+    M(G.box, Y, [1.05, .5, .08], [0, .78, 1.02], {metalness:.3, roughness:.4}); M(G.box, 0x9aa0a8, [1.05, .06, .3], [0, .54, 1.12], {metalness:.7, roughness:.3});
+    bulb(g, -.18, 1.12, .4, 0xfff2c8, .05); bulb(g, .18, 1.12, .4, 0xfff2c8, .05); bulb(g, 0, 1.25, .12, 0xff8a1a, .05);
+    M(G.sph, 0xe8b892, [.13, .13, .13], [0, 1.0, .12]); M(G.sph, 0xf2c200, [.15, .08, .15], [0, 1.1, .12]);
   } else {
     // a small delivery truck, the driver at the wheel
     const fl = fleetLvl(), col = fl >= 4 ? 0xf4f6f8 : [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4][(w.kind.length*7 + workers.indexOf(w)) % 5];
@@ -65,7 +82,7 @@ function equip(w) {
     M(G.sph, 0xe8b892, [.15, .15, .15], [0, .92, .45]); M(G.cyl, LOOKS[w.kind]?.hatCol || 0x3a3a3a, [.16, .08, .16], [0, 1.06, .45]);
   }
   // in a truck the walking figure is tucked away; the driver sits in the cab
-  w.char.g.children.forEach(o => { if (o === g) return; o.visible = mode !== 'truck' && mode !== 'van'; if (o.userData.y0 == null) o.userData.y0 = o.position.y; o.position.y = o.userData.y0 + (mode === 'scooter' ? (w.char.real ? -.36 : -.1) : 0); });
+  w.char.g.children.forEach(o => { if (o === g) return; o.visible = mode !== 'truck' && mode !== 'van' && mode !== 'dozer'; if (o.userData.y0 == null) o.userData.y0 = o.position.y; o.position.y = o.userData.y0 + (mode === 'scooter' ? (w.char.real ? -.36 : -.1) : 0); });
   w.stack.layout = (i, it) => {
     const per = C.nx*C.nz, l = Math.floor(i / per), k = i % per;
     const lx = ((k % C.nx) - (C.nx - 1)/2)*C.sx*1.8, lz = C.z + (Math.floor(k / C.nx) - (C.nz - 1)/2)*C.sz*1.8;

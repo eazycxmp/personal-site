@@ -67,6 +67,7 @@ const PADS = [
   {id:'tinker', x:12, z:-50, cost:600, cur:'coin', icon:'🧰', label:'Tinker', after:['workshop'], region:'north'},
   {id:'digger', x:10, z:-56.5, cost:5, cur:'tools', icon:'🚜', label:'Stone digger', after:['workshop'], region:'north'},
   {id:'plow', x:-8.4, z:11.6, cost:4, cur:'tools', icon:'⚙️', label:'Iron plows', after:['workshop', 'field']},
+  {id:'bulldozers', x:12.3, z:-9.2, cost:8, cur:'tools', icon:'🚜', label:'Bulldozers', after:['builder2', 'mason2', 'workshop']},
   {id:'carts', x:-7.4, z:-1.8, cost:6, cur:'tools', icon:'🛒', label:'Hand carts', after:['workshop']},
   {id:'fleet1', x:45.6, z:5, cost:30000, cur:'coin', icon:'🚐', label:'Delivery vans', after:['downtownGate'], region:'east'},
   {id:'fleet2', x:45.6, z:5, cost:80000, cur:'coin', icon:'🚚', label:'Box trucks', after:['fleet1'], region:'east'},
@@ -431,6 +432,7 @@ const UNLOCK = {
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
   tomatobed(a) { tomatoBed(a); },
   burgerBar(a) { burgerBar(a); },
+  bulldozers(a) { for (const w of workers) if (DOZER_KINDS.has(w.kind)) { w.carry = null; equip(w); } if (a) banner('🚜 Bulldozers!', 'Builders and stonemasons drive bulldozers now: faster, and the blade carries a bigger load.'); },
   burgercook(a) { addWorker('burgercook', 25.6, 17.6, a); },
   scooters(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🛵 Delivery scooters!', 'Waiters and everyone who carries food ride scooters now, half again as fast.'); },
   foodVans(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🚐 Food delivery vans!', 'The food crew drives vans now: nearly twice walking speed, with room for more.'); },
@@ -487,6 +489,7 @@ function setEra(e, anim) {
 function setEraStep(e, anim) {
   if (e <= W.era) return;
   W.era = e;
+  if (e === 7 && anim) setTimeout(restyleForAge, 0);   // the Empire dresses in modern clothes
   if (e >= 4 && fenceGroup) fence(false);   // the palisade becomes a stone wall
   if (anim) {
     banner(`${ERA_ICON[e]} ${ERAS[e]}!`, ERA_TXT[e]);
@@ -555,9 +558,7 @@ function payPad(zn, e) {
 function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id);
-  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o));
-    // new buildings' shaders compile in the background, so the first frame they show doesn't stall
-    if (anim && renderer.compileAsync) for (const o of PADOBJ[id]) renderer.compileAsync(o, camera, scene).catch(() => {}); }
+  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o)); }
   if (/^castle/.test(id) && BASE.built) baseTier(anim);
   if (anim) {
     shakeCam(.35);

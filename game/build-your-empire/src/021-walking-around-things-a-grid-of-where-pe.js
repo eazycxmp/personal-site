@@ -84,7 +84,7 @@ function moveTo(e, x, z, dt) {
 }
 const dist2 = (e, x, z) => Math.hypot(x - e.pos.x, z - e.pos.z);
 function workAct(w, n0) {
-  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck'].includes(w.carry)) return;
+  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck', 'dozer'].includes(w.carry)) return;
   if (w.kind === 'builder') qnAct(w.char, w.stack.length < n0 && w.mode === 'deliver' ? 'fix' : 'pick', 1);
   else qnAct(w.char, w.stack.length < n0 && w.dst && w.dst.kind === 'table' ? 'serve' : 'pick', .7);
 }

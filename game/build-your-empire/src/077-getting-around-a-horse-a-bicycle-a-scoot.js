@@ -44,6 +44,8 @@ function mountStage(n, anim) {
   if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 ? ' And you fly over buildings.' : ''}`); }
 }
 function updMount(dt) {
+  // riding: the hero sits (or hovers, on the jetpack) instead of running along
+  player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
   player.rideY += ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);

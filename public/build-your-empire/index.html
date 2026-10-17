@@ -201,7 +201,7 @@ await (async () => {
     shipL:'pirate/ship-large.glb', shipM:'pirate/ship-medium.glb', shipP:'pirate/ship-pirate-large.glb', shipS:'pirate/ship-small.glb', palm:'pirate/palm-straight.glb',
     ram:'castle/siege-ram.glb', siegeTower:'castle/siege-tower.glb', catapult:'castle/siege-catapult.glb',
     pineA:'nature/tree_pineRoundA.glb', pineC:'nature/tree_pineRoundC.glb', pineE:'nature/tree_pineRoundE.glb', pineF:'nature/tree_pineRoundF.glb', treeD:'nature/tree_default.glb', rockA:'nature/rock_largeA.glb',
-    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb', props3:'props3.glb', people:'people.glb', qn_male:'qn_male.glb', qn_female:'qn_female.glb', qn_anims:'qn_anims.glb'};
+    parts:'parts.glb', airliner2:'airliner2.glb', airliner4:'airliner4.glb', amph:'venue/venue_amph.glb', bowl:'venue/venue_bowl.glb', roof:'venue/venue_roof.glb', kaiju:'kaiju.glb', tank:'tank.glb', fighter:'fighter.glb', styles:'styles.glb', spacekit:'spacekit.glb', animals:'animals.glb', car:'car.glb', b2:'buildings2.glb', aqua:'aquarium.glb', road:'roadkit.glb', castles:'castles.glb', trees:'trees2.glb', speedboat:'speedboat.glb', styles2:'styles2.glb', hero:'hero.glb', dragon:'dragon.glb', props3:'props3.glb', people:'people.glb', qn_male:'qn_male.glb', qo_male_peasant:'qo_male_peasant.glb', qo_female_peasant:'qo_female_peasant.glb', qo_male_ranger:'qo_male_ranger.glb', qo_female_ranger:'qo_female_ranger.glb', qn_female:'qn_female.glb', qn_anims:'qn_anims.glb'};
   const TL = new THREE.TextureLoader(), texJobs = PH_IDS.flatMap(id => ['diff', 'nor_gl', 'rough'].map(k => TL.loadAsync(`./tex/${id}_${k}_1k.jpg`).then(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (k === 'diff') t.colorSpace = THREE.SRGBColorSpace;
     const T = TEX[id] ||= {}; T[{diff:'map', nor_gl:'normalMap', rough:'roughnessMap'}[k]] = t;
@@ -1494,7 +1494,7 @@ function remapKit(P) {
 // ------------------------------------------------------------------ realistic people (Quaternius CC0 bodies, rigged and animated)
 const QN = {smooth:true, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
 // which part of the body each vertex belongs to, from the bone that moves it most: 0 skin, 1 torso, 2 upper arm, 3 forearm, 4 hips and thighs, 5 calves, 6 feet
-const QN_REGION = n => /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
+const QN_REGION = n => /^(hand|thumb|index|middle|ring|pinky)/.test(n) ? 7 : /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
 function qnInit() {
   if (QN.ready || QN.failed) return QN.ready;
   if (!MODELS.qn_male || !MODELS.qn_female || !MODELS.qn_anims) return false;
@@ -1517,9 +1517,9 @@ function qnBodyMat(src, regions, tint) {
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float qnr; varying float vQnr;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvQnr = qnr;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uQN[7]; uniform vec3 uTint; varying float vQnr;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uQN[8]; uniform vec3 uTint; varying float vQnr;')
       .replace('#include <map_fragment>', `#include <map_fragment>
-  { int ri = int(vQnr + .5); vec4 rc = uQN[0]; for (int k = 1; k < 7; k++) if (k == ri) rc = uQN[k];
+  { int ri = int(vQnr + .5); vec4 rc = uQN[0]; for (int k = 1; k < 8; k++) if (k == ri) rc = uQN[k];
     if (rc.a > .5) discard;
     diffuseColor.rgb *= uTint; }`);
   };
@@ -1556,7 +1556,7 @@ function qnHat(o, top) {
 // every skinned body gets the first time it is drawn)
 function qnShared() {
   // geometry every person borrows (the body models, the shared primitives): never freed with one person
-  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
+  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female', 'qo_male_peasant', 'qo_female_peasant', 'qo_male_ranger', 'qo_female_ranger']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
   return QN.shared;
 }
 function qnDrop(c) {
@@ -1566,6 +1566,45 @@ function qnDrop(c) {
     if (m.isMesh && m.material) [].concat(m.material).forEach(q => { if (q !== BLOB.mat && !q.userData.shared) q.dispose(); });
     if (m.isMesh && m.geometry && !sh.has(m.geometry)) m.geometry.dispose();
   });
+}
+// ------------------------------------------------------------------ the Fantasy outfits (Quaternius CC0), worn until the Empire
+// who wears what: hunters, woodsmen, fishers, miners and fighters the hooded ranger; everyone else a peasant's tunic
+const QO_RANGER = o => o.ranger || o.sword || o.shield || o.gun || o.rod || o.hat === 'hood' || (o.hat === 'helmet' && !o.apron && !o.trim);
+// while a save loads its age isn't set yet: the save says what it was
+let AGE_HINT = 0;
+function qnOutfit(o) {
+  if (o.metal || o.noFit || Math.max(W.era, AGE_HINT) >= 7) return null;
+  if (o.hero) return (o.stage ?? 0) < 2 ? 'peasant' : null;   // villager and merchant; noble, king and later wear their own costumes
+  // townsfolk: one in five dressed as a ranger, for variety (workers dress for their trade)
+  return QO_RANGER(o) ? 'ranger' : 'civ' in o && ((o.body ?? 0) >> 3) % 5 === 0 ? 'ranger' : 'peasant';
+}
+// the outfit's parts are bound to the person's own bones (same 65-bone rig), so they move with every animation; cloth is the outfit's own texture lightly tinted, bare skin takes the person's tone
+const QO = {mats:new Map()};
+function qnWear(c, FIT, fit, skin, topCol) {
+  // the person's own bones with the outfit's rest pose: the outfit stretches to this (broader) body exactly, so cuffs
+  // meet the body's own hands and the neckline its neck
+  const par = c.body.parent; let sk = null;
+  const tintKey = fit + ((topCol >> 20) & 15), skinKey = 'skin' + skin.getHexString();
+  FIT.traverse(m0 => {
+    if (!m0.isSkinnedMesh) return;
+    const isSkin = /QO_Skin/.test(m0.material.name);
+    const key = isSkin ? skinKey : tintKey + m0.material.uuid;
+    let mat = QO.mats.get(key);
+    if (!mat) {
+      if (isSkin) mat = new THREE.MeshStandardMaterial({color:skin.clone().multiplyScalar(.6), roughness:.6});   // the textured face reads darker than its base tone
+      else { mat = m0.material.clone(); mat.color = new THREE.Color(1, 1, 1).lerp(qnCol(topCol), .28); mat.roughness = .9; }
+      mat.userData.shared = true; QO.mats.set(key, mat);
+    }
+    const n = new THREE.SkinnedMesh(m0.geometry, mat); n.name = m0.name;
+    sk ||= new THREE.Skeleton(c.body.skeleton.bones, m0.skeleton.boneInverses);
+    n.bind(sk, m0.bindMatrix);
+    if (!m0.geometry.userData.qnBound) { m0.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .9, 0), 1.3); m0.geometry.userData.qnBound = true; }
+    n.computeBoundingSphere = () => { n.boundingSphere = n.geometry.boundingSphere.clone(); return n.boundingSphere; };
+    n.boundingSphere = n.geometry.boundingSphere.clone(); n.frustumCulled = true;
+    n.castShadow = true; n.receiveShadow = true;
+    par.add(n);
+  });
+  c.outfit = fit;
 }
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
@@ -1581,14 +1620,19 @@ function makeQN(o) {
   const sleeve = o.top === 'jacket' ? (o.body2 ?? top) : o.top === 'suit' ? 0x1e1e26 : top;
   const R4 = (col, a) => { const v = qnCol(col); return new THREE.Vector4(v.r, v.g, v.b, a); };
   const wearTop = long ? 'ShirtLong' : 'Shirt', wearLeg = dress ? '' : o.shorts ? 'Shorts' : 'Pants';
-  const regions = [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, long ? 1 : 0), R4(0, 1), R4(0, wearLeg === 'Pants' ? 1 : 0), R4(0, 1)];
+  // the old ages dress in the Fantasy outfits (peasant tunics, hooded rangers); then only the head (and hands, if the
+  // outfit has none of its own) of the body shows
+  const fit = qnOutfit(o), FIT = fit && MODELS['qo_' + (fem ? 'female' : 'male') + '_' + fit];
+  const regions = FIT ? [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 0)]
+    : [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, long ? 1 : 0), R4(0, 1), R4(0, wearLeg === 'Pants' ? 1 : 0), R4(0, 1), R4(0, 0)];
   const topCol = o.top === 'suit' ? 0x1e1e26 : o.top === 'jacket' ? (o.body2 ?? top) : top;
   const tex = QN.tex[c.skinKey], base = skin.clone().multiplyScalar(1/Math.max(.2, dark ? .42 : .82));
   const tint = new THREE.Vector3(Math.min(1.25, base.r), Math.min(1.25, base.g), Math.min(1.25, base.b));
   // which hair to show (under a hat only longer hair, which hangs below the brim)
   const hs = o.hair ?? 'short', hatted = o.hat && o.hat !== 'hood';
   const hairName = fem ? ({long:'Long', bangs:'Long', ponytail:'Long', bun:'Buns', sidepart:'SimpleParted', short:'SimpleParted', afro:'Buns'}[hs] || 'BuzzedFemale') : ({long:'Long', sidepart:'SimpleParted', short:'SimpleParted', afro:'SimpleParted', mohawk:'Buzzed', buzz:'Buzzed'}[hs] || (hs === 'bald' ? '' : 'Buzzed'));
-  const hairShow = hatted && !['Long', 'Buns'].includes(hairName) ? (fem ? 'BuzzedFemale' : 'Buzzed') : hairName;
+  const hooded = FIT && fit === 'ranger';
+  const hairShow = hooded ? '' : hatted && !['Long', 'Buns'].includes(hairName) ? (fem ? 'BuzzedFemale' : 'Buzzed') : hairName;
   root.traverse(m => {
     if (!m.isSkinnedMesh) return;
     // a fixed bound round the whole body, so off-screen people are skipped (the skinned pose never leaves it)
@@ -1599,7 +1643,7 @@ function makeQN(o) {
     if (/Super[hH]ero/.test(m.name)) { c.bodyMat = m.material = qnBodyMat(m.material, regions, tint); if (tex) c.bodyMat.map = tex; c.body = m; }
     else if (/Wear_/.test(m.name)) {
       const k = m.name.replace(/^QN_Wear_/, '').replace(/\.\d+$/, '');
-      m.visible = k === wearTop || k === wearLeg || k === 'Shoes';
+      m.visible = !FIT && (k === wearTop || k === wearLeg || k === 'Shoes');
       if (m.visible) { m.material = new THREE.MeshStandardMaterial({color:k === 'Shoes' ? shoe : k === wearLeg ? pants : topCol, roughness:o.metal && k === wearTop ? .35 : .85, metalness:o.metal && k === wearTop ? .6 : 0}); m.castShadow = true; }
     }
     else if (/Hair_/.test(m.name)) {
@@ -1608,6 +1652,8 @@ function makeQN(o) {
       if (m.visible) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2.2); }
     } else if (/Eyebrows/.test(m.name)) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2); }
   });
+  if (FIT && c.body) qnWear(c, FIT, fit, skin, topCol);
+  c.look = o;
   // the bones the game poses directly, and stand-ins at the old pivots for the code that hangs things on arms and legs
   const B = n => root.getObjectByName(n);
   c.bones = {armL:B('upperarm_l'), armR:B('upperarm_r'), head:B('Head'), handR:B('hand_r'), handL:B('hand_l'), spine:B('spine_03')};
@@ -1615,9 +1661,9 @@ function makeQN(o) {
   legL.position.set(-.12, 1.0, 0); legR.position.set(.12, 1.0, 0); armL.position.set(-.25, 1.62, 0); armR.position.set(.25, 1.62, 0);
   g.add(legL, legR, armL, armR); Object.assign(c, {legL, legR, armL, armR});
   // hats on the head, gear in the hands
-  const hat = qnHat(o, top); if (hat && c.bones.head) { hat.children.forEach(q => { q.position.y = 1.9 + (q.position.y - 1.9)*.8; q.position.x *= .8; q.position.z *= .8; q.scale.multiplyScalar(.8); }); root.updateMatrixWorld(true); hat.scale.setScalar(1/QN.S); hat.position.multiplyScalar(1/QN.S); root.add(hat); c.bones.head.attach(hat); }
-  if (o.apron) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
-  if (dress) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
+  const hat = hooded ? null : qnHat(FIT ? {...o, acc:null} : o, top); if (hat && c.bones.head) { hat.children.forEach(q => { q.position.y = 1.9 + (q.position.y - 1.9)*.8; q.position.x *= .8; q.position.z *= .8; q.scale.multiplyScalar(.8); }); root.updateMatrixWorld(true); hat.scale.setScalar(1/QN.S); hat.position.multiplyScalar(1/QN.S); root.add(hat); c.bones.head.attach(hat); }
+  if (o.apron && !FIT) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
+  if (dress && !FIT) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
   if (o.gun) c.gun = rifle(armR, o.scope);
   if (o.sword) mesh(G.box, 0xe4e8ee, [.04, .6, .08], [0, -.85, .1], armR, {metalness:.7, roughness:.25});
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.025, .65, .025], [0, -.85, .08], armR); mesh(G.box, 0x9aa0a8, [.035, .17, .15], [0, -1.12, .14], armR, {metalness:.6}); }
@@ -1691,6 +1737,7 @@ function updQN(dt) {
     let st, rate = 1;
     const act = (c.actT -= dt) > 0 && c.spd < 1.2 ? QN_ACT[c.act] : null;
     if (fall < -.3) { st = 'Death01'; g.rotation.x = 0; }
+    else if (c.ride) st = c.ride === 'seat' ? 'Driving_Loop' : 'Idle_Loop';
     else if (act) { st = act[0]; rate = act[1]; if (c.actNew && c.state === st) c.acts[st].reset().play(); c.actNew = false; }
     // seated (both legs bent forward together); a walking stride swings them opposite ways, so one bent leg is not a seat
     else if (lg < -1.2 && lgR < -1.2) st = 'Sitting_Idle_Loop';
@@ -1817,6 +1864,14 @@ function makeChar(o) {
   return c;
 }
 const PADOBJ = {}, ENTS = [], CHARS = new WeakSet();
+// a new age, new clothes: the people who stay (workers, the soldiers in the yard) change into what the age wears
+function restyle(e) {
+  const old = e.char, look = old.look; if (!look || !old.qn) return;
+  const c = makeChar(look); c.g.position.copy(old.g.position); c.g.rotation.copy(old.g.rotation);
+  scene.remove(old.g); CHARS.delete(old.g); CHARS.add(c.g); e.char = c; e.tools = null; e.toolArm = null;
+  if ('carry' in e) { e.carry = null; equip(e); }
+}
+function restyleForAge() { for (const w of workers) restyle(w); for (const s of soldiers) restyle(s); }
 function entity(charOpts, x, z, speed, cap) {
   const e = {pos:new THREE.Vector3(x, 0, z), vel:new THREE.Vector3(), svel:new THREE.Vector3(), yaw:0, walk:0, speed, cap, tick:0,
     char:makeChar(charOpts)};
@@ -2574,17 +2629,17 @@ function leapingFish(dt) {
 // ------------------------------------------------------------------ helpers (workers)
 const workers = [];
 const LOOKS = {
-  fisher:{body:0x3f6fb5, hat:'straw', pants:0x5a4a3a, rod:true},
+  fisher:{ranger:true, body:0x3f6fb5, hat:'straw', pants:0x5a4a3a, rod:true},
   waiter:{body:0x5a7a5a, apron:0xffffff, hat:'beanie', hatCol:0x3a5a3a},
   butcher:{body:0x7a2a22, apron:0xe8e0d0, hat:'beanie', hatCol:0x222222},
   gardener:{body:0x5a8a3a, apron:0x8a6a42, hat:'straw', pants:0x4a5a3a},
   bunbaker:{body:0xf2e6cc, apron:0xffffff, hat:'chef'},
   burgercook:{body:0xd9443a, apron:0xffffff, hat:'chef'},
   baker:{body:0xe8d8b8, apron:0xffffff, hat:'chef'},
-  lumber:{body:0x2f7d4a, hat:'beanie', hatCol:0xd9443a, pants:0x3a3a5a},
+  lumber:{ranger:true, body:0x2f7d4a, hat:'beanie', hatCol:0xd9443a, pants:0x3a3a5a},
   mason:{body:0x7a7a82, hat:'beanie', hatCol:0x4a4a52},
-  miner:{body:0x4a3a2a, hat:'helmet', hatCol:0xe0b030},
-  hauler:{body:0x8a6a3a, hat:'straw'},
+  miner:{ranger:true, body:0x4a3a2a, hat:'helmet', hatCol:0xe0b030},
+  hauler:{ranger:true, body:0x8a6a3a, hat:'straw'},
   armorer:{body:0x5a5f6a, apron:0x3a2a1a, hat:'beanie', hatCol:0x2a2a2a},
   quartermaster:{body:0x3a4a7a, hat:'helmet'},
   porter:{body:0xb05a3a, apron:0xf0e0c0, hat:'beanie', hatCol:0xb05a3a},
@@ -2608,11 +2663,11 @@ const inZone = st => zones.find(z => z.kind === 'in' && z.st === st);
 const outZone = st => zones.find(z => z.kind === 'out' && z.st === st);
 const dishOuts = tb => zones.filter(z => z.kind === 'out' && ITEM[ST[z.st].out]?.dish && tb.takes().includes(ST[z.st].out));
 const GATHER = {
-  lumber:{nodes:() => trees, pile:() => ST.logs, drop:[3.4, -5.1]},
+  lumber:{ranger:true, nodes:() => trees, pile:() => ST.logs, drop:[3.4, -5.1]},
   mason:{nodes:() => rocks, pile:() => ST.stones, drop:[-6, -47.5]},
 };
 const ROUTES = {
-  fisher:{src:() => { const h = outZone('harbor'); return [h && h.stack.length ? h : null, fishZone]; }, dst:() => inZone('grill')},
+  fisher:{ranger:true, src:() => { const h = outZone('harbor'); return [h && h.stack.length ? h : null, fishZone]; }, dst:() => inZone('grill')},
   waiter:{src:() => dishOuts(TB.main), dst:() => TB.main.zone, line:'main'},
   porter:{src:() => TB.hall ? dishOuts(TB.hall) : [], dst:() => TB.hall?.zone, line:'hall'},
   quartermaster:{src:() => TB.mess ? dishOuts(TB.mess) : [], dst:() => TB.mess?.zone, line:'mess'},
@@ -2628,8 +2683,8 @@ const ROUTES = {
   brewer:{src:() => [outZone('field2'), outZone('field3'), outZone('field')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('brewery')},
   barkeep:{src:() => [outZone('brewery')], dst:() => TB.garden?.zone, line:'garden'},
   scholar:{src:() => [outZone('oven2'), outZone('oven')].filter(z => z && z.stack.length).slice(0, 1), dst:() => inZone('library')},
-  miner:{src:() => [oreZone], dst:() => inZone('smelter')},
-  hauler:{src:() => [outZone('smelter')], dst:() => inZone('smith')},
+  miner:{ranger:true, src:() => [oreZone], dst:() => inZone('smelter')},
+  hauler:{ranger:true, src:() => [outZone('smelter')], dst:() => inZone('smith')},
   milkman:{src:() => [outZone('dairy')], dst:() => inZone('creamery')},
   picker:{src:() => [outZone('tomatoes')], dst:() => inZone('pizzeria')},
   sushichef:{src:() => [RANCH.pier], dst:() => inZone('sushi')},
@@ -2721,7 +2776,7 @@ function moveTo(e, x, z, dt) {
 }
 const dist2 = (e, x, z) => Math.hypot(x - e.pos.x, z - e.pos.z);
 function workAct(w, n0) {
-  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck'].includes(w.carry)) return;
+  if (w.stack.length === n0 || w.chopT > 0 || ['scooter', 'van', 'truck', 'dozer'].includes(w.carry)) return;
   if (w.kind === 'builder') qnAct(w.char, w.stack.length < n0 && w.mode === 'deliver' ? 'fix' : 'pick', 1);
   else qnAct(w.char, w.stack.length < n0 && w.dst && w.dst.kind === 'table' ? 'serve' : 'pick', .7);
 }
@@ -3159,6 +3214,7 @@ const PADS = [
   {id:'tinker', x:12, z:-50, cost:600, cur:'coin', icon:'🧰', label:'Tinker', after:['workshop'], region:'north'},
   {id:'digger', x:10, z:-56.5, cost:5, cur:'tools', icon:'🚜', label:'Stone digger', after:['workshop'], region:'north'},
   {id:'plow', x:-8.4, z:11.6, cost:4, cur:'tools', icon:'⚙️', label:'Iron plows', after:['workshop', 'field']},
+  {id:'bulldozers', x:12.3, z:-9.2, cost:8, cur:'tools', icon:'🚜', label:'Bulldozers', after:['builder2', 'mason2', 'workshop']},
   {id:'carts', x:-7.4, z:-1.8, cost:6, cur:'tools', icon:'🛒', label:'Hand carts', after:['workshop']},
   {id:'fleet1', x:45.6, z:5, cost:30000, cur:'coin', icon:'🚐', label:'Delivery vans', after:['downtownGate'], region:'east'},
   {id:'fleet2', x:45.6, z:5, cost:80000, cur:'coin', icon:'🚚', label:'Box trucks', after:['fleet1'], region:'east'},
@@ -3523,6 +3579,7 @@ const UNLOCK = {
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
   tomatobed(a) { tomatoBed(a); },
   burgerBar(a) { burgerBar(a); },
+  bulldozers(a) { for (const w of workers) if (DOZER_KINDS.has(w.kind)) { w.carry = null; equip(w); } if (a) banner('🚜 Bulldozers!', 'Builders and stonemasons drive bulldozers now: faster, and the blade carries a bigger load.'); },
   burgercook(a) { addWorker('burgercook', 25.6, 17.6, a); },
   scooters(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🛵 Delivery scooters!', 'Waiters and everyone who carries food ride scooters now, half again as fast.'); },
   foodVans(a) { for (const w of workers) { w.carry = null; equip(w); } if (a) banner('🚐 Food delivery vans!', 'The food crew drives vans now: nearly twice walking speed, with room for more.'); },
@@ -3579,6 +3636,7 @@ function setEra(e, anim) {
 function setEraStep(e, anim) {
   if (e <= W.era) return;
   W.era = e;
+  if (e === 7 && anim) setTimeout(restyleForAge, 0);   // the Empire dresses in modern clothes
   if (e >= 4 && fenceGroup) fence(false);   // the palisade becomes a stone wall
   if (anim) {
     banner(`${ERA_ICON[e]} ${ERAS[e]}!`, ERA_TXT[e]);
@@ -3647,9 +3705,7 @@ function payPad(zn, e) {
 function unlock(id, anim) {
   if (W.unlocked.has(id)) return;
   W.unlocked.add(id);
-  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o));
-    // new buildings' shaders compile in the background, so the first frame they show doesn't stall
-    if (anim && renderer.compileAsync) for (const o of PADOBJ[id]) renderer.compileAsync(o, camera, scene).catch(() => {}); }
+  { const n0 = scene.children.length; BLD.on++; try { UNLOCK[id](anim); } finally { BLD.on--; } PADOBJ[id] = scene.children.slice(n0).filter(o => o.isGroup && !CHARS.has(o)); }
   if (/^castle/.test(id) && BASE.built) baseTier(anim);
   if (anim) {
     shakeCam(.35);
@@ -6706,6 +6762,7 @@ const CARRY = {
   barrow:{z:.9, y:.48, nx:3, nz:2, sx:.16, sz:.14, step:.45, speed:1},
   cart:{z:1.1, y:.66, nx:3, nz:3, sx:.19, sz:.17, step:.42, speed:1.15},
   truck:{z:-.62, y:.74, nx:3, nz:3, sx:.22, sz:.2, step:.4, speed:1.6},
+  dozer:{z:1.12, y:.95, nx:3, nz:2, sx:.22, sz:.18, step:.42, speed:1.75},
 };
 const fleetLvl = () => ['fleet1', 'fleet2', 'fleet3', 'fleet4'].filter(id => W.unlocked.has(id)).length;
 const FLEET_N = ['', '🚐 Delivery vans', '🚚 Box trucks', '🚛 Semi-trucks', '🔋 Electric fleet'];
@@ -6714,11 +6771,13 @@ function fleetUp(n, anim) {
   for (const w of workers) { w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); w.carry = null; equip(w); }
   if (anim) banner(`${FLEET_N[n]}!`, `Every hauler drives now: ${Math.round((1.6 + .4*n)/1.6*100 - 100)}% faster than the old trucks, and carrying more.`);
 }
-const carryMode = w => TRAY_KINDS.has(w.kind) ? (W.unlocked.has('foodVans') ? 'van' : W.unlocked.has('scooters') ? 'scooter' : 'tray') : W.era >= 7 || fleetLvl() ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
+// builders and stonemasons drive bulldozers once there are tools to build them
+const DOZER_KINDS = new Set(['builder', 'mason']);
+const carryMode = w => DOZER_KINDS.has(w.kind) && W.unlocked.has('bulldozers') ? 'dozer' : TRAY_KINDS.has(w.kind) ? (W.unlocked.has('foodVans') ? 'van' : W.unlocked.has('scooters') ? 'scooter' : 'tray') : W.era >= 7 || fleetLvl() ? 'truck' : W.era >= 3 ? 'cart' : 'barrow';
 function equip(w) {
   if (w.kind === 'broker' || w.kind === 'oilman') return;
   const mode = carryMode(w), C = CARRY[mode];
-  w.speed = WORKER.speed * (mode === 'truck' ? C.speed + .4*fleetLvl() : C.speed);
+  w.speed = WORKER.speed * (mode === 'truck' || mode === 'dozer' ? C.speed + .4*fleetLvl() : C.speed);
   if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
   if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
   w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);
@@ -6750,6 +6809,20 @@ function equip(w) {
     M(G.box, 0x8a5d36, [.8, .1, .74], [0, .58, 1.1]);
     for (const sx of [-1, 1]) { M(G.box, 0x7a5232, [.05, .2, .74], [sx*.4, .7, 1.1]); M(G.cyl, 0x5e3f22, [.3, .06, .3], [sx*.46, .3, 1.1]).rotation.z = Math.PI/2; M(G.box, 0x6b4526, [.04, .04, .8], [sx*.22, .62, .45]); }
     M(G.box, 0x7a5232, [.8, .2, .05], [0, .7, 1.47]);
+  } else if (mode === 'dozer') {
+    // a yellow bulldozer: steel tracks, an engine deck, a glass cab, and the blade raised in front with the load on it
+    const Y = 0xf2b51a, D = 0x2a2a2e;
+    for (const sx of [-1, 1]) { M(G.box, D, [.24, .3, 1.5], [sx*.42, .17, 0], {roughness:.8}); for (const z of [-.6, -.2, .2, .6]) M(G.cyl, 0x5a5a60, [.12, .26, .12], [sx*.42, .17, z], {metalness:.6}).rotation.z = Math.PI/2; }
+    M(G.box, Y, [.62, .32, 1.2], [0, .48, -.05], {roughness:.45}); M(G.box, Y, [.58, .22, .5], [0, .74, -.42], {roughness:.45});
+    M(G.box, 0x1a1a1e, [.5, .5, .5], [0, .9, .12]); M(G.box, 0x8fc6e8, [.46, .34, .02], [0, .95, .38], {metalness:.5, roughness:.1});
+    for (const sx of [-1, 1]) M(G.box, 0x8fc6e8, [.02, .3, .4], [sx*.255, .95, .12], {metalness:.5, roughness:.1});
+    M(G.box, Y, [.56, .05, .56], [0, 1.17, .12]);
+    M(G.cyl, 0x3a3a3e, [.04, .4, .04], [.2, 1, -.5], {metalness:.6});
+    // the arms and the blade
+    for (const sx of [-1, 1]) { const a = M(G.box, Y, [.06, .06, .8], [sx*.36, .62, .62]); a.rotation.x = -.35; }
+    M(G.box, Y, [1.05, .5, .08], [0, .78, 1.02], {metalness:.3, roughness:.4}); M(G.box, 0x9aa0a8, [1.05, .06, .3], [0, .54, 1.12], {metalness:.7, roughness:.3});
+    bulb(g, -.18, 1.12, .4, 0xfff2c8, .05); bulb(g, .18, 1.12, .4, 0xfff2c8, .05); bulb(g, 0, 1.25, .12, 0xff8a1a, .05);
+    M(G.sph, 0xe8b892, [.13, .13, .13], [0, 1.0, .12]); M(G.sph, 0xf2c200, [.15, .08, .15], [0, 1.1, .12]);
   } else {
     // a small delivery truck, the driver at the wheel
     const fl = fleetLvl(), col = fl >= 4 ? 0xf4f6f8 : [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0xf4f4f4][(w.kind.length*7 + workers.indexOf(w)) % 5];
@@ -6764,7 +6837,7 @@ function equip(w) {
     M(G.sph, 0xe8b892, [.15, .15, .15], [0, .92, .45]); M(G.cyl, LOOKS[w.kind]?.hatCol || 0x3a3a3a, [.16, .08, .16], [0, 1.06, .45]);
   }
   // in a truck the walking figure is tucked away; the driver sits in the cab
-  w.char.g.children.forEach(o => { if (o === g) return; o.visible = mode !== 'truck' && mode !== 'van'; if (o.userData.y0 == null) o.userData.y0 = o.position.y; o.position.y = o.userData.y0 + (mode === 'scooter' ? (w.char.real ? -.36 : -.1) : 0); });
+  w.char.g.children.forEach(o => { if (o === g) return; o.visible = mode !== 'truck' && mode !== 'van' && mode !== 'dozer'; if (o.userData.y0 == null) o.userData.y0 = o.position.y; o.position.y = o.userData.y0 + (mode === 'scooter' ? (w.char.real ? -.36 : -.1) : 0); });
   w.stack.layout = (i, it) => {
     const per = C.nx*C.nz, l = Math.floor(i / per), k = i % per;
     const lx = ((k % C.nx) - (C.nx - 1)/2)*C.sx*1.8, lz = C.z + (Math.floor(k / C.nx) - (C.nz - 1)/2)*C.sz*1.8;
@@ -7781,6 +7854,8 @@ function mountStage(n, anim) {
   if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 ? ' And you fly over buildings.' : ''}`); }
 }
 function updMount(dt) {
+  // riding: the hero sits (or hovers, on the jetpack) instead of running along
+  player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
   player.rideY += ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
@@ -10087,6 +10162,42 @@ function stripTower(parent, w, h, d, x, z, base, cols, y0 = 0) {
   const t = stripWinTex(cols, Math.round(h*1.6), base), m = new THREE.Mesh(G.box, new THREE.MeshStandardMaterial({map:t, emissiveMap:t, emissive:0xffffff, emissiveIntensity:.15, roughness:.35, metalness:.3}));
   m.scale.set(w, h, d); m.position.set(x, y0 + h/2, z); m.castShadow = true; parent.add(m); STRIP.windows = (STRIP.windows || []).concat(m); return m;
 }
+// street-level glass: tall windows between mullions, warm light inside, a lit band above (glows brighter after dark)
+const STOREFRONT = {tex:null};
+function storefrontTex() {
+  if (STOREFRONT.tex) return STOREFRONT.tex;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = '#1a1410'; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 8; i++) {
+    const x = 8 + i*63, gr = g.createLinearGradient(0, 70, 0, 250); gr.addColorStop(0, '#ffe2a8'); gr.addColorStop(.55, '#f0b060'); gr.addColorStop(1, '#8a5a30');
+    g.fillStyle = gr; g.fillRect(x, 70, 55, 180);
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.moveTo(x, 70); g.lineTo(x + 22, 70); g.lineTo(x, 150); g.fill();
+    g.fillStyle = 'rgba(40,20,10,.55)'; for (let k = 0; k < 3; k++) g.fillRect(x + 6 + k*16, 200 - (k % 2)*20, 9, 50);   // people inside
+  }
+  g.fillStyle = '#c8a040'; g.fillRect(0, 54, 512, 10);
+  for (let i = 0; i < 32; i++) { g.fillStyle = i % 2 ? '#fff2b0' : '#ffd040'; g.beginPath(); g.arc(8 + i*16, 30, 5, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return STOREFRONT.tex = t;
+}
+function storefront(parent, w, h, x, z, ry = 0) {
+  const t = storefrontTex(), m = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({map:t, emissiveMap:t, emissive:0xffffff, emissiveIntensity:.25, roughness:.3, metalness:.2}));
+  m.scale.set(w, h, 1); m.position.set(x, h/2 + .02, z); m.rotation.y = ry; parent.add(m); STRIP.windows = (STRIP.windows || []).concat(m); return m;
+}
+// a tall Vegas pylon: a pole, a vertical board with the name in lights, chasing bulbs down both edges
+function stripPylon(parent, text, col, x, z, h = 9) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  mesh(G.box, 0x2a2a30, [.5, h, .5], [0, h/2, 0], g, {metalness:.6, roughness:.3});
+  const c = document.createElement('canvas'); c.width = 128; c.height = 512; const q = c.getContext('2d');
+  q.fillStyle = '#120a1e'; q.fillRect(0, 0, 128, 512); q.strokeStyle = col; q.lineWidth = 8; q.strokeRect(6, 6, 116, 500);
+  q.font = 'bold 54px system-ui'; q.textAlign = 'center'; q.shadowColor = col; q.shadowBlur = 18; q.fillStyle = '#fff';
+  const letters = text.replace(/ /g, '').slice(0, 8).split(''), step = 470/letters.length;
+  letters.forEach((L, i) => q.fillText(L, 64, 50 + i*step));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  for (const ry of [0, Math.PI]) { const b = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:t, toneMapped:false})); b.scale.set(1.5, 5.6, 1); b.position.set(0, h - 2.6, ry ? -.27 : .27); b.rotation.y = ry; g.add(b); STRIP.neon.push({m:b, ph:R()*6}); }
+  const rows = 10; for (let k = 0; k < rows; k++) for (const sx of [-.82, .82]) { const bl = bulb(g, sx, h - 5.3 + k*.6, .3, 0xffe080, .07); STRIP.chase = (STRIP.chase || []).concat({m:bl, k}); }
+  mesh(G.box, 0xd8b04a, [1.8, .2, .7], [0, h + .1, 0], g, {metalness:.9, roughness:.25});
+  parent.updateMatrixWorld(true); const w = g.getWorldPosition(new THREE.Vector3()); circles.push({x:w.x, z:w.z, r:.45});
+  return g;
+}
 function stripFx(anim) {
   if (STRIP.g) return;
   if (typeof wondersPark === 'function') wondersPark();
@@ -10148,6 +10259,7 @@ function stripLot(id, anim) {
     mesh(G.box, 0x5a1e8a, [9, 3.4, 8.6], [0, 1.7, 0], g); mesh(G.box, 0x2a0a4a, [9.4, .4, 9], [0, 3.6, 0], g);
     for (let k = 0; k < 14; k++) bulb(g, -4.2 + k*.64, 2.9, 4.35, 0xffd040, .07);
     name('SLOTS', '#ff3ad8', 6, 1.5, 4.8, 3.6); canopy(4.3); box(4.6, 4.4);
+    storefront(g, 8.6, 2.6, 0, 4.32); stripPylon(g, 'SLOTS', '#ff3ad8', -5.6, 4.2, 8);
     const [zx, zz] = W2(3, 6.3); STRIP.spin = addZone({kind:'spin', x:zx, z:zz, icon:'🎰', tile:{alpha:1, size:84, label:'Play the slots', fill:'rgba(120,30,140,.6)'}});
   } else if (id === 'chapel') {
     mesh(G.box, 0xf6f2ea, [7, 3, 5], [0, 1.5, 0], g); const roof = mesh(G.cone4, 0xe8a0b8, [5.4, 1.8, 4.4], [0, 3.9, 0], g); roof.rotation.y = Math.PI/4;
@@ -10157,7 +10269,8 @@ function stripLot(id, anim) {
   } else if (id === 'casino1') {
     mesh(G.box, 0x1e5a3a, [10, 3, 9.6], [0, 1.5, 0], g, {metalness:.5, roughness:.25});
     const t = stripTower(g, 6, 14, 6, 0, -1.2, '#8a6a1a', 6, 3); t.material.color.set(0xffd27a); t.material.metalness = .7;
-    name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85);
+    name('GOLDEN LION', '#ffd040', 8, 1.6, 3.7, 4.85); storefront(g, 9.6, 2.7, 0, 4.82); for (const sx of [-1, 1]) storefront(g, 9.2, 2.7, sx*5.02, 0, sx*Math.PI/2);
+    stripPylon(g, 'LION', '#ffd040', -5.2, 4.6, 10);
     const L = new THREE.Group(); L.position.set(3.6, 0, 5.2); g.add(L); const GOLD = {metalness:.9, roughness:.25};
     mesh(G.box, 0x6a6a6a, [1.2, .8, 1.2], [0, .4, 0], L); mesh(G.sph, 0xd8b04a, [.5, .5, .75], [0, 1.25, 0], L, GOLD); mesh(G.sph, 0xd8b04a, [.42, .42, .42], [0, 1.7, .45], L, GOLD); mesh(G.sph, 0xc8962a, [.55, .55, .3], [0, 1.72, .3], L, GOLD);
     canopy(4.8); box(4.9, 5.3);
@@ -10167,8 +10280,13 @@ function stripLot(id, anim) {
     for (let i = 0; i < 5; i++) for (let k = 0; k < 5; k++) { const j = new THREE.Mesh(G.cyl, JM); j.position.set(-4 + i*2, .5, -3.6 + k*1.8); g.add(j); STRIP.jets.push({m:j, i, k}); }
     box(5.3, 5);
   } else if (id === 'casino2') {
-    const P = mesh(G.cone4, 0x14141a, [7.4, 11, 7.4], [0, 5.5, -.4], g, {metalness:.85, roughness:.12}); P.rotation.y = Math.PI/4;
-    mesh(G.box, 0xc8a85a, [3, 2.2, 1.6], [0, 1.1, 4.4], g); name('THE PYRAMID', '#40c8ff', 6, 1.2, 2.8, 5.25);
+    // dark glass in a grid of panes, a few lit from inside
+    const pc = document.createElement('canvas'); pc.width = pc.height = 256; const pq = pc.getContext('2d');
+    pq.fillStyle = '#0c1018'; pq.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 16) for (let x = 0; x < 256; x += 16) { pq.fillStyle = R() < .06 ? '#5a4a2a' : `rgb(${16 + R()*10|0},${22 + R()*10|0},${34 + R()*14|0})`; pq.fillRect(x + 1, y + 1, 14, 14); }
+    const ptx = new THREE.CanvasTexture(pc); ptx.colorSpace = THREE.SRGBColorSpace; ptx.wrapS = ptx.wrapT = THREE.RepeatWrapping; ptx.repeat.set(4, 3);
+    const P = new THREE.Mesh(G.cone4, new THREE.MeshStandardMaterial({map:ptx, metalness:.7, roughness:.18, flatShading:true})); P.scale.set(7.4, 11, 7.4); P.position.set(0, 5.5, -.4); P.castShadow = true; g.add(P); P.rotation.y = Math.PI/4;
+    mesh(G.box, 0xc8a85a, [3, 2.2, 1.6], [0, 1.1, 4.4], g); name('THE PYRAMID', '#40c8ff', 6, 1.2, 2.8, 5.25); stripPylon(g, 'PYRAMID', '#40c8ff', 5.2, 4.6, 10);
     const beam = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xfff6d0, transparent:true, opacity:.25, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
     beam.scale.set(.35, 80, .35); beam.position.set(0, 51, -.4); g.add(beam); STRIP.beams.push(beam);
     const S = new THREE.Group(); S.position.set(-3.6, 0, 4.6); g.add(S);
@@ -10176,6 +10294,7 @@ function stripLot(id, anim) {
     box(5.3, 5.3);
   } else if (id === 'casino3') {
     mesh(G.box, 0xe8e4dc, [9, 3, 8.6], [0, 1.5, 0], g); name('SKY TOWER', '#ff6a3a', 7, 1.4, 3.5, 4.35);
+    storefront(g, 8.6, 2.6, 0, 4.32); for (const sx of [-1, 1]) storefront(g, 8.2, 2.6, sx*4.52, 0, sx*Math.PI/2); stripPylon(g, 'SKY', '#ff6a3a', 5.2, 4.4, 9);
     mesh(G.cyl, 0xd8d4cc, [1, 20, 1], [0, 13, -1], g); for (const a of [0, 2.1, 4.2]) mesh(G.box, 0xd8d4cc, [.3, 18, 2.4], [Math.cos(a)*.9, 12, -1 + Math.sin(a)*.9], g).rotation.y = -a;
     mesh(G.cyl, 0x3a4a5a, [3, 1.6, 3], [0, 23.8, -1], g, {metalness:.6, roughness:.2}); mesh(G.cyl, 0xe8e4dc, [3.2, .4, 3.2], [0, 24.8, -1], g);
     mesh(G.cone, 0xe8e4dc, [.3, 5, .3], [0, 27.5, -1], g); bulb(g, 0, 30.1, -1, 0xff3a2a, .2);
@@ -10183,6 +10302,7 @@ function stripLot(id, anim) {
   } else if (id === 'stripHotel') {
     for (const a of [0, 2.094, 4.189]) { const t = stripTower(g, 2.6, 16, 6, Math.sin(a)*2.4, -.6 + Math.cos(a)*2.4, '#e8e2d4', 4); t.rotation.y = a; }
     mesh(G.box, 0xc8a85a, [10, 2.4, 9.6], [0, 1.2, 0], g); name('RESORT', '#ffd040', 6, 1.4, 3, 4.85);
+    storefront(g, 9.6, 2.2, 0, 4.82); stripPylon(g, 'RESORT', '#40e0ff', 5.2, 4.6, 10);
     canopy(4.8); box(5.1, 5);
   } else if (id === 'casino4') {
     mesh(G.box, 0xf0e2c4, [10.4, 5, 6.6], [0, 2.5, -1.6], g);
@@ -10193,7 +10313,7 @@ function stripLot(id, anim) {
     const gd = new THREE.Group(); g.add(gd); mesh(G.box, 0x111111, [2.2, .25, .5], [0, .2, 0], gd); mesh(G.box, 0x111111, [.12, .5, .12], [1.05, .45, 0], gd);
     mesh(G.box, 0xf4f4f4, [.2, .6, .25], [-.7, .65, 0], gd); mesh(G.box, 0x6b4526, [.04, 1.4, .04], [-.7, .7, .2], gd).rotation.z = .3;
     STRIP.gondola = {g:gd, z:3.4, x0:-4.6, x1:4.6};
-    name('CANAL PALACE', '#5ad0ff', 7, 1.3, 4.6, 1.85);
+    name('CANAL PALACE', '#5ad0ff', 7, 1.3, 4.6, 1.85); stripPylon(g, 'CANAL', '#5ad0ff', 5.4, 4.6, 9);
     box(5.4, 5.2);
   }
   // tall ones fade while you walk behind them, so they never hide you from the camera
@@ -10209,6 +10329,7 @@ function updStrip(dt) {
   for (const b of STRIP.beams) b.material.opacity = .06 + night*.35;
   for (const m of STRIP.windows || []) m.material.emissiveIntensity = .15 + night*1.1;
   for (const l of STRIP.lamps || []) l.visible = night > .3;
+  for (const b of STRIP.chase || []) b.m.visible = ((time*8 + b.k) | 0) % 3 !== 0;
   // the fountains: rows rise and fall in turn
   for (const j of STRIP.jets) { const h = Math.max(.1, 2.6*Math.max(0, Math.sin(time*1.6 + (Math.sin(time*.3) > 0 ? j.i : j.k)*.7))); j.m.scale.set(.09, h, .09); j.m.position.y = .5 + h/2; }
   if (STRIP.gondola) { const G0 = STRIP.gondola, u = (Math.sin(time*.25) + 1)/2; G0.g.position.set(G0.x0 + (G0.x1 - G0.x0)*u, 0, G0.z); G0.g.rotation.y = Math.cos(time*.25) > 0 ? 0 : Math.PI; }
@@ -10833,7 +10954,7 @@ function save() {
     if (Date.now() - lastBak > BAK_EVERY) backupSave('auto');
     localStorage.setItem(SAVE_KEY, JSON.stringify({v:SAVE_VERSION, coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
       cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
-      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
+      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, era:W.era, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
@@ -10842,6 +10963,7 @@ function load() {
     raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
     let s = JSON.parse(raw); if (!s) return false;
     if ((s.v || 1) < SAVE_VERSION) { backupSave(`before the update to save v${SAVE_VERSION}`); s = migrate(s); }
+    AGE_HINT = s.era ?? ((s.conquests || 0) >= 5 ? 7 : 0);
     W.coins = s.coins || 0; W.earned = s.earned || 0; W.fed = s.fed || 0; W.paid = s.paid || {}; W.tut = s.tut || 0; W.flags = s.flags || {};
     W.army = s.army || 0; W.conquests = s.conquests || 0; W.unrest = s.unrest || 0;
     W.levels = s.levels || {}; W.upPaid = s.upPaid || {}; W.upSpent = s.upSpent || 0; W.goals = s.goals || []; W.caught = s.caught || 0;
@@ -10870,8 +10992,11 @@ function load() {
     if (W.conquests >= CAMPAIGNS.length) setEra(10, false);
     for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
     if (player.speed < 7 && W.flags.roads) player.speed = 7;
+    // workers and soldiers were made while the save loaded, before its age was known: dress them for it
+    if (W.era >= 7) restyleForAge();
+    AGE_HINT = 0;
     return true;
-  } catch (e) { if (raw) saveBroken(raw, e); return false; }
+  } catch (e) { AGE_HINT = 0; if (raw) saveBroken(raw, e); return false; }
 }
 
 // ------------------------------------------------------------------ graphics: sky light, water, clouds, grass and life
@@ -11638,8 +11763,6 @@ homesFull = hadSave;
 refreshPads();
 if (hadSave) { $('bPlay').textContent = 'Continue'; $('bNew').hidden = false; }
 applyGfx();
-// compile every shader the camp needs up front, in the background (no hitch the first time each thing comes into view)
-if (renderer.compileAsync) renderer.compileAsync(scene, camera).catch(() => {});
 // players who already have a camp have learned the ropes
 if (hadSave && !SET.tutDone) { SET.tutDone = true; saveSettings(); }
 $('bPlay').onclick = () => {
@@ -11681,7 +11804,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

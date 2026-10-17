@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ realistic people (Quaternius CC0 bodies, rigged and animated)
 const QN = {smooth:true, ready:false, list:[], tex:{}, clips:{}, S:2.0/1.84, tmpQ:new THREE.Quaternion(), tmpQ2:new THREE.Quaternion(), tmpV:new THREE.Vector3(), sphere:new THREE.Sphere(), frustum:new THREE.Frustum(), pm:new THREE.Matrix4()};
 // which part of the body each vertex belongs to, from the bone that moves it most: 0 skin, 1 torso, 2 upper arm, 3 forearm, 4 hips and thighs, 5 calves, 6 feet
-const QN_REGION = n => /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
+const QN_REGION = n => /^(hand|thumb|index|middle|ring|pinky)/.test(n) ? 7 : /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2 : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
 function qnInit() {
   if (QN.ready || QN.failed) return QN.ready;
   if (!MODELS.qn_male || !MODELS.qn_female || !MODELS.qn_anims) return false;
@@ -24,9 +24,9 @@ function qnBodyMat(src, regions, tint) {
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float qnr; varying float vQnr;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvQnr = qnr;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uQN[7]; uniform vec3 uTint; varying float vQnr;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uQN[8]; uniform vec3 uTint; varying float vQnr;')
       .replace('#include <map_fragment>', `#include <map_fragment>
-  { int ri = int(vQnr + .5); vec4 rc = uQN[0]; for (int k = 1; k < 7; k++) if (k == ri) rc = uQN[k];
+  { int ri = int(vQnr + .5); vec4 rc = uQN[0]; for (int k = 1; k < 8; k++) if (k == ri) rc = uQN[k];
     if (rc.a > .5) discard;
     diffuseColor.rgb *= uTint; }`);
   };
@@ -63,7 +63,7 @@ function qnHat(o, top) {
 // every skinned body gets the first time it is drawn)
 function qnShared() {
   // geometry every person borrows (the body models, the shared primitives): never freed with one person
-  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
+  if (!QN.shared) { QN.shared = new Set(Object.values(G).concat(Object.values(typeof G2 !== 'undefined' ? G2 : {}))); for (const k of ['qn_male', 'qn_female', 'qo_male_peasant', 'qo_female_peasant', 'qo_male_ranger', 'qo_female_ranger']) MODELS[k] && MODELS[k].traverse(m => { if (m.geometry) QN.shared.add(m.geometry); }); }
   return QN.shared;
 }
 function qnDrop(c) {
@@ -73,6 +73,45 @@ function qnDrop(c) {
     if (m.isMesh && m.material) [].concat(m.material).forEach(q => { if (q !== BLOB.mat && !q.userData.shared) q.dispose(); });
     if (m.isMesh && m.geometry && !sh.has(m.geometry)) m.geometry.dispose();
   });
+}
+// ------------------------------------------------------------------ the Fantasy outfits (Quaternius CC0), worn until the Empire
+// who wears what: hunters, woodsmen, fishers, miners and fighters the hooded ranger; everyone else a peasant's tunic
+const QO_RANGER = o => o.ranger || o.sword || o.shield || o.gun || o.rod || o.hat === 'hood' || (o.hat === 'helmet' && !o.apron && !o.trim);
+// while a save loads its age isn't set yet: the save says what it was
+let AGE_HINT = 0;
+function qnOutfit(o) {
+  if (o.metal || o.noFit || Math.max(W.era, AGE_HINT) >= 7) return null;
+  if (o.hero) return (o.stage ?? 0) < 2 ? 'peasant' : null;   // villager and merchant; noble, king and later wear their own costumes
+  // townsfolk: one in five dressed as a ranger, for variety (workers dress for their trade)
+  return QO_RANGER(o) ? 'ranger' : 'civ' in o && ((o.body ?? 0) >> 3) % 5 === 0 ? 'ranger' : 'peasant';
+}
+// the outfit's parts are bound to the person's own bones (same 65-bone rig), so they move with every animation; cloth is the outfit's own texture lightly tinted, bare skin takes the person's tone
+const QO = {mats:new Map()};
+function qnWear(c, FIT, fit, skin, topCol) {
+  // the person's own bones with the outfit's rest pose: the outfit stretches to this (broader) body exactly, so cuffs
+  // meet the body's own hands and the neckline its neck
+  const par = c.body.parent; let sk = null;
+  const tintKey = fit + ((topCol >> 20) & 15), skinKey = 'skin' + skin.getHexString();
+  FIT.traverse(m0 => {
+    if (!m0.isSkinnedMesh) return;
+    const isSkin = /QO_Skin/.test(m0.material.name);
+    const key = isSkin ? skinKey : tintKey + m0.material.uuid;
+    let mat = QO.mats.get(key);
+    if (!mat) {
+      if (isSkin) mat = new THREE.MeshStandardMaterial({color:skin.clone().multiplyScalar(.6), roughness:.6});   // the textured face reads darker than its base tone
+      else { mat = m0.material.clone(); mat.color = new THREE.Color(1, 1, 1).lerp(qnCol(topCol), .28); mat.roughness = .9; }
+      mat.userData.shared = true; QO.mats.set(key, mat);
+    }
+    const n = new THREE.SkinnedMesh(m0.geometry, mat); n.name = m0.name;
+    sk ||= new THREE.Skeleton(c.body.skeleton.bones, m0.skeleton.boneInverses);
+    n.bind(sk, m0.bindMatrix);
+    if (!m0.geometry.userData.qnBound) { m0.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .9, 0), 1.3); m0.geometry.userData.qnBound = true; }
+    n.computeBoundingSphere = () => { n.boundingSphere = n.geometry.boundingSphere.clone(); return n.boundingSphere; };
+    n.boundingSphere = n.geometry.boundingSphere.clone(); n.frustumCulled = true;
+    n.castShadow = true; n.receiveShadow = true;
+    par.add(n);
+  });
+  c.outfit = fit;
 }
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
@@ -88,14 +127,19 @@ function makeQN(o) {
   const sleeve = o.top === 'jacket' ? (o.body2 ?? top) : o.top === 'suit' ? 0x1e1e26 : top;
   const R4 = (col, a) => { const v = qnCol(col); return new THREE.Vector4(v.r, v.g, v.b, a); };
   const wearTop = long ? 'ShirtLong' : 'Shirt', wearLeg = dress ? '' : o.shorts ? 'Shorts' : 'Pants';
-  const regions = [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, long ? 1 : 0), R4(0, 1), R4(0, wearLeg === 'Pants' ? 1 : 0), R4(0, 1)];
+  // the old ages dress in the Fantasy outfits (peasant tunics, hooded rangers); then only the head (and hands, if the
+  // outfit has none of its own) of the body shows
+  const fit = qnOutfit(o), FIT = fit && MODELS['qo_' + (fem ? 'female' : 'male') + '_' + fit];
+  const regions = FIT ? [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 1), R4(0, 0)]
+    : [R4(0, 0), R4(0, 1), R4(0, 1), R4(0, long ? 1 : 0), R4(0, 1), R4(0, wearLeg === 'Pants' ? 1 : 0), R4(0, 1), R4(0, 0)];
   const topCol = o.top === 'suit' ? 0x1e1e26 : o.top === 'jacket' ? (o.body2 ?? top) : top;
   const tex = QN.tex[c.skinKey], base = skin.clone().multiplyScalar(1/Math.max(.2, dark ? .42 : .82));
   const tint = new THREE.Vector3(Math.min(1.25, base.r), Math.min(1.25, base.g), Math.min(1.25, base.b));
   // which hair to show (under a hat only longer hair, which hangs below the brim)
   const hs = o.hair ?? 'short', hatted = o.hat && o.hat !== 'hood';
   const hairName = fem ? ({long:'Long', bangs:'Long', ponytail:'Long', bun:'Buns', sidepart:'SimpleParted', short:'SimpleParted', afro:'Buns'}[hs] || 'BuzzedFemale') : ({long:'Long', sidepart:'SimpleParted', short:'SimpleParted', afro:'SimpleParted', mohawk:'Buzzed', buzz:'Buzzed'}[hs] || (hs === 'bald' ? '' : 'Buzzed'));
-  const hairShow = hatted && !['Long', 'Buns'].includes(hairName) ? (fem ? 'BuzzedFemale' : 'Buzzed') : hairName;
+  const hooded = FIT && fit === 'ranger';
+  const hairShow = hooded ? '' : hatted && !['Long', 'Buns'].includes(hairName) ? (fem ? 'BuzzedFemale' : 'Buzzed') : hairName;
   root.traverse(m => {
     if (!m.isSkinnedMesh) return;
     // a fixed bound round the whole body, so off-screen people are skipped (the skinned pose never leaves it)
@@ -106,7 +150,7 @@ function makeQN(o) {
     if (/Super[hH]ero/.test(m.name)) { c.bodyMat = m.material = qnBodyMat(m.material, regions, tint); if (tex) c.bodyMat.map = tex; c.body = m; }
     else if (/Wear_/.test(m.name)) {
       const k = m.name.replace(/^QN_Wear_/, '').replace(/\.\d+$/, '');
-      m.visible = k === wearTop || k === wearLeg || k === 'Shoes';
+      m.visible = !FIT && (k === wearTop || k === wearLeg || k === 'Shoes');
       if (m.visible) { m.material = new THREE.MeshStandardMaterial({color:k === 'Shoes' ? shoe : k === wearLeg ? pants : topCol, roughness:o.metal && k === wearTop ? .35 : .85, metalness:o.metal && k === wearTop ? .6 : 0}); m.castShadow = true; }
     }
     else if (/Hair_/.test(m.name)) {
@@ -115,6 +159,8 @@ function makeQN(o) {
       if (m.visible) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2.2); }
     } else if (/Eyebrows/.test(m.name)) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2); }
   });
+  if (FIT && c.body) qnWear(c, FIT, fit, skin, topCol);
+  c.look = o;
   // the bones the game poses directly, and stand-ins at the old pivots for the code that hangs things on arms and legs
   const B = n => root.getObjectByName(n);
   c.bones = {armL:B('upperarm_l'), armR:B('upperarm_r'), head:B('Head'), handR:B('hand_r'), handL:B('hand_l'), spine:B('spine_03')};
@@ -122,9 +168,9 @@ function makeQN(o) {
   legL.position.set(-.12, 1.0, 0); legR.position.set(.12, 1.0, 0); armL.position.set(-.25, 1.62, 0); armR.position.set(.25, 1.62, 0);
   g.add(legL, legR, armL, armR); Object.assign(c, {legL, legR, armL, armR});
   // hats on the head, gear in the hands
-  const hat = qnHat(o, top); if (hat && c.bones.head) { hat.children.forEach(q => { q.position.y = 1.9 + (q.position.y - 1.9)*.8; q.position.x *= .8; q.position.z *= .8; q.scale.multiplyScalar(.8); }); root.updateMatrixWorld(true); hat.scale.setScalar(1/QN.S); hat.position.multiplyScalar(1/QN.S); root.add(hat); c.bones.head.attach(hat); }
-  if (o.apron) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
-  if (dress) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
+  const hat = hooded ? null : qnHat(FIT ? {...o, acc:null} : o, top); if (hat && c.bones.head) { hat.children.forEach(q => { q.position.y = 1.9 + (q.position.y - 1.9)*.8; q.position.x *= .8; q.position.z *= .8; q.scale.multiplyScalar(.8); }); root.updateMatrixWorld(true); hat.scale.setScalar(1/QN.S); hat.position.multiplyScalar(1/QN.S); root.add(hat); c.bones.head.attach(hat); }
+  if (o.apron && !FIT) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
+  if (dress && !FIT) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
   if (o.gun) c.gun = rifle(armR, o.scope);
   if (o.sword) mesh(G.box, 0xe4e8ee, [.04, .6, .08], [0, -.85, .1], armR, {metalness:.7, roughness:.25});
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.025, .65, .025], [0, -.85, .08], armR); mesh(G.box, 0x9aa0a8, [.035, .17, .15], [0, -1.12, .14], armR, {metalness:.6}); }
@@ -198,6 +244,7 @@ function updQN(dt) {
     let st, rate = 1;
     const act = (c.actT -= dt) > 0 && c.spd < 1.2 ? QN_ACT[c.act] : null;
     if (fall < -.3) { st = 'Death01'; g.rotation.x = 0; }
+    else if (c.ride) st = c.ride === 'seat' ? 'Driving_Loop' : 'Idle_Loop';
     else if (act) { st = act[0]; rate = act[1]; if (c.actNew && c.state === st) c.acts[st].reset().play(); c.actNew = false; }
     // seated (both legs bent forward together); a walking stride swings them opposite ways, so one bent leg is not a seat
     else if (lg < -1.2 && lgR < -1.2) st = 'Sitting_Idle_Loop';
@@ -324,6 +371,14 @@ function makeChar(o) {
   return c;
 }
 const PADOBJ = {}, ENTS = [], CHARS = new WeakSet();
+// a new age, new clothes: the people who stay (workers, the soldiers in the yard) change into what the age wears
+function restyle(e) {
+  const old = e.char, look = old.look; if (!look || !old.qn) return;
+  const c = makeChar(look); c.g.position.copy(old.g.position); c.g.rotation.copy(old.g.rotation);
+  scene.remove(old.g); CHARS.delete(old.g); CHARS.add(c.g); e.char = c; e.tools = null; e.toolArm = null;
+  if ('carry' in e) { e.carry = null; equip(e); }
+}
+function restyleForAge() { for (const w of workers) restyle(w); for (const s of soldiers) restyle(s); }
 function entity(charOpts, x, z, speed, cap) {
   const e = {pos:new THREE.Vector3(x, 0, z), vel:new THREE.Vector3(), svel:new THREE.Vector3(), yaw:0, walk:0, speed, cap, tick:0,
     char:makeChar(charOpts)};

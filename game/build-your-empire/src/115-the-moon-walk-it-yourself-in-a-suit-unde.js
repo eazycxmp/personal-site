@@ -75,7 +75,7 @@ function save() {
     if (Date.now() - lastBak > BAK_EVERY) backupSave('auto');
     localStorage.setItem(SAVE_KEY, JSON.stringify({v:SAVE_VERSION, coins:W.coins, earned:W.earned, fed:W.fed, army:W.army, conquests:W.conquests, unrest:W.unrest,
       cash:Object.fromEntries(Object.values(CASH).map(c => [c.id, c.value])), unlocked:[...W.unlocked], paid:W.paid, tut:W.tut, flags:W.flags,
-      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, savedAt:Date.now()}));
+      levels:W.levels, upPaid:W.upPaid, upSpent:W.upSpent, goals:W.goals, caught:W.caught, decor:W.decor || [], fund:W.fund || 0, fundIn:W.fundIn || 0, autoInvest:!!W.autoInvest, rival:W.rival || 0, rivalWins:W.rivalWins || 0, rivalAlly:!!W.rivalAlly, playT:W.playT, rate:W.rate, era:W.era, savedAt:Date.now()}));
   } catch (e) {}
 }
 function load() {
@@ -84,6 +84,7 @@ function load() {
     raw = localStorage.getItem(SAVE_KEY); if (!raw) return false;
     let s = JSON.parse(raw); if (!s) return false;
     if ((s.v || 1) < SAVE_VERSION) { backupSave(`before the update to save v${SAVE_VERSION}`); s = migrate(s); }
+    AGE_HINT = s.era ?? ((s.conquests || 0) >= 5 ? 7 : 0);
     W.coins = s.coins || 0; W.earned = s.earned || 0; W.fed = s.fed || 0; W.paid = s.paid || {}; W.tut = s.tut || 0; W.flags = s.flags || {};
     W.army = s.army || 0; W.conquests = s.conquests || 0; W.unrest = s.unrest || 0;
     W.levels = s.levels || {}; W.upPaid = s.upPaid || {}; W.upSpent = s.upSpent || 0; W.goals = s.goals || []; W.caught = s.caught || 0;
@@ -112,7 +113,10 @@ function load() {
     if (W.conquests >= CAMPAIGNS.length) setEra(10, false);
     for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
     if (player.speed < 7 && W.flags.roads) player.speed = 7;
+    // workers and soldiers were made while the save loaded, before its age was known: dress them for it
+    if (W.era >= 7) restyleForAge();
+    AGE_HINT = 0;
     return true;
-  } catch (e) { if (raw) saveBroken(raw, e); return false; }
+  } catch (e) { AGE_HINT = 0; if (raw) saveBroken(raw, e); return false; }
 }
 
