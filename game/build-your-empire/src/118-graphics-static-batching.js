@@ -3,7 +3,7 @@
 // put for a few seconds, and per 12x12 patch of ground merge the ones sharing a material into one mesh, so
 // the GPU draws each patch's stone, wood or roof in one go. The originals stay in the scene (hidden by layer), and
 // if any of them moves, changes material, shows or hides, its batch is taken apart and merged again later.
-const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
+const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 24000 : 64000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
 BAKE.group.name = 'bake'; scene.add(BAKE.group);
 {
   const OBR = THREE.Object3D.prototype.onBeforeRender, OBC = THREE.Material.prototype.onBeforeCompile;
@@ -17,7 +17,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   BAKE.kind = o => {
     if (MOVERS.has(o.material) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
     const m = o.material, g = o.geometry;
-    if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || m.onBeforeCompile !== OBC) return null;
+    if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || (m.onBeforeCompile !== OBC && !m.userData.bakeSafe)) return null;
     if (!g.attributes.position || !g.attributes.normal || g.drawRange.count !== Infinity || g.drawRange.start || Object.keys(g.morphAttributes).length) return null;
     const uv = TEX.some(k => m[k]), col = !!m.vertexColors;
     if (uv && !g.attributes.uv || col && !g.attributes.color) return null;
@@ -35,7 +35,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   }
   // how a material looks, so copies of the same material can share one draw
   const look = m => [m.type, m.color?.r, m.color?.g, m.color?.b, m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, m.roughness, m.metalness, m.map?.id, m.normalMap?.id, m.emissiveMap?.id,
-    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite].join();
+    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite, m.userData.bld, m.customProgramCacheKey()].join();
   // glue the members of one material into one world-space geometry
   function merge(list, kind) {
     let nv = 0, ni = 0;
@@ -129,26 +129,27 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
       const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : look(o.material));
       (ready.get(key) || ready.set(key, []).get(key)).push(o);
     }
-    // new still meshes join their batch (or a lone mesh waiting for company); a vertex budget keeps each tick short
+    // new still meshes make a batch of their own beside the patch's existing ones (with a lone mesh waiting for
+    // company). Existing batches are never torn up just to add a newcomer: re-merging a full batch for every arrival
+    // used up each pass's budget, and meshes elsewhere waited for good. A vertex budget keeps each pass short.
     let budget = BAKE.budget;
     for (const [key, list0] of ready) {
       if (budget <= 0) { acc = .5; break; }          // more to do: carry on next frame
       if (over()) yield;
       // the walk took a few frames: anything that moved meanwhile waits for the next pass
-      const list = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
-      if (!list.length) continue;
-      const b = BAKE.batches.get(key), all = list.slice();
-      // a batch is capped in size, so taking one apart and merging it again never stalls a frame
-      if (b && b.mesh.geometry.attributes.position.count + list.reduce((n, o) => n + o.geometry.attributes.position.count, 0) > BAKE.cap) { for (const o of list) BAKE.seen.get(o).solo = key + '#full'; continue; }
-      if (b) { unbake(key); for (const o of b.members) { const s = BAKE.seen.get(o); if (!snap(o, s.rec) && s.rec.vis === 1) all.push(o); else s.t = now; } }
+      const all = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
+      if (!all.length) continue;
       const solo = BAKE.solos.get(key);
       if (solo && !all.includes(solo)) { const s = BAKE.seen.get(solo); BAKE.solos.delete(key); if (s && s.solo === key && !snap(solo, s.rec) && s.rec.vis === 1) all.push(solo); else if (s) { s.solo = null; s.t = now; } }
-      let nv = 0; const keep = all.filter(o => (nv += o.geometry.attributes.position.count) <= BAKE.cap || o === all[0]);
-      for (const o of all) if (!keep.includes(o)) BAKE.seen.get(o).solo = key + '#full';
-      all.length = 0; all.push(...keep);
-      if (all.length < 2) { BAKE.solos.set(key, all[0]); BAKE.seen.get(all[0]).solo = key; continue; }
-      for (const o of all) budget -= o.geometry.attributes.position.count;
-      bake(key, all);
+      // in batches of at most BAKE.cap vertices, each under its own key
+      while (all.length) {
+        let nv = 0; const part = [];
+        while (all.length && (!part.length || nv + all[0].geometry.attributes.position.count <= BAKE.cap)) { nv += all[0].geometry.attributes.position.count; part.push(all.shift()); }
+        if (part.length < 2) { BAKE.solos.set(key, part[0]); BAKE.seen.get(part[0]).solo = key; break; }
+        if (over()) { yield; if (part.some(o => snap(o, BAKE.seen.get(o).rec))) { for (const o of part) BAKE.seen.get(o).t = BAKE.clock; continue; } }
+        let bk = key, i = 0; while (BAKE.batches.has(bk)) bk = key + '#' + (++i);
+        budget -= nv; bake(bk, part);
+      }
     }
   };
   BAKE.stats = () => { let m = 0; for (const b of BAKE.batches.values()) m += b.members.length; return {batches:BAKE.batches.size, members:m, solos:BAKE.solos.size, merges:BAKE.merges, breaks:BAKE.breaks}; };

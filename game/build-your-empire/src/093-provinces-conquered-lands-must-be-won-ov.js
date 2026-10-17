@@ -35,7 +35,7 @@ function endRevolt(k) {
   banner(`🛡️ The revolt in ${landName(k)} is crushed`, 'Order is back, but fear is not loyalty: send a governor from the Senate.');
 }
 function landTribute() {
-  return Math.round(landKeys().reduce((a, k) => { const L = land(k); return a + (L.lost ? 0 : (k[0] === 'r' ? 90 : 30) * (.4 + L.loy/100*.9)); }, 0));
+  return Math.round(landKeys().reduce((a, k) => { const L = land(k); return a + (L.lost ? 0 : (k[0] === 'r' ? 90 : 30) * (.4 + L.loy/100*.9) * tierOfLand(k).mult * fedFactor(landSup(k))); }, 0) + shopIncome());
 }
 function retake(k) {
   if (W.camp || W.raid) return;

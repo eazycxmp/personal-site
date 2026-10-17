@@ -93,6 +93,7 @@
 091-a-siege-ladders-on-the-walls-a-ram-at-th.js
 092-ruins-a-burned-building-has-to-be-paid-f.js
 093-provinces-conquered-lands-must-be-won-ov.js
+093b-supplying-your-lands.js
 094-the-senate-a-dome-on-the-town-hall-where.js
 095-crowds-people-step-around-each-other-ins.js
 096-hulls-a-smooth-round-bottomed-hull-lofte.js
@@ -119,4 +120,5 @@
 117-main-loop.js
 118-graphics-static-batching.js
 118b-settings-and-tutorial.js
+118c-items-drawn-in-batches.js
 119-boot.js

@@ -120,7 +120,8 @@ function itemMesh(type, species = null) {
   }
   const m = new THREE.Mesh(itemCache[key], itemMat);
   m.castShadow = true;
-  if (OUTLINED.has(type)) { const o = new THREE.Mesh(itemCache[key], OUTLINE_MAT); o.scale.setScalar(1.09); m.add(o); }
+  let ol = null; if (OUTLINED.has(type)) { ol = new THREE.Mesh(itemCache[key], OUTLINE_MAT); ol.scale.setScalar(1.09); m.add(ol); }
+  itemInst(m, key, ol);   // drawn in one batch per kind (118c)
   scene.add(m);
   return m;
 }

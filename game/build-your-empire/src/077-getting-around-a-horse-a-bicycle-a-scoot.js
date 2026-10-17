@@ -48,7 +48,8 @@ function updMount(dt) {
   player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
-  player.rideY += ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
+  // (starts from 0: a camp loaded with a mount had no rideY yet, and undefined + n left the mount at NaN, unseen)
+  player.rideY = (player.rideY || 0) + ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
   if (mountG) mountG.position.y = -player.rideY;
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });

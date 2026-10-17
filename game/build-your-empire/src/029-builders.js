@@ -3,9 +3,12 @@
 // builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
+// military technology is the player's own decision: builders and masons never pay for these tiles
+const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5',
+  'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
-  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
   if (!open.length) return null;
   const others = workers.filter(o => o !== w && (o.kind === 'builder' || o.hauling) && o.job);
   const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
@@ -68,6 +71,33 @@ function treasurerPile(w) {
 
 // stonemasons with a full stone pile don't stand about: they carry the stone to whatever tile is waiting for it,
 // then go back to the quarry once nothing needs it
+// The iron hauler and the tinker: when their own run is stuck (nothing to fetch, or the smith or workshop has no room)
+// they carry ingots or tools to a tile waiting on them, then go back to their run.
+const IDLE_HAUL = {hauler:['ingot'], tinker:['tools', 'ingot']};
+function idleHaul(w, dt, curs) {
+  if (!w.hauling) {
+    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4);
+    if (!stuck) { w.idleT = 0; return false; }
+    w.idleT = (w.idleT || 0) + dt;
+    if (w.idleT < 3 || (w.haulCheck = (w.haulCheck || 0) - dt) > 0) return false;
+    w.haulCheck = 2;
+    // what it holds decides what it can take; empty-handed, the first currency some tile needs
+    const held = w.stack.length ? w.stack.items[0].type : null;
+    // holding goods its own station has no room for: any other station that takes them and has room gets them
+    if (held) {
+      const takes = s => s.ins ? s.ins.flat().includes(held) : s.in === held;
+      const alt = zones.filter(z => z.kind === 'in' && z !== w.dst && ST[z.st] && !ST[z.st].ruin && takes(ST[z.st]) && ST[z.st].inStack.length < ST[z.st].inStack.cap - 2)
+        .sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
+      if (alt) { w.dst = alt; w.state = 'toDst'; w.wait = 0; w.idleT = 0; return false; }
+    }
+    const cur = curs.find(c => (held ? held === c && w.stack.count([c]) === w.stack.length : true) && builderJob(w, c));
+    if (!cur) return false;
+    w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle';
+  }
+  updBuilder(w, dt, w.hauling);
+  if (!w.job && !w.stack.count([w.hauling])) { w.hauling = false; w.state = 'idle'; }
+  return true;
+}
 function masonHaul(w, dt) {
   const pile = GATHER[w.kind].pile().outStack;
   if (!w.hauling) {

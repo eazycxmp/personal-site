@@ -122,6 +122,7 @@ function updWorker(w, dt) {
     }
     return;
   }
+  if (IDLE_HAUL[w.kind] && idleHaul(w, dt, IDLE_HAUL[w.kind])) return;
   const r = ROUTES[w.kind];
   switch (w.state) {
     case 'idle': {

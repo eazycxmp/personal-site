@@ -292,7 +292,7 @@ scene.background = new THREE.Color(0x9fd6f2);
 scene.fog = new THREE.Fog(0x9fd6f2, 42, 82);
 // the camera looks at the camp diagonally, for the diorama look
 const CAM_YAW = Math.PI / 4;
-const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 220);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);   // a wide view (was 32)
 const hemi = new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
 sun.castShadow = true;
@@ -352,6 +352,8 @@ function bldMat(color, id, o) {
     diffuseColor.rgb *= clamp(mix(vec3(1.0), t / max(bldAvg, vec3(0.04)), 0.85), 0.0, 2.2); }`);
   };
   m.customProgramCacheKey = () => 'bld';
+  // textured from world position, so static batching (which bakes meshes into world space) draws it the same
+  m.userData.bakeSafe = true; m.userData.bld = id;
   m.userData.shared = true; return BLD.cache[k] = m;
 }
 function mesh(geo, color, s, p, parent, o) {
@@ -437,7 +439,7 @@ function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   const avg = T.avg.clone(), k = contrast.toFixed(2);
   m.onBeforeCompile = sh => { sh.uniforms.phAvg = {value:avg};
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 phAvg;').replace('#include <map_fragment>', `#include <map_fragment>\n  ${contrast < .6 ? 'diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * texture2D(map, vMapUv * .37 + vec2(.31, .17)).rgb, .5);' : ''}\n  diffuseColor.rgb = mix(diffuse * phAvg, diffuseColor.rgb, ${k});`); };
-  m.customProgramCacheKey = () => 'ph' + k;
+  m.customProgramCacheKey = () => 'ph' + k; m.userData.bakeSafe = true;   // works on the mesh's own uvs, which batching keeps
   return m;
 }   // every ground top, so rain can make them shine
 // a raised slab of ground with darker sides, so the camp sits above the grass like a diorama
@@ -603,7 +605,8 @@ function itemMesh(type, species = null) {
   }
   const m = new THREE.Mesh(itemCache[key], itemMat);
   m.castShadow = true;
-  if (OUTLINED.has(type)) { const o = new THREE.Mesh(itemCache[key], OUTLINE_MAT); o.scale.setScalar(1.09); m.add(o); }
+  let ol = null; if (OUTLINED.has(type)) { ol = new THREE.Mesh(itemCache[key], OUTLINE_MAT); ol.scale.setScalar(1.09); m.add(ol); }
+  itemInst(m, key, ol);   // drawn in one batch per kind (118c)
   scene.add(m);
   return m;
 }
@@ -2648,6 +2651,7 @@ const LOOKS = {
   butcher:{body:0x7a2a22, apron:0xe8e0d0, hat:'beanie', hatCol:0x222222},
   gardener:{body:0x5a8a3a, apron:0x8a6a42, hat:'straw', pants:0x4a5a3a},
   bunbaker:{body:0xf2e6cc, apron:0xffffff, hat:'chef'},
+  clerk:{body:0x3a4a6a, apron:0x8a6a42, hat:'straw'},
   burgercook:{body:0xd9443a, apron:0xffffff, hat:'chef'},
   baker:{body:0xe8d8b8, apron:0xffffff, hat:'chef'},
   lumber:{ranger:true, body:0x2f7d4a, hat:'beanie', hatCol:0xd9443a, pants:0x3a3a5a},
@@ -2706,6 +2710,7 @@ const ROUTES = {
   picker:{src:() => [outZone('tomatoes')], dst:() => inZone('pizzeria')},
   sushichef:{src:() => [RANCH.pier], dst:() => inZone('sushi')},
   tinker:{src:() => [outZone('smelter')], dst:() => inZone('workshop')},
+  clerk:{src:() => clerkSrc(), dst:() => SUP.zone},
 };
 // ------------------------------------------------------------------ walking around things: a grid of where people can't go, and A* paths around it
 const NAV = {x0:-104, z0:-110, cs:.5, nx:400, nz:480, grid:null, key:-1, ver:0, open:null, g:null, from:null, seen:null};
@@ -2831,6 +2836,7 @@ function updWorker(w, dt) {
     }
     return;
   }
+  if (IDLE_HAUL[w.kind] && idleHaul(w, dt, IDLE_HAUL[w.kind])) return;
   const r = ROUTES[w.kind];
   switch (w.state) {
     case 'idle': {
@@ -3090,6 +3096,7 @@ const SELLABLE = Object.keys(ITEM).filter(k => ITEM[k].sell);
 function zoneAct(e, zn, dt) {
   e.tick -= dt; if (e.tick > 0) return;
   switch (zn.kind) {
+    case 'depot': depotAct(e, zn); break;
     case 'study': {
       // scrolls in, research out: every level needs more of them, and every level lifts all income
       const it = e.stack.items.find(q => q.type === 'scroll'); if (!it) { e.tick = .25; break; }
@@ -3279,33 +3286,34 @@ const PADS = [
   {id:'superAI', x:59.6, z:-5.6, w:1.9, cost:250000, cur:'coin', icon:'🧠', label:'Superintelligence', after:['aiLab'], region:'east'},
   {id:'sciFlight', x:52.4, z:-9.2, cost:25, cur:'scroll', icon:'✈️', label:'Aviation', after:['labs'], region:'east', sci:1},
   {id:'airfieldGate', x:-9.4, z:9.6, w:1.8, cost:60, cur:'stone', icon:'🌉', label:'Bridge & airfield', after:['sciFlight']},
-  {id:'hangar', x:18.5, z:109.5, cost:20, cur:'tools', icon:'🛩️', label:'Fighter hangar', after:['airfieldGate', 'southGate'], region:'south'},
-  {id:'plane1', x:26.5, z:90.6, cost:25, cur:'tools', icon:'✈️', label:'Fighter plane', after:['hangar', 'southGate']},
+  {id:'hangar', x:18.5, z:109.5, cost:15000, cur:'coin', icon:'🛩️', label:'Fighter hangar', after:['airfieldGate', 'southGate'], region:'south'},
+  // bought with cash like every fighter, so builders never pay for one on their own
+  {id:'plane1', x:26.5, z:90.6, cost:25000, cur:'coin', icon:'✈️', label:'Fighter plane', after:['hangar', 'southGate']},
   {id:'plane2', x:26.5, z:95.4, cost:40000, cur:'coin', icon:'✈️', label:'2nd fighter plane', after:['plane1']},
   {id:'plane3', x:26.5, z:100.2, cost:60000, cur:'coin', icon:'✈️', label:'3rd fighter plane', after:['plane2']},
   {id:'plane4', x:32.4, z:93, cost:90000, cur:'coin', icon:'✈️', label:'4th fighter plane', after:['plane3']},
   {id:'plane5', x:32.4, z:97.8, cost:120000, cur:'coin', icon:'✈️', label:'5th fighter plane', after:['plane4']},
   {id:'downtownGate', x:44.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
-  {id:'warship', x:-9.4, z:-4.6, cost:10, cur:'tools', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
+  {id:'warship', x:-9.4, z:-4.6, cost:12000, cur:'coin', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
   // the military grounds, south
   {id:'southGate', x:3, z:12.6, cost:1000, cur:'coin', icon:'🛡️', label:'South gate', after:['townhall']},
   {id:'smith', x:-5, z:78.5, cost:800, cur:'coin', icon:'⚒️', label:'Blacksmith', after:['southGate', 'smelter'], region:'south'},
-  {id:'mess', x:2, z:82, cost:30, cur:'log', icon:'🥣', label:'Mess hall', after:['smith'], region:'south'},
+  {id:'mess', x:2, z:82, cost:1500, cur:'coin', icon:'🥣', label:'Mess hall', after:['smith'], region:'south'},
   {id:'hauler', x:-7.8, z:83.48, cost:900, cur:'coin', icon:'🛒', label:'Iron hauler', after:['smith', 'miner'], region:'south'},
   {id:'armorer', x:-2.4, z:82.5, cost:900, cur:'coin', icon:'🗡️', label:'Armorer', after:['mess'], region:'south'},
-  {id:'barracks', x:9.5, z:87.5, cost:35, cur:'stone', icon:'⛺', label:'Barracks', after:['mess'], region:'south'},
+  {id:'barracks', x:9.5, z:87.5, cost:2500, cur:'coin', icon:'⛺', label:'Barracks', after:['mess'], region:'south'},
   {id:'quartermaster', x:6.4, z:82.6, cost:1500, cur:'coin', icon:'🍲', label:'Quartermaster', after:['barracks'], region:'south'},
   {id:'warTable', x:12.3, z:82.6, cost:1200, cur:'coin', icon:'⚔️', label:'War table', after:['barracks'], region:'south'},
   {id:'castle', x:-5.5, z:87.6, cost:6000, cur:'coin', icon:'🪵', label:'Wooden fort', after:['barracks', 'armorer'], army:10, region:'south'},
-  {id:'siegeWorks', x:-5.6, z:75.2, cost:6, cur:'tools', icon:'🛞', label:'Siege workshop', after:['barracks', 'workshop'], region:'south'},
-  {id:'troop1', x:-8.6, z:81, cost:30, cur:'ingot', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
-  {id:'troop2', x:-8.6, z:81, cost:40, cur:'ingot', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
-  {id:'troop3', x:-8.6, z:81, cost:60, cur:'ingot', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
-  {id:'guns', x:-1.2, z:76.3, cost:12, cur:'tools', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
+  {id:'siegeWorks', x:-5.6, z:75.2, cost:6000, cur:'coin', icon:'🛞', label:'Siege workshop', after:['barracks', 'workshop'], region:'south'},
+  {id:'troop1', x:-8.6, z:81, cost:5000, cur:'coin', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
+  {id:'troop2', x:-8.6, z:81, cost:8000, cur:'coin', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
+  {id:'troop3', x:-8.6, z:81, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
+  {id:'guns', x:-1.2, z:76.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
   {id:'troop5', x:-8.6, z:81, cost:150000, cur:'coin', icon:'🎖️', label:'Special forces', after:['guns', 'labs'], region:'south'},
-  {id:'castle2', x:-5.5, z:83.7, cost:150, cur:'stone', icon:'🏯', label:'Stone castle', after:['castle', 'mason2'], region:'south'},
-  {id:'castle3', x:-5.5, z:83.7, cost:300, cur:'stone', icon:'🏰', label:'Moat & drawbridge', after:['castle2', 'workshop'], region:'south'},
-  {id:'castle4', x:-5.5, z:83.7, cost:30, cur:'tools', icon:'🪖', label:'Bunker complex', after:['castle3', 'labs'], region:'south'},
+  {id:'castle2', x:-5.5, z:83.7, cost:10000, cur:'coin', icon:'🏯', label:'Stone castle', after:['castle', 'mason2'], region:'south'},
+  {id:'castle3', x:-5.5, z:83.7, cost:18000, cur:'coin', icon:'🏰', label:'Moat & drawbridge', after:['castle2', 'workshop'], region:'south'},
+  {id:'castle4', x:-5.5, z:83.7, cost:60000, cur:'coin', icon:'🪖', label:'Bunker complex', after:['castle3', 'labs'], region:'south'},
   // water and sewers through the ages, at the well
   {id:'water1', x:9, z:-4.4, cost:30, cur:'log', icon:'🪣', label:'Viking well house', after:['village']},
   {id:'water2', x:9, z:-4.4, cost:80, cur:'stone', icon:'⛲', label:'Roman aqueduct', after:['water1', 'townhall']},
@@ -3347,6 +3355,9 @@ const PADS = [
   {id:'hw_kumo', x:-100, z:12.1, cost:400000, cur:'coin', icon:'🛣️', label:'Highway to Kumo', after:['highway'], optional:true, need:() => hwyHeld('kumo')},
   {id:'hw_aztlan', x:-104, z:12.1, cost:600000, cur:'coin', icon:'🛣️', label:'Highway to Aztlan', after:['highway'], optional:true, need:() => hwyHeld('aztlan')},
   {id:'garden', x:20.5, z:5.6, cost:400, cur:'coin', icon:'🥬', label:'Lettuce garden', after:['spit', 'oven', 'workshop']},
+  // military technology is bought with cash, like the planes and tanks: builders never pay for it (029 MIL_PADS)
+  {id:'supplyDepot', x:22.4, z:-9.2, cost:4000, cur:'coin', icon:'📦', label:'Supply depot', after:['warTable'], need:() => landKeys().length > 0},
+  {id:'supplyClerk', x:18.6, z:-6.4, cost:1500, cur:'coin', icon:'🧑‍💼', label:'Supply clerk', after:['supplyDepot']},
   {id:'gardener', x:23.8, z:5.6, cost:300, cur:'coin', icon:'🧑‍🌾', label:'Gardener', after:['garden']},
   {id:'tomatobed', x:27.1, z:5.6, cost:500, cur:'coin', icon:'🍅', label:'Tomato bed', after:['garden', 'market']},
   {id:'burgerBar', x:20.75, z:14.3, cost:900, cur:'coin', icon:'🍔', label:'Burger station', after:['tomatobed', 'gardener', 'market', 'workshop']},
@@ -3629,6 +3640,7 @@ const UNLOCK = {
   refinery(a) { refineryFx(a); if (a) banner('🏭 Oil refinery!', 'The quarry now refines its own oil. Fuel sells for four times as much as crude.'); },
   hw_nile(a) { hwyBuild('nile', a); }, hw_hellas(a) { hwyBuild('hellas', a); }, hw_kumo(a) { hwyBuild('kumo', a); }, hw_aztlan(a) { hwyBuild('aztlan', a); },
   garden(a) { lettuceGarden(a); },
+  supplyDepot(a) { supplyDepot(a); }, supplyClerk(a) { addWorker('clerk', 18.6, -6.4, a); },
   gardener(a) { addWorker('gardener', 23.8, 5.6, a); },
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
   tomatobed(a) { tomatoBed(a); },
@@ -4122,9 +4134,12 @@ function payUpgrade(zn, e) {
 // builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
+// military technology is the player's own decision: builders and masons never pay for these tiles
+const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5',
+  'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
-  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
   if (!open.length) return null;
   const others = workers.filter(o => o !== w && (o.kind === 'builder' || o.hauling) && o.job);
   const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
@@ -4187,6 +4202,33 @@ function treasurerPile(w) {
 
 // stonemasons with a full stone pile don't stand about: they carry the stone to whatever tile is waiting for it,
 // then go back to the quarry once nothing needs it
+// The iron hauler and the tinker: when their own run is stuck (nothing to fetch, or the smith or workshop has no room)
+// they carry ingots or tools to a tile waiting on them, then go back to their run.
+const IDLE_HAUL = {hauler:['ingot'], tinker:['tools', 'ingot']};
+function idleHaul(w, dt, curs) {
+  if (!w.hauling) {
+    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4);
+    if (!stuck) { w.idleT = 0; return false; }
+    w.idleT = (w.idleT || 0) + dt;
+    if (w.idleT < 3 || (w.haulCheck = (w.haulCheck || 0) - dt) > 0) return false;
+    w.haulCheck = 2;
+    // what it holds decides what it can take; empty-handed, the first currency some tile needs
+    const held = w.stack.length ? w.stack.items[0].type : null;
+    // holding goods its own station has no room for: any other station that takes them and has room gets them
+    if (held) {
+      const takes = s => s.ins ? s.ins.flat().includes(held) : s.in === held;
+      const alt = zones.filter(z => z.kind === 'in' && z !== w.dst && ST[z.st] && !ST[z.st].ruin && takes(ST[z.st]) && ST[z.st].inStack.length < ST[z.st].inStack.cap - 2)
+        .sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
+      if (alt) { w.dst = alt; w.state = 'toDst'; w.wait = 0; w.idleT = 0; return false; }
+    }
+    const cur = curs.find(c => (held ? held === c && w.stack.count([c]) === w.stack.length : true) && builderJob(w, c));
+    if (!cur) return false;
+    w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle';
+  }
+  updBuilder(w, dt, w.hauling);
+  if (!w.job && !w.stack.count([w.hauling])) { w.hauling = false; w.state = 'idle'; }
+  return true;
+}
 function masonHaul(w, dt) {
   const pile = GATHER[w.kind].pile().outStack;
   if (!w.hauling) {
@@ -4970,12 +5012,19 @@ stage.addEventListener('pointerup', endJoy); stage.addEventListener('pointercanc
 // ------------------------------------------------------------------ save
 // slot 1 keeps the original key so older saves are found where they always were
 const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
-const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 3, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
 try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
 // (saves from before versions count as version 1)
 const MIGRATE = {
+  // military technology is bought with cash now (planes, troops, castles, the hangar and warship were materials that
+  // builders paid on their own): materials already paid toward an unbuilt one are not cash, so those pads start from zero
+  2: s => {
+    const was = ['plane1', 'mess', 'barracks', 'troop1', 'troop2', 'troop3', 'siegeWorks', 'castle2', 'castle3', 'warship', 'guns', 'hangar', 'castle4'];
+    for (const id of was) if (s.paid && !(s.unlocked || []).includes(id)) delete s.paid[id];
+    return s;
+  },
   1: s => {
     s.flags = s.flags || {}; s.decor = s.decor || [];
     if (typeof s.cash === 'number') s.cash = {main:s.cash};
@@ -6167,6 +6216,11 @@ function blur(src, tmp, k) {
   mBlur.uniforms.t.value = tmp.texture; mBlur.uniforms.d.value.set(0, k / src.height); pass(mBlur, src);
 }
 function renderFinal(night, sc = scene, cam = camera) {
+  // items are drawn per kind from where they are; that pass already brought every matrix up to date
+  if (sc === scene && ITEMI.on) { drawItems(); scene.matrixWorldAutoUpdate = false; try { renderFinal2(night, sc, cam); } finally { scene.matrixWorldAutoUpdate = true; } return; }
+  renderFinal2(night, sc, cam);
+}
+function renderFinal2(night, sc, cam) {
   if (!POST.on) { renderer.setRenderTarget(null); renderer.render(sc, cam); return; }
   if (!rtS) postSize();
   renderer.setRenderTarget(rtS); renderer.render(sc, cam);
@@ -8046,7 +8100,8 @@ function updMount(dt) {
   player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3;
-  player.rideY += ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
+  // (starts from 0: a camp loaded with a mount had no rideY yet, and undefined + n left the mount at NaN, unseen)
+  player.rideY = (player.rideY || 0) + ((W.mount === 5 && moving ? 1.3 : M.y) - (player.rideY || 0)) * Math.min(1, dt*4);
   if (mountG) mountG.position.y = -player.rideY;
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });
@@ -9358,7 +9413,7 @@ function endRevolt(k) {
   banner(`🛡️ The revolt in ${landName(k)} is crushed`, 'Order is back, but fear is not loyalty: send a governor from the Senate.');
 }
 function landTribute() {
-  return Math.round(landKeys().reduce((a, k) => { const L = land(k); return a + (L.lost ? 0 : (k[0] === 'r' ? 90 : 30) * (.4 + L.loy/100*.9)); }, 0));
+  return Math.round(landKeys().reduce((a, k) => { const L = land(k); return a + (L.lost ? 0 : (k[0] === 'r' ? 90 : 30) * (.4 + L.loy/100*.9) * tierOfLand(k).mult * fedFactor(landSup(k))); }, 0) + shopIncome());
 }
 function retake(k) {
   if (W.camp || W.raid) return;
@@ -9369,6 +9424,206 @@ function retake(k) {
   $('modal').hidden = true; $('modal').dataset.panel = '';
 }
 
+// ------------------------------------------------------------------ supplying your lands: food goes out, tribute and shoppers pay back
+// Every land you own has a size, from a hunters' camp to a capital. It asks for food that fits its size: a tribe's camp
+// lives on grilled fish and steak like hunter-gatherers, a town wants bread, beer and burgers, a capital sushi, pizza and
+// ice cream. Food left at the supply depot rides out by caravan. A land that is kept fed pays tribute by its size, its
+// people shop (you see them in the streets when you are there), and it can be grown into the next size up. A land left
+// hungry stops paying. Until the depot is built the old tribute carries on as it was.
+const LAND_TIERS = [
+  {n:'Camp', icon:'⛺', wants:['grilled', 'steak'], need:4, mult:1, folk:3, spend:5},
+  {n:'Village', icon:'🏘️', wants:['grilled', 'steak', 'bread'], need:8, mult:1.8, folk:6, spend:8},
+  {n:'Town', icon:'🏙️', wants:['bread', 'beer', 'roast'], need:12, mult:3, folk:10, spend:13},
+  {n:'City', icon:'🌆', wants:['roast', 'pizza', 'beer', 'icecream'], need:16, mult:5, folk:16, spend:20},
+  {n:'Capital', icon:'👑', wants:['sushi', 'pizza', 'icecream'], need:20, mult:8, folk:24, spend:30},
+];
+const ALL_WANTS = [...new Set(LAND_TIERS.flatMap(t => t.wants))];
+const SUP = {zone:null, g:null, trips:[], shipT:6, eatT:60, folk:{}, homes:{}, look:1};
+const DEPOT_AT = [22.4, -6.4], DEPOT_HOUSE = [22.4, -11.6];
+const supplyOn = () => W.unlocked.has('supplyDepot');
+// where each land starts: tribes and outposts small, the old empire and the rival cities as towns, the sky citadel a city
+const landBaseTier = k => k[0] === 'r' ? (k === 'r:nordheim' ? 3 : 2) : [0, 1, 1, 0, 2, 1, 2][+k.slice(1)] ?? 1;
+function landSup(k) { const L = land(k); L.tier ??= landBaseTier(k); L.fed ??= .5; L.stock ||= {}; return L; }
+function landAt(k) {
+  if (k[0] === 'c') return campPlace(+k.slice(1)) || [3, 100];
+  const r = EMP.list.find(q => 'r:' + q.id === k); return r ? r.at : [0, 0];
+}
+// how much of its pay a land keeps up: nothing when hungry, all of it when well fed (and as before, no depot yet)
+const fedFactor = L => !supplyOn() ? 1 : L.fed < .25 ? 0 : .4 + .6*L.fed;
+const tierOfLand = k => LAND_TIERS[landSup(k).tier];
+// its shoppers' spending a minute: more people and bigger purses as it grows, more as the ages go by
+const shopRate = k => { const L = landSup(k), T = LAND_TIERS[L.tier]; return L.lost ? 0 : Math.round(T.folk*T.spend*(1 + .25*W.era)*fedFactor(L)); };
+const landUpCost = L => Math.round(5000*Math.pow(3, L.tier)*(1 + .1*W.era));
+const canGrow = k => { const L = landSup(k); return supplyOn() && !L.lost && L.tier < LAND_TIERS.length - 1 && L.fed >= .7; };
+function growLand(k) {
+  const L = landSup(k), cost = landUpCost(L);
+  if (!canGrow(k) || W.coins < cost) return;
+  spend(cost); L.tier++; L.fed = .5;
+  // rebuilt round it with more homes, and new people, the next time you are there
+  if (SUP.homes[k]) { scene.remove(SUP.homes[k].g); SUP.homes[k] = null; }
+  for (const e of SUP.folk[k] || []) { scene.remove(e.char.g); stacks.delete(e.stack); const i = ENTS.indexOf(e); if (i >= 0) ENTS.splice(i, 1); }
+  SUP.folk[k] = null;
+  const T = LAND_TIERS[L.tier];
+  banner(`${T.icon} ${landName(k)} grows into a ${T.n.toLowerCase()}!`, `More people, more shoppers and ${T.mult}× the tribute. Now it wants ${T.wants.map(w => ITEM[w].icon).join(' ')}.`);
+  snd(660, .2, 'triangle', .05, 1.2); save();
+}
+// the depot: food dropped here (by you or the supply clerk) waits for the next caravan
+function depotTile() { const d = W.flags.depot || {}, n = ALL_WANTS.reduce((a, t) => a + (d[t] || 0), 0); return {alpha:1, size:84, label:n ? `${n} packed` : 'Food for your lands', fill:'rgba(140,100,40,.6)'}; }
+function depotAct(e, zn) {
+  const lands = landKeys().filter(k => !land(k).lost), want = new Set(lands.flatMap(k => tierOfLand(k).wants));
+  const it = e.stack.items.find(q => want.has(q.type)); if (!it) { e.tick = .25; return; }
+  e.stack.items.splice(e.stack.items.indexOf(it), 1); flyAway(it.mesh, new THREE.Vector3(zn.x, .6, zn.z), .2); e.tick = .08;
+  const d = W.flags.depot ||= {}; d[it.type] = (d[it.type] || 0) + 1;
+  if (e.isPlayer) dropSnd();
+  if (R() < .3) { drawTile(zn.tc.g, '📦', depotTile()); zn.tc.t.needsUpdate = true; }
+}
+function supplyDepot(anim) {
+  if (SUP.g) return;
+  const g = SUP.g = new THREE.Group(); g.position.set(DEPOT_HOUSE[0], 0, DEPOT_HOUSE[1]); scene.add(g);
+  // a timber warehouse with a loading dock, crates stacked out front and a wagon waiting
+  mesh(G.box, 0x8a6a42, [5.2, 2.6, 3.2], [0, 1.3, 0], g); mesh(G.roof || G.box, 0x6a3a22, [5.6, 1.1, 3.6], [0, 3.1, 0], g);
+  mesh(G.box, 0x5a4a3a, [5.4, .4, 1.4], [0, .2, 2.2], g); mesh(G.box, 0x2a2018, [1.8, 1.8, .1], [0, 1, 1.62], g);
+  for (const [x, z, s] of [[-2.1, 2.4, .6], [-1.4, 2.5, .55], [-1.75, 2.45, .5], [2, 2.4, .6]]) mesh(G.box, 0xb08a5a, [s, s, s], [x, .4 + s/2, z], g);
+  boxes.push({x0:DEPOT_HOUSE[0] - 2.7, x1:DEPOT_HOUSE[0] + 2.7, z0:DEPOT_HOUSE[1] - 1.7, z1:DEPOT_HOUSE[1] + 1.7});
+  SUP.zone = addZone({kind:'depot', x:DEPOT_AT[0], z:DEPOT_AT[1], icon:'📦', tile:depotTile()});
+  if (anim) { popIn(g); banner('📦 Supply depot!', 'Bring food here and caravans carry it to your lands. Fed lands pay more, and can grow.'); }
+}
+// a caravan: a cart (a truck in the motor age) heading off toward the land, with the goods counted in when it gets there
+function caravanMesh() {
+  const g = new THREE.Group(), motor = W.era >= 6;
+  if (motor) { mesh(G.box, 0xd9d4c8, [1.1, 1, 1.9], [0, .9, -.3], g); mesh(G.box, 0x3f7cc0, [1.1, .9, .8], [0, .8, .9], g); }
+  else { mesh(G.box, 0x8a6a42, [1, .5, 1.6], [0, .6, -.2], g); mesh(G.box, 0xe8e0d0, [1, .7, 1.4], [0, 1.15, -.2], g); mesh(G.box, 0x6a4a2a, [.45, .9, 1], [0, .75, 1.1], g); }
+  for (const [x, z] of [[-.55, -.8], [.55, -.8], [-.55, .5], [.55, .5]]) mesh(G.cyl, 0x2a2a2a, [.35, .12, .35], [x, .35, z], g).rotation.z = Math.PI/2;
+  g.traverse(o => { o.userData.noBake = true; });
+  scene.add(g); return g;
+}
+function shipFood() {
+  const d = W.flags.depot || {}, lands = landKeys().filter(k => !land(k).lost).map(k => [k, landSup(k)]);
+  // the hungriest land first, among those that want something in the depot
+  lands.sort((a, b) => a[1].fed - b[1].fed);
+  for (const [k, L] of lands) {
+    const T = LAND_TIERS[L.tier], per = T.need / T.wants.length, goods = {}; let n = 0;
+    for (const t of T.wants) { const want = Math.max(0, Math.ceil(per*2 - (L.stock[t] || 0))), take = Math.min(want, d[t] || 0, 12 - n); if (take > 0) { goods[t] = take; d[t] -= take; n += take; } }
+    if (!n) continue;
+    const [tx, tz] = landAt(k), dist = Math.hypot(tx - DEPOT_AT[0], tz - DEPOT_AT[1]);
+    SUP.trips.push({k, goods, t:0, dur:Math.max(8, dist/7), from:[DEPOT_AT[0], DEPOT_AT[1] + 2], to:[tx, tz], g:caravanMesh()});
+    if (SUP.zone) { drawTile(SUP.zone.tc.g, '📦', depotTile()); SUP.zone.tc.t.needsUpdate = true; }
+    return;
+  }
+}
+function updSupply(dt) {
+  if (!started) return;
+  if (supplyOn() && !SUP.g) supplyDepot(false);
+  const keys = landKeys();
+  if (supplyOn() && (SUP.shipT -= dt) <= 0) { SUP.shipT = 10; shipFood(); }
+  for (let i = SUP.trips.length - 1; i >= 0; i--) {
+    const c = SUP.trips[i]; c.t += dt; const f = Math.min(1, c.t / c.dur), x = c.from[0] + (c.to[0] - c.from[0])*f, z = c.from[1] + (c.to[1] - c.from[1])*f;
+    // the cart rolls out along the way and is lost to sight in the distance (it still gets there)
+    c.g.position.set(x, elevAt(x, z), z); c.g.rotation.y = Math.atan2(c.to[0] - c.from[0], c.to[1] - c.from[1]); c.g.visible = c.t*7 < 70 || f > .9;
+    if (f >= 1) { const L = landSup(c.k); for (const [t, n] of Object.entries(c.goods)) L.stock[t] = (L.stock[t] || 0) + n; scene.remove(c.g); SUP.trips.splice(i, 1); }
+  }
+  // once a minute each land eats from what it has; how much of its need was met sets how well fed it is
+  if ((SUP.eatT -= dt) <= 0) {
+    SUP.eatT = 60;
+    if (supplyOn()) for (const k of keys) {
+      const L = landSup(k); if (L.lost) continue;
+      const T = LAND_TIERS[L.tier], per = T.need / T.wants.length; let got = 0;
+      for (const t of T.wants) { const take = Math.min(L.stock[t] || 0, per); L.stock[t] = (L.stock[t] || 0) - take; got += take; }
+      L.fed = clamp(L.fed*.5 + (got / T.need)*.5, 0, 1);
+    }
+  }
+  updLandFolk(dt, keys);
+}
+// ---- the people of your lands: when you are there you see them walk to the market and spend
+const FOLK_NEAR = 70;
+// a spot is free when no building, pen or water is there (the zoo's park counts as taken)
+function freeSpot(x, z, r) {
+  if (isWater(x, z) || (x > ZOOPARK.x0 - 2 && x < ZOOPARK.x1 + 2 && z > ZOOPARK.z0 - 2 && z < ZOOPARK.z1 + 2)) return false;
+  return !boxes.some(b => x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r);
+}
+function landHomes(k) {
+  // homes round the land's middle, more as it grows, each on open ground clear of what is already there
+  if (SUP.homes[k]) return SUP.homes[k];
+  const L = landSup(k), [cx, cz] = landAt(k), n = 3 + 3*L.tier, g = new THREE.Group(); scene.add(g);
+  const spots = [], taken = [];
+  const clear = (x, z, r) => freeSpot(x, z, r) && taken.every(([tx, tz]) => Math.hypot(tx - x, tz - z) > r*2);
+  for (let i = 0, tries = 0; spots.length < n && tries < 120; tries++, i++) {
+    const a = i*2.399 + .3, rr = 17 + (tries % 4)*2.5, x = cx + Math.cos(a)*rr, z = cz + Math.sin(a)*rr;
+    if (!clear(x, z, 2.2)) continue;
+    taken.push([x, z]);
+    const h = new THREE.Group(); h.position.set(x, elevAt(x, z), z); h.rotation.y = -a + Math.PI/2; g.add(h);
+    const wall = [0xd8c8a8, 0xc8a878, 0xe8dcc8, 0xb88a5a][spots.length % 4], s = 1 + .15*Math.min(3, L.tier);
+    if (L.tier === 0) mesh(G.cone || G.box, 0x8a6a42, [1.4, 1.8, 1.4], [0, .9, 0], h);           // tents and huts at first
+    else { mesh(G.box, wall, [2*s, 1.6*s, 1.8*s], [0, .8*s, 0], h); mesh(G.cone4 || G.box, 0x8a3a2a, [1.7*s, .9*s, 1.6*s], [0, 1.6*s + .45*s, 0], h).rotation.y = Math.PI/4; }
+    spots.push([x - Math.cos(a)*2.2, z - Math.sin(a)*2.2]);
+  }
+  if (!spots.length) spots.push([cx, cz + 6]);
+  // the market: a few stalls on open ground near the middle, where the shoppers spend
+  const mk = [];
+  for (let i = 0, tries = 0; mk.length < 2 + Math.min(3, L.tier) && tries < 80; tries++, i++) {
+    const a = i*2.399 + 1.1, rr = 7 + (tries % 5)*2, x = cx + Math.cos(a)*rr, z = cz + Math.sin(a)*rr;
+    if (!clear(x, z, 1.6)) continue;
+    taken.push([x, z]);
+    const st = new THREE.Group(); st.position.set(x, elevAt(x, z), z); st.rotation.y = -a + Math.PI/2; g.add(st);
+    mesh(G.box, 0x8a6a42, [1.6, .9, .9], [0, .45, 0], st); mesh(G.box, [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a][mk.length % 4], [1.9, .12, 1.2], [0, 1.9, 0], st);
+    for (const sx of [-.8, .8]) mesh(G.cyl, 0x5a4a3a, [.06, 1.9, .06], [sx, .95, -.4], st);
+    mk.push([x - Math.cos(a)*1.2, z - Math.sin(a)*1.2]);
+  }
+  if (!mk.length) mk.push([cx, cz]);
+  return SUP.homes[k] = {g, spots, mk};
+}
+function folkPurchase(k, e, at) {
+  const L = landSup(k), T = LAND_TIERS[L.tier];
+  // a shopper's spend is their share of the land's spending (paid with the tribute): this shows where it comes from
+  const amt = Math.max(1, Math.round(shopRate(k) / Math.max(1, T.folk) / 3));
+  if (fedFactor(L) > 0) popText(`+${amt}`, new THREE.Vector3(at[0], 2.4, at[1]), '#ffe06b');
+  qnAct(e.char, 'pick', .8);
+}
+function updLandFolk(dt, keys) {
+  for (const k of keys) {
+    const L = landSup(k), [cx, cz] = landAt(k), near = !L.lost && Math.hypot(player.pos.x - cx, player.pos.z - cz) < FOLK_NEAR;
+    let F = SUP.folk[k];
+    if (near && !F) {
+      const H = landHomes(k), n = Math.min(10, LAND_TIERS[L.tier].folk);
+      F = SUP.folk[k] = [];
+      for (let i = 0; i < n; i++) { const [x, z] = H.spots[i % H.spots.length], e = entity({civ:true}, x, z, 2.2, 0); e.home = [x, z]; e.go = H.mk[i % H.mk.length]; e.wait = R()*4; F.push(e); }
+    } else if (!near && F && Math.hypot(player.pos.x - cx, player.pos.z - cz) > FOLK_NEAR + 20) {
+      for (const e of F) { scene.remove(e.char.g); stacks.delete(e.stack); const i = ENTS.indexOf(e); if (i >= 0) ENTS.splice(i, 1); }
+      SUP.folk[k] = null; F = null;
+    }
+    if (!F) continue;
+    const H = landHomes(k);
+    for (const e of F) {
+      if ((e.wait -= dt) > 0) { e.vel.set(0, 0, 0); animEntity(e, dt); continue; }
+      if (march(e, e.go[0], e.go[1], dt, 2.2)) {
+        // at a stall: buy, then head home (or to another stall)
+        if (H.mk.some(m => m === e.go)) { folkPurchase(k, e, e.go); e.go = R() < .4 ? H.mk[R()*H.mk.length|0] : e.home; }
+        else e.go = H.mk[R()*H.mk.length|0];
+        e.wait = 1.5 + R()*3;
+      }
+      animEntity(e, dt); e.char.g.rotation.y = e.yaw;
+    }
+  }
+}
+// the shoppers' spending, paid along with the tribute every 12 seconds
+const shopIncome = () => landKeys().reduce((a, k) => a + shopRate(k), 0) / 5;
+// one land's line in the empire panel: its size, how fed it is, what it wants and the button to grow it
+function landSupplyHTML(k) {
+  const L = landSup(k); if (L.lost) return '';
+  const T = LAND_TIERS[L.tier], cost = landUpCost(L), next = LAND_TIERS[L.tier + 1];
+  const wants = T.wants.map(t => `${ITEM[t].icon}${Math.floor(L.stock[t] || 0)}`).join(' ');
+  return `<small style="display:block">${T.icon} ${T.n} · wants ${wants} · 🛍️ ${shopRate(k).toLocaleString()}/min</small>
+    ${supplyOn() ? `<div class="rel" title="fed"><i style="width:${Math.round(L.fed*100)}%;background:#7ac35a"></i></div>` : '<small><em>Build the 📦 supply depot to feed them</em></small>'}
+    ${next ? `<button data-up="${k}" ${!canGrow(k) || W.coins < cost ? 'disabled' : ''}>${next.icon} Grow to ${next.n.toLowerCase()} · ${cost.toLocaleString()} 💵${supplyOn() && L.fed < .7 ? ' (feed them first)' : ''}</button>` : ''}`;
+}
+// the clerk's next pick-up: the station making what your lands want most (leaving a little for the camp's own tables)
+function clerkSrc() {
+  if (!SUP.zone) return [];
+  const d = W.flags.depot || {}, need = {};
+  for (const k of landKeys()) { const L = landSup(k); if (L.lost) continue; for (const t of LAND_TIERS[L.tier].wants) need[t] = (need[t] || 0) + 1; }
+  return zones.filter(z => z.kind === 'out' && ST[z.st] && need[ST[z.st].out] && z.stack.length >= 3 && (d[ST[z.st].out] || 0) < 30)
+    .sort((a, b) => need[ST[b.st].out] - need[ST[a.st].out] || b.stack.length - a.stack.length).slice(0, 1);
+}
 // ------------------------------------------------------------------ the Senate: a dome on the town hall, where you send governors to your provinces
 let senateZone = null;
 function senateFx(anim) {
@@ -9436,7 +9691,7 @@ function empireHTML() {
   }).join('');
   const lands = landKeys().map(k => { const L = land(k);
     return `<div class="ec ${L.lost ? 'war' : ''}"><b>${landName(k)}</b><span>${L.lost ? `🏳️ lost to ${L.by === 'rebels' ? 'rebels' : EMP.list.find(r => r.id === L.by)?.n || 'rivals'}` : `loyalty ${Math.round(L.loy)}% (${loyRate(k) >= 0 ? '+' : ''}${loyRate(k).toFixed(1)}/min)${L.gov ? ' · 🏛️ governor' : ''}`}</span>
-      ${L.lost ? `<div class="eb"><button data-l="${k}" ${W.camp || W.raid || W.army < 5 ? 'disabled' : ''}>⚔️ Retake</button></div>` : `<div class="rel loy"><i style="width:${L.loy}%"></i></div>
+      ${L.lost ? `<div class="eb"><button data-l="${k}" ${W.camp || W.raid || W.army < 5 ? 'disabled' : ''}>⚔️ Retake</button></div>` : `<div class="rel loy"><i style="width:${L.loy}%"></i></div>${landSupplyHTML(k)}
       <div class="eb">${L.gov ? '<em>🏛️ Governor in office</em>' : `<button data-g="${k}" ${!W.unlocked.has('senate') || W.coins < govCost() ? 'disabled' : ''}>🏛️ Send governor · ${govCost()} 💵</button>${W.unlocked.has('senate') ? '' : '<em>Build the Senate first</em>'}`}</div>`}</div>`; }).join('');
   return `<div class="emp"><div class="pow">Your strength <b>⚔️ ${mine}</b><small>🛡️ army ${P.army} · 🏰 castle ${P.castle} · 🔬 science ${P.science} · ✈️ air ${P.air} · ⚓ navy ${P.navy}${P.allies ? ` · 🤝 allies ${P.allies}` : ''}</small></div>${cards}
     ${lands ? `<h2 class="trh">🏛️ Your provinces</h2><p class="empHint">${W.unlocked.has('senate') ? 'Governors and the Senate win hearts; soldiers alone only keep order.' : 'Soldiers alone only keep order. Build the 🏛️ Senate to win hearts.'}</p>${lands}` : ''}</div>`;
@@ -9448,6 +9703,7 @@ function bindEmpire(m) {
   m.querySelectorAll('.emp button[data-sc]').forEach(b => b.onclick = () => { sendScouts(+b.dataset.sc); again(); });
   m.querySelectorAll('.emp button[data-pa]').forEach(b => b.onclick = () => planAttack(+b.dataset.pa));
   m.querySelectorAll('.emp button[data-g]').forEach(b => b.onclick = () => sendGovernor(b.dataset.g));
+  m.querySelectorAll('.emp button[data-up]').forEach(b => b.onclick = () => { growLand(b.dataset.up); again(); });
 }
 // send a governor from the Empire panel: they build roads and listen, so loyalty climbs
 function sendGovernor(k) {
@@ -11668,7 +11924,7 @@ function update(dt) {
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
-  updWar(dt); updTribes(dt); if (started) scoutNextCamp();
+  updWar(dt); updTribes(dt); updSupply(dt); if (started) scoutNextCamp();
   if ((W.unrestT = (W.unrestT || 0) + dt) > (W.unlocked.has('police') ? 45 : 90)) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
   if (ST.mill) ST.mill.rotation.z += dt * 1.2;
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;
@@ -11711,7 +11967,7 @@ function update(dt) {
 }
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
-const CAMV = {i:0, list:[{n:'Classic view', d:13, h:16}, {n:'Top-down view', d:2.4, h:21}, {n:'Overview', d:20, h:25}]};
+const CAMV = {i:0, list:[{n:'Classic view', d:13, h:14.4}, {n:'Top-down view', d:2.4, h:18.9}, {n:'Overview', d:20, h:22.5}]};   // 10% lower than before
 try { CAMV.i = +(localStorage.getItem('bye.cam') || 0) % CAMV.list.length; } catch (e) {}
 function nextCam() {
   CAMV.i = (CAMV.i + 1) % CAMV.list.length; try { localStorage.setItem('bye.cam', CAMV.i); } catch (e) {}
@@ -11722,7 +11978,7 @@ function render(dt) {
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
   if (k !== render.k) {   // fog and the sun's shadow reach out as far as the view does
     render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
-    Object.assign(sun.shadow.camera, {left:-19*k, right:19*k, top:19*k, bottom:-19*k}); sun.shadow.camera.updateProjectionMatrix();
+    Object.assign(sun.shadow.camera, {left:-22*k, right:22*k, top:22*k, bottom:-22*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
   const wtype = W.camp ? W.camp.type : 'land';
@@ -11809,7 +12065,7 @@ function render(dt) {
 // put for a few seconds, and per 12x12 patch of ground merge the ones sharing a material into one mesh, so
 // the GPU draws each patch's stone, wood or roof in one go. The originals stay in the scene (hidden by layer), and
 // if any of them moves, changes material, shows or hides, its batch is taken apart and merged again later.
-const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 8000 : 16000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
+const BAKE = {cell:12, wait:3.5, clock:0, cap:15000, budget:MOBILE ? 24000 : 64000, batches:new Map(), solos:new Map(), seen:new WeakMap(), on:true, group:new THREE.Group(), merges:0, breaks:0};
 BAKE.group.name = 'bake'; scene.add(BAKE.group);
 {
   const OBR = THREE.Object3D.prototype.onBeforeRender, OBC = THREE.Material.prototype.onBeforeCompile;
@@ -11823,7 +12079,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   BAKE.kind = o => {
     if (MOVERS.has(o.material) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
     const m = o.material, g = o.geometry;
-    if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || m.onBeforeCompile !== OBC) return null;
+    if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || (m.onBeforeCompile !== OBC && !m.userData.bakeSafe)) return null;
     if (!g.attributes.position || !g.attributes.normal || g.drawRange.count !== Infinity || g.drawRange.start || Object.keys(g.morphAttributes).length) return null;
     const uv = TEX.some(k => m[k]), col = !!m.vertexColors;
     if (uv && !g.attributes.uv || col && !g.attributes.color) return null;
@@ -11841,7 +12097,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   }
   // how a material looks, so copies of the same material can share one draw
   const look = m => [m.type, m.color?.r, m.color?.g, m.color?.b, m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, m.roughness, m.metalness, m.map?.id, m.normalMap?.id, m.emissiveMap?.id,
-    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite].join();
+    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite, m.userData.bld, m.customProgramCacheKey()].join();
   // glue the members of one material into one world-space geometry
   function merge(list, kind) {
     let nv = 0, ni = 0;
@@ -11935,26 +12191,27 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
       const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : look(o.material));
       (ready.get(key) || ready.set(key, []).get(key)).push(o);
     }
-    // new still meshes join their batch (or a lone mesh waiting for company); a vertex budget keeps each tick short
+    // new still meshes make a batch of their own beside the patch's existing ones (with a lone mesh waiting for
+    // company). Existing batches are never torn up just to add a newcomer: re-merging a full batch for every arrival
+    // used up each pass's budget, and meshes elsewhere waited for good. A vertex budget keeps each pass short.
     let budget = BAKE.budget;
     for (const [key, list0] of ready) {
       if (budget <= 0) { acc = .5; break; }          // more to do: carry on next frame
       if (over()) yield;
       // the walk took a few frames: anything that moved meanwhile waits for the next pass
-      const list = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
-      if (!list.length) continue;
-      const b = BAKE.batches.get(key), all = list.slice();
-      // a batch is capped in size, so taking one apart and merging it again never stalls a frame
-      if (b && b.mesh.geometry.attributes.position.count + list.reduce((n, o) => n + o.geometry.attributes.position.count, 0) > BAKE.cap) { for (const o of list) BAKE.seen.get(o).solo = key + '#full'; continue; }
-      if (b) { unbake(key); for (const o of b.members) { const s = BAKE.seen.get(o); if (!snap(o, s.rec) && s.rec.vis === 1) all.push(o); else s.t = now; } }
+      const all = list0.filter(o => { const s = BAKE.seen.get(o); if (snap(o, s.rec) || s.rec.vis !== 1) { s.t = BAKE.clock; return false; } return true; });
+      if (!all.length) continue;
       const solo = BAKE.solos.get(key);
       if (solo && !all.includes(solo)) { const s = BAKE.seen.get(solo); BAKE.solos.delete(key); if (s && s.solo === key && !snap(solo, s.rec) && s.rec.vis === 1) all.push(solo); else if (s) { s.solo = null; s.t = now; } }
-      let nv = 0; const keep = all.filter(o => (nv += o.geometry.attributes.position.count) <= BAKE.cap || o === all[0]);
-      for (const o of all) if (!keep.includes(o)) BAKE.seen.get(o).solo = key + '#full';
-      all.length = 0; all.push(...keep);
-      if (all.length < 2) { BAKE.solos.set(key, all[0]); BAKE.seen.get(all[0]).solo = key; continue; }
-      for (const o of all) budget -= o.geometry.attributes.position.count;
-      bake(key, all);
+      // in batches of at most BAKE.cap vertices, each under its own key
+      while (all.length) {
+        let nv = 0; const part = [];
+        while (all.length && (!part.length || nv + all[0].geometry.attributes.position.count <= BAKE.cap)) { nv += all[0].geometry.attributes.position.count; part.push(all.shift()); }
+        if (part.length < 2) { BAKE.solos.set(key, part[0]); BAKE.seen.get(part[0]).solo = key; break; }
+        if (over()) { yield; if (part.some(o => snap(o, BAKE.seen.get(o).rec))) { for (const o of part) BAKE.seen.get(o).t = BAKE.clock; continue; } }
+        let bk = key, i = 0; while (BAKE.batches.has(bk)) bk = key + '#' + (++i);
+        budget -= nv; bake(bk, part);
+      }
     }
   };
   BAKE.stats = () => { let m = 0; for (const b of BAKE.batches.values()) m += b.members.length; return {batches:BAKE.batches.size, members:m, solos:BAKE.solos.size, merges:BAKE.merges, breaks:BAKE.breaks}; };
@@ -12083,6 +12340,69 @@ function updTut(dt) {
   COACH.t += dt;
   if (COACH_STEPS[COACH.i].done(COACH.base, COACH.t)) { snd(880, .1, 'triangle', .04); nextTut(); }
 }
+// ------------------------------------------------------------------ items drawn in batches
+// Every fish, log and loaf is its own mesh, so it can fly, stack and be carried. Drawn one by one that was hundreds
+// of draw calls a frame (three for an outlined item: itself, its outline and its shadow). The item meshes now sit on a
+// layer the camera skips; once a frame, just before drawing, each kind of item is drawn in one go from wherever its
+// meshes are. Nothing about how items move changes.
+const ITEMI = {all:new Set(), kinds:new Map(), far:95, on:true, LAYER:3};
+function itemInst(m, key, outline) {
+  m.userData.ik = key; m.userData.io = outline || null;
+  m.layers.set(ITEMI.LAYER); if (outline) outline.layers.set(ITEMI.LAYER);
+  ITEMI.all.add(m);
+  m.addEventListener('added', () => ITEMI.all.add(m));          // back in the world after being set down elsewhere
+}
+function itemKind(key) {
+  let k = ITEMI.kinds.get(key); if (k) return k;
+  k = {key, cap:0, body:null, line:null, n:0, nl:0, outlined:false};
+  ITEMI.kinds.set(key, k); itemGrow(k, 32); return k;
+}
+// room for more items of a kind: a bigger instanced mesh replaces the old one
+function itemGrow(k, cap) {
+  const mk = (mat, old) => {
+    const im = new THREE.InstancedMesh(itemCache[k.key], mat, cap); im.count = 0; im.frustumCulled = false;
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.userData.noBake = true;
+    if (old) { im.instanceMatrix.array.set(old.instanceMatrix.array.subarray(0, old.instanceMatrix.array.length)); scene.remove(old); old.dispose(); }
+    scene.add(im); return im;
+  };
+  k.body = mk(itemMat, k.body); k.body.castShadow = true;    // like the item meshes: they cast shadows but take none (no striping)
+  if (k.outlined || k.line) k.line = mk(OUTLINE_MAT, k.line);
+  k.cap = cap;
+}
+const ITEM_M4 = new THREE.Matrix4();
+function drawItems() {
+  scene.updateMatrixWorld();
+  for (const k of ITEMI.kinds.values()) k.n = k.nl = 0;
+  const cx = camera.position.x, cz = camera.position.z, F2 = ITEMI.far*ITEMI.far;
+  for (const m of ITEMI.all) {
+    // shown only if it and everything holding it is visible and it is in the world
+    let p = m, shown = m.visible;
+    while (p.parent) { p = p.parent; if (!p.visible) shown = false; }
+    if (p !== scene) { if (!m.parent) ITEMI.all.delete(m); continue; }   // eaten, sold or binned (comes back if re-added)
+    if (!shown) continue;
+    const e = m.matrixWorld.elements, dx = e[12] - cx, dz = e[14] - cz;
+    if (dx*dx + dz*dz > F2) continue;
+    const k = itemKind(m.userData.ik), o = m.userData.io;
+    if (o && !k.outlined) { k.outlined = true; itemGrow(k, k.cap); }
+    if (k.n >= k.cap || (o && k.nl >= k.cap)) itemGrow(k, k.cap*2);
+    k.body.setMatrixAt(k.n++, m.matrixWorld);
+    if (o && o.visible) k.line.setMatrixAt(k.nl++, o.matrixWorld);
+  }
+  for (const k of ITEMI.kinds.values()) {
+    k.body.count = k.n; k.body.instanceMatrix.needsUpdate = true; k.body.visible = k.n > 0;
+    if (k.line) { k.line.count = k.nl; k.line.instanceMatrix.needsUpdate = true; k.line.visible = k.nl > 0; }
+  }
+}
+// Hidden things (people past the draw distance, closed-up buildings, parked vehicles) skip the per-frame matrix update
+// with everything under them: nothing reads a hidden object's world matrix, and the frame it shows again it is
+// brought up to date before it is drawn (updateMatrix marks it dirty, and its children follow).
+{
+  const UMW = THREE.Object3D.prototype.updateMatrixWorld;
+  THREE.Object3D.prototype.updateMatrixWorld = function (force) {
+    if (!this.visible && this.parent) { if (force) this.matrixWorldNeedsUpdate = true; return; }
+    return UMW.call(this, force);
+  };
+}
 // ------------------------------------------------------------------ boot
 const hadSave = load();
 homesFull = hadSave;
@@ -12130,7 +12450,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {launchCamp, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {launchCamp, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

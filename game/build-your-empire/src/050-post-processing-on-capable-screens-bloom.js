@@ -75,6 +75,11 @@ function blur(src, tmp, k) {
   mBlur.uniforms.t.value = tmp.texture; mBlur.uniforms.d.value.set(0, k / src.height); pass(mBlur, src);
 }
 function renderFinal(night, sc = scene, cam = camera) {
+  // items are drawn per kind from where they are; that pass already brought every matrix up to date
+  if (sc === scene && ITEMI.on) { drawItems(); scene.matrixWorldAutoUpdate = false; try { renderFinal2(night, sc, cam); } finally { scene.matrixWorldAutoUpdate = true; } return; }
+  renderFinal2(night, sc, cam);
+}
+function renderFinal2(night, sc, cam) {
   if (!POST.on) { renderer.setRenderTarget(null); renderer.render(sc, cam); return; }
   if (!rtS) postSize();
   renderer.setRenderTarget(rtS); renderer.render(sc, cam);

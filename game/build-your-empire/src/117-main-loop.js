@@ -108,7 +108,7 @@ function update(dt) {
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
-  updWar(dt); updTribes(dt); if (started) scoutNextCamp();
+  updWar(dt); updTribes(dt); updSupply(dt); if (started) scoutNextCamp();
   if ((W.unrestT = (W.unrestT || 0) + dt) > (W.unlocked.has('police') ? 45 : 90)) { W.unrestT = 0; W.unrest = Math.max(0, W.unrest - 1); }
   if (ST.mill) ST.mill.rotation.z += dt * 1.2;
   if (ST.diggerArm) ST.diggerArm.rotation.z = -.3 + Math.sin(time * 1.8) * .35;
@@ -151,7 +151,7 @@ function update(dt) {
 }
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
-const CAMV = {i:0, list:[{n:'Classic view', d:13, h:16}, {n:'Top-down view', d:2.4, h:21}, {n:'Overview', d:20, h:25}]};
+const CAMV = {i:0, list:[{n:'Classic view', d:13, h:14.4}, {n:'Top-down view', d:2.4, h:18.9}, {n:'Overview', d:20, h:22.5}]};   // 10% lower than before
 try { CAMV.i = +(localStorage.getItem('bye.cam') || 0) % CAMV.list.length; } catch (e) {}
 function nextCam() {
   CAMV.i = (CAMV.i + 1) % CAMV.list.length; try { localStorage.setItem('bye.cam', CAMV.i); } catch (e) {}
@@ -162,7 +162,7 @@ function render(dt) {
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
   if (k !== render.k) {   // fog and the sun's shadow reach out as far as the view does
     render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
-    Object.assign(sun.shadow.camera, {left:-19*k, right:19*k, top:19*k, bottom:-19*k}); sun.shadow.camera.updateProjectionMatrix();
+    Object.assign(sun.shadow.camera, {left:-22*k, right:22*k, top:22*k, bottom:-22*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
   const wtype = W.camp ? W.camp.type : 'land';

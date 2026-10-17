@@ -3,6 +3,7 @@ const SELLABLE = Object.keys(ITEM).filter(k => ITEM[k].sell);
 function zoneAct(e, zn, dt) {
   e.tick -= dt; if (e.tick > 0) return;
   switch (zn.kind) {
+    case 'depot': depotAct(e, zn); break;
     case 'study': {
       // scrolls in, research out: every level needs more of them, and every level lifts all income
       const it = e.stack.items.find(q => q.type === 'scroll'); if (!it) { e.tick = .25; break; }

@@ -1,12 +1,19 @@
 // ------------------------------------------------------------------ save
 // slot 1 keeps the original key so older saves are found where they always were
 const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
-const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 2, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 3, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
 try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
 // (saves from before versions count as version 1)
 const MIGRATE = {
+  // military technology is bought with cash now (planes, troops, castles, the hangar and warship were materials that
+  // builders paid on their own): materials already paid toward an unbuilt one are not cash, so those pads start from zero
+  2: s => {
+    const was = ['plane1', 'mess', 'barracks', 'troop1', 'troop2', 'troop3', 'siegeWorks', 'castle2', 'castle3', 'warship', 'guns', 'hangar', 'castle4'];
+    for (const id of was) if (s.paid && !(s.unlocked || []).includes(id)) delete s.paid[id];
+    return s;
+  },
   1: s => {
     s.flags = s.flags || {}; s.decor = s.decor || [];
     if (typeof s.cash === 'number') s.cash = {main:s.cash};

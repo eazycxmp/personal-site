@@ -49,6 +49,8 @@ function bldMat(color, id, o) {
     diffuseColor.rgb *= clamp(mix(vec3(1.0), t / max(bldAvg, vec3(0.04)), 0.85), 0.0, 2.2); }`);
   };
   m.customProgramCacheKey = () => 'bld';
+  // textured from world position, so static batching (which bakes meshes into world space) draws it the same
+  m.userData.bakeSafe = true; m.userData.bld = id;
   m.userData.shared = true; return BLD.cache[k] = m;
 }
 function mesh(geo, color, s, p, parent, o) {
@@ -134,7 +136,7 @@ function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   const avg = T.avg.clone(), k = contrast.toFixed(2);
   m.onBeforeCompile = sh => { sh.uniforms.phAvg = {value:avg};
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 phAvg;').replace('#include <map_fragment>', `#include <map_fragment>\n  ${contrast < .6 ? 'diffuseColor.rgb = mix(diffuseColor.rgb, diffuse * texture2D(map, vMapUv * .37 + vec2(.31, .17)).rgb, .5);' : ''}\n  diffuseColor.rgb = mix(diffuse * phAvg, diffuseColor.rgb, ${k});`); };
-  m.customProgramCacheKey = () => 'ph' + k;
+  m.customProgramCacheKey = () => 'ph' + k; m.userData.bakeSafe = true;   // works on the mesh's own uvs, which batching keeps
   return m;
 }   // every ground top, so rain can make them shine
 // a raised slab of ground with darker sides, so the camp sits above the grass like a diorama

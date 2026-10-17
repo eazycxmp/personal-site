@@ -6,6 +6,7 @@ const LOOKS = {
   butcher:{body:0x7a2a22, apron:0xe8e0d0, hat:'beanie', hatCol:0x222222},
   gardener:{body:0x5a8a3a, apron:0x8a6a42, hat:'straw', pants:0x4a5a3a},
   bunbaker:{body:0xf2e6cc, apron:0xffffff, hat:'chef'},
+  clerk:{body:0x3a4a6a, apron:0x8a6a42, hat:'straw'},
   burgercook:{body:0xd9443a, apron:0xffffff, hat:'chef'},
   baker:{body:0xe8d8b8, apron:0xffffff, hat:'chef'},
   lumber:{ranger:true, body:0x2f7d4a, hat:'beanie', hatCol:0xd9443a, pants:0x3a3a5a},
@@ -64,4 +65,5 @@ const ROUTES = {
   picker:{src:() => [outZone('tomatoes')], dst:() => inZone('pizzeria')},
   sushichef:{src:() => [RANCH.pier], dst:() => inZone('sushi')},
   tinker:{src:() => [outZone('smelter')], dst:() => inZone('workshop')},
+  clerk:{src:() => clerkSrc(), dst:() => SUP.zone},
 };
