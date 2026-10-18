@@ -1,2 +1,5 @@
 Realistic characters and animations: "Universal Base Characters" and "Universal Animation Library" by Quaternius (quaternius.com), CC0 1.0 Universal (public domain).
 Converted for the game: bodies, hairstyles and skeletons re-exported with downsized textures; clothing shells generated from the bodies.
+
+Ridden horse: the horse from the "Ultimate Animated Animal Pack" by Quaternius (quaternius.com), CC0 1.0 Universal (public domain).
+Converted for the game with blender/horse.py: only the walk, gallop, idle and grazing clips kept, exported as horse.glb.

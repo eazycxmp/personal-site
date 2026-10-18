@@ -6,12 +6,27 @@ const MOUNTS = [null,
   {n:'Your own plane', icon:'🛩️', speed:3.2, y:.7, fly:9}, {n:'Your own dragon', icon:'🐉', speed:3.6, y:.9, fly:7}];
 const heroFlies = () => W.mount === 5 || !!(MOUNTS[W.mount] && MOUNTS[W.mount].fly);
 let mountG = null, jetFlame = null;
+// the horse model: scale, where it sits under you, where its saddle is (under your hips) and how high you ride
+const HORSE = {s:.4, z:-.28, seat:-.3, saddle:1.4, ride:.96, walk:1.3, gallop:4.6, IDLES:['Idle', 'Idle', 'Idle_2', 'Idle_Headlow', 'Eating']};
 function mountStage(n, anim) {
   W.mount = n;
   if (mountG) player.char.g.remove(mountG);
+  if (n === 1 && MODELS.horse && MODELS.horse.userData.anims) MOUNTS[1].y = HORSE.ride;
   const M = MOUNTS[n], g = mountG = new THREE.Group(); g.position.y = -M.y; player.char.g.add(g); jetFlame = null;
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
-  if (n === 1) {
+  if (n === 1 && MODELS.horse && MODELS.horse.userData.anims) {
+    // a real horse (Quaternius, CC0) that walks, gallops, idles and grazes; a saddle sits where you do
+    const h = skClone(MODELS.horse); h.scale.setScalar(HORSE.s); h.position.z = HORSE.z; g.add(h);
+    h.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    // a red blanket, a leather seat with a pommel in front and a cantle behind, and a girth strap round the belly
+    const S = HORSE.saddle, Z = HORSE.seat;
+    P(G.box, 0x8a2a1e, [.6, .03, .7], [0, S - .03, Z]); P(G.box, 0x5a3418, [.46, .07, .5], [0, S + .01, Z]);
+    P(G.box, 0x4a2a12, [.2, .1, .08], [0, S + .07, Z + .24]); P(G.box, 0x4a2a12, [.36, .1, .07], [0, S + .06, Z - .24]);
+    P(G.box, 0x3a2414, [.58, .34, .04], [0, S - .2, Z + .06]);
+    const mx = new THREE.AnimationMixer(h), acts = {};
+    for (const c of MODELS.horse.userData.anims) acts[c.name] = mx.clipAction(c);
+    g.horse = {mx, acts, cur:null, idle:'Idle', idleT:4};
+  } else if (n === 1) {
     P(G.box, 0x7a4a26, [.42, .5, 1.3], [0, .85, 0]); P(G.box, 0x7a4a26, [.24, .6, .28], [0, 1.25, .62]).rotation.x = -.5; P(G.box, 0x6a3e20, [.2, .2, .5], [0, 1.5, .85]);
     P(G.box, 0x2a1a10, [.06, .4, .3], [0, 1.3, .48]); P(G.box, 0x8a2a1e, [.46, .08, .5], [0, 1.12, -.05]);
     g.legs = []; for (const [x, z] of [[-.14, -.48], [.14, -.48], [-.14, .48], [.14, .48]]) { const l = new THREE.Group(); l.position.set(x, .62, z); g.add(l); mesh(G.box, 0x4a2a14, [.1, .62, .1], [0, -.31, 0], l); g.legs.push(l); }
@@ -63,7 +78,7 @@ function updMount(dt) {
   // riding: the hero sits (or hovers, on the jetpack) instead of running along
   // the ride you chose last time, once the camp has loaded (unlocking replays every ride in order)
   if (!updMount.restored && started) { updMount.restored = true; const s = W.flags.mountSel; if (s != null && s !== W.mount && (s === 0 || W.unlocked.has('mount' + s))) { if (s) mountStage(s, false); else dismount(); } updMountBtn(); }
-  player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : 'seat';
+  player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : mountG && mountG.horse ? 'horse' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   // flying rides never come down onto water: over the river or the sea they hold their height until there is land below
   const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3, aloft = moving || isWater(player.pos.x, player.pos.z), up = M.fly ? (aloft ? M.fly : M.y) : W.mount === 5 && aloft ? 1.3 : M.y;
@@ -80,11 +95,22 @@ function updMount(dt) {
     if (mountG.dragon) flapDragon(mountG.dragon, time, player.rideY > 1 ? (up > player.rideY + .5 ? 9 : 5) : 2);
     if (mountG.plane && moving && R() < dt*12) particle(0xf4fbff, player.pos.clone().setY(player.rideY + .4), new THREE.Vector3(-player.vel.x*.2, .1, -player.vel.z*.2), .9, .12, {grow:.6, op:.5});
   }
+  if (mountG && mountG.horse) {
+    // the gait follows your speed: a walk when you start or slow, a gallop at full pace; standing, it idles, drops its head or grazes
+    const H = mountG.horse, sp = Math.hypot(player.vel.x, player.vel.z);
+    if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
+    const want = sp > 3.2 ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
+    if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
+    if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/HORSE.walk, .6, 2.2);
+    if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/HORSE.gallop, .8, 1.7);
+    H.mx.update(dt);
+  }
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });
   if (jetFlame) { jetFlame.visible = moving; jetFlame.scale.y = .8 + Math.sin(time*30)*.2; if (moving && R() < dt*20) particle(0xd8f0ff, player.pos.clone().setY(player.rideY + .3), new THREE.Vector3((R() - .5), -1.5, (R() - .5)), .5, .1, {grow:.5, op:.5}); }
   // riding: legs out on the horse, bike and scooter; tucked away in the car
-  if (W.mount <= 3 || W.mount >= 6) { player.char.legL.rotation.x = player.char.legR.rotation.x = -1.2; player.char.legL.rotation.z = .3; player.char.legR.rotation.z = -.3; }
+  if (mountG && mountG.horse) { player.char.legL.rotation.x = player.char.legR.rotation.x = -.35; player.char.legL.rotation.z = .45; player.char.legR.rotation.z = -.45; }   // astride
+  else if (W.mount <= 3 || W.mount >= 6) { player.char.legL.rotation.x = player.char.legR.rotation.x = -1.2; player.char.legL.rotation.z = .3; player.char.legR.rotation.z = -.3; }
   else { player.char.legL.rotation.z = player.char.legR.rotation.z = 0; }
 }
 

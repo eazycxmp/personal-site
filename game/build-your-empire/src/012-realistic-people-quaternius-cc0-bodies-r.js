@@ -163,7 +163,7 @@ function makeQN(o) {
   c.look = o;
   // the bones the game poses directly, and stand-ins at the old pivots for the code that hangs things on arms and legs
   const B = n => root.getObjectByName(n);
-  c.bones = {armL:B('upperarm_l'), armR:B('upperarm_r'), head:B('Head'), handR:B('hand_r'), handL:B('hand_l'), spine:B('spine_03')};
+  c.bones = {armL:B('upperarm_l'), armR:B('upperarm_r'), head:B('Head'), handR:B('hand_r'), handL:B('hand_l'), spine:B('spine_03'), thighL:B('thigh_l'), thighR:B('thigh_r'), calfL:B('calf_l'), calfR:B('calf_r'), footL:B('foot_l'), footR:B('foot_r')};
   const legL = new THREE.Group(), legR = new THREE.Group(), armL = new THREE.Group(), armR = new THREE.Group();
   legL.position.set(-.12, 1.0, 0); legR.position.set(.12, 1.0, 0); armL.position.set(-.25, 1.62, 0); armR.position.set(.25, 1.62, 0);
   g.add(legL, legR, armL, armR); Object.assign(c, {legL, legR, armL, armR});
@@ -208,6 +208,28 @@ function qnPlay(c, name, fade = .25, once = false) {
   c.state = name; return a;
 }
 // raise an arm forward by an angle (for carrying, aiming, holding a rod), on top of the animation
+// on a horse: from the seated (driving) pose, each thigh is turned to point down, forward and out around the horse's
+// sides and each calf to hang nearly straight down; directions are measured off the skeleton, so the rig's own axes don't matter
+const QN_ASTRIDE = {fwd:.5, down:.75, out:.5, calfFwd:-.1, calfOut:.12};
+const qnPos = (b, v) => b.getWorldPosition(v);
+function qnAim(bone, child, target) {
+  if (!bone || !child) return;
+  bone.updateWorldMatrix(true, true);
+  const cur = qnPos(child, new THREE.Vector3()).sub(qnPos(bone, new THREE.Vector3())).normalize();
+  const rot = new THREE.Quaternion().setFromUnitVectors(cur, target);
+  const pq = bone.parent.getWorldQuaternion(QN.tmpQ), wq = QN.tmpQ2.copy(pq).multiply(bone.quaternion);
+  wq.premultiply(rot); bone.quaternion.copy(pq.invert().multiply(wq));
+}
+function qnAstride(c) {
+  const b = c.bones, A = QN_ASTRIDE; if (!b.thighL || !b.thighR || !b.calfL || !b.calfR) return;
+  b.thighL.parent.updateWorldMatrix(true, true);
+  const hL = qnPos(b.thighL, new THREE.Vector3()), hR = qnPos(b.thighR, new THREE.Vector3()), kL = qnPos(b.calfL, new THREE.Vector3()), kR = qnPos(b.calfR, new THREE.Vector3());
+  const left = hL.clone().sub(hR).setY(0).normalize(), fwd = kL.clone().add(kR).sub(hL).sub(hR).setY(0).normalize(), down = new THREE.Vector3(0, -1, 0);
+  for (const [sd, t, k, f] of [[1, b.thighL, b.calfL, b.footL], [-1, b.thighR, b.calfR, b.footR]]) {
+    qnAim(t, k, fwd.clone().multiplyScalar(A.fwd).addScaledVector(down, A.down).addScaledVector(left, sd*A.out).normalize());
+    qnAim(k, f, fwd.clone().multiplyScalar(A.calfFwd).addScaledVector(down, 1).addScaledVector(left, sd*A.calfOut).normalize());
+  }
+}
 function qnRaise(c, bone, ang) {
   if (!bone || !ang) return;
   bone.parent.updateWorldMatrix(true, false);
@@ -248,7 +270,7 @@ function updQN(dt) {
     let st, rate = 1;
     const act = (c.actT -= dt) > 0 && c.spd < 1.2 ? QN_ACT[c.act] : null;
     if (fall < -.3) { st = 'Death01'; g.rotation.x = 0; }
-    else if (c.ride) st = c.ride === 'seat' ? 'Driving_Loop' : 'Idle_Loop';
+    else if (c.ride) st = c.ride === 'seat' || c.ride === 'horse' ? 'Driving_Loop' : 'Idle_Loop';
     else if (act) { st = act[0]; rate = act[1]; if (c.actNew && c.state === st) c.acts[st].reset().play(); c.actNew = false; }
     // seated (both legs bent forward together); a walking stride swings them opposite ways, so one bent leg is not a seat
     else if (lg < -1.2 && lgR < -1.2) st = 'Sitting_Idle_Loop';
@@ -285,6 +307,7 @@ function updQN(dt) {
       c.root.rotation.y = c.yawVis - target;
     }
     c.mixer.update(dt);
+    if (c.ride === 'horse') qnAstride(c);
     // carrying, holding and aiming: lift the arms forward on top of the animation
     if ((!act || act[2]) && st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
       if (aR < -.75) qnRaise(c, c.bones.armR, -aR*.95);
