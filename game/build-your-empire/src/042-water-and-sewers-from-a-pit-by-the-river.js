@@ -41,9 +41,9 @@ function waterStage(n, anim) {
       // the aqueduct runs along the north wall from the hills
       const aq = new THREE.Group(); scene.add(aq); waterStage.aq = aq;
       const STONE = 0xcdb994, archG = new THREE.RingGeometry(.42, .62, 14, 1, 0, Math.PI);
-      for (let x = -5.6; x <= 34; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -31.55], aq);
+      for (let x = -5.6; x <= 14.2; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -13.55], aq);
       mesh(G.box, STONE, [20, .45, .62], [4.2, 2.8, -13.55], aq); mesh(G.box, BLUE, [20, .04, .3], [4.2, 3.04, -13.55], aq);
-      for (let x = -4.9; x < 34; x += 1.4) {
+      for (let x = -4.9; x < 14.2; x += 1.4) {
         const a = new THREE.Mesh(archG, mat(0xbfa982, {side:THREE.DoubleSide})); a.position.set(x, 1.95, -13.28); aq.add(a);
       }
       if (anim) popIn(aq);

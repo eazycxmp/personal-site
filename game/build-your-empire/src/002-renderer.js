@@ -5,7 +5,10 @@ renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1))
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 // weathering on every standard material (desktop): patterned in the object's own space so moving things don't swim
-const GRAIN = TEX.plastered_wall_02 && TEX.plastered_wall_02.map, WHITE1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE1.needsUpdate = true;
+// three copies these shared uniforms into every new material, and copying a texture re-uploads its image, so the grain
+// is its own texture object whose copies are itself (one upload, not one per material: that was seconds of freeze per building)
+const GRAIN = TEX.plastered_wall_02 && TEX.plastered_wall_02.map && texClone(TEX.plastered_wall_02.map), WHITE1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE1.needsUpdate = true;
+for (const t of [GRAIN, WHITE1]) if (t) t.clone = function () { return this; };
 if (!MOBILE) for (const id of ['standard', 'physical']) {
   const L = THREE.ShaderLib[id];
   L.uniforms.tGrain = {value:GRAIN || WHITE1}; L.uniforms.gAvg = {value:GRAIN ? Math.max(.05, TEX.plastered_wall_02.avg.g) : 1};

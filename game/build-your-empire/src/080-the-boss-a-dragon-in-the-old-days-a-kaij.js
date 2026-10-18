@@ -21,7 +21,7 @@ function flameJet(F, from, to, on, dt) {
       const m = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 12, 1, true), new THREE.MeshBasicMaterial({color:c, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, toneMapped:false}));
       m.geometry.translate(0, -.5, 0); m.geometry.rotateX(-Math.PI/2); m.userData.r = r; F.g.add(m); F.cones.push(m);
     });
-    F.light = new THREE.PointLight(0xff8a3a, 0, 14, 1.5); scene.add(F.light);
+    F.light = FLAME_LIGHT;
   }
   F.g.visible = on; F.light.intensity = on ? 6 + Math.sin(time*40)*2 : 0;
   if (!on) return;
@@ -38,7 +38,7 @@ function flapDragon(g, t, beat) {
   if (P.tail) P.tail.rotation.y = Math.sin(t*1.7)*.28;
 }
 // dragons over the land between attacks: one crosses the sky every few minutes, high up, now and then breathing fire
-const SKYD = {t:45, g:null, u:0};
+const SKYD = {t:240, g:null, u:0};
 function updSkyDragon(dt) {
   if (!started) return;
   if (!SKYD.g) {
@@ -54,7 +54,7 @@ function updSkyDragon(dt) {
   const roar = Math.sin(D.u*Math.PI*3) > .93; g.updateMatrixWorld(true);
   const mouth = new THREE.Vector3(0, 1.5, 4.6).applyMatrix4(g.matrixWorld), ahead = mouth.clone().add(new THREE.Vector3(Math.sin(D.yaw)*7, -1.5, Math.cos(D.yaw)*7));
   flameJet(D.fx, mouth, ahead, roar, dt);
-  if (D.u >= 1) { scene.remove(g); if (D.fx.g) { scene.remove(D.fx.g); scene.remove(D.fx.light); } D.g = null; D.t = 140 + R()*160; }
+  if (D.u >= 1) { scene.remove(g); if (D.fx.g) { scene.remove(D.fx.g); scene.remove(D.fx.light); } D.g = null; D.t = 600 + R()*600; }
 }
 function makeBoss(kind) {
   const g = new THREE.Group(); scene.add(g);

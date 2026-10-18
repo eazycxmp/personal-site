@@ -244,7 +244,10 @@ renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1))
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 // weathering on every standard material (desktop): patterned in the object's own space so moving things don't swim
-const GRAIN = TEX.plastered_wall_02 && TEX.plastered_wall_02.map, WHITE1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE1.needsUpdate = true;
+// three copies these shared uniforms into every new material, and copying a texture re-uploads its image, so the grain
+// is its own texture object whose copies are itself (one upload, not one per material: that was seconds of freeze per building)
+const GRAIN = TEX.plastered_wall_02 && TEX.plastered_wall_02.map && texClone(TEX.plastered_wall_02.map), WHITE1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE1.needsUpdate = true;
+for (const t of [GRAIN, WHITE1]) if (t) t.clone = function () { return this; };
 if (!MOBILE) for (const id of ['standard', 'physical']) {
   const L = THREE.ShaderLib[id];
   L.uniforms.tGrain = {value:GRAIN || WHITE1}; L.uniforms.gAvg = {value:GRAIN ? Math.max(.05, TEX.plastered_wall_02.avg.g) : 1};
@@ -368,6 +371,9 @@ function mesh(geo, color, s, p, parent, o) {
   return m;
 }
 // a speckled, mottled texture that makes flat ground read as earth and stone
+// a copy of a texture with its own repeat that shares the uploaded image: three's clone() marks the shared image as changed,
+// which re-uploads it (with mipmaps) for every texture using it, and with dozens of tiled walls that froze the game for seconds
+function texClone(t) { const v = t.source.version, c = t.clone(); t.source.version = v; return c; }
 function groundTex(rep) {
   if (!groundTex.base) {
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
@@ -384,7 +390,7 @@ function groundTex(rep) {
     for (let i = 0; i < 2600; i++) { const v = 185 + r()*70 | 0; g.fillStyle = `rgba(${v},${v},${v},.5)`; g.fillRect(r()*256, r()*256, 1 + r()*2, 1 + r()*2); }
     const t = groundTex.base = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
   }
-  const t = groundTex.base.clone(); t.repeat.set(...rep); return t;
+  const t = texClone(groundTex.base); t.repeat.set(...rep); return t;
 }
 const SLAB_TOPS = [];
 // open building land: the camp's from the start, each region's when it opens
@@ -434,7 +440,7 @@ function phPick(color) {
 }
 function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   id ||= phPick(color); if (!id || !phOk(id)) return m;
-  const T = TEX[id], rep = t => { const c = t.clone(); c.repeat.set(Math.max(1, w/size), Math.max(1, d/size)); c.needsUpdate = true; return c; };
+  const T = TEX[id], rep = t => { const c = texClone(t); c.repeat.set(Math.max(1, w/size), Math.max(1, d/size)); return c; };
   m.map = rep(T.map); m.normalMap = rep(T.normalMap); m.roughnessMap = rep(T.roughnessMap); m.normalScale.set(.85, .85);
   m.color.set(color).multiply(T.inv); m.roughness = 1; m.userData.inv = T.inv; m.needsUpdate = true;
   // pull the photo's contrast toward its own average, so tiles don't read as a repeating pattern
@@ -697,7 +703,7 @@ const DETAIL_N = (() => {
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t;
 })();
 const grassPlane = ground(0x5f7a38, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, (WORLD.cx0 + WORLD.cx1)/2, (WORLD.cz0 + WORLD.cz1)/2, GY); grassPlane.material.map = groundTex([68, 68]);
-if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
+if (!MOBILE) { const n = texClone(DETAIL_N); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
 phDress(grassPlane.material, 0x557133, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, 'aerial_grass_rock', 8, .45);
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
 slab(0xb98f5c, 40, 2.4, 45, 1.6, .012);
@@ -922,6 +928,19 @@ const zoneAt = (x, z) => { const hit = zones.filter(zn => zn.active && Math.abs(
 
 // ------------------------------------------------------------------ stations
 const fires = [], smokers = [], popIns = [], fireLights = [];
+// Fire light comes from a fixed set of point lights made at the start and handed each frame to the fires nearest the
+// camera. Every fire used to bring its own light, and a new light makes every material's shader recompile: building a
+// grill, a forge or a lodge froze the game for seconds. The fires themselves keep a marker (where, how bright).
+const FIRE_POOL = [...Array(6)].map(() => { const l = new THREE.PointLight(0xff9a3c, 0, 6, 1.5); l.position.set(0, -60, 0); scene.add(l); return l; });
+// the boss dragon's flame light, made now for the same reason (it used to appear with the first attack)
+const FLAME_LIGHT = new THREE.PointLight(0xff8a3a, 0, 14, 1.5); FLAME_LIGHT.position.set(0, -60, 0); scene.add(FLAME_LIGHT);
+const FL_V = new THREE.Vector3(), FL_SHOWN = o => { for (let p = o; p; p = p.parent) { if (!p.visible) return false; if (p === scene) return true; } return false; };
+function placeFireLights(cx, cz) {
+  const near = [];
+  for (const m of fireLights) { if (!FL_SHOWN(m)) continue; m.getWorldPosition(FL_V); near.push([(FL_V.x - cx)**2 + (FL_V.z - cz)**2, FL_V.x, FL_V.y, FL_V.z, m.intensity]); }
+  near.sort((a, b) => a[0] - b[0]);
+  FIRE_POOL.forEach((l, i) => { const n = near[i]; if (n && n[0] < 70*70) { l.position.set(n[1], n[2], n[3]); l.intensity = n[4]; } else { l.intensity = 0; l.position.y = -60; } });
+}
 function fire(parent, x, y, z, s = 1) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s); parent.add(g);
   [0xff5a1f, 0xff9d2e, 0xffd75e].forEach((c, i) => {
@@ -929,7 +948,7 @@ function fire(parent, x, y, z, s = 1) {
     m.scale.set(.35 - i*.09, .9 - i*.2, .35 - i*.09); m.position.y = .4 - i*.08; g.add(m);
     fires.push({m, base:.9 - i*.2, ph:R()*6});
   });
-  const light = new THREE.PointLight(0xff9a3c, 3, 6, 1.5); light.position.y = .8; g.add(light); fireLights.push(light);
+  const light = new THREE.Object3D(); light.intensity = 3; light.position.y = .8; g.add(light); fireLights.push(light);
   return g;
 }
 // Tall buildings fade out while the player walks behind them, so the camera never loses you.
@@ -2380,7 +2399,7 @@ function brewery(anim) {
   fader(g, 2.6, 2.4);
   if (anim) popIn(g);
 }
-const SEATS = [...Array(6)].map((_, i) => [53.75 + i*.9, 88.95]);
+const SEATS = [...Array(6)].map((_, i) => [43.75 + i*.9, 76.95]);
 function beerGardenFx(anim) {
   const g = new THREE.Group(); g.position.set(46, 0, 75.5); scene.add(g);
   mesh(G.box, 0x6b4526, [5.4, .9, 1.2], [0, .45, 0], g); mesh(G.box, 0x9a6a3a, [5.6, .1, 1.4], [0, .95, 0], g);
@@ -2923,6 +2942,8 @@ function updLine(L, dt) {
   if ((L.spawnT -= dt) <= 0) { L.spawnT = L.interval() * (.7 + R()*.6); if (L.active() && L.q.length < L.max) spawnIn(L); }
   for (const c of [...L.q]) {
     if (c.pre && c.pre.length) { if (moveTo(c, c.pre[0][0], c.pre[0][1], dt)) c.pre.shift(); continue; }
+    // first come, first served: a guest takes a place only on reaching the back of the line (the line is kept in that order)
+    if (!c.joined) { const n = L.q.filter(o => o.joined).length, [bx, bz] = L.slot(n); if (moveTo(c, bx, bz, dt)) { c.joined = true; L.q.splice(L.q.indexOf(c), 1); L.q.splice(n, 0, c); } continue; }
     const k = L.q.indexOf(c), [x, z] = L.slot(k), arrived = moveTo(c, x, z, dt);
     if (k !== 0 || !arrived) continue;
     c.waitT += dt;
@@ -3486,11 +3507,11 @@ const UNLOCK = {
   eastGate(a) { openRegion('east', a); },
   hall(a) {
     buildFx.pavilion(a);
-    makeTable('hall', DISHES, alongX(49.75, 7), {x:42, z:8.9, w:3, d:1.6});
+    makeTable('hall', DISHES, alongX(39.75, 7), {x:42, z:8.9, w:3, d:1.6});
     boxes.push({x0:39.3, x1:44.7, z0:6.3, z1:7.7});
     makeCash('hall', 46.1, 7);
     makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[67, 2.9], mult:1.5,
-      slot:k => k === 0 ? [42, 5.5] : k <= 6 ? [52.4 + k*1.3, 4.2] : [60.2 - (k - 7)*1.15, 5.15], exit:[[40.6, 4.2], [40.6, 3], [62, 3]],
+      slot:k => k === 0 ? [42, 5.5] : k <= 6 ? [42.4 + k*1.3, 4.2] : [50.2 - (k - 7)*1.15, 5.15], exit:[[40.6, 4.2], [40.6, 3], [62, 3]],
       active:() => true, interval:() => 5.5 / (1 + .4*houses() + .25*W.era), order:() => travelerOrder(3, 3)});
   },
   market(a) { buildFx.market(a); addZone({kind:'sell', x:40, z:-6, icon:'💰', tile:{alpha:1, size:92, label:'Sell extras'}}); boxes.push({x0:38.8, x1:41.2, z0:-8.7, z1:-7.7}); },
@@ -3553,7 +3574,7 @@ const UNLOCK = {
   barkeep(a) { addWorker('barkeep', 49.4, 73.4, a); },
   beerGarden(a) {
     beerGardenFx(a);
-    makeTable('garden', ['beer'], alongX(53.75, 87.5), {x:46, z:73.6, w:3, d:1.4, icon:'🍺'});
+    makeTable('garden', ['beer'], alongX(43.75, 75.5), {x:46, z:73.6, w:3, d:1.4, icon:'🍺'});
     makeCash('garden', 41.9, 77.3);
     slab(0xb98f5c, 12, 1.6, 56.6, 77.6, .012);
     makeLine('garden', {table:TB.garden, cash:CASH.garden, face:Math.PI, max:6, spawn:[62, 77.6], seats:SEATS, noStool:true, custom:gardenUpdate,
@@ -3593,10 +3614,10 @@ const UNLOCK = {
   },
   mess(a) {
     buildFx.mess(a);
-    makeTable('mess', [...DISHES, 'sword'], alongX(-.25, 82), {x:2, z:68.1, w:3, d:1.6});
+    makeTable('mess', [...DISHES, 'sword'], alongX(-.25, 70), {x:2, z:68.1, w:3, d:1.6});
     boxes.push({x0:-.6, x1:4.6, z0:69.3, z1:70.7});
     makeLine('mess', {table:TB.mess, face:Math.PI, max:6, spawn:[-9.5, 94], done:enlist, entry:[[-9.5, 79], [-9.5, 72.4]],
-      slot:k => k === 0 ? [2, 71.6] : [1.4 - k*1.1, 84.4], exit:[],
+      slot:k => k === 0 ? [2, 71.6] : [1.4 - k*1.1, 72.4], exit:[],
       active:() => true, interval:() => W.unlocked.has('barracks') ? 5 : 9,
       order:() => { const d = availableDishes(); return [{type:d[R()*d.length|0], need:2 + (R()*2|0)}, {type:W.unlocked.has('guns') ? 'gun' : 'sword', need:1}]; }});
   },
@@ -4137,7 +4158,7 @@ function payUpgrade(zn, e) {
 
 // ------------------------------------------------------------------ builders
 // Builders carry stone, logs, tools and scrolls from the piles to whatever unlock is waiting for them.
-// builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
+// builders work tiles that earn before the world wonders, stone and wood before tools and scrolls, and with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
 // military technology is the player's own decision: builders and masons never pay for these tiles
@@ -4145,8 +4166,13 @@ const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks',
   'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
-  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  let open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
   if (!open.length) return null;
+  // what earns first: the world wonders wait until nothing else is left, then stone and wood before tools and scrolls
+  const wonder = z => WONDERS.some(q => q.id === z.pad.id), earn = open.filter(z => !wonder(z));
+  if (earn.length) open = earn;
+  const raw = open.filter(z => z.pad.cur === 'stone' || z.pad.cur === 'log');
+  if (raw.length) open = raw;
   const others = workers.filter(o => o !== w && (o.kind === 'builder' || o.hauling) && o.job);
   const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
   const goal = OBJ.z && OBJ.z.pad ? OBJ.z : null;
@@ -5367,9 +5393,9 @@ function waterStage(n, anim) {
       // the aqueduct runs along the north wall from the hills
       const aq = new THREE.Group(); scene.add(aq); waterStage.aq = aq;
       const STONE = 0xcdb994, archG = new THREE.RingGeometry(.42, .62, 14, 1, 0, Math.PI);
-      for (let x = -5.6; x <= 34; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -31.55], aq);
+      for (let x = -5.6; x <= 14.2; x += 1.4) mesh(G.box, STONE, [.32, 2.6, .5], [x, 1.3, -13.55], aq);
       mesh(G.box, STONE, [20, .45, .62], [4.2, 2.8, -13.55], aq); mesh(G.box, BLUE, [20, .04, .3], [4.2, 3.04, -13.55], aq);
-      for (let x = -4.9; x < 34; x += 1.4) {
+      for (let x = -4.9; x < 14.2; x += 1.4) {
         const a = new THREE.Mesh(archG, mat(0xbfa982, {side:THREE.DoubleSide})); a.position.set(x, 1.95, -13.28); aq.add(a);
       }
       if (anim) popIn(aq);
@@ -5934,7 +5960,7 @@ function pave(m) {
   const kind = Math.max(1, W.ground || 1);
   pave.base ||= {};
   if (!pave.base[kind]) { const t = pave.base[kind] = new THREE.CanvasTexture(groundCanvas(kind)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; }
-  const t = pave.base[kind].clone(); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
+  const t = texClone(pave.base[kind]); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
   const top = m.material[2]; if (top.map && top.map !== groundTex.base) top.map.dispose(); top.map = t; top.color.set(0xffffff); top.needsUpdate = true;
 }
 const PAVED = r => r !== REGIONS.farm && r !== REGIONS.airfield && r !== REGIONS.north && r !== REGIONS.ranch;
@@ -8442,7 +8468,7 @@ function flameJet(F, from, to, on, dt) {
       const m = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 12, 1, true), new THREE.MeshBasicMaterial({color:c, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, toneMapped:false}));
       m.geometry.translate(0, -.5, 0); m.geometry.rotateX(-Math.PI/2); m.userData.r = r; F.g.add(m); F.cones.push(m);
     });
-    F.light = new THREE.PointLight(0xff8a3a, 0, 14, 1.5); scene.add(F.light);
+    F.light = FLAME_LIGHT;
   }
   F.g.visible = on; F.light.intensity = on ? 6 + Math.sin(time*40)*2 : 0;
   if (!on) return;
@@ -8459,7 +8485,7 @@ function flapDragon(g, t, beat) {
   if (P.tail) P.tail.rotation.y = Math.sin(t*1.7)*.28;
 }
 // dragons over the land between attacks: one crosses the sky every few minutes, high up, now and then breathing fire
-const SKYD = {t:45, g:null, u:0};
+const SKYD = {t:240, g:null, u:0};
 function updSkyDragon(dt) {
   if (!started) return;
   if (!SKYD.g) {
@@ -8475,7 +8501,7 @@ function updSkyDragon(dt) {
   const roar = Math.sin(D.u*Math.PI*3) > .93; g.updateMatrixWorld(true);
   const mouth = new THREE.Vector3(0, 1.5, 4.6).applyMatrix4(g.matrixWorld), ahead = mouth.clone().add(new THREE.Vector3(Math.sin(D.yaw)*7, -1.5, Math.cos(D.yaw)*7));
   flameJet(D.fx, mouth, ahead, roar, dt);
-  if (D.u >= 1) { scene.remove(g); if (D.fx.g) { scene.remove(D.fx.g); scene.remove(D.fx.light); } D.g = null; D.t = 140 + R()*160; }
+  if (D.u >= 1) { scene.remove(g); if (D.fx.g) { scene.remove(D.fx.g); scene.remove(D.fx.light); } D.g = null; D.t = 600 + R()*600; }
 }
 function makeBoss(kind) {
   const g = new THREE.Group(); scene.add(g);
@@ -12155,6 +12181,7 @@ function render(dt) {
   if (W.weather && W.weather !== 'clear') { sun.intensity *= .65; hemi.intensity *= .85; }   // overcast
   scene.background.setRGB(.12 + .5*dk + golden*.25, .17 + .67*dk + golden*.05, .3 + .65*dk - golden*.12, THREE.SRGBColorSpace); scene.fog.color.copy(scene.background);
   for (const l of fireLights) l.intensity = 3 + (1 - dk)*7;
+  placeFireLights(fx, fz);
   updGfx3(dt, dk);
   for (const m of lampMats) m.color.setRGB(.5 + (1 - dk)*.5, .48 + (1 - dk)*.47, .4 + (1 - dk)*.35);
   if (player.char.crown) player.char.crown.visible = !!player.char.wantCrown;

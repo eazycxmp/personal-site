@@ -193,6 +193,7 @@ function render(dt) {
   if (W.weather && W.weather !== 'clear') { sun.intensity *= .65; hemi.intensity *= .85; }   // overcast
   scene.background.setRGB(.12 + .5*dk + golden*.25, .17 + .67*dk + golden*.05, .3 + .65*dk - golden*.12, THREE.SRGBColorSpace); scene.fog.color.copy(scene.background);
   for (const l of fireLights) l.intensity = 3 + (1 - dk)*7;
+  placeFireLights(fx, fz);
   updGfx3(dt, dk);
   for (const m of lampMats) m.color.setRGB(.5 + (1 - dk)*.5, .48 + (1 - dk)*.47, .4 + (1 - dk)*.35);
   if (player.char.crown) player.char.crown.visible = !!player.char.wantCrown;

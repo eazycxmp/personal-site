@@ -8,7 +8,7 @@ function brewery(anim) {
   fader(g, 2.6, 2.4);
   if (anim) popIn(g);
 }
-const SEATS = [...Array(6)].map((_, i) => [53.75 + i*.9, 88.95]);
+const SEATS = [...Array(6)].map((_, i) => [43.75 + i*.9, 76.95]);
 function beerGardenFx(anim) {
   const g = new THREE.Group(); g.position.set(46, 0, 75.5); scene.add(g);
   mesh(G.box, 0x6b4526, [5.4, .9, 1.2], [0, .45, 0], g); mesh(G.box, 0x9a6a3a, [5.6, .1, 1.4], [0, .95, 0], g);

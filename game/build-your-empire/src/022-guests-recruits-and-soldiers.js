@@ -39,6 +39,8 @@ function updLine(L, dt) {
   if ((L.spawnT -= dt) <= 0) { L.spawnT = L.interval() * (.7 + R()*.6); if (L.active() && L.q.length < L.max) spawnIn(L); }
   for (const c of [...L.q]) {
     if (c.pre && c.pre.length) { if (moveTo(c, c.pre[0][0], c.pre[0][1], dt)) c.pre.shift(); continue; }
+    // first come, first served: a guest takes a place only on reaching the back of the line (the line is kept in that order)
+    if (!c.joined) { const n = L.q.filter(o => o.joined).length, [bx, bz] = L.slot(n); if (moveTo(c, bx, bz, dt)) { c.joined = true; L.q.splice(L.q.indexOf(c), 1); L.q.splice(n, 0, c); } continue; }
     const k = L.q.indexOf(c), [x, z] = L.slot(k), arrived = moveTo(c, x, z, dt);
     if (k !== 0 || !arrived) continue;
     c.waitT += dt;

@@ -1,5 +1,18 @@
 // ------------------------------------------------------------------ stations
 const fires = [], smokers = [], popIns = [], fireLights = [];
+// Fire light comes from a fixed set of point lights made at the start and handed each frame to the fires nearest the
+// camera. Every fire used to bring its own light, and a new light makes every material's shader recompile: building a
+// grill, a forge or a lodge froze the game for seconds. The fires themselves keep a marker (where, how bright).
+const FIRE_POOL = [...Array(6)].map(() => { const l = new THREE.PointLight(0xff9a3c, 0, 6, 1.5); l.position.set(0, -60, 0); scene.add(l); return l; });
+// the boss dragon's flame light, made now for the same reason (it used to appear with the first attack)
+const FLAME_LIGHT = new THREE.PointLight(0xff8a3a, 0, 14, 1.5); FLAME_LIGHT.position.set(0, -60, 0); scene.add(FLAME_LIGHT);
+const FL_V = new THREE.Vector3(), FL_SHOWN = o => { for (let p = o; p; p = p.parent) { if (!p.visible) return false; if (p === scene) return true; } return false; };
+function placeFireLights(cx, cz) {
+  const near = [];
+  for (const m of fireLights) { if (!FL_SHOWN(m)) continue; m.getWorldPosition(FL_V); near.push([(FL_V.x - cx)**2 + (FL_V.z - cz)**2, FL_V.x, FL_V.y, FL_V.z, m.intensity]); }
+  near.sort((a, b) => a[0] - b[0]);
+  FIRE_POOL.forEach((l, i) => { const n = near[i]; if (n && n[0] < 70*70) { l.position.set(n[1], n[2], n[3]); l.intensity = n[4]; } else { l.intensity = 0; l.position.y = -60; } });
+}
 function fire(parent, x, y, z, s = 1) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s); parent.add(g);
   [0xff5a1f, 0xff9d2e, 0xffd75e].forEach((c, i) => {
@@ -7,7 +20,7 @@ function fire(parent, x, y, z, s = 1) {
     m.scale.set(.35 - i*.09, .9 - i*.2, .35 - i*.09); m.position.y = .4 - i*.08; g.add(m);
     fires.push({m, base:.9 - i*.2, ph:R()*6});
   });
-  const light = new THREE.PointLight(0xff9a3c, 3, 6, 1.5); light.position.y = .8; g.add(light); fireLights.push(light);
+  const light = new THREE.Object3D(); light.intensity = 3; light.position.y = .8; g.add(light); fireLights.push(light);
   return g;
 }
 // Tall buildings fade out while the player walks behind them, so the camera never loses you.

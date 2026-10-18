@@ -290,11 +290,11 @@ const UNLOCK = {
   eastGate(a) { openRegion('east', a); },
   hall(a) {
     buildFx.pavilion(a);
-    makeTable('hall', DISHES, alongX(49.75, 7), {x:42, z:8.9, w:3, d:1.6});
+    makeTable('hall', DISHES, alongX(39.75, 7), {x:42, z:8.9, w:3, d:1.6});
     boxes.push({x0:39.3, x1:44.7, z0:6.3, z1:7.7});
     makeCash('hall', 46.1, 7);
     makeLine('hall', {table:TB.hall, cash:CASH.hall, face:0, max:10, spawn:[67, 2.9], mult:1.5,
-      slot:k => k === 0 ? [42, 5.5] : k <= 6 ? [52.4 + k*1.3, 4.2] : [60.2 - (k - 7)*1.15, 5.15], exit:[[40.6, 4.2], [40.6, 3], [62, 3]],
+      slot:k => k === 0 ? [42, 5.5] : k <= 6 ? [42.4 + k*1.3, 4.2] : [50.2 - (k - 7)*1.15, 5.15], exit:[[40.6, 4.2], [40.6, 3], [62, 3]],
       active:() => true, interval:() => 5.5 / (1 + .4*houses() + .25*W.era), order:() => travelerOrder(3, 3)});
   },
   market(a) { buildFx.market(a); addZone({kind:'sell', x:40, z:-6, icon:'💰', tile:{alpha:1, size:92, label:'Sell extras'}}); boxes.push({x0:38.8, x1:41.2, z0:-8.7, z1:-7.7}); },
@@ -357,7 +357,7 @@ const UNLOCK = {
   barkeep(a) { addWorker('barkeep', 49.4, 73.4, a); },
   beerGarden(a) {
     beerGardenFx(a);
-    makeTable('garden', ['beer'], alongX(53.75, 87.5), {x:46, z:73.6, w:3, d:1.4, icon:'🍺'});
+    makeTable('garden', ['beer'], alongX(43.75, 75.5), {x:46, z:73.6, w:3, d:1.4, icon:'🍺'});
     makeCash('garden', 41.9, 77.3);
     slab(0xb98f5c, 12, 1.6, 56.6, 77.6, .012);
     makeLine('garden', {table:TB.garden, cash:CASH.garden, face:Math.PI, max:6, spawn:[62, 77.6], seats:SEATS, noStool:true, custom:gardenUpdate,
@@ -397,10 +397,10 @@ const UNLOCK = {
   },
   mess(a) {
     buildFx.mess(a);
-    makeTable('mess', [...DISHES, 'sword'], alongX(-.25, 82), {x:2, z:68.1, w:3, d:1.6});
+    makeTable('mess', [...DISHES, 'sword'], alongX(-.25, 70), {x:2, z:68.1, w:3, d:1.6});
     boxes.push({x0:-.6, x1:4.6, z0:69.3, z1:70.7});
     makeLine('mess', {table:TB.mess, face:Math.PI, max:6, spawn:[-9.5, 94], done:enlist, entry:[[-9.5, 79], [-9.5, 72.4]],
-      slot:k => k === 0 ? [2, 71.6] : [1.4 - k*1.1, 84.4], exit:[],
+      slot:k => k === 0 ? [2, 71.6] : [1.4 - k*1.1, 72.4], exit:[],
       active:() => true, interval:() => W.unlocked.has('barracks') ? 5 : 9,
       order:() => { const d = availableDishes(); return [{type:d[R()*d.length|0], need:2 + (R()*2|0)}, {type:W.unlocked.has('guns') ? 'gun' : 'sword', need:1}]; }});
   },

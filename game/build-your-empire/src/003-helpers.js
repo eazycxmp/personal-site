@@ -63,6 +63,9 @@ function mesh(geo, color, s, p, parent, o) {
   return m;
 }
 // a speckled, mottled texture that makes flat ground read as earth and stone
+// a copy of a texture with its own repeat that shares the uploaded image: three's clone() marks the shared image as changed,
+// which re-uploads it (with mipmaps) for every texture using it, and with dozens of tiled walls that froze the game for seconds
+function texClone(t) { const v = t.source.version, c = t.clone(); t.source.version = v; return c; }
 function groundTex(rep) {
   if (!groundTex.base) {
     const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
@@ -79,7 +82,7 @@ function groundTex(rep) {
     for (let i = 0; i < 2600; i++) { const v = 185 + r()*70 | 0; g.fillStyle = `rgba(${v},${v},${v},.5)`; g.fillRect(r()*256, r()*256, 1 + r()*2, 1 + r()*2); }
     const t = groundTex.base = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
   }
-  const t = groundTex.base.clone(); t.repeat.set(...rep); return t;
+  const t = texClone(groundTex.base); t.repeat.set(...rep); return t;
 }
 const SLAB_TOPS = [];
 // open building land: the camp's from the start, each region's when it opens
@@ -129,7 +132,7 @@ function phPick(color) {
 }
 function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   id ||= phPick(color); if (!id || !phOk(id)) return m;
-  const T = TEX[id], rep = t => { const c = t.clone(); c.repeat.set(Math.max(1, w/size), Math.max(1, d/size)); c.needsUpdate = true; return c; };
+  const T = TEX[id], rep = t => { const c = texClone(t); c.repeat.set(Math.max(1, w/size), Math.max(1, d/size)); return c; };
   m.map = rep(T.map); m.normalMap = rep(T.normalMap); m.roughnessMap = rep(T.roughnessMap); m.normalScale.set(.85, .85);
   m.color.set(color).multiply(T.inv); m.roughness = 1; m.userData.inv = T.inv; m.needsUpdate = true;
   // pull the photo's contrast toward its own average, so tiles don't read as a repeating pattern

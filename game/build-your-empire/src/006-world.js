@@ -31,7 +31,7 @@ const DETAIL_N = (() => {
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4; return t;
 })();
 const grassPlane = ground(0x5f7a38, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, (WORLD.cx0 + WORLD.cx1)/2, (WORLD.cz0 + WORLD.cz1)/2, GY); grassPlane.material.map = groundTex([68, 68]);
-if (!MOBILE) { const n = DETAIL_N.clone(); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
+if (!MOBILE) { const n = texClone(DETAIL_N); n.repeat.set(140, 140); grassPlane.material.normalMap = n; grassPlane.material.normalScale.set(.9, .9); grassPlane.material.roughness = .92; grassPlane.material.needsUpdate = true; }
 phDress(grassPlane.material, 0x557133, WORLD.cx1 - WORLD.cx0, WORLD.cz1 - WORLD.cz0, 'aerial_grass_rock', 8, .45);
 const campSlab = slab(0xc29a62, 25, 27.6, 1.6, 0.5);
 slab(0xb98f5c, 40, 2.4, 45, 1.6, .012);

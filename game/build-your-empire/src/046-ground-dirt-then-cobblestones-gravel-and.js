@@ -42,7 +42,7 @@ function pave(m) {
   const kind = Math.max(1, W.ground || 1);
   pave.base ||= {};
   if (!pave.base[kind]) { const t = pave.base[kind] = new THREE.CanvasTexture(groundCanvas(kind)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; }
-  const t = pave.base[kind].clone(); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
+  const t = texClone(pave.base[kind]); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
   const top = m.material[2]; if (top.map && top.map !== groundTex.base) top.map.dispose(); top.map = t; top.color.set(0xffffff); top.needsUpdate = true;
 }
 const PAVED = r => r !== REGIONS.farm && r !== REGIONS.airfield && r !== REGIONS.north && r !== REGIONS.ranch;

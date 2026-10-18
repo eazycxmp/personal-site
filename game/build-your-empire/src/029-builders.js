@@ -1,6 +1,6 @@
 // ------------------------------------------------------------------ builders
 // Builders carry stone, logs, tools and scrolls from the piles to whatever unlock is waiting for them.
-// builders work with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
+// builders work tiles that earn before the world wonders, stone and wood before tools and scrolls, and with you: the tile the guide is pointing at first, then tiles near you, then the ones closest to done;
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
 // military technology is the player's own decision: builders and masons never pay for these tiles
@@ -8,8 +8,13 @@ const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks',
   'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
-  const open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
+  let open = Object.values(padZones).filter(z => !z.locked && z.pad.cur !== 'coin' && !MIL_PADS.has(z.pad.id) && (!only || z.pad.cur === only) && (w.stack.count([z.pad.cur]) || piles(z.pad.cur).length));
   if (!open.length) return null;
+  // what earns first: the world wonders wait until nothing else is left, then stone and wood before tools and scrolls
+  const wonder = z => WONDERS.some(q => q.id === z.pad.id), earn = open.filter(z => !wonder(z));
+  if (earn.length) open = earn;
+  const raw = open.filter(z => z.pad.cur === 'stone' || z.pad.cur === 'log');
+  if (raw.length) open = raw;
   const others = workers.filter(o => o !== w && (o.kind === 'builder' || o.hauling) && o.job);
   const need = z => z.pad.cost - (W.paid[z.pad.id] || 0) - others.filter(o => o.job === z.pad).reduce((a, o) => a + Math.min(o.cap, o.job.cost), 0);
   const goal = OBJ.z && OBJ.z.pad ? OBJ.z : null;
