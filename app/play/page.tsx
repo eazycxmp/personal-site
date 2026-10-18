@@ -5,35 +5,14 @@ import Link from "next/link";
 
 export const metadata = shareMetadata(SHARES["play"], "Play — Espen Campbell");
 
-/* In release order, oldest first. Release dates are when each game first shipped to /play (git history). */
+/* Newest first. Release dates are when each game first shipped to /play (git history). */
 const GAMES = [
   {
-    slug: "run",
-    title: "Maze Run",
-    tag: "Reflex · Speed",
-    body: "A small dot runs through a maze. Speed increases the longer you survive. Get hit by a wall and it's over. Beat the high score.",
-    released: "May 2026",
-  },
-  {
-    slug: "vortex",
-    title: "Vortex Rugby",
-    tag: "3D \u00b7 Rugby",
-    body: "A rugby runner in the browser. Motion-captured players on a full stadium pitch \u2014 catch the up-and-under, beat the defensive line, pass or dive for the try. Pick your strip and the opposition changes to match.",
-    released: "Aug 2026",
-  },
-  {
-    slug: "blackjack",
-    title: "Blackjack",
-    tag: "Cards · Odds",
-    body: "A casino table from the player's chair. Hit, stand, double and split against a six-deck shoe while a coach grades every decision and the bust odds are computed live from the cards still unseen. Built to teach the Hi-Lo count.",
-    released: "Aug 2026",
-  },
-  {
-    slug: "paint",
-    title: "Paint the Pup",
-    tag: "Color · Kids",
-    body: "A puppy coloring page. Tap a space for a suggested color, then finger-paint. The color stays inside the lines.",
-    released: "Sep 2026",
+    slug: "skyward",
+    title: "Skyward",
+    tag: "3D · Flight Sim",
+    body: "Fly an F-16, a P-51 Mustang, an Airbus A380 or an Extra stunt plane over a mountain valley. Easy controls that level the plane for you, working cockpits, a sonic boom past Mach 1, and a twelve-ring course to race for a lap time.",
+    released: "Oct 2026",
   },
   {
     slug: "build-your-empire",
@@ -43,11 +22,32 @@ const GAMES = [
     released: "Oct 2026",
   },
   {
-    slug: "skyward",
-    title: "Skyward",
-    tag: "3D · Flight Sim",
-    body: "Fly an F-16, a P-51 Mustang, an Airbus A380 or an Extra stunt plane over a mountain valley. Easy controls that level the plane for you, working cockpits, a sonic boom past Mach 1, and a twelve-ring course to race for a lap time.",
-    released: "Oct 2026",
+    slug: "paint",
+    title: "Paint the Pup",
+    tag: "Color · Kids",
+    body: "A puppy coloring page. Tap a space for a suggested color, then finger-paint. The color stays inside the lines.",
+    released: "Sep 2026",
+  },
+  {
+    slug: "blackjack",
+    title: "Blackjack",
+    tag: "Cards · Odds",
+    body: "A casino table from the player's chair. Hit, stand, double and split against a six-deck shoe while a coach grades every decision and the bust odds are computed live from the cards still unseen. Built to teach the Hi-Lo count.",
+    released: "Aug 2026",
+  },
+  {
+    slug: "vortex",
+    title: "Vortex Rugby",
+    tag: "3D \u00b7 Rugby",
+    body: "A rugby runner in the browser. Motion-captured players on a full stadium pitch \u2014 catch the up-and-under, beat the defensive line, pass or dive for the try. Pick your strip and the opposition changes to match.",
+    released: "Aug 2026",
+  },
+  {
+    slug: "run",
+    title: "Maze Run",
+    tag: "Reflex · Speed",
+    body: "A small dot runs through a maze. Speed increases the longer you survive. Get hit by a wall and it's over. Beat the high score.",
+    released: "May 2026",
   },
 ];
 
