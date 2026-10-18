@@ -93,9 +93,11 @@ function update(dt) {
     if (vb) { const a = i/Math.max(1, soldiers.length)*Math.PI*2; tx = vb[0] + Math.cos(a)*6.5; tz = vb[1] + Math.sin(a)*6.5; }
     if (out) { tx = BF.x - 4.4 + (i % 8)*1.25; tz = BF.z - 2.4 - Math.floor(i / 8)*1.2; }
     if (sea) { tx = -9.2 + (i % 4)*.55; tz = -5.6 + Math.floor(i / 4)*.5; }
+    const drill = !C && !vb ? soldierDrill(s, i) : null; if (drill) { tx = drill.x; tz = drill.z; s.speed = drill.run ? 4.6 : 3.4; }
     s.char.g.visible = !(sea && C.dur - C.t > 9);
     const at = sea || vb || (!C && s.pos.z < 62) ? goTo(s, tx, tz, dt) : soldierGo(s, tx, tz, dt);
     animEntity(s, dt);
+    if (drill && drillPose(s, i, drill, at, dt)) return;
     if (at) {
       const face = vb ? Math.atan2(BOSS.on.g.position.x - s.pos.x, BOSS.on.g.position.z - s.pos.z) : out ? 0 : sea ? -Math.PI/2 : Math.PI;
       let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
@@ -153,6 +155,38 @@ function update(dt) {
   if (pops.length > 40) pops.splice(0, pops.length - 40).forEach(p => p.el.remove());
   if (started) { W.playT += dt; trackRate(dt); updGoals(dt); }
   if ((saveT -= dt) <= 0) { saveT = 5; if (started) save(); }
+}
+// Soldiers at home train rather than stand about. The drill-yard squad takes turns, all together: laps of the yard at a jog,
+// sparring in pairs, then marching in formation up and down. Tower guards walk their beat, the others fetch and carry.
+const YARD = {x0:-5.7, x1:-.1, z0:52.2, z1:59.4};
+function soldierDrill(s, i) {
+  const slot = BASE_SLOTS.indexOf(s.slot), k = slot >= 0 ? slot : i;
+  if (k < 12) {
+    const ph = Math.floor(time/40) % 3;
+    if (ph === 0) {   // laps: round the yard in a file
+      const Wd = YARD.x1 - YARD.x0, Dp = YARD.z1 - YARD.z0, per = 2*(Wd + Dp), d = ((time*3.3 + k*per/12) % per + per) % per;
+      const p = d < Wd ? [YARD.x0 + d, YARD.z0] : d < Wd + Dp ? [YARD.x1, YARD.z0 + d - Wd] : d < 2*Wd + Dp ? [YARD.x1 - (d - Wd - Dp), YARD.z1] : [YARD.x0, YARD.z1 - (d - 2*Wd - Dp)];
+      return {x:p[0], z:p[1], run:true, mode:'lap'};
+    }
+    if (ph === 1) return {x:s.slot[0] + (k % 2 ? .35 : -.35), z:s.slot[1], mode:'spar', partner:k ^ 1};
+    return {x:s.slot[0], z:s.slot[1] + Math.sin(time*.7)*1.3, mode:'march'};
+  }
+  if (k >= 18 && k < 22) return {x:s.slot[0], z:s.slot[1] + (Math.floor(time/7 + k) % 2 ? 2.6 : -2.6)*(s.slot[1] > 50 ? -1 : 1), mode:'patrol'};
+  // tents and the depot: fetching and carrying between them
+  const a = Math.floor(time/6 + k*.7) % 2;
+  return {x:a ? 7.6 : s.slot[0], z:a ? 48.2 : s.slot[1], mode:'chore'};
+}
+function drillPose(s, i, D, at, dt) {
+  if (D.mode === 'lap') return true;   // keep jogging; the walk/jog animation does the rest
+  if (D.mode === 'march') { s.char.armR.rotation.x = s.char.armL.rotation.x = 0; return true; }
+  if (D.mode === 'spar' && at) {
+    const pt = BASE_SLOTS[D.partner], face = pt ? Math.atan2(pt[0] - s.pos.x, pt[1] - s.pos.z) : 0;
+    let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d*Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
+    if ((s.drillT = (s.drillT || 0) - dt) <= 0) { s.drillT = .8 + R()*.6; qnAct(s.char, R() < .5 ? 'swing' : 'punch', .7, true); }
+    return true;
+  }
+  if (D.mode === 'chore' && at && (s.drillT = (s.drillT || 0) - dt) <= 0) { s.drillT = 1.5; qnAct(s.char, 'pick', 1); }
+  return D.mode === 'chore' || D.mode === 'patrol';
 }
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back

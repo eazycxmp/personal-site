@@ -96,26 +96,59 @@ function makePlane(x, z) {
   g.position.set(x, 0, z); g.rotation.y = Math.PI;
   const n = planes.length;
   // a pilot's style: orbit radius, circling direction, cruising height, timing, how much they weave, and whether they roll
-  const style = {r:7.5 + (n % 3)*1.8, dir:n % 2 ? -1 : 1, alt:8 + (n % 4)*1.1, ph:n*1.3, weave:n % 3 === 1 ? 4 : n % 3 === 2 ? 2 : 0, sp:.9 + (n % 3)*.12, roll:n % 2 === 0};
+  const style = planeStyle(n);
   const p = {g, prop, park:[x, z], bombT:0, rw:x > 0 ? AIRBASE.rw : RUNWAY, style}; planes.push(p); airbaseFx(); return p;
 }
 // taxi, take off, climb over the ridges, dive-bomb the valley in passes, pull up, fly home and land
+// fly like an aircraft: the drawn plane follows its flight path smoothly (no corners where one leg meets the next), points
+// where it is going, pitches with its climb and dive, and banks into each turn by how hard it is turning
+function flyPose(p, a, b, dt, roll = 0) {
+  const g = p.g, air = a[1] > .05;
+  // (smoothed on the ground too, so touching down and rolling out carry on from the flight without a jump; parked, it sits exactly)
+  const parked = !air && Math.hypot(a[0] - b[0], a[2] - b[2]) < 1e-4 && (!p.fly || Math.hypot(a[0] - p.fly.x, a[2] - p.fly.z) < .05);
+  if (!p.fly || parked || Math.hypot(a[0] - p.fly.x, a[2] - p.fly.z) > 14) p.fly = {x:a[0], y:a[1], z:a[2], yaw:p.fly ? p.fly.yaw : g.rotation.y, bank:0, pitch:0};
+  const F = p.fly, k = 1 - Math.exp(-dt*5), px = F.x, py = F.y, pz = F.z;
+  F.x += (a[0] - F.x)*k; F.y += (a[1] - F.y)*k; F.z += (a[2] - F.z)*k;
+  let vx = F.x - px, vy = F.y - py, vz = F.z - pz;
+  if (!air && Math.hypot(vx, vz) < 1e-3) { vx = b[0] - a[0]; vy = 0; vz = b[2] - a[2]; }
+  const vh = Math.hypot(vx, vz);
+  if (vh > 1e-5) {
+    let dy = Math.atan2(vx, vz) - F.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    if (air) dy = clamp(dy, -2.4*dt, 2.4*dt);   // no aircraft turns faster than this
+    F.yaw += dy;
+    const rate = dt > 0 ? dy/dt : 0, want = air ? clamp(-rate*.6, -1.2, 1.2) : 0;
+    F.bank += (want - F.bank)*Math.min(1, dt*4); F.pitch += (-Math.atan2(vy, vh) - F.pitch)*Math.min(1, dt*6);
+  } else if (!air) { F.bank *= .8; }
+  g.position.set(F.x, F.y, F.z); g.rotation.order = 'YXZ'; g.rotation.set(F.pitch, F.yaw, F.bank + roll);
+}
+// a pilot's style: run length, which way they turn, cruising height, timing, how much they weave, and whether they roll
+const planeStyle = n => ({r:7.5 + (n % 3)*1.8, dir:n % 2 ? -1 : 1, alt:8 + (n % 4)*1.1, ph:n*1.3, weave:n % 3 === 1 ? 4 : n % 3 === 2 ? 2 : 0, sp:.9 + (n % 3)*.12, roll:n % 2 === 0});
 function airPos(e, p, tx, tz) {
   const L = (a, b, u) => a + (b - a)*Math.max(0, Math.min(1, u));
-  const [px, pz] = p.park, RW = p.rw || RUNWAY;
+  // the runway beside where it is parked (planes rebuilt from a save don't carry theirs): the airbase's out east, else the airport's
+  const [px, pz] = p.park, RW = p.rw || (px > 30 && AIRBASE.rw ? AIRBASE.rw : RUNWAY);
   if (e < 0) return [px, 0, pz];
   if (e < 4) { const u = e/4; return [L(px, RW.x, u), 0, L(pz, RW.z0, u)]; }
   if (e < 9) { const u = (e - 4)/5; return [RW.x, u > .45 ? (u - .45)/.55*5 : 0, L(RW.z0, RW.z1, u)]; }
   // each pilot flies their own way: a weave on the way in, their own orbit (size, direction, height) and dive rhythm
-  const S = p.style || {r:9, dir:1, alt:9, ph:0, weave:0, sp:1};
-  const orbit = k => { const a = Math.PI + S.dir*k*.55*S.sp + S.ph; return [tx + Math.cos(a)*S.r, tz + Math.sin(a)*S.r]; };
-  const [ox0, oz0] = orbit(0);
+  const S = p.style ||= planeStyle(Math.max(0, planes.indexOf(p)));   // planes rebuilt from a save get theirs back
+  // attack runs on a racetrack: a straight run across the target (diving through the middle, then pulling up), a banked
+  // half-circle out, a straight leg back up high, a half-circle in, and round again; each pilot crosses at their own angle
+  // the first run carries straight on from the approach (no turning back on itself), each pilot a little off the line
+  const ang = Math.atan2(tz - RW.z1, tx - RW.x) + (S.ph % 1.2 - .6)*.5, ux = Math.cos(ang), uz = Math.sin(ang), vx = -uz*S.dir, vz = ux*S.dir, Rr = S.r, rho = S.r*.55;
+  const legL = 2*Rr, arc = Math.PI*rho, lap = 2*legL + 2*arc, speed = 8.5*S.sp;
+  const oval = k => {
+    let d = (k*speed) % lap;
+    if (d < legL) { const bell = Math.pow(Math.sin(d/legL*Math.PI), 2); return [tx - ux*Rr + ux*d, S.alt - (S.alt - 3.2)*bell, tz - uz*Rr + uz*d]; }
+    if ((d -= legL) < arc) { const a = d/rho, cx = tx + ux*Rr + vx*rho, cz = tz + uz*Rr + vz*rho; return [cx - vx*rho*Math.cos(a) + ux*rho*Math.sin(a), S.alt, cz - vz*rho*Math.cos(a) + uz*rho*Math.sin(a)]; }
+    if ((d -= arc) < legL) return [tx + ux*Rr + 2*rho*vx - ux*d, S.alt, tz + uz*Rr + 2*rho*vz - uz*d];
+    d -= legL; const a = d/rho, cx = tx - ux*Rr + vx*rho, cz = tz - uz*Rr + vz*rho;
+    return [cx + vx*rho*Math.cos(a) - ux*rho*Math.sin(a), S.alt, cz + vz*rho*Math.cos(a) - uz*rho*Math.sin(a)];
+  };
+  const [ox0, , oz0] = oval(0);
   if (e < 17) { const u = (e - 9)/8, w = Math.sin(u*Math.PI*2.5 + S.ph)*S.weave*(1 - u); return [L(RW.x, ox0, u) + w, 5 + (S.alt - 2)*Math.sin(Math.min(1, u*1.6)*Math.PI/2) - (u > .75 ? (u - .75)/.25*3 : 0), L(RW.z1, oz0, u) + w*.4]; }
-  if (e < 29) {
-    const k = e - 17, [x, z] = orbit(k), dive = Math.pow(Math.max(0, Math.sin(k*1.05*S.sp - .6 + S.ph*.5)), 3);
-    return [x, S.alt - (S.alt - 3.2)*dive, z];
-  }
-  const [ex, ez] = orbit(12);
+  if (e < 29) return oval(e - 17);
+  const [ex, , ez] = oval(12);
   if (e < 36) { const u = (e - 29)/7; return [L(ex, RW.x, u), 9 + 3*Math.sin(u*Math.PI) - 4*u, L(ez, RW.z1 - 8, u)]; }
   if (e < 40) { const u = (e - 36)/4; return [RW.x, 5*(1 - u)*(1 - u), L(RW.z1 - 8, RW.z0 - 2, u)]; }
   const u = (e - 40)/2; return [L(RW.x, px, u), 0, L(RW.z0 - 2, pz, u)];
@@ -151,10 +184,7 @@ function planeVsBoss(p, i, B, dt) {
   if (B) { p.bossBack = null; p.bossT = (p.bossT || 0) + dt; e = p.bossT*1.5 - i*.7; tx = B.x; tz = B.z; if (e > 17) e = 17 + ((e - 17) % 11.5); p.bossAt = [tx, tz]; }
   else { if (p.bossBack == null) { p.bossBack = 0; if ((p.bossT || 0)*1.5 - i*.7 < 4) { p.bossBack = 13; } } p.bossBack += dt*1.5; e = 29 + p.bossBack; [tx, tz] = p.bossAt || [p.park[0], p.park[1]]; if (e >= 42) { p.bossBack = null; p.bossT = 0; e = -1; } }
   const a = e >= 0 ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = e >= 0 ? airPos(e + .08, p, tx, tz) : a;
-  p.g.position.set(a[0], a[1], a[2]); p.alt = a[1];
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], hz = Math.hypot(dx, dz);
-  if (hz > .002) { p.g.rotation.y = Math.atan2(dx, dz); p.g.rotation.x = -Math.atan2(dy, hz); }
-  p.g.rotation.z = e > 17 && e < 29 ? .5 : 0;
+  p.alt = a[1]; flyPose(p, a, b, dt);
   p.prop.rotation.z += dt*(e > 0 && e < 42 ? 40 : 0);
   // over an enemy army: bombs at the bottom of each dive
   if (B && B.foes && e > 17 && e < 29 && a[1] < 5.5 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
@@ -178,7 +208,7 @@ function updAir(dt) {
   if (HANGAR.g && ((HANGAR.chk = (HANGAR.chk || 0) - dt) <= 0)) { HANGAR.chk = 2; hangarLook(true); }
   const C = W.camp, airT = C && C.type === 'air';
   airSupport(C);
-  if (AIRS.on && time - AIRS.t0 > 44) AIRS.on = false;
+  if (AIRS.on && time - AIRS.t0 > 44 + .7*AIRS.n) AIRS.on = false;   // once the last one in line has landed
   const air = airT || AIRS.on;
   const c0 = airT ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
   const B0 = typeof WARFIRE !== 'undefined' ? sortieTarget() : null;
@@ -188,12 +218,9 @@ function updAir(dt) {
     const [tx, tz] = airT ? (C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0]) : [AIRS.tx, AIRS.tz];
     const flying = air && i < (airT ? C.n ?? (c ? c.planes : 0) : AIRS.n);
     const a = flying ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = flying ? airPos(e + .08, p, tx, tz) : a;
-    p.g.position.set(a[0], a[1], a[2]); p.alt = a[1];
-    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], hz = Math.hypot(dx, dz);
-    if (hz > .002) { p.g.rotation.y = Math.atan2(dx, dz); p.g.rotation.x = -Math.atan2(dy, hz); }
-    // banked into the orbit (each the way they circle), and a barrel roll on the way in for the show-offs
+    // banked by the turn itself, and a barrel roll on the way in for the show-offs
     const S = p.style || {dir:1};
-    p.g.rotation.z = flying && e > 17 && e < 29 ? .5*S.dir : flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0;
+    p.alt = a[1]; flyPose(p, a, b, dt, flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0);
     p.prop.rotation.z += dt * (flying && e > 0 && e < 42 ? 40 : 0);
     // bombs go only at the bottom of each dive
     if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
