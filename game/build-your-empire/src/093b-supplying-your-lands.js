@@ -62,9 +62,9 @@ function supplyDepot(anim) {
   SUP.zone = addZone({kind:'depot', x:DEPOT_AT[0], z:DEPOT_AT[1], icon:'📦', tile:depotTile()});
   if (anim) { popIn(g); banner('📦 Supply depot!', 'Bring food here and caravans carry it to your lands. Fed lands pay more, and can grow.'); }
 }
-// The food market: a covered market beside the depot. Whatever your lands want that the depot hasn't got, it buys from
-// the farmers and fishers of the region (a little over what it would sell for), so every land is fed without you
-// carrying it all. What it spends shows in your coin ledger.
+// The wholesaler: a covered market beside the depot. Whatever your lands want that the depot hasn't got, it buys from
+// the farmers and fishers of the region (a little over what it would sell for), so the caravans always have a full load.
+// What it spends shows in your coin ledger. (Each land still needs its own market to hand the food out: 093c.)
 const MARKET_AT = [29.4, -10.2];
 const foodPrice = t => Math.max(8, Math.round((ITEM[t].sell || 10)*1.3));
 function foodMarketBuy(t, n) { const cost = foodPrice(t)*n; if (W.coins < cost + 500) return false; W.coins -= cost; W.upSpent += cost; return true; }
@@ -79,9 +79,9 @@ function foodMarketFx(anim) {
     for (let k = 0; k < 5; k++) mesh(G.sph, [0xd9443a, 0xf2c200, 0x7ac043, 0xe07a2a, 0xa83a8a][(i*2 + k) % 5], [.13, .13, .13], [cx - .4 + k*.2, 1.02, .7 + (k % 2)*.12], g);
   }
   for (const [cx, cz] of [[-1.5, -.6], [1.2, -.7]]) mesh(G.box, 0xb08a5a, [.5, .4, .5], [cx, .45, cz], g);
-  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('FOOD MARKET', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(2.8, .5, 1); sign.position.set(0, 2.85, 1.42); g.add(sign);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('WHOLESALE', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(2.8, .5, 1); sign.position.set(0, 2.85, 1.42); g.add(sign);
   boxes.push({x0:x - 2.15, x1:x + 2.15, z0:z - 1.45, z1:z + 1.45});
-  if (anim) { popIn(g); banner('🧺 The food market!', 'Your lands are fed from the market now: it buys whatever the depot is short of. Its spending shows in the 💵 ledger.'); }
+  if (anim) { popIn(g); banner('🧺 The wholesaler!', 'It buys whatever food the depot is short of, so every caravan leaves full. Its spending shows in the 💵 ledger.'); }
 }
 // a caravan: a cart (a truck in the motor age) heading off toward the land, with the goods counted in when it gets there
 function caravanMesh() {
@@ -127,11 +127,13 @@ function updSupply(dt) {
     if (supplyOn()) for (const k of keys) {
       const L = landSup(k); if (L.lost) continue;
       const T = LAND_TIERS[L.tier], per = T.need / T.wants.length; let got = 0;
-      for (const t of T.wants) { const take = Math.min(L.stock[t] || 0, per); L.stock[t] = (L.stock[t] || 0) - take; got += take; }
+      // the land's market hands its depot's food out; without one only a trickle reaches the people
+      const reach = hasLandMarket(k) ? 1 : .35;
+      for (const t of T.wants) { const take = Math.min(L.stock[t] || 0, per*reach); L.stock[t] = (L.stock[t] || 0) - take; got += take; }
       L.fed = clamp(L.fed*.5 + (got / T.need)*.5, 0, 1);
     }
   }
-  updLandFolk(dt, keys);
+  updLandFolk(dt, keys); updLandMarkets(dt);
 }
 // ---- the people of your lands: when you are there you see them walk to the market and spend
 const FOLK_NEAR = 70;

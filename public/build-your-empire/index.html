@@ -2072,6 +2072,8 @@ function entity(charOpts, x, z, speed, cap) {
   e.stack = newStack((i, it, y) => {
     const s = Math.sin(e.yaw), c = Math.cos(e.yaw), lag = i * .03;
     // held out in front in both hands (the arms are lifted forward under it), the top of a tall load swaying behind a little
+    // (you carry yours on your back, as ever, out of the way of the view)
+    if (e.isPlayer) return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
     return {x:e.pos.x + .5*s - e.svel.x*lag, y:1.05 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z + .5*c - e.svel.z*lag, ry:e.yaw};
   });
   return e;
@@ -2087,8 +2089,9 @@ function animEntity(e, dt) {
   const k = Math.min(1, sp / 2.5), c = e.char;
   c.legL.rotation.x = Math.sin(e.walk) * .8 * k; c.legR.rotation.x = -Math.sin(e.walk) * .8 * k;
   const carrying = e.stack.length > 0;
-  // carrying: both arms held out in front, under the load (lifted forward on top of the walk)
-  c.armL.rotation.x = carrying ? -1.1 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -1.1 : Math.sin(e.walk) * .7 * k;
+  // carrying: both arms held out in front, under the load (lifted forward on top of the walk); you carry on your back
+  const hold = e.isPlayer ? -.5 : -1.1;
+  c.armL.rotation.x = carrying ? hold : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? hold : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
   c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > -49.4 && e.pos.x < -40.6 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
 }
@@ -2204,7 +2207,7 @@ const SPEND_WHY = {
   payPad:'🏗️ Building', payUpgrade:'⬆️ Upgrading buildings', placeDecor:'🌳 Decorations', updMarket:"📈 Brokers' auto-invest", invest:'📈 Invested in the fund',
   payGas:'⛽ Gas station', payRebuild:'🔨 Rebuilding burned buildings', paySenate:'🏛️ The senate', payFix:'🔧 Repairs in your lands', playSlots:'🎰 The slots',
   payRecruit:'🪖 Recruiting soldiers', growLand:'🏙️ Growing a land', sendGovernor:'👑 Sending a governor', sendScouts:'🔭 Scouts', empAct:'🤝 Gifts and peace deals',
-  sendSpy:'🕵️ Spies', foodMarketBuy:'🧺 Food market (feeding your lands)', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
+  sendSpy:'🕵️ Spies', foodMarketBuy:'🧺 Wholesaler (food for your lands)', payLandMarket:'🧺 Building a land\'s market', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
 };
 const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'spend', 'Error']);
 function whySpent() {
@@ -3477,6 +3480,7 @@ function zoneAct(e, zn, dt) {
     case 'upgrade': if (e.isPlayer) payUpgrade(zn, e); break;
     case 'gasup': if (e.isPlayer) payGas(zn, e); break;
     case 'fix': if (e.isPlayer) payFix(zn, e); break;
+    case 'landMarket': if (e.isPlayer) payLandMarket(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;
@@ -3671,7 +3675,7 @@ const PADS = [
   // military technology is bought with cash, like the planes and tanks: builders never pay for it (029 MIL_PADS)
   {id:'supplyDepot', x:22.4, z:-9.2, cost:4000, cur:'coin', icon:'📦', label:'Supply depot', after:['warTable'], need:() => landKeys().length > 0},
   {id:'supplyClerk', x:18.6, z:-6.4, cost:1500, cur:'coin', icon:'🧑‍💼', label:'Supply clerk', after:['supplyDepot']},
-  {id:'foodMarket', x:29.2, z:-6.4, cost:20000, cur:'coin', icon:'🧺', label:'Food market', after:['supplyDepot']},
+  {id:'foodMarket', x:29.2, z:-6.4, cost:20000, cur:'coin', icon:'🧺', label:'Wholesaler', after:['supplyDepot']},
   {id:'gardener', x:23.8, z:5.6, cost:300, cur:'coin', icon:'🧑‍🌾', label:'Gardener', after:['garden']},
   {id:'tomatobed', x:27.1, z:5.6, cost:500, cur:'coin', icon:'🍅', label:'Tomato bed', after:['garden', 'market']},
   {id:'burgerBar', x:20.75, z:14.3, cost:900, cur:'coin', icon:'🍔', label:'Burger station', after:['tomatobed', 'gardener', 'market', 'workshop']},
@@ -10986,9 +10990,9 @@ function supplyDepot(anim) {
   SUP.zone = addZone({kind:'depot', x:DEPOT_AT[0], z:DEPOT_AT[1], icon:'📦', tile:depotTile()});
   if (anim) { popIn(g); banner('📦 Supply depot!', 'Bring food here and caravans carry it to your lands. Fed lands pay more, and can grow.'); }
 }
-// The food market: a covered market beside the depot. Whatever your lands want that the depot hasn't got, it buys from
-// the farmers and fishers of the region (a little over what it would sell for), so every land is fed without you
-// carrying it all. What it spends shows in your coin ledger.
+// The wholesaler: a covered market beside the depot. Whatever your lands want that the depot hasn't got, it buys from
+// the farmers and fishers of the region (a little over what it would sell for), so the caravans always have a full load.
+// What it spends shows in your coin ledger. (Each land still needs its own market to hand the food out: 093c.)
 const MARKET_AT = [29.4, -10.2];
 const foodPrice = t => Math.max(8, Math.round((ITEM[t].sell || 10)*1.3));
 function foodMarketBuy(t, n) { const cost = foodPrice(t)*n; if (W.coins < cost + 500) return false; W.coins -= cost; W.upSpent += cost; return true; }
@@ -11003,9 +11007,9 @@ function foodMarketFx(anim) {
     for (let k = 0; k < 5; k++) mesh(G.sph, [0xd9443a, 0xf2c200, 0x7ac043, 0xe07a2a, 0xa83a8a][(i*2 + k) % 5], [.13, .13, .13], [cx - .4 + k*.2, 1.02, .7 + (k % 2)*.12], g);
   }
   for (const [cx, cz] of [[-1.5, -.6], [1.2, -.7]]) mesh(G.box, 0xb08a5a, [.5, .4, .5], [cx, .45, cz], g);
-  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('FOOD MARKET', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(2.8, .5, 1); sign.position.set(0, 2.85, 1.42); g.add(sign);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('WHOLESALE', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(2.8, .5, 1); sign.position.set(0, 2.85, 1.42); g.add(sign);
   boxes.push({x0:x - 2.15, x1:x + 2.15, z0:z - 1.45, z1:z + 1.45});
-  if (anim) { popIn(g); banner('🧺 The food market!', 'Your lands are fed from the market now: it buys whatever the depot is short of. Its spending shows in the 💵 ledger.'); }
+  if (anim) { popIn(g); banner('🧺 The wholesaler!', 'It buys whatever food the depot is short of, so every caravan leaves full. Its spending shows in the 💵 ledger.'); }
 }
 // a caravan: a cart (a truck in the motor age) heading off toward the land, with the goods counted in when it gets there
 function caravanMesh() {
@@ -11051,11 +11055,13 @@ function updSupply(dt) {
     if (supplyOn()) for (const k of keys) {
       const L = landSup(k); if (L.lost) continue;
       const T = LAND_TIERS[L.tier], per = T.need / T.wants.length; let got = 0;
-      for (const t of T.wants) { const take = Math.min(L.stock[t] || 0, per); L.stock[t] = (L.stock[t] || 0) - take; got += take; }
+      // the land's market hands its depot's food out; without one only a trickle reaches the people
+      const reach = hasLandMarket(k) ? 1 : .35;
+      for (const t of T.wants) { const take = Math.min(L.stock[t] || 0, per*reach); L.stock[t] = (L.stock[t] || 0) - take; got += take; }
       L.fed = clamp(L.fed*.5 + (got / T.need)*.5, 0, 1);
     }
   }
-  updLandFolk(dt, keys);
+  updLandFolk(dt, keys); updLandMarkets(dt);
 }
 // ---- the people of your lands: when you are there you see them walk to the market and spend
 const FOLK_NEAR = 70;
@@ -11146,6 +11152,75 @@ function clerkSrc() {
   for (const k of landKeys()) { const L = landSup(k); if (L.lost) continue; for (const t of LAND_TIERS[L.tier].wants) need[t] = (need[t] || 0) + 1; }
   return zones.filter(z => z.kind === 'out' && ST[z.st] && need[ST[z.st].out] && z.stack.length >= 3 && (d[ST[z.st].out] || 0) < 30)
     .sort((a, b) => need[ST[b.st].out] - need[ST[a.st].out] || b.stack.length - a.stack.length).slice(0, 1);
+}
+// ------------------------------------------------------------------ each land's own depot and market
+// The caravans from home unload at a depot in each land; from there the land's market hands the food out to the people
+// who live there. The market has to be built on the spot: travel to the land and stand on its 🧺 tile. Until then only
+// a trickle reaches the people by themselves, so a land without its market stays half fed (and pays that way).
+const LMK = {at:{}, depot:{}, hall:{}, zone:{}, chk:0, told:{}};
+const landMarketCost = k => Math.round(4000*(1 + landSup(k).tier)*(1 + .15*W.era));
+const hasLandMarket = k => !!land(k).market;
+// two free spots near the land's middle (walkable if the land has walkable ground there): the depot and the market
+function landMarketSpots(k) {
+  if (LMK.at[k]) return LMK.at[k];
+  // on ground you can walk to (the land's own walkable ground), clear of buildings, tiles and each other
+  const [cx, cz] = landAt(k), walk = (x, z) => AREAS.some(a => x - 1.4 >= a.x0 && x + 1.4 <= a.x1 && z - 1.4 >= a.z0 && z + 1.4 <= a.z1);
+  const ok = (x, z, taken) => freeSpot(x, z, 1.8) && walk(x, z) && !zones.some(q => Math.hypot(q.x - x, q.z - z) < 2.6) && !taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < 5.5);
+  const found = [];
+  for (let r = 5; r <= 40 && found.length < 2; r += 1.5) for (let i = 0; i < 24 && found.length < 2; i++) { const a = i/24*Math.PI*2 + r, x = cx + Math.cos(a)*r, z = cz + Math.sin(a)*r; if (ok(x, z, found)) found.push([x, z]); }
+  if (found.length < 2) return null;   // nowhere yet (its land not laid out): try again later
+  return LMK.at[k] = found;
+}
+function landDepotFx(k) {
+  const [[x, z]] = landMarketSpots(k), g = new THREE.Group(); g.position.set(x, elevAt(x, z), z); scene.add(g);
+  mesh(G.box, 0x8a6a42, [3, 1.8, 2.2], [0, .9, 0], g); mesh(G.box, 0x6a3a22, [3.3, .3, 2.5], [0, 1.95, 0], g);
+  mesh(G.box, 0x2a2018, [1.1, 1.2, .08], [0, .6, 1.12], g);
+  for (const [px, pz, s] of [[-1.2, 1.5, .5], [-.7, 1.6, .45], [1.2, 1.5, .5]]) mesh(G.box, 0xb08a5a, [s, s, s], [px, s/2, pz], g);
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('DEPOT', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(1.8, .45, 1); sign.position.set(0, 2.4, 1.14); g.add(sign);
+  boxes.push({x0:x - 1.6, x1:x + 1.6, z0:z - 1.2, z1:z + 1.2});
+  LMK.depot[k] = g;
+}
+function landMarketFx(k, anim) {
+  const [, [x, z]] = landMarketSpots(k), g = new THREE.Group(); g.position.set(x, elevAt(x, z), z); scene.add(g);
+  mesh(G.box, 0xa88a62, [4, .2, 2.6], [0, .1, 0], g);
+  for (const [px, pz] of [[-1.8, -1.1], [1.8, -1.1], [-1.8, 1.1], [1.8, 1.1]]) mesh(G.cyl, 0x6b4526, [.08, 2.1, .08], [px, 1.1, pz], g);
+  [0xd9443a, 0x3f9a5a, 0xf2a21a].forEach((c, i) => mesh(G.box, i % 2 ? 0xfdf6ee : c, [1.3, .08, 2.5], [-1.3 + i*1.3, 2.2, 0], g).rotation.z = (i - 1)*.08);
+  for (let i = 0; i < 3; i++) { const sx = -1.3 + i*1.3; mesh(G.box, 0x8a6a42, [1.05, .65, .6], [sx, .52, .65], g); for (let n = 0; n < 4; n++) mesh(G.sph, [0xd9443a, 0xf2c200, 0x7ac043, 0xe07a2a][(i + n) % 4], [.12, .12, .12], [sx - .3 + n*.2, .9, .65], g); }
+  const sign = new THREE.Mesh(G.plane, new THREE.MeshBasicMaterial({map:signTex('MARKET', '#3a2a1a', '#ffe9a8'), toneMapped:false})); sign.scale.set(2.2, .45, 1); sign.position.set(0, 2.65, 1.32); g.add(sign);
+  boxes.push({x0:x - 2, x1:x + 2, z0:z - 1.3, z1:z + 1.3});
+  LMK.hall[k] = g;
+  if (anim) { popIn(g); banner(`🧺 ${landName(k)} has its market!`, 'Food from its depot now reaches everyone who lives there: well fed, the land pays in full and can grow.'); }
+}
+function landMarketTile(k) {
+  const paid = (W.flags.lmPaid || {})[k] || 0, cost = landMarketCost(k);
+  return {cost:cost - paid, cur:'💵', prog:paid/cost, title:'Market'};
+}
+function payLandMarket(zn, e) {
+  const k = zn.land, cost = landMarketCost(k), fp = (W.flags.lmPaid ||= {}), paid = fp[k] || 0;
+  if (W.coins <= 0) { e.tick = .3; return; }
+  const amt = Math.min(cost - paid, W.coins, Math.max(1, Math.ceil(cost/20)));
+  W.coins -= amt; W.upSpent += amt; fp[k] = paid + amt; e.tick = .05; snd(500 + paid/cost*400, .03, 'square', .025);
+  if (fp[k] >= cost) { delete fp[k]; land(k).market = true; removeZone(zn); LMK.zone[k] = null; landMarketFx(k, true); save(); return; }
+  drawTile(zn.tc.g, '🧺', landMarketTile(k)); zn.tc.t.needsUpdate = true;
+}
+function updLandMarkets(dt) {
+  if (!started || !supplyOn() || (LMK.chk -= dt) > 0) return; LMK.chk = 1.5;
+  for (const k of landKeys()) {
+    const L = land(k);
+    if (L.lost) { if (LMK.zone[k]) { removeZone(LMK.zone[k]); LMK.zone[k] = null; } continue; }
+    if (!landMarketSpots(k)) continue;
+    if (!LMK.depot[k]) landDepotFx(k);
+    if (L.market) {
+      if (!LMK.hall[k]) landMarketFx(k, false);
+      // its people come to shop there too
+      const H = SUP.homes[k]; if (H && H.mk && !H.lmk) { const [, [x, z]] = landMarketSpots(k); H.mk.push([x, z + 1.9]); H.lmk = true; }
+      continue;
+    }
+    if (!LMK.zone[k]) { const [, [x, z]] = landMarketSpots(k); LMK.zone[k] = addZone({kind:'landMarket', land:k, x, z, w:1.6, d:1.6, icon:'🧺', tile:landMarketTile(k)}); }
+    // the first time food is waiting there with nobody to hand it out, say so
+    const stock = Object.values(landSup(k).stock).reduce((a, b) => a + b, 0);
+    if (stock >= 4 && !LMK.told[k] && !(W.flags.lmTold || {})[k]) { LMK.told[k] = true; (W.flags.lmTold ||= {})[k] = true; note(`🧺 Food is waiting in ${landName(k)}`, 'Its depot has food but no market to hand it out. Travel there and build its market (the 🧺 tile).'); }
+  }
 }
 // ------------------------------------------------------------------ the Senate: a dome on the town hall, where you send governors to your provinces
 let senateZone = null;
@@ -13966,6 +14041,32 @@ function drillPose(s, i, D, at, dt) {
   if (D.mode === 'chore' && at && (s.drillT = (s.drillT || 0) - dt) <= 0) { s.drillT = 1.5; qnAct(s.char, 'pick', 1); }
   return D.mode === 'chore' || D.mode === 'patrol';
 }
+// The guide holds its target steady: once it points at a tile it stays on that tile until the job there is done or the tile
+// goes, or something urgent comes up (the tutorial, a fire, a battle). A different target only takes over after it has
+// stayed the best choice for two seconds, so the arrow never flicks between tiles as coins and loads change.
+function steadyObjective(o, dt) {
+  const S = OBJ.steady ||= {cur:null, cand:null, t:0};
+  const valid = q => { const z = q && q.z; if (!z) return false; if (z.tree || z.logs !== undefined) return (z.logs ?? 1) > 0; return zones.includes(z) && z.active !== false && !z.locked && !(z.pad && W.unlocked.has(z.pad.id)); };
+  const urgent = W.tut < TUT.length || /^(🔥|🏗️|⚔️|✈️|⚓)/.test(o.txt || '');
+  if (!o.z || urgent || !S.cur || !valid(S.cur) || S.cur.z === o.z) { S.cur = o; S.cand = null; return o; }
+  if (S.cand !== o.z) { S.cand = o.z; S.t = 0; }
+  if ((S.t += dt) >= 2) { S.cur = o; S.cand = null; return o; }
+  return S.cur;
+}
+// when the goal is off the screen, an arrow on the screen's edge points to it, with how far it is
+function objEdge(z, d) {
+  let el = objEdge.el;
+  if (!el) { el = objEdge.el = document.createElement('div'); el.style.cssText = 'position:absolute;z-index:4;pointer-events:none;display:none;align-items:center;gap:4px;font:800 12px ui-rounded,system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000a'; el.innerHTML = '<span style="display:inline-block;font-size:26px;color:#ffd33c;text-shadow:0 1px 3px #000c">➤</span><span></span>'; stage.appendChild(el); }
+  if (!z || TRIP.on || SPACE.view) { el.style.display = 'none'; return; }
+  const W0 = stage.clientWidth, H0 = stage.clientHeight; v3.set(z.x, 1, z.z).project(camera);
+  let sx = (v3.x + 1)/2*W0, sy = (1 - v3.y)/2*H0;
+  const m = 46, on = v3.z < 1 && sx > m && sx < W0 - m && sy > m + 30 && sy < H0 - m - 50;
+  if (on) { el.style.display = 'none'; return; }
+  if (v3.z >= 1) { sx = W0 - sx; sy = H0 - sy; }   // behind the camera: flip
+  const cx = W0/2, cy = H0/2, ax = sx - cx, ay = sy - cy, k = Math.min((W0/2 - m)/Math.max(1e-3, Math.abs(ax)), (H0/2 - m - 40)/Math.max(1e-3, Math.abs(ay)));
+  el.style.display = 'flex'; el.style.left = (cx + ax*k - 14) + 'px'; el.style.top = (cy + ay*k - 14) + 'px';
+  el.firstChild.style.transform = `rotate(${Math.atan2(ay, ax)}rad)`; el.lastChild.textContent = Math.round(d) + 'm';
+}
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
 const CAMV = {i:0, list:[{n:'Classic view', d:13, h:13}, {n:'Top-down view', d:2.4, h:17}, {n:'Overview', d:20, h:20.3}]};   // lower again (was 16, 21, 25)
@@ -14036,17 +14137,17 @@ function render(dt) {
     const [x, y] = project(p.pos);
     p.el.style.left = x + 'px'; p.el.style.top = (y - p.t*60) + 'px'; p.el.style.opacity = String(1 - p.t/1.2);
   }
-  const o = started ? objective() : {txt:'', z:null};
+  const o = started ? steadyObjective(objective(), dt) : {txt:'', z:null};
   const objEl = $('obj'); if (objEl.textContent !== o.txt) objEl.textContent = o.txt;
   if (o.z) {
     const onIt = !o.z.tree && Math.abs(player.pos.x - o.z.x) < (o.z.w || 2)/2 && Math.abs(player.pos.z - o.z.z) < (o.z.d || 2)/2;
     arrow.visible = !onIt; arrow.position.set(o.z.x, 2.2 + Math.sin(time*5)*.25 + (o.z.tree ? 2.4 : 0), o.z.z);
-    // point toward the next gate when the goal is in another region
-    const way = route(player.pos, o.z.x, o.z.z)[0];
-    const dx = way[0] - player.pos.x, dz = way[1] - player.pos.z, d = Math.hypot(dx, dz) || 1;
-    pointerG.visible = Math.hypot(o.z.x - player.pos.x, o.z.z - player.pos.z) > 3.2;
+    // the pointer at your feet aims straight at the goal, wherever on the map it is
+    const dx = o.z.x - player.pos.x, dz = o.z.z - player.pos.z, d = Math.hypot(dx, dz) || 1;
+    pointerG.visible = d > 3.2;
     pointerG.position.set(player.pos.x + dx/d*1.4, .08, player.pos.z + dz/d*1.4); pointerG.rotation.y = Math.atan2(dx, dz);
-  } else { arrow.visible = false; pointerG.visible = false; }
+    objEdge(o.z, d);
+  } else { arrow.visible = false; pointerG.visible = false; objEdge(null); }
   const SZ = SEASONS[seasonIdx()];
   const nextAge = AGE_NEED[W.era + 1], rentMin = Math.round((RENT.last || 0)*3);
   const hl = `<span class="chip" title="${nextAge ? 'Next: ' + ERAS[W.era + 1] + ' · ' + nextAge[1] : 'The last age'}">${ERA_ICON[W.era]} ${ERAS[W.era]}${nextAge ? ` <small>→ ${nextAge[1]}</small>` : ''}</span>`
@@ -14498,7 +14599,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {OBJ, steadyObjective, objEdge, landAt, LMK, payLandMarket, landMarketCost, AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

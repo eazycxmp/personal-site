@@ -499,6 +499,8 @@ function entity(charOpts, x, z, speed, cap) {
   e.stack = newStack((i, it, y) => {
     const s = Math.sin(e.yaw), c = Math.cos(e.yaw), lag = i * .03;
     // held out in front in both hands (the arms are lifted forward under it), the top of a tall load swaying behind a little
+    // (you carry yours on your back, as ever, out of the way of the view)
+    if (e.isPlayer) return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
     return {x:e.pos.x + .5*s - e.svel.x*lag, y:1.05 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z + .5*c - e.svel.z*lag, ry:e.yaw};
   });
   return e;
@@ -514,8 +516,9 @@ function animEntity(e, dt) {
   const k = Math.min(1, sp / 2.5), c = e.char;
   c.legL.rotation.x = Math.sin(e.walk) * .8 * k; c.legR.rotation.x = -Math.sin(e.walk) * .8 * k;
   const carrying = e.stack.length > 0;
-  // carrying: both arms held out in front, under the load (lifted forward on top of the walk)
-  c.armL.rotation.x = carrying ? -1.1 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -1.1 : Math.sin(e.walk) * .7 * k;
+  // carrying: both arms held out in front, under the load (lifted forward on top of the walk); you carry on your back
+  const hold = e.isPlayer ? -.5 : -1.1;
+  c.armL.rotation.x = carrying ? hold : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? hold : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
   c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > -49.4 && e.pos.x < -40.6 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
 }

@@ -188,6 +188,32 @@ function drillPose(s, i, D, at, dt) {
   if (D.mode === 'chore' && at && (s.drillT = (s.drillT || 0) - dt) <= 0) { s.drillT = 1.5; qnAct(s.char, 'pick', 1); }
   return D.mode === 'chore' || D.mode === 'patrol';
 }
+// The guide holds its target steady: once it points at a tile it stays on that tile until the job there is done or the tile
+// goes, or something urgent comes up (the tutorial, a fire, a battle). A different target only takes over after it has
+// stayed the best choice for two seconds, so the arrow never flicks between tiles as coins and loads change.
+function steadyObjective(o, dt) {
+  const S = OBJ.steady ||= {cur:null, cand:null, t:0};
+  const valid = q => { const z = q && q.z; if (!z) return false; if (z.tree || z.logs !== undefined) return (z.logs ?? 1) > 0; return zones.includes(z) && z.active !== false && !z.locked && !(z.pad && W.unlocked.has(z.pad.id)); };
+  const urgent = W.tut < TUT.length || /^(🔥|🏗️|⚔️|✈️|⚓)/.test(o.txt || '');
+  if (!o.z || urgent || !S.cur || !valid(S.cur) || S.cur.z === o.z) { S.cur = o; S.cand = null; return o; }
+  if (S.cand !== o.z) { S.cand = o.z; S.t = 0; }
+  if ((S.t += dt) >= 2) { S.cur = o; S.cand = null; return o; }
+  return S.cur;
+}
+// when the goal is off the screen, an arrow on the screen's edge points to it, with how far it is
+function objEdge(z, d) {
+  let el = objEdge.el;
+  if (!el) { el = objEdge.el = document.createElement('div'); el.style.cssText = 'position:absolute;z-index:4;pointer-events:none;display:none;align-items:center;gap:4px;font:800 12px ui-rounded,system-ui,sans-serif;color:#fff;text-shadow:0 1px 2px #000a'; el.innerHTML = '<span style="display:inline-block;font-size:26px;color:#ffd33c;text-shadow:0 1px 3px #000c">➤</span><span></span>'; stage.appendChild(el); }
+  if (!z || TRIP.on || SPACE.view) { el.style.display = 'none'; return; }
+  const W0 = stage.clientWidth, H0 = stage.clientHeight; v3.set(z.x, 1, z.z).project(camera);
+  let sx = (v3.x + 1)/2*W0, sy = (1 - v3.y)/2*H0;
+  const m = 46, on = v3.z < 1 && sx > m && sx < W0 - m && sy > m + 30 && sy < H0 - m - 50;
+  if (on) { el.style.display = 'none'; return; }
+  if (v3.z >= 1) { sx = W0 - sx; sy = H0 - sy; }   // behind the camera: flip
+  const cx = W0/2, cy = H0/2, ax = sx - cx, ay = sy - cy, k = Math.min((W0/2 - m)/Math.max(1e-3, Math.abs(ax)), (H0/2 - m - 40)/Math.max(1e-3, Math.abs(ay)));
+  el.style.display = 'flex'; el.style.left = (cx + ax*k - 14) + 'px'; el.style.top = (cy + ay*k - 14) + 'px';
+  el.firstChild.style.transform = `rotate(${Math.atan2(ay, ax)}rad)`; el.lastChild.textContent = Math.round(d) + 'm';
+}
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
 const CAMV = {i:0, list:[{n:'Classic view', d:13, h:13}, {n:'Top-down view', d:2.4, h:17}, {n:'Overview', d:20, h:20.3}]};   // lower again (was 16, 21, 25)
@@ -258,17 +284,17 @@ function render(dt) {
     const [x, y] = project(p.pos);
     p.el.style.left = x + 'px'; p.el.style.top = (y - p.t*60) + 'px'; p.el.style.opacity = String(1 - p.t/1.2);
   }
-  const o = started ? objective() : {txt:'', z:null};
+  const o = started ? steadyObjective(objective(), dt) : {txt:'', z:null};
   const objEl = $('obj'); if (objEl.textContent !== o.txt) objEl.textContent = o.txt;
   if (o.z) {
     const onIt = !o.z.tree && Math.abs(player.pos.x - o.z.x) < (o.z.w || 2)/2 && Math.abs(player.pos.z - o.z.z) < (o.z.d || 2)/2;
     arrow.visible = !onIt; arrow.position.set(o.z.x, 2.2 + Math.sin(time*5)*.25 + (o.z.tree ? 2.4 : 0), o.z.z);
-    // point toward the next gate when the goal is in another region
-    const way = route(player.pos, o.z.x, o.z.z)[0];
-    const dx = way[0] - player.pos.x, dz = way[1] - player.pos.z, d = Math.hypot(dx, dz) || 1;
-    pointerG.visible = Math.hypot(o.z.x - player.pos.x, o.z.z - player.pos.z) > 3.2;
+    // the pointer at your feet aims straight at the goal, wherever on the map it is
+    const dx = o.z.x - player.pos.x, dz = o.z.z - player.pos.z, d = Math.hypot(dx, dz) || 1;
+    pointerG.visible = d > 3.2;
     pointerG.position.set(player.pos.x + dx/d*1.4, .08, player.pos.z + dz/d*1.4); pointerG.rotation.y = Math.atan2(dx, dz);
-  } else { arrow.visible = false; pointerG.visible = false; }
+    objEdge(o.z, d);
+  } else { arrow.visible = false; pointerG.visible = false; objEdge(null); }
   const SZ = SEASONS[seasonIdx()];
   const nextAge = AGE_NEED[W.era + 1], rentMin = Math.round((RENT.last || 0)*3);
   const hl = `<span class="chip" title="${nextAge ? 'Next: ' + ERAS[W.era + 1] + ' · ' + nextAge[1] : 'The last age'}">${ERA_ICON[W.era]} ${ERAS[W.era]}${nextAge ? ` <small>→ ${nextAge[1]}</small>` : ''}</span>`

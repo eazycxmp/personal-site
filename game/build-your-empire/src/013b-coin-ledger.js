@@ -7,7 +7,7 @@ const SPEND_WHY = {
   payPad:'🏗️ Building', payUpgrade:'⬆️ Upgrading buildings', placeDecor:'🌳 Decorations', updMarket:"📈 Brokers' auto-invest", invest:'📈 Invested in the fund',
   payGas:'⛽ Gas station', payRebuild:'🔨 Rebuilding burned buildings', paySenate:'🏛️ The senate', payFix:'🔧 Repairs in your lands', playSlots:'🎰 The slots',
   payRecruit:'🪖 Recruiting soldiers', growLand:'🏙️ Growing a land', sendGovernor:'👑 Sending a governor', sendScouts:'🔭 Scouts', empAct:'🤝 Gifts and peace deals',
-  sendSpy:'🕵️ Spies', foodMarketBuy:'🧺 Food market (feeding your lands)', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
+  sendSpy:'🕵️ Spies', foodMarketBuy:'🧺 Wholesaler (food for your lands)', payLandMarket:'🧺 Building a land\'s market', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
 };
 const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'spend', 'Error']);
 function whySpent() {
