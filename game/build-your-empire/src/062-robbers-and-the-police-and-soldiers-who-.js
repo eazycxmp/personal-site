@@ -32,7 +32,7 @@ function updRobber(dt) {
       e.state = 'out'; e.speed = 4.8;
     }
   } else if (e.state === 'out') {
-    if (moveTo(e, 54, 1.6, dt) || e.pos.x > 61) { endRobbery(false); return; }
+    if (moveTo(e, 64, 1.6, dt) || e.pos.x > 61) { endRobbery(false); return; }
   } else if (e.state === 'caught') {
     e.vel.set(0, 0, 0); e.char.armL.rotation.x = e.char.armR.rotation.x = -2.9;
     if ((e.t -= dt) <= 0) { endRobbery(true); return; }

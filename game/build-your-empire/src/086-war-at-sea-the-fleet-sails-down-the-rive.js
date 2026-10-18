@@ -5,13 +5,14 @@ function startSea() {
   fortReset(f);
   const war = boats.find(b => b.kind === 'war');
   if (war) { war.inFleet = true; war.lane = -13.6; war.home = -4.6; addCrew(war); }
-  [[-15.2, -8.8], [-12, -8.8]].forEach(([x, z]) => { const b = makeBoat('troop'); b.x = x; b.z = z; b.inFleet = true; b.temp = true; b.lane = x; b.home = z; addCrew(b); });
+  [[-15.2, -8.8], [-12, -8.8]].forEach(([x, z]) => { const b = escortBoat(); b.x = x; b.z = z; b.inFleet = true; b.temp = true; b.lane = x; b.home = z; addCrew(b); });
   fleet().forEach((b, k) => { b.ax = S.x - 5 + k*5; b.az = -96.6 - (k % 2)*.9; });
   [-1, 1].forEach(s => { const p = makePirate(S.x + s*7, -94); p.hp = 3; pirates.push(p); });
 }
 function updSea(dt) {
   const C = W.camp;
   if (!C || C.type !== 'sea') { if (pirates.length && !C) { pirates.forEach(p => scene.remove(p.g)); pirates.length = 0; } return; }
+  if (C.naval) { updNaval(dt); return; }
   const e = C.dur - C.t, ease = u => u < 0 ? 0 : u > 1 ? 1 : u*u*(3 - 2*u), win = C.win !== false, f = COAST.cur, MZ = -93.2, stop = win ? 35 : 30;
   for (const b of fleet()) {
     let x = b.lane, z = b.home, yaw = Math.PI;
@@ -58,6 +59,7 @@ function endSea() {
     else { b.state = 'dock'; b.z = b.home; }
   }
   pirates.forEach(p => scene.remove(p.g)); pirates.length = 0;
+  if (C.naval) endNaval();
   if (f && C.win !== false) {
     (W.flags.coast ||= {})[f.id] = 1;
     // the fort is rebuilt under your flag

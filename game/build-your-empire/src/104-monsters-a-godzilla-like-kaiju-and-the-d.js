@@ -11,7 +11,7 @@ function kaijuModel() {
 }
 // what you can throw at it, and how hard each hits per second
 function bossForces() {
-  const troop = 1 + .15*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.5 : 1;
+  const troop = 1 + .15*(W.troop || 0), guns = WEP_BOSS[wepLvl()];
   return {
     soldiers:(Math.min(24, W.army) + 2*Math.sqrt(Math.max(0, W.army - 24))) * .07 * troop * guns,
     tanks:W.unlocked.has('tanks') ? 3 * 1.4 : 0,

@@ -14,7 +14,12 @@ function strike(a, t, ranged, dmg) {
   a.swing = .3; if (!ranged && a.char) qnAct(a.char, 'swing', .75, true);
   const from = new THREE.Vector3(a.pos.x, 1.2, a.pos.z), to = new THREE.Vector3(t.pos.x, 1.1, t.pos.z);
   const hit = R() < (ranged ? .55 : .78);
-  if (ranged) {
+  if (ranged === 'bow') {
+    // an arrow arcs over to the target
+    const m = new THREE.Mesh(G.cyl, mat(0x3a2a1a)); m.scale.set(.03, .5, .03); m.rotation.x = Math.PI/2; m.position.copy(from); scene.add(m);
+    flyers.push({m, from, to:hit ? to : to.clone().add(new THREE.Vector3((R() - .5)*2, -1, (R() - .5)*2)), t:0, dur:.55, arc:1.4});
+    if (BT.snd <= 0) { BT.snd = .08; snd(620 + R()*120, .12, 'triangle', .02, -.5); }
+  } else if (ranged) {
     const dir = to.clone().sub(from).normalize(), muzzle = from.clone().addScaledVector(dir, .7);
     particle(0xffe08a, muzzle, dir.clone().multiplyScalar(2), .08, .14);
     particle(0xdddddd, muzzle, new THREE.Vector3(0, .6, 0).addScaledVector(dir, .6), .9, .14, {grow:.5, op:.45});
@@ -57,7 +62,7 @@ function healthBar(e) {
 // one of your soldiers in the fight: charge and duel, or hold the line and fire
 function battleSoldier(s, i, dt) {
   if (s.hp === undefined || s.battle !== BT.id) { s.battle = BT.id; s.maxHp = s.hp = 5 + (W.troop || 0); s.down = false; s.fall = 0; s.cd = R()*.8; s.fought = true; s.target = null; }
-  const guns = W.unlocked.has('guns'), alive = enemies.filter(e => e.alive);
+  const w = wepLvl(), guns = w >= 1, alive = enemies.filter(e => e.alive);
   s.vel.set(0, 0, 0); s.speed = 3.6;
   if (!s.down) {
     // at most three on any one enemy (with guns, any number can shoot): the rest hold the line until a foe is free
@@ -70,13 +75,15 @@ function battleSoldier(s, i, dt) {
       const n = nearest(s, alive); if (n) s.yaw = Math.atan2(n.pos.x - s.pos.x, n.pos.z - s.pos.z);
     }
     if (t) {
-      const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z), melee = d < 1.15, reach = guns ? 9 : .95;
+      const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z), melee = d < 1.15, reach = guns ? (w === 1 ? 7.5 : 9) : .95;
       if (!guns && d > reach) { moveTo(s, t.pos.x, t.pos.z, dt); collideFighters(s, soldiers); }
       s.yaw = Math.atan2(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
       if ((s.cd -= dt) <= 0 && d <= reach + .1) {
+        // archers loose slowly, riflemen quickly, semi-automatics in bursts of three
         const ranged = guns && !melee;
-        s.cd = ranged ? 1 + R()*.7 : .75 + R()*.4;
-        strike(s, t, ranged, ranged ? 1.3 + (W.troop >= 5 ? .8 : 0) : .9 + (W.troop || 0)*.2);
+        if (ranged && w >= 4) { s.burst = (s.burst || 0) + 1; s.cd = s.burst % 3 ? .13 : .9 + R()*.5; }
+        else s.cd = ranged ? (w === 1 ? 1.5 : w >= 3 ? .75 : 1) + R()*.6 : .75 + R()*.4;
+        strike(s, t, ranged ? (w === 1 ? 'bow' : true) : false, ranged ? [0, 1.1, 1.3, 1.6, 1][w] + (W.troop >= 5 ? .8 : 0) : .9 + (W.troop || 0)*.2);
       }
     }
   }
@@ -98,6 +105,8 @@ function cheer(s, dt, i) {
   s.char.g.position.y = j*.35; s.char.armR.rotation.x = s.char.armL.rotation.x = -2.8 + j*.3;
   s.char.g.rotation.y = s.yaw = 0;
 }
+// clear the field a moment after the fight, unless a new battle has started on it meanwhile
+function endBattleLater() { const id = BT.id; setTimeout(() => { if (BT.id !== id) return; endBattle(); BT.lose = BT.noCap = false; }, 2500); }
 function endBattle() {
   if (!W.camp || !W.camp.away) { BF.x = BF_HOME.x; BF.z = BF_HOME.z; }
   for (const e of enemies) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); }
@@ -107,8 +116,8 @@ function endBattle() {
 // soldiers walk a corridor past the mess table instead of through it
 function soldierGo(s, tx, tz, dt) {
   const goingOut = tz > 78 && s.pos.z < 78.5, goingHome = tz < 72 && s.pos.z > 72.5;
-  if (goingOut) { if (s.pos.z < 72.3) return moveTo(s, 5.2, 60.5, dt) && false; return moveTo(s, 5.2, 67, dt) && false; }
-  if (goingHome && s.pos.z > 78.5) return moveTo(s, 5.2, 67, dt) && false;
+  if (goingOut) { if (s.pos.z < 72.3) return moveTo(s, 5.2, 72.5, dt) && false; return moveTo(s, 5.2, 79, dt) && false; }
+  if (goingHome && s.pos.z > 78.5) return moveTo(s, 5.2, 79, dt) && false;
   if (goingHome) return moveTo(s, 5.2, 72.5, dt) && false;
   return moveTo(s, tx, tz, dt);
 }

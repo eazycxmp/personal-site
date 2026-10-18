@@ -37,6 +37,12 @@ function warshipLook(g, lvl) {
     for (const [x, z] of [[-.4, 1.6], [-.35, .4], [-.4, -2]]) { const j = model('fighter', 1.15, 'x'); if (j) { j.position.set(x, .82, z); j.rotation.y = Math.PI; g.add(j); } }
   }
 }
+// an escort for the fleet: the troop galleon early on, then ships of your navy's own age
+function escortBoat() {
+  const b = makeBoat('troop');
+  if (navLvl() >= 2) { for (const o of [...b.g.children]) if (!o.userData.sailor) b.g.remove(o); warshipLook(b.g, navLvl() >= 4 ? 3 : navLvl()); for (const o of b.g.children) if (o.userData.sailor) { o.position.set(0, .62, -1.3); o.scale.setScalar(.55); } }
+  return b;
+}
 // rebuild your warship in the new style (its sailor stays aboard)
 function navyStage(n, anim) {
   const b = boats.find(q => q.kind === 'war'); if (!b) return;

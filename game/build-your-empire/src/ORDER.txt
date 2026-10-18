@@ -31,6 +31,7 @@
 030-the-battlefield-south-of-the-military-gr.js
 030b-tribes-out-east.js
 031-a-real-fight-health-duels-volleys-knockb.js
+031b-epic-battles.js
 032-war-at-sea.js
 033-war-in-the-air.js
 034-goals.js
@@ -41,6 +42,7 @@
 039-save.js
 040-guns.js
 040b-cavalry.js
+040c-weapons.js
 041-castles-a-wooden-fort-a-stone-castle-a-m.js
 042-water-and-sewers-from-a-pit-by-the-river.js
 043-bridges-over-the-river-wood-to-steel-cab.js
@@ -88,6 +90,7 @@
 084-space-mining-an-asteroid-belt-a-moon-hot.js
 085-the-coast-the-river-runs-into-the-sea-wi.js
 086-war-at-sea-the-fleet-sails-down-the-rive.js
+086b-naval-battles.js
 087-rival-empires-they-build-out-like-you-tr.js
 088-rival-towns-that-grow-in-place.js
 089-rival-cities-planned-growing-each-in-its.js
@@ -120,6 +123,7 @@
 114-the-speed-boat.js
 115-the-moon-walk-it-yourself-in-a-suit-unde.js
 116-graphics-sky-light-water-clouds-grass-an.js
+116b-flags-and-rival-wars.js
 117-main-loop.js
 118-graphics-static-batching.js
 118b-settings-and-tutorial.js

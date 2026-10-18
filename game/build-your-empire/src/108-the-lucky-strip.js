@@ -3,7 +3,7 @@
 // and the resorts on big lots with room round them (28 apart), four to a side. The walk in from the park comes
 // down between the third and fourth lots on the north side.
 const STRIP_Z = 120, STRIP_X0 = -135, STRIP_X1 = -23, STRIP_HALF = 8.7;
-const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-34, x1:-28, z0:79, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-25.6, x1:-19.3, z0:42.5, z1:45.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
+const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-34, x1:-28, z0:79, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-34, x1:-28, z0:79, z1:82}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
 // lot centres: four on the north side (facing south onto the boulevard), four on the south side (facing north)
 const STRIP_N = STRIP_Z - STRIP_HALF - 6, STRIP_S = STRIP_Z + STRIP_HALF + 6;
 const STRIP_LOTS = {slots:[-123, STRIP_N], casino1:[-95, STRIP_N], casino2:[-67, STRIP_N], casino3:[-37, STRIP_N], chapel:[-123, STRIP_S], fountains:[-95, STRIP_S], stripHotel:[-67, STRIP_S], casino4:[-37, STRIP_S]};

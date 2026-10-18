@@ -127,7 +127,7 @@ const CAMPAIGNS = [
 ];
 const campType = c => c.planes ? 'air' : c.ships ? 'sea' : 'land';
 const planesBuilt = () => count(['plane1', 'plane2', 'plane3', 'plane4', 'plane5']);
-const campNeed = c => Math.ceil(c.army * BOOST.tactics * (W.unlocked.has('guns') ? .8 : 1) * (1 - .04*Math.min(3, W.troop || 0) - (W.troop >= 5 ? .1 : 0)));
+const campNeed = c => Math.ceil(c.army * BOOST.tactics * WEP_NEED[wepLvl()] * (1 - .04*Math.min(3, W.troop || 0) - (W.troop >= 5 ? .1 : 0)));
 const campReward = c => Math.round(c.reward * (W.unlocked.has('guns') ? 1.5 : 1));
 let warZone = null;
 function warTile() {
@@ -177,7 +177,8 @@ function launchCamp(c, branch) {
   if (W.camp || W.raid) return;
   const goal = campType(c), site = c.ci === 4 || W.conquests === 4 ? 'empire' : 'cove';
   const type = branch === 'air' ? 'air' : branch === 'navy' || goal === 'sea' ? 'sea' : 'land';
-  const at = goal === 'air' ? AIR_TARGETS[c.target] : goal === 'sea' ? [COAST.sites[site].x, COAST.z] : [BF.x, BF.z + 4];
+  // planes sent against a tribe fly to the tribe's own camp
+  const ts = goal === 'land' && TRIBE_SITES[W.conquests], at = goal === 'air' ? AIR_TARGETS[c.target] : goal === 'sea' ? [COAST.sites[site].x, COAST.z] : ts && type === 'air' ? [ts[0], ts[1] + 4] : [BF.x, BF.z + 4];
   const n = type === 'air' ? planesBuilt() : 0, dur = {land:30, sea:44, air:42 + .7*Math.max(0, n - 1)}[type];
   W.camp = {t:dur, dur, type, goal, branch, ships:type === 'sea', ci:W.conquests, tx:at[0], tz:at[1], n};
   // a tribe with its own place: the army marches out to it and fights there
@@ -196,8 +197,8 @@ function updWar(dt) {
   const c = CAMPAIGNS[W.conquests];
   const type = W.camp.type, goal = W.camp.goal || type;
   const was = W.camp; W.camp = null; W.conquests++;
-  if (was.away) { for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
-  if (type === 'land') setTimeout(endBattle, 2500);
+  if (was.away) { if (armyGoes(was)) for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
+  if (type === 'land') endBattleLater();
   if (goal === 'land') outpost(W.conquests - 1, true);
   if (type === 'sea' || goal === 'sea') endSea();
   if (goal === 'air') endAir(c);

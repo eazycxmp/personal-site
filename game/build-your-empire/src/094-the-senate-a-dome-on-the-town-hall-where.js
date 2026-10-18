@@ -58,11 +58,13 @@ function empireHTML() {
     const busy = !!(W.camp || W.raid), fleetOk = r.sea && W.unlocked.has('tradeShip') && (s.fleetT || 0) <= W.playT;
     let btns = '';
     if (s.owned) btns = '<em>🏴 Part of your empire</em>';
+    else if (s.by) { const o = EMP.list.find(q => q.id === s.by), F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
+      btns = `<em>🏴 Held by ${o.icon} ${o.n}</em>` + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>🏴 Liberate</button>`); }
     else if (s.stance === 'ally') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('unally', '💔 Break');
     else if (s.stance === 'peace') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + B('ally', '🤝 Ally', s.rel < 60) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('war', '⚔️ War', busy);
     else { const F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
       btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>⚔️ Plan attack</button>`); }
-    return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
+    return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.by ? '<i>occupied</i>' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
       <div class="rel"><i style="width:${(s.rel + 100)/2}%"></i></div><div class="eb">${btns}</div></div>`;
   }).join('');
   const lands = landKeys().map(k => { const L = land(k);

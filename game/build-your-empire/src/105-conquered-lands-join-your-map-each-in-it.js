@@ -1,9 +1,9 @@
 // ------------------------------------------------------------------ conquered lands join your map, each in its own style
 const STYLE_SPOTS = {
-  austria:{n:'Ostberg', flag:'🇦🇹', rect:{x0:-9, x1:14, z0:99, z1:110.5}, centre:[2.5, 104.5]},
-  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:34, x1:48.5, z0:98, z1:109.5}, centre:[41.2, 103.8]},
+  austria:{n:'Ostberg', flag:'🏰', rect:{x0:-9, x1:14, z0:99, z1:110.5}, centre:[2.5, 104.5]},
+  canada:{n:'the Northern Frontier', flag:'🌲', rect:{x0:34, x1:48.5, z0:98, z1:109.5}, centre:[41.2, 103.8]},
   mideast:{n:'Pirate cove', flag:'🕌', site:'cove'}, russia:{n:'The old empire', flag:'⛪', site:'empire'},
-  brazil:{n:'Port Azul', flag:'🇧🇷'}, china:{n:'Kumo', flag:'🏯'}, egypt:{n:'the Nile Kingdom', flag:'🐪'}, greece:{n:'Hellas', flag:'🏛️'},
+  brazil:{n:'Port Azul', flag:'⚓'}, china:{n:'Kumo', flag:'🏯'}, egypt:{n:'the Nile Kingdom', flag:'🐪'}, greece:{n:'Hellas', flag:'🏛️'},
   mexico:{n:'Aztlan', flag:'🌵'}, india:{n:'Rajpur', flag:'🐘'}, norway:{n:'the Sky Citadel', flag:'🛸'}};
 // every rival's land: a rectangle round its town (the road runs through the ones on the roads)
 for (const r of EMP.list) if (r.at && STYLE_SPOTS[r.style] && r.id !== 'ostberg') { const [x, z] = r.at; Object.assign(STYLE_SPOTS[r.style], {centre:[x, z], rect:{x0:x - 15, x1:x + 15, z0:z - 15, z1:z + 13}}); }

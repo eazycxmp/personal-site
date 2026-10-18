@@ -172,6 +172,7 @@ function makeQN(o) {
   if (o.apron && !FIT) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
   if (dress && !FIT) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
   if (o.gun) c.gun = rifle(armR, o.scope);
+  if (o.auto) magazine(c.gun); if (o.bow) c.bow = bowProp(armL);
   if (o.sword) mesh(G.box, 0xe4e8ee, [.04, .6, .08], [0, -.85, .1], armR, {metalness:.7, roughness:.25});
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.025, .65, .025], [0, -.85, .08], armR); mesh(G.box, 0x9aa0a8, [.035, .17, .15], [0, -1.12, .14], armR, {metalness:.6}); }
   if (o.shield) { const sh = mesh(G.cyl, o.shield === 'round' ? 0x8a5a2b : o.trim || 0xb8322a, [.28, .04, .28], [-.08, -.45, .14], armL); sh.rotation.z = Math.PI/2; }
@@ -383,6 +384,7 @@ function makeChar(o) {
     if (o.glow) { c.halo = new THREE.Mesh(new THREE.TorusGeometry(.3, .025, 6, 32), new THREE.MeshBasicMaterial({color:0x8fe8ff, toneMapped:false})); c.halo.rotation.x = Math.PI/2.2; c.halo.position.y = 2.42; g.add(c.halo); }
   }
   if (o.gun) c.gun = rifle(armR, o.scope);
+  if (o.auto) magazine(c.gun); if (o.bow) c.bow = bowProp(armL);
   if (o.hero || o.rod) {
     // rod held out over the water, with a line and bobber hanging straight down
     c.rod = new THREE.Group(); c.rod.position.set(.36, 1.0, .25); c.rod.rotation.x = .9; c.rod.visible = false; g.add(c.rod);

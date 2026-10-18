@@ -8,7 +8,7 @@ const TROOPS = [
   {n:'Redcoats', o:{body:0xc8302a, trim:0xf4f4f4, hat:'tricorne', pants:0xf0ece0, gun:true, belts:true}},
   {n:'Special forces', o:{body:0x5a6448, trim:0x2a2e26, hat:'tactical', pants:0x4e5640, gun:true, scope:true, vest:true}},
 ];
-const ARMS = () => TROOPS[W.troop || 0].o;
+const ARMS = () => armed(TROOPS[W.troop || 0].o);
 const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower', 'Space Empire', 'Interplanetary'];
 const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀', '🪐', '🔴'];
 const ERA_TXT = ['', 'Word is spreading. More hungry travelers are coming.', 'Word is spreading. More hungry travelers are coming.',

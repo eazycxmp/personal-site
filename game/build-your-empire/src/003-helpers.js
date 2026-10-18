@@ -147,7 +147,24 @@ function slab(color, w, d, x, z, top = 0, h = .26) {
   const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = phDress(new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])}), color, w, d); SLAB_TOPS.push(topM);
   const m = new THREE.Mesh(G.box, [side, side, topM, side, side, side]);
   m.scale.set(w, h, d); m.position.set(x, top - h/2, z); m.receiveShadow = true; m.castShadow = false;
-  scene.add(m); return m;
+  scene.add(m); slabBank(c, w, d, x, z, top); return m;
+}
+// a bank of earth round every slab: from its top edge it slopes down and out to the grass, the ground's colour fading
+// into the grass, so a field or yard looks dug into the land rather than cut out of card
+const BANK_GRASS = new THREE.Color(0x56702f);
+let BANK_MAT = null;   // made on first use: the ground's own grain texture, tinted by the bank's colours
+function slabBank(c, w, d, x, z, top) {
+  const out = .9, y0 = top - .002, y1 = -.255, x0 = x - w/2, x1 = x + w/2, z0 = z - d/2, z1 = z + d/2;
+  const inner = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], outer = [[x0 - out, z0 - out], [x1 + out, z0 - out], [x1 + out, z1 + out], [x0 - out, z1 + out]];
+  const top_ = c.clone().multiplyScalar(.82), mid = c.clone().multiplyScalar(.7).lerp(BANK_GRASS, .5), pos = [], col = [];
+  // two rings of quads (the upper half of the slope still earth, the lower half going over to grass) so the fade reads
+  const ring = (A, B, ya, yb, ca, cb) => { for (let i = 0; i < 4; i++) { const j = (i + 1) % 4, q = [[A[i], ya, ca], [B[j], yb, cb], [B[i], yb, cb], [A[i], ya, ca], [A[j], ya, ca], [B[j], yb, cb]]; for (const [[px, pz], py, cc] of q) { pos.push(px, py, pz); col.push(cc.r, cc.g, cc.b); } } };
+  const midR = inner.map(([px, pz], i) => [(px + outer[i][0])/2, (pz + outer[i][1])/2]);
+  ring(inner, midR, y0, (y0 + y1)/2 - .03, top_, mid); ring(midR, outer, (y0 + y1)/2 - .03, y1, mid, BANK_GRASS);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const uv = []; for (let i = 0; i < pos.length; i += 3) uv.push(pos[i]/5, pos[i + 2]/5); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  BANK_MAT ||= new THREE.MeshStandardMaterial({vertexColors:true, roughness:1, map:groundTex.base ? texClone(groundTex.base) : null});
+  const b = new THREE.Mesh(g, BANK_MAT); b.receiveShadow = true; scene.add(b); return b;
 }
 function ground(color, w, d, x, z, y = 0.01) {
   const m = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({color, roughness:1}));

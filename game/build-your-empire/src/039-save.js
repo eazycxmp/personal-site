@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------ save
 // slot 1 keeps the original key so older saves are found where they always were
 const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
-const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 4, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 5, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
 try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
@@ -48,6 +48,8 @@ const REDESIGN = (() => {
   return {warp};
 })();
 const MIGRATE = {
+  // weapons became their own line (swords, bows, muskets, rifles, semi-automatics): an army with muskets already had bows
+  4: s => { if ((s.unlocked || []).includes('guns') && !s.unlocked.includes('bows')) s.unlocked.splice(s.unlocked.indexOf('guns'), 0, 'bows'); return s; },
   // the map redesign: the parks, statues and rides you placed move with their district
   3: s => { for (const d of s.decor || []) if (typeof d.x === 'number' && typeof d.z === 'number') [d.x, d.z] = REDESIGN.warp(d.x, d.z); return s; },
   // military technology is bought with cash now (planes, troops, castles, the hangar and warship were materials that

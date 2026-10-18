@@ -119,7 +119,10 @@ const PADS = [
   {id:'troop1', x:-8.6, z:69, cost:5000, cur:'coin', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
   {id:'troop2', x:-8.6, z:69, cost:8000, cur:'coin', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
   {id:'troop3', x:-8.6, z:69, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
-  {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
+  {id:'bows', x:-1.2, z:64.3, cost:3000, cur:'coin', icon:'🏹', label:'Bows and arrows', after:['barracks'], region:'south'},
+  {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['bows', 'troop3', 'workshop'], region:'south'},
+  {id:'rifles', x:-1.2, z:64.3, cost:40000, cur:'coin', icon:'🎯', label:'Rifles', after:['guns', 'steamTrain'], region:'south'},
+  {id:'semiAuto', x:-1.2, z:64.3, cost:90000, cur:'coin', icon:'💥', label:'Semi-automatic rifles', after:['rifles', 'labs'], region:'south'},
   {id:'troop5', x:-8.6, z:69, cost:150000, cur:'coin', icon:'🎖️', label:'Special forces', after:['guns', 'labs'], region:'south'},
   {id:'cav1', x:9.6, z:57.8, cost:4000, cur:'coin', icon:'🐎', label:'Cavalry', after:['barracks'], region:'south'},
   {id:'cav2', x:9.6, z:57.8, cost:9000, cur:'coin', icon:'🏇', label:'Lancers', after:['cav1', 'troop3'], region:'south'},
@@ -432,6 +435,7 @@ const UNLOCK = {
     gunRack(a);
     if (a) banner('🔫 Redcoats with muskets!', 'The blacksmith makes muskets now. Campaigns need fewer soldiers and pay 50% more.');
   },
+  bows(a) { weaponStage(1, a); }, rifles(a) { weaponStage(3, a); }, semiAuto(a) { weaponStage(4, a); },
   water1(a) { waterStage(1, a); }, water2(a) { waterStage(2, a); }, water3(a) { waterStage(3, a); }, water4(a) { waterStage(4, a); }, water5(a) { waterStage(5, a); },
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },
   airport(a) { terminalFx(a); makeCash('airport', -38.1, .9); makeJet(false, 'pax', 0); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },

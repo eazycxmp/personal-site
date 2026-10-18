@@ -42,7 +42,99 @@ function cavStage(n, anim) {
 function updCavalry(dt) {
   const P = PADDOCK; if (!P.rides.length) return;
   // the riders leave the paddock while they are away at war
-  const away = !!(W.camp && W.camp.branch === 'cav') || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
+  const away = CHARGE.riders.length > 0 || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
   const near = camera.position.distanceToSquared(new THREE.Vector3((P.x0 + P.x1)/2, 0, (P.z0 + P.z1)/2)) < 70*70;
   for (const r of P.rides) { r.g.visible = !away; if (!away && near) horseGait(r.H, dt, 0); }
+}
+// ------------------------------------------------------------------ the charge: your cavalry (or tanks) ride out to a land battle and fight it
+// Who goes to a land battle: the army unless you sent only other branches; the cavalry when you sent it.
+const armyGoes = C => !!C && (C.br ? C.br.includes('army') : C.branch ? C.branch === 'army' : true);
+const cavGoes = C => !!C && C.type === 'land' && (C.br ? C.br.includes('cav') : C.branch === 'cav');
+const CHARGE = {riders:[], id:null, back:null};
+function chargeStart(C) {
+  chargeClear();
+  C.id ||= Math.random(); CHARGE.id = C.id; CHARGE.back = null;
+  const tanks = W.unlocked.has('tanks'), n = tanks ? 3 : cavLvl() + 2, Cv = CAV[Math.max(1, cavLvl())], P = PADDOCK;
+  // out of the paddock, down the corridor past the mess, onto the field; or the long march to a faraway battlefield
+  CHARGE.path = C.away ? (C.path || []).map(p => [...p]) : [[(P.x0 + P.x1)/2, P.z1 + 1.5], [5.2, 60.5], [5.2, 67], [5.2, 79]];
+  for (let i = 0; i < n; i++) {
+    const g = new THREE.Group(); scene.add(g);
+    const r = {g, i, n, tank:tanks, pos:new THREE.Vector3(), vel:new THREE.Vector3(), yaw:0, hp:99, maxHp:99, pi:0, mode:'ride', cd:R(), sp:0};
+    if (tanks) { const t = model('tank', 2.4, 'z'); if (t) g.add(t); }
+    else {
+      r.H = horseModel(HORSE.s, [1, .72, 1.15, .85, .6][i]); if (r.H) { r.H.g.position.z = HORSE.z; g.add(r.H.g); }
+      saddleOn(g); r.char = makeChar(Cv.o); r.char.ride = 'horse'; g.add(r.char.g); r.char.g.position.y = HORSE.ride;
+      if (Cv.lance) { r.lance = mesh(G.cyl, 0x8a6a42, [.04, 2.6, .04], [.32, HORSE.ride + 1.2, .2], g); r.lance.rotation.x = .25; }
+    }
+    const [sx, sz] = CHARGE.path[0] || [BF.x, BF.z - 30];
+    r.pos.set(sx + (i - (n - 1)/2)*1.6, 0, sz - (C.away ? i*1.4 : 0)); g.position.copy(r.pos);
+    CHARGE.riders.push(r);
+  }
+}
+function chargeClear() { for (const r of CHARGE.riders) { scene.remove(r.g); if (r.bar) scene.remove(r.bar); } CHARGE.riders = []; CHARGE.id = null; }
+// move toward a point at a gallop, turning like a horse (not on the spot); true when there
+function ride(r, tx, tz, sp, dt) {
+  const dx = tx - r.pos.x, dz = tz - r.pos.z, d = Math.hypot(dx, dz);
+  if (d < .3) { r.sp += (0 - r.sp)*Math.min(1, dt*4); return true; }
+  let a = Math.atan2(dx, dz) - r.yaw; a = Math.atan2(Math.sin(a), Math.cos(a));
+  r.yaw += clamp(a, -dt*(r.tank ? 1.6 : 3.2), dt*(r.tank ? 1.6 : 3.2));
+  const want = Math.abs(a) > 1.2 ? sp*.4 : Math.min(sp, d*2.5);
+  r.sp += (want - r.sp)*Math.min(1, dt*(r.tank ? 1.5 : 3));
+  r.pos.x += Math.sin(r.yaw)*r.sp*dt; r.pos.z += Math.cos(r.yaw)*r.sp*dt;
+  return false;
+}
+function updCharge(dt) {
+  const C = W.camp;
+  if (cavGoes(C) && CHARGE.id !== C.id) chargeStart(C);
+  if (!CHARGE.riders.length) return;
+  const live = cavGoes(C) && CHARGE.id === C.id, ph = live ? C.t : 0;
+  if (!live && !CHARGE.back) CHARGE.back = [...CHARGE.path].reverse();
+  const alive = enemies.filter(e => e.alive);
+  let home = 0;
+  for (const r of CHARGE.riders) {
+    r.hp = 99;   // the horsemen take blows but always ride home (the battle's outcome is set by the odds)
+    const fx = BF.x + (r.i - (r.n - 1)/2)*2.2, fz = BF.z - 5.5;
+    // by sea: aboard the troop boats until they land with the army
+    const S = live && C.sail, el = live ? C.dur - C.t : 0;
+    if (S && el < S.board + S.dur) { r.g.visible = false; r.pos.set(S.land[0] + (r.i - 1)*1.6, 0, S.land[1] - 2); continue; }
+    r.g.visible = true;
+    if (!live) {
+      // the battle is over: back the way they came, then into the paddock
+      if (r.bi === undefined) r.bi = 0;
+      const pt = CHARGE.back[r.bi];
+      if (!pt) { home++; continue; }
+      if (ride(r, pt[0] + (r.i - (r.n - 1)/2)*1.4, pt[1], r.tank ? 4 : 6, dt)) r.bi++;
+    } else if (ph > 22 || r.mode === 'ride') {
+      // ride out along the road, then dress the line facing the enemy
+      const pt = CHARGE.path[r.pi];
+      if (pt && ph > 22) { if (ride(r, pt[0] + (r.i - (r.n - 1)/2)*1.4, pt[1], r.tank ? 5 : 8, dt)) r.pi++; }
+      else if (ride(r, fx, fz, r.tank ? 5 : 8, dt) && ph <= 22) r.mode = 'charge';
+      else if (ph <= 22 && Math.hypot(fx - r.pos.x, fz - r.pos.z) < 2) r.mode = 'charge';
+    } else if (ph > 9) {
+      if (!r.target || !r.target.alive) { r.target = alive.length ? alive[(r.i*3 + (r.pass || 0)) % alive.length] : null; r.aim = null; }
+      const t = r.target;
+      if (r.tank) {
+        // tanks halt at range, turn their guns on a target and fire
+        if (t) { const d = Math.hypot(t.pos.x - r.pos.x, t.pos.z - r.pos.z); if (d > 7) ride(r, t.pos.x, t.pos.z, 4, dt); else { r.sp *= .9; r.yaw += Math.atan2(Math.sin(Math.atan2(t.pos.x - r.pos.x, t.pos.z - r.pos.z) - r.yaw), Math.cos(Math.atan2(t.pos.x - r.pos.x, t.pos.z - r.pos.z) - r.yaw))*Math.min(1, dt*2); if ((r.cd -= dt) <= 0) { r.cd = 1.4 + R()*.6; strike(r, t, true, 3); particle(0x6a6a6a, new THREE.Vector3(r.pos.x, 1.4, r.pos.z), new THREE.Vector3(0, 1.2, 0), 1.2, .35, {grow:.8, op:.6}); } } }
+        else ride(r, fx, fz, 4, dt);
+      } else if (t) {
+        // charge straight through the target and out the far side, then wheel round and come again
+        if (!r.aim) { const dx = t.pos.x - r.pos.x, dz = t.pos.z - r.pos.z, d = Math.hypot(dx, dz) || 1; r.aim = [t.pos.x + dx/d*4, t.pos.z + dz/d*4]; r.struck = false; }
+        if (!r.struck && Math.hypot(t.pos.x - r.pos.x, t.pos.z - r.pos.z) < 1.3) {
+          r.struck = true; strike(r, t, false, 2.6);
+          const kx = t.pos.x - r.pos.x, kz = t.pos.z - r.pos.z, kd = Math.hypot(kx, kz) || 1; t.pos.x += kx/kd*.7; t.pos.z += kz/kd*.7;
+          if (r.lance) r.lance.rotation.x = 1.3;
+        }
+        if (ride(r, r.aim[0], r.aim[1], 10, dt) || Math.hypot(r.aim[0] - r.pos.x, r.aim[1] - r.pos.z) < 1.2) { r.aim = null; r.pass = (r.pass || 0) + 1; r.target = null; if (r.lance) r.lance.rotation.x = .25; }
+      } else ride(r, fx, fz, 6, dt);
+    } else {
+      // the enemy breaks: rein in on the field
+      ride(r, fx, fz, 4, dt);
+    }
+  }
+  for (const r of CHARGE.riders) {
+    r.g.position.set(r.pos.x, 0, r.pos.z); r.g.rotation.y = r.yaw;
+    if (r.H && r.g.visible) horseGait(r.H, dt, r.sp);
+  }
+  if (!live && home >= CHARGE.riders.length) chargeClear();
 }

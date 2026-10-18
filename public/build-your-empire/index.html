@@ -455,7 +455,24 @@ function slab(color, w, d, x, z, top = 0, h = .26) {
   const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = phDress(new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])}), color, w, d); SLAB_TOPS.push(topM);
   const m = new THREE.Mesh(G.box, [side, side, topM, side, side, side]);
   m.scale.set(w, h, d); m.position.set(x, top - h/2, z); m.receiveShadow = true; m.castShadow = false;
-  scene.add(m); return m;
+  scene.add(m); slabBank(c, w, d, x, z, top); return m;
+}
+// a bank of earth round every slab: from its top edge it slopes down and out to the grass, the ground's colour fading
+// into the grass, so a field or yard looks dug into the land rather than cut out of card
+const BANK_GRASS = new THREE.Color(0x56702f);
+let BANK_MAT = null;   // made on first use: the ground's own grain texture, tinted by the bank's colours
+function slabBank(c, w, d, x, z, top) {
+  const out = .9, y0 = top - .002, y1 = -.255, x0 = x - w/2, x1 = x + w/2, z0 = z - d/2, z1 = z + d/2;
+  const inner = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], outer = [[x0 - out, z0 - out], [x1 + out, z0 - out], [x1 + out, z1 + out], [x0 - out, z1 + out]];
+  const top_ = c.clone().multiplyScalar(.82), mid = c.clone().multiplyScalar(.7).lerp(BANK_GRASS, .5), pos = [], col = [];
+  // two rings of quads (the upper half of the slope still earth, the lower half going over to grass) so the fade reads
+  const ring = (A, B, ya, yb, ca, cb) => { for (let i = 0; i < 4; i++) { const j = (i + 1) % 4, q = [[A[i], ya, ca], [B[j], yb, cb], [B[i], yb, cb], [A[i], ya, ca], [A[j], ya, ca], [B[j], yb, cb]]; for (const [[px, pz], py, cc] of q) { pos.push(px, py, pz); col.push(cc.r, cc.g, cc.b); } } };
+  const midR = inner.map(([px, pz], i) => [(px + outer[i][0])/2, (pz + outer[i][1])/2]);
+  ring(inner, midR, y0, (y0 + y1)/2 - .03, top_, mid); ring(midR, outer, (y0 + y1)/2 - .03, y1, mid, BANK_GRASS);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const uv = []; for (let i = 0; i < pos.length; i += 3) uv.push(pos[i]/5, pos[i + 2]/5); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  BANK_MAT ||= new THREE.MeshStandardMaterial({vertexColors:true, roughness:1, map:groundTex.base ? texClone(groundTex.base) : null});
+  const b = new THREE.Mesh(g, BANK_MAT); b.receiveShadow = true; scene.add(b); return b;
 }
 function ground(color, w, d, x, z, y = 0.01) {
   const m = new THREE.Mesh(G.plane, new THREE.MeshStandardMaterial({color, roughness:1}));
@@ -1689,6 +1706,7 @@ function makeQN(o) {
   if (o.apron && !FIT) { const ap = mesh(G.box, o.apron, [.3, .5, .02], [0, 1.0, .14], g); }
   if (dress && !FIT) { const pel = B('pelvis'); if (pel) { g.updateMatrixWorld(true); const sk = new THREE.Mesh(new THREE.CylinderGeometry(.17, .3, .62, 24, 1, true), new THREE.MeshStandardMaterial({color:top, roughness:.8, side:THREE.DoubleSide})); sk.position.set(0, .8, 0); sk.castShadow = true; g.add(sk); g.updateMatrixWorld(true); pel.attach(sk); } }
   if (o.gun) c.gun = rifle(armR, o.scope);
+  if (o.auto) magazine(c.gun); if (o.bow) c.bow = bowProp(armL);
   if (o.sword) mesh(G.box, 0xe4e8ee, [.04, .6, .08], [0, -.85, .1], armR, {metalness:.7, roughness:.25});
   if (o.axe) { mesh(G.cyl, 0x6b4526, [.025, .65, .025], [0, -.85, .08], armR); mesh(G.box, 0x9aa0a8, [.035, .17, .15], [0, -1.12, .14], armR, {metalness:.6}); }
   if (o.shield) { const sh = mesh(G.cyl, o.shield === 'round' ? 0x8a5a2b : o.trim || 0xb8322a, [.28, .04, .28], [-.08, -.45, .14], armL); sh.rotation.z = Math.PI/2; }
@@ -1900,6 +1918,7 @@ function makeChar(o) {
     if (o.glow) { c.halo = new THREE.Mesh(new THREE.TorusGeometry(.3, .025, 6, 32), new THREE.MeshBasicMaterial({color:0x8fe8ff, toneMapped:false})); c.halo.rotation.x = Math.PI/2.2; c.halo.position.y = 2.42; g.add(c.halo); }
   }
   if (o.gun) c.gun = rifle(armR, o.scope);
+  if (o.auto) magazine(c.gun); if (o.bow) c.bow = bowProp(armL);
   if (o.hero || o.rod) {
     // rod held out over the water, with a line and bobber hanging straight down
     c.rod = new THREE.Group(); c.rod.position.set(.36, 1.0, .25); c.rod.rotation.x = .9; c.rod.visible = false; g.add(c.rod);
@@ -1980,7 +1999,7 @@ const TROOPS = [
   {n:'Redcoats', o:{body:0xc8302a, trim:0xf4f4f4, hat:'tricorne', pants:0xf0ece0, gun:true, belts:true}},
   {n:'Special forces', o:{body:0x5a6448, trim:0x2a2e26, hat:'tactical', pants:0x4e5640, gun:true, scope:true, vest:true}},
 ];
-const ARMS = () => TROOPS[W.troop || 0].o;
+const ARMS = () => armed(TROOPS[W.troop || 0].o);
 const ERAS = ['Riverside Camp', 'Hamlet', 'Village', 'Town', 'City', 'Stronghold', 'Kingdom', 'Empire', 'Metropolis', 'Megacity', 'Superpower', 'Space Empire', 'Interplanetary'];
 const ERA_ICON = ['🏕️', '🛖', '🏘️', '🏙️', '🌆', '🛡️', '👑', '🌍', '🌃', '✨', '🚀', '🪐', '🔴'];
 const ERA_TXT = ['', 'Word is spreading. More hungry travelers are coming.', 'Word is spreading. More hungry travelers are coming.',
@@ -3090,7 +3109,7 @@ const CAMPAIGNS = [
 ];
 const campType = c => c.planes ? 'air' : c.ships ? 'sea' : 'land';
 const planesBuilt = () => count(['plane1', 'plane2', 'plane3', 'plane4', 'plane5']);
-const campNeed = c => Math.ceil(c.army * BOOST.tactics * (W.unlocked.has('guns') ? .8 : 1) * (1 - .04*Math.min(3, W.troop || 0) - (W.troop >= 5 ? .1 : 0)));
+const campNeed = c => Math.ceil(c.army * BOOST.tactics * WEP_NEED[wepLvl()] * (1 - .04*Math.min(3, W.troop || 0) - (W.troop >= 5 ? .1 : 0)));
 const campReward = c => Math.round(c.reward * (W.unlocked.has('guns') ? 1.5 : 1));
 let warZone = null;
 function warTile() {
@@ -3140,7 +3159,8 @@ function launchCamp(c, branch) {
   if (W.camp || W.raid) return;
   const goal = campType(c), site = c.ci === 4 || W.conquests === 4 ? 'empire' : 'cove';
   const type = branch === 'air' ? 'air' : branch === 'navy' || goal === 'sea' ? 'sea' : 'land';
-  const at = goal === 'air' ? AIR_TARGETS[c.target] : goal === 'sea' ? [COAST.sites[site].x, COAST.z] : [BF.x, BF.z + 4];
+  // planes sent against a tribe fly to the tribe's own camp
+  const ts = goal === 'land' && TRIBE_SITES[W.conquests], at = goal === 'air' ? AIR_TARGETS[c.target] : goal === 'sea' ? [COAST.sites[site].x, COAST.z] : ts && type === 'air' ? [ts[0], ts[1] + 4] : [BF.x, BF.z + 4];
   const n = type === 'air' ? planesBuilt() : 0, dur = {land:30, sea:44, air:42 + .7*Math.max(0, n - 1)}[type];
   W.camp = {t:dur, dur, type, goal, branch, ships:type === 'sea', ci:W.conquests, tx:at[0], tz:at[1], n};
   // a tribe with its own place: the army marches out to it and fights there
@@ -3159,8 +3179,8 @@ function updWar(dt) {
   const c = CAMPAIGNS[W.conquests];
   const type = W.camp.type, goal = W.camp.goal || type;
   const was = W.camp; W.camp = null; W.conquests++;
-  if (was.away) { for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
-  if (type === 'land') setTimeout(endBattle, 2500);
+  if (was.away) { if (armyGoes(was)) for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
+  if (type === 'land') endBattleLater();
   if (goal === 'land') outpost(W.conquests - 1, true);
   if (type === 'sea' || goal === 'sea') endSea();
   if (goal === 'air') endAir(c);
@@ -3398,7 +3418,10 @@ const PADS = [
   {id:'troop1', x:-8.6, z:69, cost:5000, cur:'coin', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
   {id:'troop2', x:-8.6, z:69, cost:8000, cur:'coin', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
   {id:'troop3', x:-8.6, z:69, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
-  {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
+  {id:'bows', x:-1.2, z:64.3, cost:3000, cur:'coin', icon:'🏹', label:'Bows and arrows', after:['barracks'], region:'south'},
+  {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['bows', 'troop3', 'workshop'], region:'south'},
+  {id:'rifles', x:-1.2, z:64.3, cost:40000, cur:'coin', icon:'🎯', label:'Rifles', after:['guns', 'steamTrain'], region:'south'},
+  {id:'semiAuto', x:-1.2, z:64.3, cost:90000, cur:'coin', icon:'💥', label:'Semi-automatic rifles', after:['rifles', 'labs'], region:'south'},
   {id:'troop5', x:-8.6, z:69, cost:150000, cur:'coin', icon:'🎖️', label:'Special forces', after:['guns', 'labs'], region:'south'},
   {id:'cav1', x:9.6, z:57.8, cost:4000, cur:'coin', icon:'🐎', label:'Cavalry', after:['barracks'], region:'south'},
   {id:'cav2', x:9.6, z:57.8, cost:9000, cur:'coin', icon:'🏇', label:'Lancers', after:['cav1', 'troop3'], region:'south'},
@@ -3711,6 +3734,7 @@ const UNLOCK = {
     gunRack(a);
     if (a) banner('🔫 Redcoats with muskets!', 'The blacksmith makes muskets now. Campaigns need fewer soldiers and pay 50% more.');
   },
+  bows(a) { weaponStage(1, a); }, rifles(a) { weaponStage(3, a); }, semiAuto(a) { weaponStage(4, a); },
   water1(a) { waterStage(1, a); }, water2(a) { waterStage(2, a); }, water3(a) { waterStage(3, a); }, water4(a) { waterStage(4, a); }, water5(a) { waterStage(5, a); },
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },
   airport(a) { terminalFx(a); makeCash('airport', -38.1, .9); makeJet(false, 'pax', 0); if (a) banner('🛫 Passenger airport!', 'Airliners bring rich travelers. Every landing pays big fares.'); },
@@ -4235,7 +4259,7 @@ function payUpgrade(zn, e) {
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
 // military technology is the player's own decision: builders and masons never pay for these tiles
-const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5', 'cav1', 'cav2', 'cav3', 'nav2', 'nav3', 'nav4',
+const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5', 'cav1', 'cav2', 'cav3', 'nav2', 'nav3', 'nav4', 'bows', 'rifles', 'semiAuto',
   'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
@@ -4448,11 +4472,12 @@ function startBattle(c) {
   for (const [dx, dz] of [[-5, 5.5], [-1.5, 6.5], [2, 5.6], [5, 6.6]]) { const x = BF.x + dx, z = BF.z + dz; mesh(G.cone, 0x7a2a22, [1, 1.5, 1], [x, .75, z], enemyCamp); mesh(G.box, 0x2a1408, [.3, .5, .05], [x, .25, z + .7], enemyCamp); }
   mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [BF.x, 1.5, BF.z + 7.3], enemyCamp);
   enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [BF.x + .47, 2.7, BF.z + 7.3], enemyCamp);
-  const n = Math.min(14, campNeed(c)), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
+  // a real enemy host that holds the field until the rout (the odds, not this, decide who wins)
+  const n = Math.min(18, campNeed(c) + 4), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
   BT.id = (BT.id || 0) + 1;
   for (let i = 0; i < n; i++) {
-    const e = entity(look, BF.x - 4.4 + (i % 7)*1.45, BF.z + 2.6 + Math.floor(i / 7)*1.3, 3, 0);
-    e.yaw = Math.PI; e.alive = true; e.fall = 0; e.hp = e.maxHp = 5 + W.conquests; e.gun = !!look.gun; e.cd = .3 + R(); enemies.push(e);
+    const e = entity(look, BF.x - 5.8 + (i % 9)*1.45, BF.z + 2.6 + Math.floor(i / 9)*1.3, 3, 0);
+    e.yaw = Math.PI; e.alive = true; e.fall = 0; e.hp = e.maxHp = (5 + W.conquests)*2.4; e.gun = !!look.gun; e.cd = .3 + R(); enemies.push(e);
   }
 }
 function updBattle(dt) {
@@ -4461,7 +4486,7 @@ function updBattle(dt) {
   // the beaten army breaks: anyone still standing at the end falls
   if (ph >= 0 && ph <= 10.5 && !BT.lose) for (const e of enemies) if (e.alive) knockOut(e);
   if (fighting) BT.snd = Math.max(0, BT.snd - dt);
-  const foes = soldiers.filter(s => s.hp > 0 && !s.down && atBattle(s));
+  const foes = soldiers.filter(s => s.hp > 0 && !s.down && atBattle(s)).concat(CHARGE.riders.filter(r => r.g.visible && atBattle(r)));
   for (const e of enemies) {
     e.vel.set(0, 0, 0);
     if (e.alive && fighting) {
@@ -4568,7 +4593,12 @@ function strike(a, t, ranged, dmg) {
   a.swing = .3; if (!ranged && a.char) qnAct(a.char, 'swing', .75, true);
   const from = new THREE.Vector3(a.pos.x, 1.2, a.pos.z), to = new THREE.Vector3(t.pos.x, 1.1, t.pos.z);
   const hit = R() < (ranged ? .55 : .78);
-  if (ranged) {
+  if (ranged === 'bow') {
+    // an arrow arcs over to the target
+    const m = new THREE.Mesh(G.cyl, mat(0x3a2a1a)); m.scale.set(.03, .5, .03); m.rotation.x = Math.PI/2; m.position.copy(from); scene.add(m);
+    flyers.push({m, from, to:hit ? to : to.clone().add(new THREE.Vector3((R() - .5)*2, -1, (R() - .5)*2)), t:0, dur:.55, arc:1.4});
+    if (BT.snd <= 0) { BT.snd = .08; snd(620 + R()*120, .12, 'triangle', .02, -.5); }
+  } else if (ranged) {
     const dir = to.clone().sub(from).normalize(), muzzle = from.clone().addScaledVector(dir, .7);
     particle(0xffe08a, muzzle, dir.clone().multiplyScalar(2), .08, .14);
     particle(0xdddddd, muzzle, new THREE.Vector3(0, .6, 0).addScaledVector(dir, .6), .9, .14, {grow:.5, op:.45});
@@ -4611,7 +4641,7 @@ function healthBar(e) {
 // one of your soldiers in the fight: charge and duel, or hold the line and fire
 function battleSoldier(s, i, dt) {
   if (s.hp === undefined || s.battle !== BT.id) { s.battle = BT.id; s.maxHp = s.hp = 5 + (W.troop || 0); s.down = false; s.fall = 0; s.cd = R()*.8; s.fought = true; s.target = null; }
-  const guns = W.unlocked.has('guns'), alive = enemies.filter(e => e.alive);
+  const w = wepLvl(), guns = w >= 1, alive = enemies.filter(e => e.alive);
   s.vel.set(0, 0, 0); s.speed = 3.6;
   if (!s.down) {
     // at most three on any one enemy (with guns, any number can shoot): the rest hold the line until a foe is free
@@ -4624,13 +4654,15 @@ function battleSoldier(s, i, dt) {
       const n = nearest(s, alive); if (n) s.yaw = Math.atan2(n.pos.x - s.pos.x, n.pos.z - s.pos.z);
     }
     if (t) {
-      const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z), melee = d < 1.15, reach = guns ? 9 : .95;
+      const d = Math.hypot(t.pos.x - s.pos.x, t.pos.z - s.pos.z), melee = d < 1.15, reach = guns ? (w === 1 ? 7.5 : 9) : .95;
       if (!guns && d > reach) { moveTo(s, t.pos.x, t.pos.z, dt); collideFighters(s, soldiers); }
       s.yaw = Math.atan2(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
       if ((s.cd -= dt) <= 0 && d <= reach + .1) {
+        // archers loose slowly, riflemen quickly, semi-automatics in bursts of three
         const ranged = guns && !melee;
-        s.cd = ranged ? 1 + R()*.7 : .75 + R()*.4;
-        strike(s, t, ranged, ranged ? 1.3 + (W.troop >= 5 ? .8 : 0) : .9 + (W.troop || 0)*.2);
+        if (ranged && w >= 4) { s.burst = (s.burst || 0) + 1; s.cd = s.burst % 3 ? .13 : .9 + R()*.5; }
+        else s.cd = ranged ? (w === 1 ? 1.5 : w >= 3 ? .75 : 1) + R()*.6 : .75 + R()*.4;
+        strike(s, t, ranged ? (w === 1 ? 'bow' : true) : false, ranged ? [0, 1.1, 1.3, 1.6, 1][w] + (W.troop >= 5 ? .8 : 0) : .9 + (W.troop || 0)*.2);
       }
     }
   }
@@ -4652,6 +4684,8 @@ function cheer(s, dt, i) {
   s.char.g.position.y = j*.35; s.char.armR.rotation.x = s.char.armL.rotation.x = -2.8 + j*.3;
   s.char.g.rotation.y = s.yaw = 0;
 }
+// clear the field a moment after the fight, unless a new battle has started on it meanwhile
+function endBattleLater() { const id = BT.id; setTimeout(() => { if (BT.id !== id) return; endBattle(); BT.lose = BT.noCap = false; }, 2500); }
 function endBattle() {
   if (!W.camp || !W.camp.away) { BF.x = BF_HOME.x; BF.z = BF_HOME.z; }
   for (const e of enemies) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); }
@@ -4661,8 +4695,8 @@ function endBattle() {
 // soldiers walk a corridor past the mess table instead of through it
 function soldierGo(s, tx, tz, dt) {
   const goingOut = tz > 78 && s.pos.z < 78.5, goingHome = tz < 72 && s.pos.z > 72.5;
-  if (goingOut) { if (s.pos.z < 72.3) return moveTo(s, 5.2, 60.5, dt) && false; return moveTo(s, 5.2, 67, dt) && false; }
-  if (goingHome && s.pos.z > 78.5) return moveTo(s, 5.2, 67, dt) && false;
+  if (goingOut) { if (s.pos.z < 72.3) return moveTo(s, 5.2, 72.5, dt) && false; return moveTo(s, 5.2, 79, dt) && false; }
+  if (goingHome && s.pos.z > 78.5) return moveTo(s, 5.2, 79, dt) && false;
   if (goingHome) return moveTo(s, 5.2, 72.5, dt) && false;
   return moveTo(s, tx, tz, dt);
 }
@@ -4678,6 +4712,98 @@ function outpost(i, anim) {
   if (anim) popIn(g);
 }
 
+// ------------------------------------------------------------------ the spectacle of a land battle
+// A war horn as the lines face off, a standard on each side, volleys of arrows (a rolling musket volley once you have
+// guns), artillery behind your line, a cry of "Charge!" with dust kicked up by the running ranks, drums through the
+// fight, haze over the field, and a fanfare when they break. Looks only: who wins is still decided by the odds.
+const EPIC = {id:null, g:null, last:99, drumT:0, gunT:0, hazeT:0, dust:new Map()};
+const epicOn = C => !!C && C.type === 'land' && (armyGoes(C) || cavGoes(C));
+function banner3d(col, trim) {
+  const g = new THREE.Group();
+  mesh(G.cyl, 0x5e3f22, [.05, 3.4, .05], [0, 1.7, 0], g); mesh(G.sph, 0xd9a52a, [.1, .1, .1], [0, 3.45, 0], g, {metalness:.7, roughness:.3});
+  const flag = new THREE.Group(); flag.position.set(0, 3.05, 0); g.add(flag);
+  mesh(G.box, col, [.04, .7, 1], [0, 0, -.5], flag); mesh(G.box, trim, [.05, .12, 1], [0, -.29, -.5], flag);
+  g.flag = flag; return g;
+}
+function epicStart(C) {
+  epicEnd(); EPIC.id = C.id ||= Math.random(); EPIC.last = 99;
+  const g = EPIC.g = new THREE.Group(); scene.add(g);
+  EPIC.ours = banner3d(0x2d4fa8, 0xf2c200); EPIC.theirs = banner3d(0x9a1a1a, 0x2a1a10); g.add(EPIC.ours, EPIC.theirs);
+  EPIC.ours.position.set(BF.x, 0, BF.z - 6); EPIC.theirs.position.set(BF.x, 0, BF.z + 6);
+  // artillery behind your line: catapults, or cannon once you have guns
+  EPIC.guns = W.unlocked.has('siegeWorks') || wepLvl() >= 2 ? [-5, 5].map(dx => {
+    const a = new THREE.Group(); a.position.set(BF.x + dx, 0, BF.z - 10); g.add(a);
+    if (wepLvl() >= 2) { mesh(G.cyl, 0x2a2a2e, [.22, 1.5, .22], [0, .55, .2], a, {metalness:.6}).rotation.x = Math.PI/2 - .35; for (const sx of [-.3, .3]) mesh(G.cyl, 0x5e3f22, [.4, .08, .4], [sx, .4, 0], a).rotation.z = Math.PI/2; }
+    else { mesh(G.box, 0x6b4526, [.9, .3, 1.4], [0, .3, 0], a); const arm = new THREE.Group(); arm.position.set(0, .5, -.3); a.add(arm); mesh(G.box, 0x8a5a2b, [.12, .12, 1.8], [0, .4, .7], arm).rotation.x = -.5; a.arm = arm; }
+    a.cd = 1 + R(); return a;
+  }) : [];
+}
+function epicEnd() { if (EPIC.g) scene.remove(EPIC.g); EPIC.g = null; EPIC.id = null; EPIC.dust.clear(); }
+const mid = list => { let x = 0, z = 0, n = 0; for (const e of list) { x += e.pos.x; z += e.pos.z; n++; } return n ? [x/n, z/n] : null; };
+// a volley: arrows (or musket balls) arcing from one line onto the other; a few find their mark
+function volley(fromList, toList, n, hitEnemies) {
+  if (!fromList.length || !toList.length) return;
+  const guns = wepLvl() >= 2 && hitEnemies;
+  for (let i = 0; i < n; i++) {
+    const a = fromList[i % fromList.length], t = toList[(i*7) % toList.length];
+    const from = new THREE.Vector3(a.pos.x + (R() - .5)*.6, 1.4, a.pos.z), to = new THREE.Vector3(t.pos.x + (R() - .5)*2.4, .1, t.pos.z + (R() - .5)*2.4);
+    if (guns) { particle(0xe8e8e8, from, new THREE.Vector3((R() - .5)*.4, .5, .6), 1.6, .45, {grow:1.1, op:.55}); particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .1, .18); }
+    const m = new THREE.Mesh(G.cyl, mat(0x3a2a1a)); m.scale.set(.03, .5, .03); m.rotation.x = Math.PI/2; m.position.copy(from); scene.add(m);
+    flyers.push({m, from, to, t:0, dur:guns ? .3 + R()*.15 : 1 + R()*.5, arc:guns ? .2 : 3.2, done:() => {
+      particle(0xc8b48a, to, new THREE.Vector3(0, .8, 0), .5, .18, {grow:.6, op:.6});
+      if (hitEnemies) { const e = enemies.find(q => q.alive && Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < .7); if (e && R() < .3) { e.hp -= .5; e.hit = .18; if (e.hp <= 0) knockOut(e); } }
+    }});
+  }
+  snd(guns ? 120 : 700, guns ? .15 : .25, guns ? 'sawtooth' : 'triangle', .03, guns ? .5 : -.6);
+}
+function updEpic(dt) {
+  const C = W.camp || W.raid;
+  if (!epicOn(C)) { if (EPIC.g) epicEnd(); return; }
+  const ph = C.t; if (ph > 24) return;
+  if (EPIC.id !== (C.id ||= Math.random())) epicStart(C);
+  const near = camera.position.distanceToSquared(new THREE.Vector3(BF.x, 0, BF.z)) < 90*90;
+  const ours = soldiers.filter(s => !s.down && atBattle(s)).concat(CHARGE.riders.filter(r => r.g.visible && atBattle(r))), foes = enemies.filter(e => e.alive);
+  const crossed = t => EPIC.last > t && ph <= t;
+  // the standards follow their lines and stream in the wind
+  const mo = mid(ours), mf = mid(foes);
+  if (mo) EPIC.ours.position.lerp(new THREE.Vector3(mo[0] - 1.2, 0, mo[1] - 1.6), Math.min(1, dt*2));
+  if (mf) EPIC.theirs.position.lerp(new THREE.Vector3(mf[0] + 1.2, 0, mf[1] + 1.6), Math.min(1, dt*2));
+  EPIC.theirs.visible = !!mf;
+  for (const b of [EPIC.ours, EPIC.theirs]) b.flag.rotation.y = Math.sin(time*3 + b.position.x)*.35 - .4;
+  // the horn as the lines face off; arrows (or the first volley) before the charge
+  if (crossed(23.5)) { snd(98, .9, 'sawtooth', .05, .1); setTimeout(() => snd(131, 1.1, 'sawtooth', .05, .05), 900); }
+  if (crossed(22.6)) volley(ours, foes, wepLvl() >= 2 ? Math.min(14, ours.length) : 16, true);
+  if (crossed(22.1) && !wepLvl() >= 2) volley(foes, ours, 12, false);
+  if (crossed(21.6)) volley(ours, foes, wepLvl() >= 2 ? Math.min(14, ours.length) : 14, true);
+  if (crossed(21)) { popText('⚔️ CHARGE!', new THREE.Vector3(BF.x, 3.2, BF.z), '#ffe06b'); snd(147, .5, 'square', .05, .2); if (watchingWar()) shakeCam(.25); }
+  if (ph <= 22 && ph > 9) {
+    // drums through the fight, and haze over the field
+    if ((EPIC.drumT -= dt) <= 0) { EPIC.drumT = .5; snd(58, .14, 'sine', .07, -.3); }
+    if (near && (EPIC.hazeT -= dt) <= 0) { EPIC.hazeT = .18; particle(0xd8c8a0, new THREE.Vector3(BF.x + (R() - .5)*14, .5, BF.z + (R() - .5)*8), new THREE.Vector3((R() - .5)*.4, .25, 0), 3, .9, {grow:1.4, op:.18}); }
+    // dust kicked up by anyone running
+    if (near) for (const u of [...ours, ...foes]) {
+      const p = EPIC.dust.get(u) || u.pos.clone(), moved = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+      if (moved > dt*2.5 && R() < .35) particle(0xc8b48a, new THREE.Vector3(u.pos.x, .15, u.pos.z), new THREE.Vector3((R() - .5)*.6, .6, (R() - .5)*.6), .6, .2, {grow:.9, op:.5});
+      EPIC.dust.set(u, u.pos.clone());
+    }
+    // the artillery lobs shot into the enemy ranks
+    for (const a of EPIC.guns) if ((a.cd -= dt) <= 0 && foes.length) {
+      a.cd = 1.6 + R()*.8;
+      const t = foes[R()*foes.length|0], from = a.position.clone().setY(1.1), to = new THREE.Vector3(t.pos.x + (R() - .5)*1.6, .1, t.pos.z + (R() - .5)*1.6), gun = wepLvl() >= 2;
+      if (gun) { particle(0xffb040, from.clone().setZ(from.z + .8), new THREE.Vector3(0, .4, 1), .12, .35); particle(0xdddddd, from, new THREE.Vector3(0, .8, .4), 1.6, .5, {grow:1, op:.6}); snd(70, .35, 'sawtooth', .06, .5); }
+      else if (a.arm) { a.arm.rotation.x = -1.4; setTimeout(() => { if (a.arm) a.arm.rotation.x = 0; }, 400); snd(240, .1, 'triangle', .04); }
+      const ball = new THREE.Mesh(G.sph, mat(gun ? 0x2a2a2a : 0x8a8478)); ball.scale.setScalar(gun ? .12 : .2); ball.position.copy(from); scene.add(ball);
+      flyers.push({m:ball, from, to, t:0, dur:gun ? .8 : 1.3, arc:gun ? 3 : 5, done:() => {
+        for (let k = 0; k < 12; k++) particle(gun ? [0xffd040, 0xff7a2a, 0x555555][k % 3] : [0x9a8a6a, 0x6a5a4a][k % 2], to.clone().setY(.3), new THREE.Vector3((R() - .5)*5, 1.5 + R()*3, (R() - .5)*5), .8, .25, {grow:.5, op:.85});
+        snd(gun ? 50 : 80, .4, 'sawtooth', .05, .4); if (watchingWar()) shakeCam(.12);
+        for (const e of enemies) if (e.alive && Math.hypot(e.pos.x - to.x, e.pos.z - to.z) < 1.4) { e.hp -= 1.2; e.hit = .18; const kx = e.pos.x - to.x, kz = e.pos.z - to.z, kd = Math.hypot(kx, kz) || 1; e.pos.x += kx/kd*.6; e.pos.z += kz/kd*.6; if (e.hp <= 0) knockOut(e); }
+      }});
+    }
+  }
+  // they break: a fanfare and the cry of victory
+  if (crossed(9) && C.win !== false && !BT.lose) { popText('🏆 VICTORY!', new THREE.Vector3(BF.x, 3.6, BF.z + 2), '#ffe06b'); [392, 523, 659, 784].forEach((f, i) => setTimeout(() => snd(f, .3, 'triangle', .05), i*140)); }
+  EPIC.last = ph;
+}
 // ------------------------------------------------------------------ war at sea
 const pirates = [];
 const ballMat = new THREE.MeshBasicMaterial({color:0x15151a});
@@ -4870,16 +4996,30 @@ function planeVsBoss(p, i, B, dt) {
     flyers.push({m:bomb, from:bomb.position.clone(), to, t:0, dur:.6, arc:0, done:() => warHit(to, 2.6, 5, true)});
   }
 }
+// planes sent alongside the army, the cavalry or the navy: they take off as the battle starts and time their dives to the
+// fight (on the field, or the fort the fleet is shelling), then fly home and land after it is over
+const AIRS = {id:null, on:false, t0:0, tx:0, tz:0, n:0};
+function airSupport(C) {
+  if (!C || C.type === 'air' || !(C.br || []).includes('air') || !planesBuilt()) return;
+  C.id ||= Math.random(); if (AIRS.id === C.id) return;
+  // on the field, at the fort the fleet shells, or over the rival fleet off their coast
+  const N = C.naval, start = C.type === 'land' ? 22 : N ? N.fight + 4 : C.dur - 21, fort = C.type === 'sea' && COAST.cur ? COAST.cur.g.position : null;
+  const [tx, tz] = N ? N.anchor : fort ? [fort.x, fort.z] : [BF.x, BF.z + 4];
+  Object.assign(AIRS, {id:C.id, on:true, t0:time - (17 + start - C.dur), tx, tz, n:planesBuilt()});
+}
 function updAir(dt) {
   if (HANGAR.g && ((HANGAR.chk = (HANGAR.chk || 0) - dt) <= 0)) { HANGAR.chk = 2; hangarLook(true); }
-  const C = W.camp, air = C && C.type === 'air';
-  const c0 = air ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
+  const C = W.camp, airT = C && C.type === 'air';
+  airSupport(C);
+  if (AIRS.on && time - AIRS.t0 > 44) AIRS.on = false;
+  const air = airT || AIRS.on;
+  const c0 = airT ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
   const B0 = typeof WARFIRE !== 'undefined' ? sortieTarget() : null;
   planes.forEach((p, i) => {
     if (!air && (B0 || p.bossBack != null)) { planeVsBoss(p, i, B0, dt); return; }
-    const c = c0, e = air ? C.dur - C.t - i*.7 : -1;
-    const [tx, tz] = C && C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0];
-    const flying = air && i < (C.n ?? (c ? c.planes : 0));
+    const c = c0, e = airT ? C.dur - C.t - i*.7 : AIRS.on ? time - AIRS.t0 - i*.7 : -1;
+    const [tx, tz] = airT ? (C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0]) : [AIRS.tx, AIRS.tz];
+    const flying = air && i < (airT ? C.n ?? (c ? c.planes : 0) : AIRS.n);
     const a = flying ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = flying ? airPos(e + .08, p, tx, tz) : a;
     p.g.position.set(a[0], a[1], a[2]); p.alt = a[1];
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], hz = Math.hypot(dx, dz);
@@ -4891,12 +5031,14 @@ function updAir(dt) {
     // bombs go only at the bottom of each dive
     if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
       p.bombT = .22;
-      const f = forts[c.target], bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
+      const f = c && c.target != null && C && C.goal === 'air' ? forts[c.target] : null, bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
       const gx = a[0]*.35 + tx*.65 + (R() - .5)*4, gz = a[2]*.35 + tz*.65 + (R() - .5)*4;
       flyers.push({m:bomb, from:bomb.position.clone(), to:new THREE.Vector3(gx, 0, gz), t:0, dur:.7, arc:0, done:() => {
         for (let k = 0; k < 16; k++) particle([0xffd040, 0xff7a2a, 0x555555][k % 3], new THREE.Vector3(gx, .4, gz), new THREE.Vector3((R() - .5)*6, 2 + R()*4, (R() - .5)*6), .9, .3, {grow:.6, op:.85});
         snd(55 + R()*30, .5, 'sawtooth', .06, .4);
         if (watchingWar()) shakeCam(.35);
+        // the blast knocks down enemy soldiers caught near it
+        for (const en of enemies) if (en.alive && Math.hypot(en.pos.x - gx, en.pos.z - gz) < 2.6) { en.hp -= 4; en.hit = .18; if (en.hp <= 0) knockOut(en); }
         if (f) {
           f.hits++; const t = f.towers[Math.min(3, Math.floor(f.hits / 6))]; if (f.hits % 6 === 0 && t) t.rotation.z = .9;
           for (const tp of f.troops) if (!tp.down && Math.hypot(tp.x - gx, tp.z - gz) < 2.4) tp.down = true;
@@ -4987,6 +5129,7 @@ function warFocus() {
   if (!C && INV.on && INV.units.length) { const m = mid(INV.units); if (m) return [m[0], m[1] + 1.5]; }
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
+  if (C.type === 'sea' && C.naval) { const fl = fleet(); if (fl.length) { let x = 0, z = 0; for (const b of fl) { x += b.g.position.x; z += b.g.position.z; } return [x/fl.length, z/fl.length]; } }
   if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }
   const c = CAMPAIGNS[C.ci], [tx, tz] = C.tx != null ? [C.tx, C.tz] : AIR_TARGETS[c.target], e = C.dur - C.t;
   const lead = planes[0]; return lead && (lead.alt || 0) > .5 ? [lead.g.position.x, lead.g.position.z, lead.g.position.y*.8] : [tx, tz, 0];
@@ -5154,7 +5297,7 @@ stage.addEventListener('pointerup', endJoy); stage.addEventListener('pointercanc
 // ------------------------------------------------------------------ save
 // slot 1 keeps the original key so older saves are found where they always were
 const slotKey = n => n > 1 ? 'buildyourempire.v1.slot' + n : 'buildyourempire.v1';
-const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 4, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
+const SAVE_KEY = slotKey(SET.slot), SAVE_VERSION = 5, BAK_KEY = SAVE_KEY + '.backups', BAK_N = 3, BAK_EVERY = 10*60e3;
 // carry over games saved while this was called River Feast
 try { if (SET.slot === 1 && !localStorage.getItem(SAVE_KEY) && localStorage.getItem('riverfeast.v2')) localStorage.setItem(SAVE_KEY, localStorage.getItem('riverfeast.v2')); } catch (e) {}
 // every change to what a save holds gets a step here: MIGRATE[n] turns a version-n save into version n+1
@@ -5201,6 +5344,8 @@ const REDESIGN = (() => {
   return {warp};
 })();
 const MIGRATE = {
+  // weapons became their own line (swords, bows, muskets, rifles, semi-automatics): an army with muskets already had bows
+  4: s => { if ((s.unlocked || []).includes('guns') && !s.unlocked.includes('bows')) s.unlocked.splice(s.unlocked.indexOf('guns'), 0, 'bows'); return s; },
   // the map redesign: the parks, statues and rides you placed move with their district
   3: s => { for (const d of s.decor || []) if (typeof d.x === 'number' && typeof d.z === 'number') [d.x, d.z] = REDESIGN.warp(d.x, d.z); return s; },
   // military technology is bought with cash now (planes, troops, castles, the hangar and warship were materials that
@@ -5333,9 +5478,127 @@ function cavStage(n, anim) {
 function updCavalry(dt) {
   const P = PADDOCK; if (!P.rides.length) return;
   // the riders leave the paddock while they are away at war
-  const away = !!(W.camp && W.camp.branch === 'cav') || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
+  const away = CHARGE.riders.length > 0 || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
   const near = camera.position.distanceToSquared(new THREE.Vector3((P.x0 + P.x1)/2, 0, (P.z0 + P.z1)/2)) < 70*70;
   for (const r of P.rides) { r.g.visible = !away; if (!away && near) horseGait(r.H, dt, 0); }
+}
+// ------------------------------------------------------------------ the charge: your cavalry (or tanks) ride out to a land battle and fight it
+// Who goes to a land battle: the army unless you sent only other branches; the cavalry when you sent it.
+const armyGoes = C => !!C && (C.br ? C.br.includes('army') : C.branch ? C.branch === 'army' : true);
+const cavGoes = C => !!C && C.type === 'land' && (C.br ? C.br.includes('cav') : C.branch === 'cav');
+const CHARGE = {riders:[], id:null, back:null};
+function chargeStart(C) {
+  chargeClear();
+  C.id ||= Math.random(); CHARGE.id = C.id; CHARGE.back = null;
+  const tanks = W.unlocked.has('tanks'), n = tanks ? 3 : cavLvl() + 2, Cv = CAV[Math.max(1, cavLvl())], P = PADDOCK;
+  // out of the paddock, down the corridor past the mess, onto the field; or the long march to a faraway battlefield
+  CHARGE.path = C.away ? (C.path || []).map(p => [...p]) : [[(P.x0 + P.x1)/2, P.z1 + 1.5], [5.2, 60.5], [5.2, 67], [5.2, 79]];
+  for (let i = 0; i < n; i++) {
+    const g = new THREE.Group(); scene.add(g);
+    const r = {g, i, n, tank:tanks, pos:new THREE.Vector3(), vel:new THREE.Vector3(), yaw:0, hp:99, maxHp:99, pi:0, mode:'ride', cd:R(), sp:0};
+    if (tanks) { const t = model('tank', 2.4, 'z'); if (t) g.add(t); }
+    else {
+      r.H = horseModel(HORSE.s, [1, .72, 1.15, .85, .6][i]); if (r.H) { r.H.g.position.z = HORSE.z; g.add(r.H.g); }
+      saddleOn(g); r.char = makeChar(Cv.o); r.char.ride = 'horse'; g.add(r.char.g); r.char.g.position.y = HORSE.ride;
+      if (Cv.lance) { r.lance = mesh(G.cyl, 0x8a6a42, [.04, 2.6, .04], [.32, HORSE.ride + 1.2, .2], g); r.lance.rotation.x = .25; }
+    }
+    const [sx, sz] = CHARGE.path[0] || [BF.x, BF.z - 30];
+    r.pos.set(sx + (i - (n - 1)/2)*1.6, 0, sz - (C.away ? i*1.4 : 0)); g.position.copy(r.pos);
+    CHARGE.riders.push(r);
+  }
+}
+function chargeClear() { for (const r of CHARGE.riders) { scene.remove(r.g); if (r.bar) scene.remove(r.bar); } CHARGE.riders = []; CHARGE.id = null; }
+// move toward a point at a gallop, turning like a horse (not on the spot); true when there
+function ride(r, tx, tz, sp, dt) {
+  const dx = tx - r.pos.x, dz = tz - r.pos.z, d = Math.hypot(dx, dz);
+  if (d < .3) { r.sp += (0 - r.sp)*Math.min(1, dt*4); return true; }
+  let a = Math.atan2(dx, dz) - r.yaw; a = Math.atan2(Math.sin(a), Math.cos(a));
+  r.yaw += clamp(a, -dt*(r.tank ? 1.6 : 3.2), dt*(r.tank ? 1.6 : 3.2));
+  const want = Math.abs(a) > 1.2 ? sp*.4 : Math.min(sp, d*2.5);
+  r.sp += (want - r.sp)*Math.min(1, dt*(r.tank ? 1.5 : 3));
+  r.pos.x += Math.sin(r.yaw)*r.sp*dt; r.pos.z += Math.cos(r.yaw)*r.sp*dt;
+  return false;
+}
+function updCharge(dt) {
+  const C = W.camp;
+  if (cavGoes(C) && CHARGE.id !== C.id) chargeStart(C);
+  if (!CHARGE.riders.length) return;
+  const live = cavGoes(C) && CHARGE.id === C.id, ph = live ? C.t : 0;
+  if (!live && !CHARGE.back) CHARGE.back = [...CHARGE.path].reverse();
+  const alive = enemies.filter(e => e.alive);
+  let home = 0;
+  for (const r of CHARGE.riders) {
+    r.hp = 99;   // the horsemen take blows but always ride home (the battle's outcome is set by the odds)
+    const fx = BF.x + (r.i - (r.n - 1)/2)*2.2, fz = BF.z - 5.5;
+    // by sea: aboard the troop boats until they land with the army
+    const S = live && C.sail, el = live ? C.dur - C.t : 0;
+    if (S && el < S.board + S.dur) { r.g.visible = false; r.pos.set(S.land[0] + (r.i - 1)*1.6, 0, S.land[1] - 2); continue; }
+    r.g.visible = true;
+    if (!live) {
+      // the battle is over: back the way they came, then into the paddock
+      if (r.bi === undefined) r.bi = 0;
+      const pt = CHARGE.back[r.bi];
+      if (!pt) { home++; continue; }
+      if (ride(r, pt[0] + (r.i - (r.n - 1)/2)*1.4, pt[1], r.tank ? 4 : 6, dt)) r.bi++;
+    } else if (ph > 22 || r.mode === 'ride') {
+      // ride out along the road, then dress the line facing the enemy
+      const pt = CHARGE.path[r.pi];
+      if (pt && ph > 22) { if (ride(r, pt[0] + (r.i - (r.n - 1)/2)*1.4, pt[1], r.tank ? 5 : 8, dt)) r.pi++; }
+      else if (ride(r, fx, fz, r.tank ? 5 : 8, dt) && ph <= 22) r.mode = 'charge';
+      else if (ph <= 22 && Math.hypot(fx - r.pos.x, fz - r.pos.z) < 2) r.mode = 'charge';
+    } else if (ph > 9) {
+      if (!r.target || !r.target.alive) { r.target = alive.length ? alive[(r.i*3 + (r.pass || 0)) % alive.length] : null; r.aim = null; }
+      const t = r.target;
+      if (r.tank) {
+        // tanks halt at range, turn their guns on a target and fire
+        if (t) { const d = Math.hypot(t.pos.x - r.pos.x, t.pos.z - r.pos.z); if (d > 7) ride(r, t.pos.x, t.pos.z, 4, dt); else { r.sp *= .9; r.yaw += Math.atan2(Math.sin(Math.atan2(t.pos.x - r.pos.x, t.pos.z - r.pos.z) - r.yaw), Math.cos(Math.atan2(t.pos.x - r.pos.x, t.pos.z - r.pos.z) - r.yaw))*Math.min(1, dt*2); if ((r.cd -= dt) <= 0) { r.cd = 1.4 + R()*.6; strike(r, t, true, 3); particle(0x6a6a6a, new THREE.Vector3(r.pos.x, 1.4, r.pos.z), new THREE.Vector3(0, 1.2, 0), 1.2, .35, {grow:.8, op:.6}); } } }
+        else ride(r, fx, fz, 4, dt);
+      } else if (t) {
+        // charge straight through the target and out the far side, then wheel round and come again
+        if (!r.aim) { const dx = t.pos.x - r.pos.x, dz = t.pos.z - r.pos.z, d = Math.hypot(dx, dz) || 1; r.aim = [t.pos.x + dx/d*4, t.pos.z + dz/d*4]; r.struck = false; }
+        if (!r.struck && Math.hypot(t.pos.x - r.pos.x, t.pos.z - r.pos.z) < 1.3) {
+          r.struck = true; strike(r, t, false, 2.6);
+          const kx = t.pos.x - r.pos.x, kz = t.pos.z - r.pos.z, kd = Math.hypot(kx, kz) || 1; t.pos.x += kx/kd*.7; t.pos.z += kz/kd*.7;
+          if (r.lance) r.lance.rotation.x = 1.3;
+        }
+        if (ride(r, r.aim[0], r.aim[1], 10, dt) || Math.hypot(r.aim[0] - r.pos.x, r.aim[1] - r.pos.z) < 1.2) { r.aim = null; r.pass = (r.pass || 0) + 1; r.target = null; if (r.lance) r.lance.rotation.x = .25; }
+      } else ride(r, fx, fz, 6, dt);
+    } else {
+      // the enemy breaks: rein in on the field
+      ride(r, fx, fz, 4, dt);
+    }
+  }
+  for (const r of CHARGE.riders) {
+    r.g.position.set(r.pos.x, 0, r.pos.z); r.g.rotation.y = r.yaw;
+    if (r.H && r.g.visible) horseGait(r.H, dt, r.sp);
+  }
+  if (!live && home >= CHARGE.riders.length) chargeClear();
+}
+// ------------------------------------------------------------------ weapons: swords, then bows and arrows, muskets, rifles and semi-automatic rifles
+// Military technology you buy, separate from the soldiers' outfits: every tier re-arms the whole army, changes how it
+// fights (archers and riflemen hold the line and shoot; semi-automatics fire in bursts) and makes it stronger.
+const WEAPONS = [{n:'Swords', icon:'🗡️'}, {n:'Bows and arrows', icon:'🏹'}, {n:'Muskets', icon:'🔫'}, {n:'Rifles', icon:'🎯'}, {n:'Semi-automatic rifles', icon:'💥'}];
+const wepLvl = () => W.unlocked.has('semiAuto') ? 4 : W.unlocked.has('rifles') ? 3 : W.unlocked.has('guns') ? 2 : W.unlocked.has('bows') ? 1 : 0;
+// army strength, how many soldiers a campaign needs, and power against monsters, by weapon
+const WEP_POW = [1, 1.15, 1.4, 1.6, 1.85], WEP_NEED = [1, .92, .8, .74, .68], WEP_BOSS = [1, 1.15, 1.5, 1.7, 1.9];
+// the outfit of the age with the weapon you have bought
+function armed(o) {
+  const w = wepLvl(); if (!w) return o;
+  const a = {...o, sword:false, axe:false};
+  return w === 1 ? {...a, gun:false, bow:true} : {...a, bow:false, gun:true, scope:o.scope || w >= 3, auto:w >= 4};
+}
+// a longbow in the left hand: a curved stave and its string
+function bowProp(arm) {
+  const g = new THREE.Group(); g.position.set(0, -.55, .06); arm.add(g);
+  const b = new THREE.Mesh(new THREE.TorusGeometry(.34, .02, 4, 16, Math.PI), mat(0x6b4526)); b.rotation.set(0, Math.PI/2, Math.PI/2); g.add(b);
+  mesh(G.box, 0xe8e0c8, [.008, .68, .008], [0, 0, 0], g);
+  return g;
+}
+// a magazine under the rifle for the semi-automatic
+function magazine(gun) { if (gun) mesh(G.box, 0x111114, [.045, .16, .07], [0, -.12, .06], gun); }
+function weaponStage(n, anim) {
+  troopStage(W.troop || 0, false);
+  if (anim) { const W0 = WEAPONS[n]; banner(`${W0.icon} ${W0.n}!`, n === 1 ? 'Your soldiers shoot arrows from the line before the armies close.' : n === 3 ? 'Faster, longer shots: your riflemen thin the enemy before they reach you.' : 'Bursts of fire: your army is stronger than ever.'); }
 }
 // ------------------------------------------------------------------ castles: a wooden fort, a stone castle, a moat with a drawbridge, then a bunker
 let castleG = null, drawbridge = null, turrets = [];
@@ -6435,6 +6698,12 @@ function warshipLook(g, lvl) {
     for (const [x, z] of [[-.4, 1.6], [-.35, .4], [-.4, -2]]) { const j = model('fighter', 1.15, 'x'); if (j) { j.position.set(x, .82, z); j.rotation.y = Math.PI; g.add(j); } }
   }
 }
+// an escort for the fleet: the troop galleon early on, then ships of your navy's own age
+function escortBoat() {
+  const b = makeBoat('troop');
+  if (navLvl() >= 2) { for (const o of [...b.g.children]) if (!o.userData.sailor) b.g.remove(o); warshipLook(b.g, navLvl() >= 4 ? 3 : navLvl()); for (const o of b.g.children) if (o.userData.sailor) { o.position.set(0, .62, -1.3); o.scale.setScalar(.55); } }
+  return b;
+}
 // rebuild your warship in the new style (its sailor stays aboard)
 function navyStage(n, anim) {
   const b = boats.find(q => q.kind === 'war'); if (!b) return;
@@ -6848,15 +7117,15 @@ function updEvents(dt) {
   }
   if (W.raid && !W.raid.siege) {
     W.raid.t -= dt;
-    if (W.raid.t <= 0 && W.raid.revolt) { const k = W.raid.revolt; W.raid = null; setTimeout(endBattle, 2500); endRevolt(k); }
+    if (W.raid.t <= 0 && W.raid.revolt) { const k = W.raid.revolt; W.raid = null; endBattleLater(); endRevolt(k); }
     else if (W.raid.t <= 0 && W.raid.tribe != null) {
-      const R0 = W.raid, c = CAMPAIGNS[R0.tribe]; W.raid = null; setTimeout(() => { endBattle(); BT.lose = BT.noCap = false; }, 2500);
+      const R0 = W.raid, c = CAMPAIGNS[R0.tribe]; W.raid = null; endBattleLater();
       if (R0.win) { const loot = 300 + 200*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8}); banner(`🛡️ The ${c.name} are beaten off!`, `Your army takes ${loot} 💵 from them.`); }
       else { const lost = Math.min(Math.floor(W.coins*.12), 5000 + 3000*W.era); spend(lost); banner(`🔥 The ${c.name} raid you!`, `They carry off ${lost} 💵. Train more soldiers before they come back.`); }
       save();
     }
     else if (W.raid.t <= 0) {
-      W.raid = null; setTimeout(endBattle, 2500);
+      W.raid = null; endBattleLater();
       W.rivalWins = (W.rivalWins || 0) + 1;
       const loot = 400 + 250*W.era; addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
       if (W.rivalWins >= 4 && !W.rivalAlly) { W.rivalAlly = true; banner('🤝 The rival empire surrenders!', 'They join you and pay tribute every season.'); rivalCity(); }
@@ -7433,7 +7702,7 @@ function updRobber(dt) {
       e.state = 'out'; e.speed = 4.8;
     }
   } else if (e.state === 'out') {
-    if (moveTo(e, 54, 1.6, dt) || e.pos.x > 61) { endRobbery(false); return; }
+    if (moveTo(e, 64, 1.6, dt) || e.pos.x > 61) { endRobbery(false); return; }
   } else if (e.state === 'caught') {
     e.vel.set(0, 0, 0); e.char.armL.rotation.x = e.char.armR.rotation.x = -2.9;
     if ((e.t -= dt) <= 0) { endRobbery(true); return; }
@@ -9038,13 +9307,14 @@ function startSea() {
   fortReset(f);
   const war = boats.find(b => b.kind === 'war');
   if (war) { war.inFleet = true; war.lane = -13.6; war.home = -4.6; addCrew(war); }
-  [[-15.2, -8.8], [-12, -8.8]].forEach(([x, z]) => { const b = makeBoat('troop'); b.x = x; b.z = z; b.inFleet = true; b.temp = true; b.lane = x; b.home = z; addCrew(b); });
+  [[-15.2, -8.8], [-12, -8.8]].forEach(([x, z]) => { const b = escortBoat(); b.x = x; b.z = z; b.inFleet = true; b.temp = true; b.lane = x; b.home = z; addCrew(b); });
   fleet().forEach((b, k) => { b.ax = S.x - 5 + k*5; b.az = -96.6 - (k % 2)*.9; });
   [-1, 1].forEach(s => { const p = makePirate(S.x + s*7, -94); p.hp = 3; pirates.push(p); });
 }
 function updSea(dt) {
   const C = W.camp;
   if (!C || C.type !== 'sea') { if (pirates.length && !C) { pirates.forEach(p => scene.remove(p.g)); pirates.length = 0; } return; }
+  if (C.naval) { updNaval(dt); return; }
   const e = C.dur - C.t, ease = u => u < 0 ? 0 : u > 1 ? 1 : u*u*(3 - 2*u), win = C.win !== false, f = COAST.cur, MZ = -93.2, stop = win ? 35 : 30;
   for (const b of fleet()) {
     let x = b.lane, z = b.home, yaw = Math.PI;
@@ -9091,6 +9361,7 @@ function endSea() {
     else { b.state = 'dock'; b.z = b.home; }
   }
   pirates.forEach(p => scene.remove(p.g)); pirates.length = 0;
+  if (C.naval) endNaval();
   if (f && C.win !== false) {
     (W.flags.coast ||= {})[f.id] = 1;
     // the fort is rebuilt under your flag
@@ -9099,6 +9370,106 @@ function endSea() {
   COAST.cur = null;
 }
 
+// ------------------------------------------------------------------ naval battles against rivals with a coast: your fleet sails to their own waters
+// Down the river and out to sea, across to their coast; their navy comes out to meet you (galleons, then ironclads,
+// dreadnoughts and carriers as they grow), the two fleets trade broadsides, and once their ships are sunk your guns turn
+// on their harbour. Lose, and their ships stay afloat while yours limp home smoking.
+const NAVAL = {foes:[], fireT:0};
+// open water: the sea, but not a rival's city (Port Azul is built out over the water)
+const seaOK = (x, z) => isWater(x, z) && !Object.values(CITY_LAND).some(L => x > L.x0 - 2 && x < L.x1 + 2 && z > L.z0 - 2 && z < L.z1 + 2);
+const segOK = (a, b) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 1.5); for (let k = 0; k <= n; k++) if (!seaOK(a[0] + (b[0] - a[0])*k/n, a[1] + (b[1] - a[1])*k/n)) return false; return true; };
+function navalRoute(r) {
+  const east = r.at[0] > 0, sx = east ? 1 : -1;
+  const pts = [[-15.2, -6], [-15.2, -48], [-15.2, -82.6]];
+  // along our own coast to a near rival, or out round the world's edge to a far one
+  if (r.coast) pts.push([r.at[0]*.5, -82.6]);
+  else pts.push([sx*160, -82.6], [sx*200, -104], [sx*345, -104], [sx*362, -20]);   // hugging the coast past Port Azul's harbour
+  // anchor in the nearest open water to their city that a ship can reach in a straight line from the last turn
+  const last = pts[pts.length - 1]; let best = null, bd = 1e9;
+  for (let rad = 8; rad <= 60 && !best; rad += 2) for (let k = 0; k < 64; k++) {
+    const a = k/64*Math.PI*2, x = r.at[0] + Math.cos(a)*rad, z = r.at[1] + Math.sin(a)*rad;
+    if (!seaOK(x, z) || ![[4, 0], [-4, 0], [0, 4], [0, -4]].every(([dx, dz]) => seaOK(x + dx, z + dz)) || !segOK(last, [x, z])) continue;
+    const d = Math.hypot(x - last[0], z - last[1]); if (d < bd) { bd = d; best = [x, z]; }
+  }
+  pts.push(best || last);
+  return pts;
+}
+// their warships: a red ensign on each, and a look for how strong they are
+function rivalShip(tier) {
+  const g = new THREE.Group(); scene.add(g);
+  if (tier <= 1) galleon(g, SHIPS.pirate()); else warshipLook(g, tier);
+  mesh(G.cyl, 0x3a3a3e, [.03, 1.6, .03], [0, 2.2, -1.2], g); mesh(G.box, 0xb8322a, [.6, .36, .03], [.31, 2.8, -1.2], g);
+  return {g, sink:0, hp:1};
+}
+function startNaval(C, r) {
+  const s = es(r), pts = navalRoute(r), len = pathLen(pts);
+  C.naval = {pts, anchor:pts[pts.length - 1], city:r.at, sail:Math.min(40, Math.max(14, len/12)), fight:20};
+  C.t = C.dur = C.naval.sail + C.naval.fight + 4;
+  // your fleet: the warship and two escorts
+  const war = boats.find(b => b.kind === 'war');
+  if (war) { war.inFleet = true; addCrew(war); }
+  for (let k = 0; k < 2; k++) { const b = escortBoat(); b.inFleet = true; b.temp = true; addCrew(b); }
+  fleet().forEach((b, k) => { b.slot = k; b.yawS = undefined; });
+  // their fleet waits between you and their harbour
+  const [ax, az] = C.naval.anchor, dx = r.at[0] - ax, dz = r.at[1] - az, d = Math.hypot(dx, dz) || 1, ux = dx/d, uz = dz/d;
+  const n = Math.min(4, 2 + Math.floor(s.pow/40)), tier = clamp(1 + Math.floor(s.pow/45), 1, 4);
+  // their line at the anchorage (stepped out to sea where the coast bends), yours 10 further out, ships 7 apart
+  NAVAL.foes = [...Array(n)].map((_, k) => { const f = rivalShip(tier), side = (k - (n - 1)/2)*7; let x = ax - uz*side, z = az + ux*side; for (let j = 0; j < 20 && !seaOK(x, z); j++) { x -= ux*1.5; z -= uz*1.5; } f.x = x; f.z = z; f.yaw = Math.atan2(-uz, ux); return f; });
+  NAVAL.dir = [ux, uz];
+  // the voyage ends where your line forms, 10 out from theirs
+  const route = [...pts.slice(0, -1), [ax - ux*10, az - uz*10]];
+  // straight legs between the checked turning points (a smooth curve would cut the corners across land); ships ease round the turns
+  NAVAL.route = route; NAVAL.len = pathLen(route);
+}
+function updNaval(dt) {
+  const C = W.camp, N = C.naval, e = C.dur - C.t, win = C.win !== false, [ux, uz] = NAVAL.dir;
+  const u = clamp(e / N.sail, 0, 1), ease = u*u*(3 - 2*u), fl = fleet();
+  fl.forEach((b, k) => {
+    let x, z, yaw;
+    if (u < 1) {
+      // in line astern along the route, a ship's length apart (those still in the river wait their turn behind)
+      const d = ease*NAVAL.len - k*8.5;
+      if (d < 0) { x = NAVAL.route[0][0]; z = NAVAL.route[0][1] - d; yaw = Math.PI; }
+      else { [x, z, yaw] = routeAt(NAVAL.route, d); }
+      let dy = yaw - (b.yawS ?? yaw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); b.yawS = (b.yawS ?? yaw) + dy*Math.min(1, dt*2.5); yaw = b.yawS;
+    } else {
+      // line abreast off their coast, broadside on to their fleet
+      const side = (k - (fl.length - 1)/2)*7, [ax, az] = N.anchor;
+      x = ax - ux*10 - uz*side; z = az - uz*10 + ux*side; yaw = Math.atan2(-uz, ux);
+    }
+    b.x = x; b.z = z;
+    b.g.position.set(x, Math.sin(time*2 + x)*.06 - .26, z); b.g.rotation.y = yaw; b.g.rotation.z = Math.sin(time*1.6 + z*.1)*.05;
+    if (!win && e > N.sail + 6 && R() < dt*4) particle(0x4a4a4a, new THREE.Vector3(x, 1.4, z), new THREE.Vector3(0, 2, 0), 1.6, .4, {grow:.8, op:.6});
+  });
+  const fe = e - N.sail;
+  NAVAL.foes.forEach((f, i) => {
+    // they come out to meet you; if you are winning they go down one by one
+    if (win && fe > 4 + i*3.5) f.sink = Math.min(1.6, f.sink + dt*.45);
+    f.g.position.set(f.x, -.26 - f.sink*2.4 + Math.sin(time*2 + i)*.06, f.z); f.g.rotation.y = f.yaw + Math.sin(time*.9 + i)*.05; f.g.rotation.z = f.sink*.8;
+    if (f.sink > 0 && f.sink < 1.5 && R() < dt*14) particle(R() < .5 ? 0xff7a2a : 0x4a4a4a, new THREE.Vector3(f.x + (R() - .5)*2, 1.2 - f.sink, f.z + (R() - .5)), new THREE.Vector3(0, 2.5, 0), .9, .25, {grow:.5, op:.75});
+  });
+  if (fe < 0 || fe > N.fight || !fl.length || (NAVAL.fireT -= dt) > 0) return;
+  NAVAL.fireT = .26;
+  const afloat = NAVAL.foes.filter(f => f.sink < .4), b = fl[R()*fl.length|0], roll = R();
+  if (afloat.length && roll < .55) { const f = afloat[R()*afloat.length|0]; broadside(b.g.position, f.g.position.clone().setY(.6), R() < (win ? .7 : .35)); }
+  else if (afloat.length) { const f = afloat[R()*afloat.length|0]; broadside(f.g.position, b.g.position.clone().setY(.6), R() < (win ? .25 : .55)); }
+  else {
+    // their fleet is gone: shell the harbour, and fires break out in the city
+    const [cx, cz] = N.city, tp = new THREE.Vector3(cx + (R() - .5)*12, .8, cz + (R() - .5)*12);
+    broadside(b.g.position, tp, true, () => { for (let k = 0; k < 6; k++) particle(R() < .5 ? 0xff7a2a : 0x555555, tp, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), 1.2, .35, {grow:.6, op:.75}); });
+  }
+  if (watchingWar() && R() < .3) shakeCam(.05);
+}
+// a point a given distance along a polyline, and the heading of that leg
+function routeAt(pts, d) {
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], L = Math.hypot(bx - ax, bz - az);
+    if (d <= L || i === pts.length - 1) { const u = L ? Math.min(1, d/L) : 1; return [ax + (bx - ax)*u, az + (bz - az)*u, Math.atan2(bx - ax, bz - az)]; }
+    d -= L;
+  }
+  return [pts[0][0], pts[0][1], 0];
+}
+function endNaval() { for (const f of NAVAL.foes) scene.remove(f.g); NAVAL.foes = []; }
 // ------------------------------------------------------------------ rival empires: they build out like you, trade, ally, declare war and besiege your castle
 const EMP = {list:[
   {id:'ostberg', amb:.7, n:'Ostberg', icon:'🏰', land:true, sea:false, base:14, grow:1.1, temper:-60, start:-45, min:2, look:3, style:'austria', at:[2.5, 104.5], bf:[3, 88], via:'south'},
@@ -9119,7 +9490,7 @@ const tierOf = p => TIERS.find(t => p < t[0])[1];
 const ostLevel = () => { const s = (W.flags.emp || {}).ostberg; return s ? Math.min(4, 1 + Math.floor((s.pow - 14) / 20)) : 0; };
 const ostOurs = () => { const s = (W.flags.emp || {}).ostberg; return !!s && (s.owned || s.stance === 'ally'); };
 function powerParts() {
-  const troop = 1 + .25*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.4 : 1;
+  const troop = 1 + .25*(W.troop || 0), guns = WEP_POW[wepLvl()];
   const sci = PADS.filter(p => p.sci && W.unlocked.has(p.id)).length*2 + (W.unlocked.has('labs') ? 6 : 0) + (W.unlocked.has('aiLab') ? 12 : 0);
   const allies = EMP.list.filter(r => W.flags.emp?.[r.id]?.stance === 'ally').reduce((a, r) => a + es(r).pow*.3, 0);
   return {army:Math.round(W.army*troop*guns), cav:cavPower(), castle:[0, 6, 14, 24, 36][W.castle || 0], science:sci, air:planesBuilt()*6, navy:navLvl() ? NAVY[navLvl()].pow : 0, allies:Math.round(allies)};
@@ -9428,7 +9799,7 @@ function updEmpires(dt) {
     if (!s.met && !(W.conquests >= 2 && r.at && seen(r.at[0], r.at[1]))) continue;   // they notice you after your second campaign, once you have seen them
     if (!s.met) { s.met = true; banner(`🗺️ A new power: ${r.icon} ${r.n}`, 'They are building an empire like yours. Open 🗺️ to trade, ally or go to war.'); }
     if (r.id === 'ostberg' && ostLevel() !== EMP.ostLv) { EMP.ostLv = ostLevel(); rivalCity(); }
-    if (s.owned) continue;
+    if (s.owned || s.by) continue;   // conquered by you, or occupied by another rival
     // they build out like you do: growth tracks your own strength, each at its own ambition
     const peak = W.flags.peakPow = Math.max(W.flags.peakPow || 0, mine), gain = Math.max(0, peak - (s.seenPeak ?? peak)); s.seenPeak = peak;
     s.pow += .2*r.amb*gain + .2*r.grow*spec(r, 'grow')*(1 + .15*W.era)*t/60;
@@ -9463,7 +9834,7 @@ function empAct(i, a, o) {
     if (W.camp || W.raid) return;
     // a walled city needs rams and catapults to break in
     if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
-    if (s.stance !== 'war') empAct(i, 'war');
+    if (s.stance !== 'war' && !s.by) empAct(i, 'war');
     // a front you planned brings its own odds and the branches that went; otherwise everything you have goes
     const win = o && o.win != null ? o.win : myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
     W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random(), br:o && o.br};
@@ -9480,7 +9851,7 @@ function empAct(i, a, o) {
       C.t = C.dur = dur; BF.x = r.bf[0]; BF.z = r.bf[1];
       startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight();
     } else if (a === 'land') { startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight(); }
-    else startSea();
+    else if (r.sea) startNaval(W.camp, r); else startSea();
     banner(a === 'land' ? (r.via === 'sea' ? `⛵ Your army sails for ${r.n}` : `⚔️ Your army marches on ${r.n}`) : `⚓ Your fleet sails for ${r.n}`, 'Tap 🎥 Follow the army (or press F) to ride along.');
     $('modal').hidden = true; $('modal').dataset.panel = ''; return;
   }
@@ -9502,9 +9873,9 @@ function updFleets(dt) {
 const sideName = () => { const C = W.camp; return C.retake ? landName(C.retake) : EMP.list[C.rival].n; };
 function endSideCamp() {
   const C = W.camp; endSea.last = C; W.camp = null;
-  if (C.away) for (const s of soldiers) { s.char.g.visible = true; if (C.sail) { s.pos.set(s.slot[0], 0, s.slot[1]); s.ret = null; } else s.ret = [...C.path].reverse(); }
+  if (C.away && armyGoes(C)) for (const s of soldiers) { s.char.g.visible = true; if (C.sail) { s.pos.set(s.slot[0], 0, s.slot[1]); s.ret = null; } else s.ret = [...C.path].reverse(); }
   if (C.away && C.sail) note('⛵ The army sails home', 'Your troops are back at the barracks.');
-  if (C.type === 'land') setTimeout(() => { endBattle(); BT.lose = BT.noCap = false; }, 2500);
+  if (C.type === 'land') endBattleLater();
   if (C.type === 'sea') endSea();
   if (C.retake) {
     const L = land(C.retake);
@@ -9519,7 +9890,9 @@ function endSideCamp() {
 }
 function conquer(r) {
   const s = es(r), loot = Math.round(s.pow*150);
-  s.owned = true; s.stance = 'owned';
+  s.owned = true; s.stance = 'owned'; s.by = null;
+  // the cities they had occupied are free again
+  for (const q of EMP.list) { const sq = es(q); if (sq.by === r.id) { sq.by = null; sq.stance = 'peace'; sq.rel = Math.max(sq.rel, 30); } }
   land('r:' + r.id);
   addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
   if (r.id === 'ostberg') rivalCity();
@@ -10065,11 +10438,13 @@ function empireHTML() {
     const busy = !!(W.camp || W.raid), fleetOk = r.sea && W.unlocked.has('tradeShip') && (s.fleetT || 0) <= W.playT;
     let btns = '';
     if (s.owned) btns = '<em>🏴 Part of your empire</em>';
+    else if (s.by) { const o = EMP.list.find(q => q.id === s.by), F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
+      btns = `<em>🏴 Held by ${o.icon} ${o.n}</em>` + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>🏴 Liberate</button>`); }
     else if (s.stance === 'ally') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('unally', '💔 Break');
     else if (s.stance === 'peace') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + B('ally', '🤝 Ally', s.rel < 60) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('war', '⚔️ War', busy);
     else { const F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
       btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>⚔️ Plan attack</button>`); }
-    return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
+    return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.by ? '<i>occupied</i>' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
       <div class="rel"><i style="width:${(s.rel + 100)/2}%"></i></div><div class="eb">${btns}</div></div>`;
   }).join('');
   const lands = landKeys().map(k => { const L = land(k);
@@ -10124,7 +10499,7 @@ function updScouts() {
 // ------------------------------------------------------------------ planning an attack on a rival: who goes, against what, and the odds
 // ------------------------------------------------------------------ fronts: wars on several rivals at once, each fought by the branches you send
 // You choose who goes: the army, the cavalry (later tanks), the navy and the air force. A branch fights on one front at a
-// time, so splitting your forces lets you fight in several places at once. The first front with the army (or the navy)
+// time, so splitting your forces lets you fight in several places at once. The first front with the army or cavalry (or the navy)
 // is fought on screen; the others are fought far away while their city burns, and you hear how it went.
 const BRANCH = [
   {b:'army', icon:() => '🪖', n:() => 'Army'},
@@ -10147,7 +10522,8 @@ const branchPow = b => { const P = powerParts(); return b === 'army' ? (W.army >
 // science and allies back every front
 const supportPow = () => { const P = powerParts(); return P.science + P.allies; };
 const frontPow = br => br.reduce((a, b) => a + branchPow(b), 0) + supportPow();
-const frontNeed = (r, br) => Math.round(es(r).pow * spec(r, br.length && br.every(b => b === 'navy') ? 'navy' : 'army'));
+// an occupied city is held by the occupier's garrison
+const frontNeed = (r, br) => Math.round((occupier(r) ? es(occupier(r)).pow*.6 : es(r).pow) * spec(r, br.length && br.every(b => b === 'navy') ? 'navy' : 'army'));
 function frontWhy(r, b) {
   const walled = r.bf && r.id !== 'ostberg', boats = r.via !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship');
   if (FRONTS.busy(b)) return 'Away fighting on another front';
@@ -10165,11 +10541,20 @@ function frontWhy(r, b) {
 function launchFront(i, br) {
   const r = EMP.list[i], s = es(r); if (!br.length || br.some(b => frontWhy(r, b)) || FRONTS.at(i)) return;
   const win = frontPow(br) >= frontNeed(r, br);
-  if (s.stance !== 'war') empAct(i, 'war');
-  // on screen when the stage is free: the army marches (or sails over), or the navy bombards their harbour
-  if (!W.camp && !W.raid && (br.includes('army') || (br.includes('navy') && !br.includes('cav')))) { empAct(i, br.includes('army') ? 'land' : 'sea', {win, br}); return; }
+  if (s.stance !== 'war' && !s.by) empAct(i, 'war');
+  // on screen when the stage is free: the army and the cavalry march (or sail over) to fight, or the navy bombards their harbour
+  const onLand = br.includes('army') || br.includes('cav');
+  // the air force alone: the squadron flies to their city and bombs it, and you can watch
+  if (!W.camp && !W.raid && !onLand && !br.includes('navy')) { airStrike(i, win); return; }
+  if (!W.camp && !W.raid && (onLand || br.includes('navy'))) { empAct(i, onLand ? 'land' : 'sea', {win, br}); return; }
   FRONTS.list.push({i, br, t:FRONT_DUR, dur:FRONT_DUR, win});
   banner(`⚔️ A new front: ${br.map(b => BRANCH.find(q => q.b === b).icon()).join('')} against ${r.icon} ${r.n}`, win ? 'Your forces should carry the day. Watch their city burn from the map.' : 'They are stronger than what you sent: expect to be driven back.');
+  snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
+}
+function airStrike(i, win) {
+  const r = EMP.list[i], n = planesBuilt(), dur = 42 + .7*Math.max(0, n - 1);
+  W.camp = {t:dur, dur, type:'air', side:true, rival:i, win, tx:r.at[0], tz:r.at[1], n, br:['air'], id:Math.random()};
+  banner(`✈️ ${n} plane${n > 1 ? 's' : ''} fly against ${r.icon} ${r.n}`, 'Tap 🎥 Follow the army (or press F) to ride along.');
   snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
 }
 function updFronts(dt) {
@@ -10189,7 +10574,8 @@ function planAttack(i) {
   const sel = new Set(BRANCH.filter(q => !frontWhy(r, q.b) && branchPow(q.b) > 0).map(q => q.b));
   const draw = () => {
     const br = [...sel], pow = frontPow(br), need = frontNeed(r, br);
-    m.innerHTML = `<div class="card"><h1 style="font-size:24px">⚔️ Attack ${r.icon} ${r.n}</h1>
+    const occ = occupier(r);
+    m.innerHTML = `<div class="card"><h1 style="font-size:24px">${occ ? `🏴 Liberate ${r.icon} ${r.n}` : `⚔️ Attack ${r.icon} ${r.n}`}</h1>${occ ? `<p>Held by ${occ.icon} ${occ.n}: you fight their garrison.</p>` : ''}
       <p>Choose who goes. Forces you keep at home can fight on another front at the same time.</p>
       <div class="votes">${BRANCH.map(q => { const why = frontWhy(r, q.b), on = sel.has(q.b);
         return `<button data-br="${q.b}" ${why ? 'disabled style="opacity:.45;cursor:default"' : on ? 'style="outline:3px solid #f2c200"' : ''}><b>${on ? '✅' : '⬜'} ${q.icon()} ${q.n()}</b><small>Strength ${branchPow(q.b)}</small>${why ? `<small>🔒 ${why}</small>` : ''}</button>`; }).join('')}</div>
@@ -10638,7 +11024,7 @@ function kaijuModel() {
 }
 // what you can throw at it, and how hard each hits per second
 function bossForces() {
-  const troop = 1 + .15*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.5 : 1;
+  const troop = 1 + .15*(W.troop || 0), guns = WEP_BOSS[wepLvl()];
   return {
     soldiers:(Math.min(24, W.army) + 2*Math.sqrt(Math.max(0, W.army - 24))) * .07 * troop * guns,
     tanks:W.unlocked.has('tanks') ? 3 * 1.4 : 0,
@@ -10793,10 +11179,10 @@ function updBoss(dt) {
 
 // ------------------------------------------------------------------ conquered lands join your map, each in its own style
 const STYLE_SPOTS = {
-  austria:{n:'Ostberg', flag:'🇦🇹', rect:{x0:-9, x1:14, z0:99, z1:110.5}, centre:[2.5, 104.5]},
-  canada:{n:'the Northern Frontier', flag:'🇨🇦', rect:{x0:34, x1:48.5, z0:98, z1:109.5}, centre:[41.2, 103.8]},
+  austria:{n:'Ostberg', flag:'🏰', rect:{x0:-9, x1:14, z0:99, z1:110.5}, centre:[2.5, 104.5]},
+  canada:{n:'the Northern Frontier', flag:'🌲', rect:{x0:34, x1:48.5, z0:98, z1:109.5}, centre:[41.2, 103.8]},
   mideast:{n:'Pirate cove', flag:'🕌', site:'cove'}, russia:{n:'The old empire', flag:'⛪', site:'empire'},
-  brazil:{n:'Port Azul', flag:'🇧🇷'}, china:{n:'Kumo', flag:'🏯'}, egypt:{n:'the Nile Kingdom', flag:'🐪'}, greece:{n:'Hellas', flag:'🏛️'},
+  brazil:{n:'Port Azul', flag:'⚓'}, china:{n:'Kumo', flag:'🏯'}, egypt:{n:'the Nile Kingdom', flag:'🐪'}, greece:{n:'Hellas', flag:'🏛️'},
   mexico:{n:'Aztlan', flag:'🌵'}, india:{n:'Rajpur', flag:'🐘'}, norway:{n:'the Sky Citadel', flag:'🛸'}};
 // every rival's land: a rectangle round its town (the road runs through the ones on the roads)
 for (const r of EMP.list) if (r.at && STYLE_SPOTS[r.style] && r.id !== 'ostberg') { const [x, z] = r.at; Object.assign(STYLE_SPOTS[r.style], {centre:[x, z], rect:{x0:x - 15, x1:x + 15, z0:z - 15, z1:z + 13}}); }
@@ -11152,7 +11538,7 @@ function payRecruit(zn, e) {
 // and the resorts on big lots with room round them (28 apart), four to a side. The walk in from the park comes
 // down between the third and fourth lots on the north side.
 const STRIP_Z = 120, STRIP_X0 = -135, STRIP_X1 = -23, STRIP_HALF = 8.7;
-const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-34, x1:-28, z0:79, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-25.6, x1:-19.3, z0:42.5, z1:45.5}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
+const STRIP = {walk:{x0:STRIP_X0, x1:STRIP_X1, z0:STRIP_Z - STRIP_HALF, z1:STRIP_Z + STRIP_HALF}, path:{x0:-34, x1:-28, z0:79, z1:STRIP_Z - STRIP_HALF + .2}, spur:{x0:-34, x1:-28, z0:79, z1:82}, g:null, lots:{}, neon:[], beams:[], jets:[], tourists:[], gondola:null, t:10, spinT:0};
 // lot centres: four on the north side (facing south onto the boulevard), four on the south side (facing north)
 const STRIP_N = STRIP_Z - STRIP_HALF - 6, STRIP_S = STRIP_Z + STRIP_HALF + 6;
 const STRIP_LOTS = {slots:[-123, STRIP_N], casino1:[-95, STRIP_N], casino2:[-67, STRIP_N], casino3:[-37, STRIP_N], chapel:[-123, STRIP_S], fountains:[-95, STRIP_S], stripHotel:[-67, STRIP_S], casino4:[-37, STRIP_S]};
@@ -12255,6 +12641,109 @@ function lightAt(fx, fz, dk) {
   hemi.color.copy(SUNC.skyD).lerp(SUNC.skyG, gold * .6 * (1 - moon)).lerp(SUNC.skyN, moon);
   return gold * (1 - moon);
 }
+// ------------------------------------------------------------------ banners over every rival city, and the rivals' own wars
+// Each rival flies its own banner on a tall pole in the middle of its city, waving in the wind. When you conquer it
+// the flag comes down and yours goes up; lose it to rebels or a rival and theirs goes up instead. Rivals also fight each
+// other: a strong one can occupy a much weaker neighbour (its flag rises over that city), and you can liberate it.
+const FLAG_DRAW = {
+  // Ostberg, the timber builders: three pines on green over a white band
+  ostberg(g, w, h) { g.fillStyle = '#2f6b3a'; g.fillRect(0, 0, w, h); g.fillStyle = '#f2efe4'; g.fillRect(0, h*.72, w, h*.12);
+    g.fillStyle = '#f2efe4'; for (const [x, s] of [[.3, .8], [.5, 1.05], [.7, .8]]) { const cx = w*x, base = h*.64;
+      g.fillRect(cx - h*.02*s, base - h*.06*s, h*.04*s, h*.07*s);
+      for (const [y0, hw] of [[.1, .13], [.22, .1], [.33, .07]]) { g.beginPath(); g.moveTo(cx, base - h*(y0 + .2)*s); g.lineTo(cx + h*hw*s, base - h*y0*s); g.lineTo(cx - h*hw*s, base - h*y0*s); g.fill(); } } },
+  // Port Azul, the seafarers: a white anchor on deep blue, a gold wave beneath
+  azul(g, w, h) { g.fillStyle = '#0f4c81'; g.fillRect(0, 0, w, h); g.strokeStyle = '#f2c94c'; g.lineWidth = h*.05; g.beginPath(); for (let x = 0; x <= w; x += 4) g.lineTo(x, h*.84 + Math.sin(x/18)*h*.03); g.stroke();
+    g.strokeStyle = '#fff'; g.lineWidth = h*.05; g.beginPath(); g.moveTo(w/2, h*.2); g.lineTo(w/2, h*.68); g.moveTo(w/2 - h*.12, h*.3); g.lineTo(w/2 + h*.12, h*.3); g.stroke();
+    g.beginPath(); g.arc(w/2, h*.5, h*.18, Math.PI*.15, Math.PI*.85); g.stroke(); g.beginPath(); g.arc(w/2, h*.16, h*.05, 0, Math.PI*2); g.stroke(); },
+  // Kumo, the miners: gold peaks on dark crimson
+  kumo(g, w, h) { g.fillStyle = '#7a1a1a'; g.fillRect(0, 0, w, h); g.fillStyle = '#e0b040';
+    g.beginPath(); g.moveTo(w*.25, h*.72); g.lineTo(w*.42, h*.3); g.lineTo(w*.52, h*.48); g.lineTo(w*.62, h*.22); g.lineTo(w*.8, h*.72); g.fill();
+    g.fillStyle = '#7a1a1a'; g.beginPath(); g.moveTo(w*.57, h*.33); g.lineTo(w*.62, h*.22); g.lineTo(w*.67, h*.33); g.fill(); },
+  // the Nile Kingdom: a rising sun over a blue river on sand
+  nile(g, w, h) { g.fillStyle = '#d9b46a'; g.fillRect(0, 0, w, h); g.fillStyle = '#e8762a'; g.beginPath(); g.arc(w/2, h*.55, h*.22, Math.PI, 0); g.fill();
+    for (let i = 0; i < 9; i++) { const a = Math.PI + i/8*Math.PI; g.fillRect(w/2 + Math.cos(a)*h*.28 - 2, h*.55 + Math.sin(a)*h*.28 - 2, 4, 4); }
+    g.fillStyle = '#1f6fa8'; g.beginPath(); for (let x = 0; x <= w; x += 4) g.lineTo(x, h*.66 + Math.sin(x/22)*h*.04); g.lineTo(w, h*.78); for (let x = w; x >= 0; x -= 4) g.lineTo(x, h*.78 + Math.sin(x/22)*h*.04); g.fill(); },
+  // Aztlan, the farmers: a corn-gold sun on green and orange
+  aztlan(g, w, h) { g.fillStyle = '#2e7d32'; g.fillRect(0, 0, w, h/2); g.fillStyle = '#e8762a'; g.fillRect(0, h/2, w, h/2);
+    g.fillStyle = '#f2d04c'; for (let i = 0; i < 12; i++) { const a = i/12*Math.PI*2; g.save(); g.translate(w/2, h/2); g.rotate(a); g.beginPath(); g.moveTo(h*.12, -h*.04); g.lineTo(h*.27, 0); g.lineTo(h*.12, h*.04); g.fill(); g.restore(); }
+    g.beginPath(); g.arc(w/2, h/2, h*.13, 0, Math.PI*2); g.fill(); },
+  // Hellas, the coast-dwellers: a white column on aqua with a gold stripe
+  hellas(g, w, h) { g.fillStyle = '#2aa6b8'; g.fillRect(0, 0, w, h); g.fillStyle = '#f2c94c'; g.fillRect(0, h*.08, w, h*.06); g.fillRect(0, h*.86, w, h*.06);
+    g.fillStyle = '#fff'; g.fillRect(w/2 - h*.2, h*.24, h*.4, h*.06); g.fillRect(w/2 - h*.2, h*.7, h*.4, h*.06); for (let k = -1; k <= 1; k++) g.fillRect(w/2 + k*h*.12 - h*.035, h*.3, h*.07, h*.4); },
+  // Rajpur, the island kingdom: a white elephant on maroon with a saffron border
+  rajpur(g, w, h) { g.fillStyle = '#e8902a'; g.fillRect(0, 0, w, h); g.fillStyle = '#7a1f3a'; g.fillRect(w*.04, h*.06, w*.92, h*.88);
+    g.fillStyle = '#f2efe4'; g.beginPath(); g.ellipse(w/2, h*.52, h*.2, h*.14, 0, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(w/2 + h*.2, h*.42, h*.09, 0, Math.PI*2); g.fill();
+    for (const dx of [-.12, -.04, .06, .14]) g.fillRect(w/2 + dx*h - h*.03, h*.6, h*.06, h*.16);
+    g.lineWidth = h*.045; g.strokeStyle = '#f2efe4'; g.beginPath(); g.moveTo(w/2 + h*.28, h*.45); g.quadraticCurveTo(w/2 + h*.34, h*.66, w/2 + h*.26, h*.72); g.stroke(); },
+  // the Sky Citadel: a silver winged star on night blue
+  nordheim(g, w, h) { g.fillStyle = '#1a2340'; g.fillRect(0, 0, w, h); g.fillStyle = '#d8dee8'; star(g, w/2, h/2, h*.14, -Math.PI/2);
+    for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(w/2 + sx*h*.12, h*.48); g.quadraticCurveTo(w/2 + sx*h*.42, h*.22, w/2 + sx*h*.5, h*.4); g.quadraticCurveTo(w/2 + sx*h*.36, h*.42, w/2 + sx*h*.14, h*.56); g.fill(); } },
+  rebels(g, w, h) { g.fillStyle = '#1a1a1a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#e8e8e8'; g.lineWidth = h*.06; g.beginPath(); g.arc(w/2, h/2, h*.22, 0, Math.PI*2); g.stroke(); g.beginPath(); g.moveTo(w/2, h*.28); g.lineTo(w/2, h*.72); g.stroke(); },
+};
+function star(g, x, y, r, rot) { g.beginPath(); for (let p = 0; p < 10; p++) { const a = rot + p*Math.PI/5, rr = p % 2 ? r*.4 : r; g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.fill(); }
+// a flag that waves: the same cloth (and shader) as our own flag, with each nation's design painted on
+const FLAG_MATS = {};
+function flagMat(style) {
+  if (style === 'us') return US_FLAG.mat;
+  if (FLAG_MATS[style]) return FLAG_MATS[style];
+  const c = document.createElement('canvas'); c.width = 300; c.height = 200; const g = c.getContext('2d');
+  (FLAG_DRAW[style] || FLAG_DRAW.rebels)(g, c.width, c.height);
+  const gr = g.createLinearGradient(0, 0, c.width, 0); for (let i = 0; i <= 6; i++) gr.addColorStop(i/6, i % 2 ? 'rgba(0,0,0,.10)' : 'rgba(255,255,255,.06)');
+  g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const m = US_FLAG.mat.clone(); m.map = t; m.onBeforeCompile = US_FLAG.mat.onBeforeCompile; m.customProgramCacheKey = US_FLAG.mat.customProgramCacheKey;
+  return FLAG_MATS[style] = m;
+}
+// each rival's own banner (invented, in the spirit of the nation it is styled on)
+const RIVAL_FLAG = Object.fromEntries(['ostberg', 'azul', 'kumo', 'nile', 'aztlan', 'hellas', 'rajpur', 'nordheim'].map(k => [k, k]));
+const occupier = r => { const by = es(r).by; return by ? EMP.list.find(q => q.id === by) : null; };
+// whose flag flies over a rival's city now
+function flagOwner(r) {
+  const s = es(r);
+  if (s.owned) { const L = land('r:' + r.id); return L && L.lost ? (L.by && L.by !== 'rebels' ? RIVAL_FLAG[L.by] : 'rebels') : 'us'; }
+  const o = occupier(r); return o ? RIVAL_FLAG[o.id] : RIVAL_FLAG[r.id];
+}
+const POLES = {};
+function updFlags(dt) {
+  for (const r of EMP.list) {
+    if (!r.at || (r.sky && !W.unlocked.has('moonLanding'))) continue;
+    let P = POLES[r.id];
+    if (!P) {
+      // a tall pole in the middle of their city
+      const g = new THREE.Group(); g.position.set(r.at[0], 0, r.at[1]); scene.add(g);
+      mesh(G.cyl, 0xd8dce2, [.09, 8, .09], [0, 4, 0], g, {metalness:.6, roughness:.35}); mesh(G.sph, 0xd9a52a, [.18, .18, .18], [0, 8.1, 0], g, {metalness:.7, roughness:.3});
+      mesh(G.cyl, 0x8a8478, [.5, .4, .5], [0, .2, 0], g);
+      const f = new THREE.Mesh(US_FLAG.geo, flagMat(flagOwner(r))); f.castShadow = true; g.add(f);
+      P = POLES[r.id] = {g, f, style:flagOwner(r), y:7.2, phase:'up'};
+      setFlag(P, P.style);
+    }
+    // a new owner: the old flag comes down, the new one goes up
+    const want = flagOwner(r);
+    if (want !== P.style && P.phase === 'up') P.phase = 'down';
+    if (P.phase === 'down') { P.y -= dt*4.5; if (P.y <= 1.2) { P.y = 1.2; P.style = want; setFlag(P, want); P.phase = 'raise'; } }
+    else if (P.phase === 'raise') { P.y += dt*2.6; if (P.y >= 7.2) { P.y = 7.2; P.phase = 'up'; } }
+    const w = P.f.scale.x; P.f.position.set(w/2 + .09, P.y, 0);
+  }
+}
+function setFlag(P, style) { P.f.material = flagMat(style); P.f.scale.set(style === 'us' ? 2.9 : 2.4, style === 'us' ? 1.55 : 1.6, 1); }
+// ------------------------------------------------------------------ the rivals' wars among themselves
+// Now and then (after your third campaign, every five to eight minutes, never more than two at once) a strong rival
+// may march on a much weaker neighbour you have not conquered and occupy it.
+// An occupied city stops growing and fighting on its own; you can liberate it by beating the occupier's garrison.
+function updRivalWars(dt) {
+  if (!started || W.conquests < 3 || (EMP.rwT = (EMP.rwT ?? 300) - dt) > 0) return;
+  EMP.rwT = 300 + R()*180;
+  if (EMP.list.filter(r => es(r).by).length >= 2) return;
+  const free = EMP.list.filter(r => !(r.sky && !W.unlocked.has('moonLanding')) && !es(r).owned && !es(r).by);
+  const strong = free.filter(r => es(r).stance !== 'ally').sort((a, b) => es(b).pow - es(a).pow);
+  for (const a of strong) {
+    const victims = free.filter(v => v !== a && es(v).pow < es(a).pow*.45).sort((p, q) => Math.hypot(p.at[0] - a.at[0], p.at[1] - a.at[1]) - Math.hypot(q.at[0] - a.at[0], q.at[1] - a.at[1]));
+    const v = victims[0]; if (!v || R() < .6) continue;
+    const sv = es(v); sv.by = a.id; sv.stance = 'occupied'; es(a).pow += sv.pow*.35;
+    if (es(a).met || sv.met) banner(`🏴 ${a.icon} ${a.n} occupies ${v.icon} ${v.n}`, `Their flag flies over ${v.n} now. Liberate it from the 🗺️ map, if you can beat the garrison.`);
+    return;
+  }
+}
 // ------------------------------------------------------------------ main loop
 const testIn = {x:0, y:0};
 let started = false, paused = false, last = performance.now(), saveT = 5, time = 0;
@@ -12333,7 +12822,8 @@ function update(dt) {
   }
   soldiers.forEach((s, i) => {
     // land: march to the battlefield and fight. sea: walk to the harbor and board the fleet.
-    const C = W.camp || W.raid, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
+    // only cavalry sent: the foot soldiers stay at the barracks
+    const C0 = W.camp || W.raid, C = C0 && C0.type === 'land' && !armyGoes(C0) ? null : C0, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
     s.speed = C ? 6 : 3.4;
     if (W.raid && W.raid.siege && siegeSoldier(s, i, dt)) return;
     if (marchSoldier(s, i, dt, C)) return;
@@ -12352,7 +12842,7 @@ function update(dt) {
     if (at) {
       const face = vb ? Math.atan2(BOSS.on.g.position.x - s.pos.x, BOSS.on.g.position.z - s.pos.z) : out ? 0 : sea ? -Math.PI/2 : Math.PI;
       let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
-      const gun = W.unlocked.has('guns');
+      const gun = wepLvl() >= 1;
       s.char.armR.rotation.x = vb ? -1.5 + Math.sin(time*14 + i)*.15 : out && ph <= 22 ? (gun ? -1.5 : -1.6 + Math.sin(time*12 + i)*1.1) : 0;   // at home: at attention, still
     }
   });
@@ -12361,7 +12851,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updCharge(dt); updEpic(dt); updFlags(dt); updRivalWars(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -12911,7 +13401,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {launchCamp, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {launchCamp, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

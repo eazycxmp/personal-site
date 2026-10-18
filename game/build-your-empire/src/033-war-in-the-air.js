@@ -163,16 +163,30 @@ function planeVsBoss(p, i, B, dt) {
     flyers.push({m:bomb, from:bomb.position.clone(), to, t:0, dur:.6, arc:0, done:() => warHit(to, 2.6, 5, true)});
   }
 }
+// planes sent alongside the army, the cavalry or the navy: they take off as the battle starts and time their dives to the
+// fight (on the field, or the fort the fleet is shelling), then fly home and land after it is over
+const AIRS = {id:null, on:false, t0:0, tx:0, tz:0, n:0};
+function airSupport(C) {
+  if (!C || C.type === 'air' || !(C.br || []).includes('air') || !planesBuilt()) return;
+  C.id ||= Math.random(); if (AIRS.id === C.id) return;
+  // on the field, at the fort the fleet shells, or over the rival fleet off their coast
+  const N = C.naval, start = C.type === 'land' ? 22 : N ? N.fight + 4 : C.dur - 21, fort = C.type === 'sea' && COAST.cur ? COAST.cur.g.position : null;
+  const [tx, tz] = N ? N.anchor : fort ? [fort.x, fort.z] : [BF.x, BF.z + 4];
+  Object.assign(AIRS, {id:C.id, on:true, t0:time - (17 + start - C.dur), tx, tz, n:planesBuilt()});
+}
 function updAir(dt) {
   if (HANGAR.g && ((HANGAR.chk = (HANGAR.chk || 0) - dt) <= 0)) { HANGAR.chk = 2; hangarLook(true); }
-  const C = W.camp, air = C && C.type === 'air';
-  const c0 = air ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
+  const C = W.camp, airT = C && C.type === 'air';
+  airSupport(C);
+  if (AIRS.on && time - AIRS.t0 > 44) AIRS.on = false;
+  const air = airT || AIRS.on;
+  const c0 = airT ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
   const B0 = typeof WARFIRE !== 'undefined' ? sortieTarget() : null;
   planes.forEach((p, i) => {
     if (!air && (B0 || p.bossBack != null)) { planeVsBoss(p, i, B0, dt); return; }
-    const c = c0, e = air ? C.dur - C.t - i*.7 : -1;
-    const [tx, tz] = C && C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0];
-    const flying = air && i < (C.n ?? (c ? c.planes : 0));
+    const c = c0, e = airT ? C.dur - C.t - i*.7 : AIRS.on ? time - AIRS.t0 - i*.7 : -1;
+    const [tx, tz] = airT ? (C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0]) : [AIRS.tx, AIRS.tz];
+    const flying = air && i < (airT ? C.n ?? (c ? c.planes : 0) : AIRS.n);
     const a = flying ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = flying ? airPos(e + .08, p, tx, tz) : a;
     p.g.position.set(a[0], a[1], a[2]); p.alt = a[1];
     const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], hz = Math.hypot(dx, dz);
@@ -184,12 +198,14 @@ function updAir(dt) {
     // bombs go only at the bottom of each dive
     if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
       p.bombT = .22;
-      const f = forts[c.target], bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
+      const f = c && c.target != null && C && C.goal === 'air' ? forts[c.target] : null, bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
       const gx = a[0]*.35 + tx*.65 + (R() - .5)*4, gz = a[2]*.35 + tz*.65 + (R() - .5)*4;
       flyers.push({m:bomb, from:bomb.position.clone(), to:new THREE.Vector3(gx, 0, gz), t:0, dur:.7, arc:0, done:() => {
         for (let k = 0; k < 16; k++) particle([0xffd040, 0xff7a2a, 0x555555][k % 3], new THREE.Vector3(gx, .4, gz), new THREE.Vector3((R() - .5)*6, 2 + R()*4, (R() - .5)*6), .9, .3, {grow:.6, op:.85});
         snd(55 + R()*30, .5, 'sawtooth', .06, .4);
         if (watchingWar()) shakeCam(.35);
+        // the blast knocks down enemy soldiers caught near it
+        for (const en of enemies) if (en.alive && Math.hypot(en.pos.x - gx, en.pos.z - gz) < 2.6) { en.hp -= 4; en.hit = .18; if (en.hp <= 0) knockOut(en); }
         if (f) {
           f.hits++; const t = f.towers[Math.min(3, Math.floor(f.hits / 6))]; if (f.hits % 6 === 0 && t) t.rotation.z = .9;
           for (const tp of f.troops) if (!tp.down && Math.hypot(tp.x - gx, tp.z - gz) < 2.4) tp.down = true;
@@ -280,6 +296,7 @@ function warFocus() {
   if (!C && INV.on && INV.units.length) { const m = mid(INV.units); if (m) return [m[0], m[1] + 1.5]; }
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
+  if (C.type === 'sea' && C.naval) { const fl = fleet(); if (fl.length) { let x = 0, z = 0; for (const b of fl) { x += b.g.position.x; z += b.g.position.z; } return [x/fl.length, z/fl.length]; } }
   if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }
   const c = CAMPAIGNS[C.ci], [tx, tz] = C.tx != null ? [C.tx, C.tz] : AIR_TARGETS[c.target], e = C.dur - C.t;
   const lead = planes[0]; return lead && (lead.alt || 0) > .5 ? [lead.g.position.x, lead.g.position.z, lead.g.position.y*.8] : [tx, tz, 0];

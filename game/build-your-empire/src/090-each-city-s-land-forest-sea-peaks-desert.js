@@ -112,7 +112,7 @@ function updEmpires(dt) {
     if (!s.met && !(W.conquests >= 2 && r.at && seen(r.at[0], r.at[1]))) continue;   // they notice you after your second campaign, once you have seen them
     if (!s.met) { s.met = true; banner(`🗺️ A new power: ${r.icon} ${r.n}`, 'They are building an empire like yours. Open 🗺️ to trade, ally or go to war.'); }
     if (r.id === 'ostberg' && ostLevel() !== EMP.ostLv) { EMP.ostLv = ostLevel(); rivalCity(); }
-    if (s.owned) continue;
+    if (s.owned || s.by) continue;   // conquered by you, or occupied by another rival
     // they build out like you do: growth tracks your own strength, each at its own ambition
     const peak = W.flags.peakPow = Math.max(W.flags.peakPow || 0, mine), gain = Math.max(0, peak - (s.seenPeak ?? peak)); s.seenPeak = peak;
     s.pow += .2*r.amb*gain + .2*r.grow*spec(r, 'grow')*(1 + .15*W.era)*t/60;
@@ -147,7 +147,7 @@ function empAct(i, a, o) {
     if (W.camp || W.raid) return;
     // a walled city needs rams and catapults to break in
     if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
-    if (s.stance !== 'war') empAct(i, 'war');
+    if (s.stance !== 'war' && !s.by) empAct(i, 'war');
     // a front you planned brings its own odds and the branches that went; otherwise everything you have goes
     const win = o && o.win != null ? o.win : myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
     W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random(), br:o && o.br};
@@ -164,7 +164,7 @@ function empAct(i, a, o) {
       C.t = C.dur = dur; BF.x = r.bf[0]; BF.z = r.bf[1];
       startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight();
     } else if (a === 'land') { startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight(); }
-    else startSea();
+    else if (r.sea) startNaval(W.camp, r); else startSea();
     banner(a === 'land' ? (r.via === 'sea' ? `⛵ Your army sails for ${r.n}` : `⚔️ Your army marches on ${r.n}`) : `⚓ Your fleet sails for ${r.n}`, 'Tap 🎥 Follow the army (or press F) to ride along.');
     $('modal').hidden = true; $('modal').dataset.panel = ''; return;
   }
@@ -186,9 +186,9 @@ function updFleets(dt) {
 const sideName = () => { const C = W.camp; return C.retake ? landName(C.retake) : EMP.list[C.rival].n; };
 function endSideCamp() {
   const C = W.camp; endSea.last = C; W.camp = null;
-  if (C.away) for (const s of soldiers) { s.char.g.visible = true; if (C.sail) { s.pos.set(s.slot[0], 0, s.slot[1]); s.ret = null; } else s.ret = [...C.path].reverse(); }
+  if (C.away && armyGoes(C)) for (const s of soldiers) { s.char.g.visible = true; if (C.sail) { s.pos.set(s.slot[0], 0, s.slot[1]); s.ret = null; } else s.ret = [...C.path].reverse(); }
   if (C.away && C.sail) note('⛵ The army sails home', 'Your troops are back at the barracks.');
-  if (C.type === 'land') setTimeout(() => { endBattle(); BT.lose = BT.noCap = false; }, 2500);
+  if (C.type === 'land') endBattleLater();
   if (C.type === 'sea') endSea();
   if (C.retake) {
     const L = land(C.retake);
@@ -203,7 +203,9 @@ function endSideCamp() {
 }
 function conquer(r) {
   const s = es(r), loot = Math.round(s.pow*150);
-  s.owned = true; s.stance = 'owned';
+  s.owned = true; s.stance = 'owned'; s.by = null;
+  // the cities they had occupied are free again
+  for (const q of EMP.list) { const sq = es(q); if (sq.by === r.id) { sq.by = null; sq.stance = 'peace'; sq.rel = Math.max(sq.rel, 30); } }
   land('r:' + r.id);
   addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
   if (r.id === 'ostberg') rivalCity();

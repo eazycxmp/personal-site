@@ -63,11 +63,12 @@ function startBattle(c) {
   for (const [dx, dz] of [[-5, 5.5], [-1.5, 6.5], [2, 5.6], [5, 6.6]]) { const x = BF.x + dx, z = BF.z + dz; mesh(G.cone, 0x7a2a22, [1, 1.5, 1], [x, .75, z], enemyCamp); mesh(G.box, 0x2a1408, [.3, .5, .05], [x, .25, z + .7], enemyCamp); }
   mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [BF.x, 1.5, BF.z + 7.3], enemyCamp);
   enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [BF.x + .47, 2.7, BF.z + 7.3], enemyCamp);
-  const n = Math.min(14, campNeed(c)), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
+  // a real enemy host that holds the field until the rout (the odds, not this, decide who wins)
+  const n = Math.min(18, campNeed(c) + 4), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
   BT.id = (BT.id || 0) + 1;
   for (let i = 0; i < n; i++) {
-    const e = entity(look, BF.x - 4.4 + (i % 7)*1.45, BF.z + 2.6 + Math.floor(i / 7)*1.3, 3, 0);
-    e.yaw = Math.PI; e.alive = true; e.fall = 0; e.hp = e.maxHp = 5 + W.conquests; e.gun = !!look.gun; e.cd = .3 + R(); enemies.push(e);
+    const e = entity(look, BF.x - 5.8 + (i % 9)*1.45, BF.z + 2.6 + Math.floor(i / 9)*1.3, 3, 0);
+    e.yaw = Math.PI; e.alive = true; e.fall = 0; e.hp = e.maxHp = (5 + W.conquests)*2.4; e.gun = !!look.gun; e.cd = .3 + R(); enemies.push(e);
   }
 }
 function updBattle(dt) {
@@ -76,7 +77,7 @@ function updBattle(dt) {
   // the beaten army breaks: anyone still standing at the end falls
   if (ph >= 0 && ph <= 10.5 && !BT.lose) for (const e of enemies) if (e.alive) knockOut(e);
   if (fighting) BT.snd = Math.max(0, BT.snd - dt);
-  const foes = soldiers.filter(s => s.hp > 0 && !s.down && atBattle(s));
+  const foes = soldiers.filter(s => s.hp > 0 && !s.down && atBattle(s)).concat(CHARGE.riders.filter(r => r.g.visible && atBattle(r)));
   for (const e of enemies) {
     e.vel.set(0, 0, 0);
     if (e.alive && fighting) {

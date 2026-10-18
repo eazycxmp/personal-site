@@ -76,7 +76,8 @@ function update(dt) {
   }
   soldiers.forEach((s, i) => {
     // land: march to the battlefield and fight. sea: walk to the harbor and board the fleet.
-    const C = W.camp || W.raid, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
+    // only cavalry sent: the foot soldiers stay at the barracks
+    const C0 = W.camp || W.raid, C = C0 && C0.type === 'land' && !armyGoes(C0) ? null : C0, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
     s.speed = C ? 6 : 3.4;
     if (W.raid && W.raid.siege && siegeSoldier(s, i, dt)) return;
     if (marchSoldier(s, i, dt, C)) return;
@@ -95,7 +96,7 @@ function update(dt) {
     if (at) {
       const face = vb ? Math.atan2(BOSS.on.g.position.x - s.pos.x, BOSS.on.g.position.z - s.pos.z) : out ? 0 : sea ? -Math.PI/2 : Math.PI;
       let d = face - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); s.yaw += d * Math.min(1, dt*6); s.char.g.rotation.y = s.yaw;
-      const gun = W.unlocked.has('guns');
+      const gun = wepLvl() >= 1;
       s.char.armR.rotation.x = vb ? -1.5 + Math.sin(time*14 + i)*.15 : out && ph <= 22 ? (gun ? -1.5 : -1.6 + Math.sin(time*12 + i)*1.1) : 0;   // at home: at attention, still
     }
   });
@@ -104,7 +105,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updCharge(dt); updEpic(dt); updFlags(dt); updRivalWars(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
