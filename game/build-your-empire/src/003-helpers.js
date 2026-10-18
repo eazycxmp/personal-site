@@ -142,10 +142,22 @@ function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   m.customProgramCacheKey = () => 'ph' + k; m.userData.bakeSafe = true;   // works on the mesh's own uvs, which batching keeps
   return m;
 }   // every ground top, so rain can make them shine
+// A box drawn in two calls instead of six: one face with its own material (the slab's top, a sign's front) and the
+// other sides together; the bottom, which nobody sees, is left out. (Three draws every face group of a box separately.)
+const FACE_BOX = {};
+function faceBox(face) {
+  // the unit box's faces in order: +x, -x, +y, -y, +z, -z, six indices each
+  if (FACE_BOX[face]) return FACE_BOX[face];
+  const g = G.box.clone(), I = g.index.array, f = {px:0, nx:1, py:2, nz:5, pz:4}[face], keep = [];
+  for (let k = 0; k < 6; k++) if (k !== f && k !== 3) keep.push(k);
+  const idx = [...I.slice(f*6, f*6 + 6)]; for (const k of keep) idx.push(...I.slice(k*6, k*6 + 6));
+  g.setIndex(idx); g.clearGroups(); g.addGroup(0, 6, 0); g.addGroup(6, idx.length - 6, 1);
+  return FACE_BOX[face] = g;
+}
 // a raised slab of ground with darker sides, so the camp sits above the grass like a diorama
 function slab(color, w, d, x, z, top = 0, h = .26) {
   const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = phDress(new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])}), color, w, d); SLAB_TOPS.push(topM);
-  const m = new THREE.Mesh(G.box, [side, side, topM, side, side, side]);
+  const m = new THREE.Mesh(faceBox('py'), [topM, side]);
   m.scale.set(w, h, d); m.position.set(x, top - h/2, z); m.receiveShadow = true; m.castShadow = false;
   scene.add(m); slabBank(c, w, d, x, z, top); return m;
 }

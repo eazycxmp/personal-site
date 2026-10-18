@@ -452,10 +452,22 @@ function phDress(m, color, w, d, id, size = 4, contrast = .8) {
   m.customProgramCacheKey = () => 'ph' + k; m.userData.bakeSafe = true;   // works on the mesh's own uvs, which batching keeps
   return m;
 }   // every ground top, so rain can make them shine
+// A box drawn in two calls instead of six: one face with its own material (the slab's top, a sign's front) and the
+// other sides together; the bottom, which nobody sees, is left out. (Three draws every face group of a box separately.)
+const FACE_BOX = {};
+function faceBox(face) {
+  // the unit box's faces in order: +x, -x, +y, -y, +z, -z, six indices each
+  if (FACE_BOX[face]) return FACE_BOX[face];
+  const g = G.box.clone(), I = g.index.array, f = {px:0, nx:1, py:2, nz:5, pz:4}[face], keep = [];
+  for (let k = 0; k < 6; k++) if (k !== f && k !== 3) keep.push(k);
+  const idx = [...I.slice(f*6, f*6 + 6)]; for (const k of keep) idx.push(...I.slice(k*6, k*6 + 6));
+  g.setIndex(idx); g.clearGroups(); g.addGroup(0, 6, 0); g.addGroup(6, idx.length - 6, 1);
+  return FACE_BOX[face] = g;
+}
 // a raised slab of ground with darker sides, so the camp sits above the grass like a diorama
 function slab(color, w, d, x, z, top = 0, h = .26) {
   const c = new THREE.Color(color), side = mat(c.clone().multiplyScalar(.72).getHex()), topM = phDress(new THREE.MeshStandardMaterial({color, roughness:.95, map:groundTex([Math.max(1, w/5), Math.max(1, d/5)])}), color, w, d); SLAB_TOPS.push(topM);
-  const m = new THREE.Mesh(G.box, [side, side, topM, side, side, side]);
+  const m = new THREE.Mesh(faceBox('py'), [topM, side]);
   m.scale.set(w, h, d); m.position.set(x, top - h/2, z); m.receiveShadow = true; m.castShadow = false;
   scene.add(m); slabBank(c, w, d, x, z, top); return m;
 }
@@ -1237,7 +1249,7 @@ function buildHut(key, stage, anim) {
     for (const xx of [-1.05, 1.05]) mesh(G.box, 0x7a4a2a, [.1, 2.6, .1], [xx, 1.3, .96], g);
     mesh(G.box, 0x4a3020, [.55, .9, .08], [0, .45, .98], g);
     windows(g, 2.1, 1.9, 1.5, 1, 1.1, 3);
-    const sign = new THREE.Mesh(G.box, [mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
+    const sign = new THREE.Mesh(faceBox('pz'), [new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
     sign.scale.set(.9, .3, .06); sign.position.set(.5, 1.75, 1.15); g.add(sign);
   } else {
     // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and a palm tree. Slim (the three
@@ -1252,7 +1264,7 @@ function buildHut(key, stage, anim) {
     mesh(G.box, 0xfdf6ee, [1.1, .7, 1], [0, 4.95, 0], b); mesh(G.box, tint, [.55, .5, .55], [0, 5.55, 0], b);
     for (const xx of [-.36, 0, .36]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.35, .48], b);
     mesh(G.box, 0x2a1a2a, [.6, .95, .08], [0, .48, .92], b);
-    const neon = new THREE.Mesh(G.box, [mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
+    const neon = new THREE.Mesh(faceBox('pz'), [new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
     neon.scale.set(1.4, .4, .06); neon.position.set(0, 1.25, .95); b.add(neon);   // over the door
     const palmAt = {hut1:[-1.6, -1.4], hut2:[1.75, 1.15], hut3:[1.95, -.6]}[key];
     palm(g, palmAt[0], palmAt[1]);
@@ -1898,7 +1910,7 @@ function updQN(dt) {
     // past the draw distance a person is a speck: don't draw or animate them (the hero always shows)
     const far = !c.isHero && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
     if (c.root.visible === far) c.root.visible = !far;
-    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
+    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
     c.seen = QN.frame;
     if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
     // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
@@ -1945,7 +1957,13 @@ function updQN(dt) {
       c.yawVis = Math.abs(d) > 2.6 || st === 'Death01' ? target : c.yawVis + d*Math.min(1, dt*11);
       c.root.rotation.y = c.yawVis - target;
     }
-    c.mixer.update(dt);
+    // further from the camera, the pose is worked out every other frame (with both frames' time): nobody can tell at that
+    // distance, and it halves the bone work for most of the crowd
+    const lod = !c.isHero && !c.ride && p.distanceToSquared(camera.position) > 26*26;
+    c.mixDt = (c.mixDt || 0) + dt;
+    if (lod && (QN.frame + i) % 2) { c.root.matrixWorldAutoUpdate = false; continue; }
+    c.root.matrixWorldAutoUpdate = true;
+    c.mixer.update(c.mixDt); c.mixDt = 0;
     if (c.ride === 'horse') qnAstride(c);
     // carrying, holding and aiming: lift the arms forward on top of the animation
     if ((!act || act[2]) && st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {
@@ -6851,7 +6869,7 @@ function pave(m) {
   pave.base ||= {};
   if (!pave.base[kind]) { const t = pave.base[kind] = new THREE.CanvasTexture(groundCanvas(kind)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; }
   const t = texClone(pave.base[kind]); t.repeat.set(m.scale.x / GROUND_SIZE[kind], m.scale.z / GROUND_SIZE[kind]);
-  const top = m.material[2]; if (top.map && top.map !== groundTex.base) top.map.dispose(); top.map = t; top.color.set(0xffffff); top.needsUpdate = true;
+  const top = m.material[0]; if (top.map && top.map !== groundTex.base) top.map.dispose(); top.map = t; top.color.set(0xffffff); top.needsUpdate = true;
 }
 const PAVED = r => r !== REGIONS.farm && r !== REGIONS.airfield && r !== REGIONS.north && r !== REGIONS.ranch;
 function groundStage(n, anim) {
@@ -6879,7 +6897,7 @@ function railStage(n, anim) {
   if (n === 1) {
     clearForest({x0:51, x1:57.5, z0:-28.381, z1:48}); clearForest({x0:55, x1:67, z0:95, z1:108});
     railRoadG = slab(0xa58a62, 2.4, RAIL.z1 - RAIL.z0, RAIL.x, (RAIL.z0 + RAIL.z1)/2, .004);
-    railRoadG.material[2].map = groundTex([1, 20]);
+    railRoadG.material[0].map = groundTex([1, 20]);
     const g = new THREE.Group(); scene.add(g);
     const tn = new THREE.Group(); tn.position.set(RAIL.x, 0, RAIL.z0); g.add(tn);
     mesh(G.cone, 0x7d838a, [6, 9, 6], [0, 3.5, -3.5], tn, {flatShading:true});
@@ -6899,7 +6917,7 @@ function railStage(n, anim) {
     sl.receiveShadow = true; railsG.add(sl);
     for (const s of [-.42, .42]) mesh(G.box, 0x9aa0a8, [.07, .08, RAIL.z1 - RAIL.z0], [RAIL.x + s, .09, (RAIL.z0 + RAIL.z1)/2], railsG, {metalness:.8, roughness:.3});
     for (const z of [1.6, 3.6, 77.6]) for (const s of [-.9, .9]) mesh(G.box, 0xf4f4f4, [.25, .01, 1.4], [RAIL.x + s, .02, z], railsG);
-    railRoadG.material[2].color.set(0x8f8a82); railRoadG.material[2].map = groundTex([1, 30]);
+    railRoadG.material[0].color.set(0x8f8a82); railRoadG.material[0].map = groundTex([1, 30]);
   }
   if (n === 3) {
     // overhead wires for the electric trains
@@ -14219,14 +14237,20 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   BAKE.stats = () => { let m = 0; for (const b of BAKE.batches.values()) m += b.members.length; return {batches:BAKE.batches.size, members:m, solos:BAKE.solos.size, merges:BAKE.merges, breaks:BAKE.breaks}; };
 }
 
-// If frames come in slowly, drop to low quality once: lower resolution and no shadows.
-const perf = {t:0, n:0, low:false};
+// If frames come in slowly, step quality down a notch at a time, the least visible loss first: resolution (on sharp
+// screens), then shadow detail, then the soft contact shading, and only last the shadows and glow altogether. Each step
+// gets four seconds to show whether it was enough.
+const perf = {t:0, n:0, low:false, step:0};
 function adapt(real) {
   if (perf.low || !started || document.hidden || real > .25) return;
   perf.t += real; perf.n++;
   if (perf.t < 4) return;
   const fps = perf.n / perf.t; perf.t = perf.n = 0;
-  if (fps >= 38) return;
+  if (fps >= 40) return;
+  perf.step++;
+  if (perf.step === 1) { if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); fit(); return; } perf.step = 2; }
+  if (perf.step === 2) { if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return; } perf.step = 3; }
+  if (perf.step === 3) { AOX.on = false; return; }
   perf.low = true;
   renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sun.castShadow = false; POST.on = false;
   scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });

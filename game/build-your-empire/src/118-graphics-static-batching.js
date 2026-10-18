@@ -170,14 +170,20 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   BAKE.stats = () => { let m = 0; for (const b of BAKE.batches.values()) m += b.members.length; return {batches:BAKE.batches.size, members:m, solos:BAKE.solos.size, merges:BAKE.merges, breaks:BAKE.breaks}; };
 }
 
-// If frames come in slowly, drop to low quality once: lower resolution and no shadows.
-const perf = {t:0, n:0, low:false};
+// If frames come in slowly, step quality down a notch at a time, the least visible loss first: resolution (on sharp
+// screens), then shadow detail, then the soft contact shading, and only last the shadows and glow altogether. Each step
+// gets four seconds to show whether it was enough.
+const perf = {t:0, n:0, low:false, step:0};
 function adapt(real) {
   if (perf.low || !started || document.hidden || real > .25) return;
   perf.t += real; perf.n++;
   if (perf.t < 4) return;
   const fps = perf.n / perf.t; perf.t = perf.n = 0;
-  if (fps >= 38) return;
+  if (fps >= 40) return;
+  perf.step++;
+  if (perf.step === 1) { if (renderer.getPixelRatio() > 1) { renderer.setPixelRatio(1); fit(); return; } perf.step = 2; }
+  if (perf.step === 2) { if (sun.shadow.mapSize.x > 1024) { sun.shadow.mapSize.set(1024, 1024); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } return; } perf.step = 3; }
+  if (perf.step === 3) { AOX.on = false; return; }
   perf.low = true;
   renderer.setPixelRatio(1); renderer.shadowMap.enabled = false; sun.castShadow = false; POST.on = false;
   scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });

@@ -268,7 +268,7 @@ function buildHut(key, stage, anim) {
     for (const xx of [-1.05, 1.05]) mesh(G.box, 0x7a4a2a, [.1, 2.6, .1], [xx, 1.3, .96], g);
     mesh(G.box, 0x4a3020, [.55, .9, .08], [0, .45, .98], g);
     windows(g, 2.1, 1.9, 1.5, 1, 1.1, 3);
-    const sign = new THREE.Mesh(G.box, [mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
+    const sign = new THREE.Mesh(faceBox('pz'), [new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
     sign.scale.set(.9, .3, .06); sign.position.set(.5, 1.75, 1.15); g.add(sign);
   } else {
     // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and a palm tree. Slim (the three
@@ -283,7 +283,7 @@ function buildHut(key, stage, anim) {
     mesh(G.box, 0xfdf6ee, [1.1, .7, 1], [0, 4.95, 0], b); mesh(G.box, tint, [.55, .5, .55], [0, 5.55, 0], b);
     for (const xx of [-.36, 0, .36]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.35, .48], b);
     mesh(G.box, 0x2a1a2a, [.6, .95, .08], [0, .48, .92], b);
-    const neon = new THREE.Mesh(G.box, [mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
+    const neon = new THREE.Mesh(faceBox('pz'), [new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
     neon.scale.set(1.4, .4, .06); neon.position.set(0, 1.25, .95); b.add(neon);   // over the door
     const palmAt = {hut1:[-1.6, -1.4], hut2:[1.75, 1.15], hut3:[1.95, -.6]}[key];
     palm(g, palmAt[0], palmAt[1]);

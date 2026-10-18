@@ -337,7 +337,7 @@ function updQN(dt) {
     // past the draw distance a person is a speck: don't draw or animate them (the hero always shows)
     const far = !c.isHero && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
     if (c.root.visible === far) c.root.visible = !far;
-    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
+    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
     c.seen = QN.frame;
     if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
     // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
@@ -384,7 +384,13 @@ function updQN(dt) {
       c.yawVis = Math.abs(d) > 2.6 || st === 'Death01' ? target : c.yawVis + d*Math.min(1, dt*11);
       c.root.rotation.y = c.yawVis - target;
     }
-    c.mixer.update(dt);
+    // further from the camera, the pose is worked out every other frame (with both frames' time): nobody can tell at that
+    // distance, and it halves the bone work for most of the crowd
+    const lod = !c.isHero && !c.ride && p.distanceToSquared(camera.position) > 26*26;
+    c.mixDt = (c.mixDt || 0) + dt;
+    if (lod && (QN.frame + i) % 2) { c.root.matrixWorldAutoUpdate = false; continue; }
+    c.root.matrixWorldAutoUpdate = true;
+    c.mixer.update(c.mixDt); c.mixDt = 0;
     if (c.ride === 'horse') qnAstride(c);
     // carrying, holding and aiming: lift the arms forward on top of the animation
     if ((!act || act[2]) && st !== 'Sitting_Idle_Loop' && st !== 'Driving_Loop' && st !== 'Dance_Loop' && st !== 'Death01') {

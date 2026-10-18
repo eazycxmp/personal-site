@@ -4,7 +4,7 @@ function railStage(n, anim) {
   if (n === 1) {
     clearForest({x0:51, x1:57.5, z0:-28.381, z1:48}); clearForest({x0:55, x1:67, z0:95, z1:108});
     railRoadG = slab(0xa58a62, 2.4, RAIL.z1 - RAIL.z0, RAIL.x, (RAIL.z0 + RAIL.z1)/2, .004);
-    railRoadG.material[2].map = groundTex([1, 20]);
+    railRoadG.material[0].map = groundTex([1, 20]);
     const g = new THREE.Group(); scene.add(g);
     const tn = new THREE.Group(); tn.position.set(RAIL.x, 0, RAIL.z0); g.add(tn);
     mesh(G.cone, 0x7d838a, [6, 9, 6], [0, 3.5, -3.5], tn, {flatShading:true});
@@ -24,7 +24,7 @@ function railStage(n, anim) {
     sl.receiveShadow = true; railsG.add(sl);
     for (const s of [-.42, .42]) mesh(G.box, 0x9aa0a8, [.07, .08, RAIL.z1 - RAIL.z0], [RAIL.x + s, .09, (RAIL.z0 + RAIL.z1)/2], railsG, {metalness:.8, roughness:.3});
     for (const z of [1.6, 3.6, 77.6]) for (const s of [-.9, .9]) mesh(G.box, 0xf4f4f4, [.25, .01, 1.4], [RAIL.x + s, .02, z], railsG);
-    railRoadG.material[2].color.set(0x8f8a82); railRoadG.material[2].map = groundTex([1, 30]);
+    railRoadG.material[0].color.set(0x8f8a82); railRoadG.material[0].map = groundTex([1, 30]);
   }
   if (n === 3) {
     // overhead wires for the electric trains
