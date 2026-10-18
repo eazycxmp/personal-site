@@ -139,7 +139,7 @@ function warTile() {
 }
 // who can go: the army marches (or lands from the boats on a coast), the navy needs a coast, planes reach anywhere
 function forcePower(branch) {
-  if (branch === 'army') return W.army;
+  if (branch === 'army') return W.army + generals().length*3;
   if (branch === 'cav') return cavPower();
   if (branch === 'navy') return navLvl() ? NAVY[navLvl()].fleet + Math.min(10, Math.floor(W.army / 3)) : 0;
   return planesBuilt() * 6;
@@ -183,7 +183,7 @@ function launchCamp(c, branch) {
   W.camp = {t:dur, dur, type, goal, branch, ships:type === 'sea', ci:W.conquests, tx:at[0], tz:at[1], n};
   // a tribe with its own place: the army marches out to it and fights there
   const tsite = type === 'land' && goal === 'land' && TRIBE_SITES[W.conquests];
-  if (tsite) { const C = W.camp; C.away = true; C.bf = tsite; C.path = tribePath(tsite); C.id = Math.random(); C.t = C.dur = dur + Math.min(50, pathLen(C.path)/6.5); BF.x = tsite[0]; BF.z = tsite[1]; }
+  if (tsite) { const C = W.camp; C.away = true; C.bf = tsite; C.path = tribePath(tsite); C.id = Math.random(); C.t = C.dur = dur + marchTime(C.path, 60); BF.x = tsite[0]; BF.z = tsite[1]; }
   if (goal === 'air') startAir(c);
   if (type === 'land') startBattle(c); else if (type === 'sea') startSea(); else if (goal === 'sea') { COAST.cur = coastFort(site); fortReset(COAST.cur); }
   banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : branch === 'cav' ? `${W.unlocked.has('tanks') ? '🪖' : '🐎'} Your ${cavName().toLowerCase()} ${W.unlocked.has('tanks') ? 'roll' : 'ride'} on the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
@@ -193,10 +193,10 @@ function launchCamp(c, branch) {
 function updWar(dt) {
   if (warZone) { warTile(); if (player.zone !== warZone) warZone.asked = false; }
   if (!W.camp || (W.camp.t -= dt) > 0) return;
-  if (W.camp.side) { endSideCamp(); return; }
+  if (W.camp.side) { if (startAssault(W.camp)) return; endSideCamp(); return; }
   const c = CAMPAIGNS[W.conquests];
   const type = W.camp.type, goal = W.camp.goal || type;
-  const was = W.camp; W.camp = null; W.conquests++;
+  const was = W.camp; W.camp = null; W.conquests++; if (type === 'land') genVictory(); if (type === 'sea') medal('sea'); if (type === 'air') medal('air'); if (c) queueParade(`the fall of the ${c.name}`);
   if (was.away) { if (armyGoes(was)) for (const s of soldiers) { s.char.g.visible = true; s.ret = [...was.path].reverse(); } tribeWon(W.conquests - 1); }
   if (type === 'land') endBattleLater();
   if (goal === 'land') outpost(W.conquests - 1, true);

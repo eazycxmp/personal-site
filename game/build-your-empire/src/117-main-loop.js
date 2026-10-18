@@ -8,6 +8,7 @@ function project(pos) {
 }
 const prevPos = new THREE.Vector3();
 function update(dt) {
+  updLead(dt);
   time += dt; fullT -= dt;
   // input is relative to the screen; turn it into world directions for the diagonal camera
   let sx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + joy.x;
@@ -78,9 +79,11 @@ function update(dt) {
     // land: march to the battlefield and fight. sea: walk to the harbor and board the fleet.
     // only cavalry sent: the foot soldiers stay at the barracks
     const C0 = W.camp || W.raid, C = C0 && C0.type === 'land' && !armyGoes(C0) ? null : C0, ph = C ? C.t : -1, land = C && C.type === 'land', sea = C && C.type === 'sea', out = land && ph > 9;
-    s.speed = C ? 6 : 3.4;
+    s.speed = C ? 6*(C.type === 'land' ? weatherSlow() : 1) : 3.4;   // rain and snow slow a land army
     if (W.raid && W.raid.siege && siegeSoldier(s, i, dt)) return;
+    if (C && C.assault && assaultSoldier(s, i, dt)) return;
     if (marchSoldier(s, i, dt, C)) return;
+    if (!C && paradeSoldier(s, i, dt)) return;
     if (land && ph > 9 && ph <= 22 && atBattle(s) && battleSoldier(s, i, dt)) return;
     if (land && ph <= 9 && ph > 7.5 && s.fought && !BT.lose) { cheer(s, dt, i); return; }
     if (s.down || s.fall) { s.down = false; s.fall = 0; s.char.g.rotation.x = 0; s.char.g.scale.setScalar(1); if (s.bar) s.bar.visible = false; }
@@ -105,7 +108,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updCharge(dt); updEpic(dt); updFlags(dt); updRivalWars(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updCharge(dt); updEpic(dt); updFlags(dt); updRivalWars(dt); updDefences(dt); updAssault(dt); updParade(dt); updGenerals(dt); updSpies(dt); updEnvoys(dt); updMuseum(dt); updMusic(dt); updNightWar(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -167,9 +170,11 @@ function render(dt) {
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
   const wtype = W.camp ? W.camp.type : 'land';
-  const D = (war && wtype === 'land' ? 8.5 : war ? 13 : V.d)*k, H = (war ? 16 : V.h)*k, ox = Math.sin(CAM_YAW)*D, oz = Math.cos(CAM_YAW)*D;
+  // watching a battle: the camera drifts round the field, and dips in close for the big moments
+  const cine = war && !PHOTO.on ? cineCam(dt) : null, yawC = CAM_YAW + (cine ? cine.yaw : 0);
+  const D = (war && wtype === 'land' ? 8.5 : war ? 13 : V.d)*k*(cine ? cine.d : 1), H = (war ? 16 : V.h)*k*(cine ? cine.h : 1), ox = Math.sin(yawC)*D, oz = Math.cos(yawC)*D;
   // standing on the war table during a campaign (or pressing 🎥) shows the battlefield
-  if (WATCH.on && Math.hypot(player.vel.x, player.vel.z) > .5) setWatch(false);
+  if (WATCH.on && !LEAD.on && Math.hypot(player.vel.x, player.vel.z) > .5) setWatch(false);
   updWatchBtn();
   const watching = war;
   const wf = watching ? warFocus() : null;

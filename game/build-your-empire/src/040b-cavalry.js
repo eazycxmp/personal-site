@@ -98,6 +98,8 @@ function updCharge(dt) {
     const S = live && C.sail, el = live ? C.dur - C.t : 0;
     if (S && el < S.board + S.dur) { r.g.visible = false; r.pos.set(S.land[0] + (r.i - 1)*1.6, 0, S.land[1] - 2); continue; }
     r.g.visible = true;
+    // storming a city: through the broken gate and on to their headquarters
+    if (live && C.assault && DEF[EMP.list[C.rival].id] && ph > 8.5) { const [tx, tz] = assaultSpot(DEF[EMP.list[C.rival].id], 18 + r.i, ph); ride(r, tx, tz, r.tank ? 4 : 7, dt); continue; }
     if (!live) {
       // the battle is over: back the way they came, then into the paddock
       if (r.bi === undefined) r.bi = 0;

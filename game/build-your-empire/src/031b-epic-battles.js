@@ -3,7 +3,7 @@
 // guns), artillery behind your line, a cry of "Charge!" with dust kicked up by the running ranks, drums through the
 // fight, haze over the field, and a fanfare when they break. Looks only: who wins is still decided by the odds.
 const EPIC = {id:null, g:null, last:99, drumT:0, gunT:0, hazeT:0, dust:new Map()};
-const epicOn = C => !!C && C.type === 'land' && (armyGoes(C) || cavGoes(C));
+const epicOn = C => !!C && C.type === 'land' && !C.assault && (armyGoes(C) || cavGoes(C));
 function banner3d(col, trim) {
   const g = new THREE.Group();
   mesh(G.cyl, 0x5e3f22, [.05, 3.4, .05], [0, 1.7, 0], g); mesh(G.sph, 0xd9a52a, [.1, .1, .1], [0, 3.45, 0], g, {metalness:.7, roughness:.3});
@@ -61,11 +61,12 @@ function updEpic(dt) {
   if (crossed(22.6)) volley(ours, foes, wepLvl() >= 2 ? Math.min(14, ours.length) : 16, true);
   if (crossed(22.1) && !wepLvl() >= 2) volley(foes, ours, 12, false);
   if (crossed(21.6)) volley(ours, foes, wepLvl() >= 2 ? Math.min(14, ours.length) : 14, true);
-  if (crossed(21)) { popText('⚔️ CHARGE!', new THREE.Vector3(BF.x, 3.2, BF.z), '#ffe06b'); snd(147, .5, 'square', .05, .2); if (watchingWar()) shakeCam(.25); }
+  if (crossed(21)) { slowmo(1.1); popText('⚔️ CHARGE!', new THREE.Vector3(BF.x, 3.2, BF.z), '#ffe06b'); snd(147, .5, 'square', .05, .2); if (watchingWar()) shakeCam(.25); }
   if (ph <= 22 && ph > 9) {
     // drums through the fight, and haze over the field
     if ((EPIC.drumT -= dt) <= 0) { EPIC.drumT = .5; snd(58, .14, 'sine', .07, -.3); }
-    if (near && (EPIC.hazeT -= dt) <= 0) { EPIC.hazeT = .18; particle(0xd8c8a0, new THREE.Vector3(BF.x + (R() - .5)*14, .5, BF.z + (R() - .5)*8), new THREE.Vector3((R() - .5)*.4, .25, 0), 3, .9, {grow:1.4, op:.18}); }
+    // (the haze is unlit, so it thins away after dark instead of glowing)
+    if (near && nightK() < .5 && (EPIC.hazeT -= dt) <= 0) { EPIC.hazeT = .18; particle(0xd8c8a0, new THREE.Vector3(BF.x + (R() - .5)*14, .5, BF.z + (R() - .5)*8), new THREE.Vector3((R() - .5)*.4, .25, 0), 3, .9, {grow:1.4, op:.18}); }
     // dust kicked up by anyone running
     if (near) for (const u of [...ours, ...foes]) {
       const p = EPIC.dust.get(u) || u.pos.clone(), moved = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);

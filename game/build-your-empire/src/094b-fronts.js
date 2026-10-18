@@ -24,7 +24,7 @@ const branchPow = b => { const P = powerParts(); return b === 'army' ? (W.army >
 const supportPow = () => { const P = powerParts(); return P.science + P.allies; };
 const frontPow = br => br.reduce((a, b) => a + branchPow(b), 0) + supportPow();
 // an occupied city is held by the occupier's garrison
-const frontNeed = (r, br) => Math.round((occupier(r) ? es(occupier(r)).pow*.6 : es(r).pow) * spec(r, br.length && br.every(b => b === 'navy') ? 'navy' : 'army'));
+const frontNeed = (r, br) => Math.round((occupier(r) ? es(occupier(r)).pow*.6 : es(r).pow) * (sabotaged(r) ? .85 : 1) * spec(r, br.length && br.every(b => b === 'navy') ? 'navy' : 'army'));
 function frontWhy(r, b) {
   const walled = r.bf && r.id !== 'ostberg', boats = r.via !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship');
   if (FRONTS.busy(b)) return 'Away fighting on another front';

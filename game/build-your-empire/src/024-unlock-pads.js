@@ -119,6 +119,7 @@ const PADS = [
   {id:'troop1', x:-8.6, z:69, cost:5000, cur:'coin', icon:'🏛️', label:'Roman legion', after:['barracks'], region:'south'},
   {id:'troop2', x:-8.6, z:69, cost:8000, cur:'coin', icon:'🪓', label:'Viking raiders', after:['troop1', 'castle'], region:'south'},
   {id:'troop3', x:-8.6, z:69, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
+  {id:'museum', x:-1.5, z:47.6, cost:8000, cur:'coin', icon:'🏛️', label:'War museum', after:['warTable'], region:'south'},
   {id:'bows', x:-1.2, z:64.3, cost:3000, cur:'coin', icon:'🏹', label:'Bows and arrows', after:['barracks'], region:'south'},
   {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['bows', 'troop3', 'workshop'], region:'south'},
   {id:'rifles', x:-1.2, z:64.3, cost:40000, cur:'coin', icon:'🎯', label:'Rifles', after:['guns', 'steamTrain'], region:'south'},
@@ -435,6 +436,7 @@ const UNLOCK = {
     gunRack(a);
     if (a) banner('🔫 Redcoats with muskets!', 'The blacksmith makes muskets now. Campaigns need fewer soldiers and pay 50% more.');
   },
+  museum(a) { museumFx(a); },
   bows(a) { weaponStage(1, a); }, rifles(a) { weaponStage(3, a); }, semiAuto(a) { weaponStage(4, a); },
   water1(a) { waterStage(1, a); }, water2(a) { waterStage(2, a); }, water3(a) { waterStage(3, a); }, water4(a) { waterStage(4, a); }, water5(a) { waterStage(5, a); },
   bridge1(a) { bridgeStage(1, a); }, bridge2(a) { bridgeStage(2, a); }, bridge3(a) { bridgeStage(3, a); }, bridge4(a) { bridgeStage(4, a); },

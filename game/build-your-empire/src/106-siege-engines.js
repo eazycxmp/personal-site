@@ -60,7 +60,10 @@ function updSiegeEngines(dt) {
     u.g.visible = !sailing;
     if (sailing) { if (C.sail && C.dur - C.t > C.sail.board + C.sail.dur - .2) p.set(C.sail.land[0] + (u.i - 1)*2.4, 0, C.sail.land[1] - 3); continue; }
     let tx, tz;
-    if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = melee ? BF.z + 1.6 + Math.sin(time*3 + u.ph)*(u.k === 'ram' ? .5 : 0) : BF.z - 7.5; }
+    // storming a city: the engines roll up before the gate (the assault does the pounding)
+    const AD = C && C.assault && DEF[EMP.list[C.rival].id];
+    if (AD) { const [ix, iz] = inward(AD.main); tx = AD.main.x - ix*7 - iz*(u.i - 1)*3; tz = AD.main.z - iz*7 + ix*(u.i - 1)*3; }
+    else if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = melee ? BF.z + 1.6 + Math.sin(time*3 + u.ph)*(u.k === 'ram' ? .5 : 0) : BF.z - 7.5; }
     else if (mid) { tx = mid[0] + (u.i - 1)*2.4; tz = mid[1] - (C ? 5 : -4); }
     else { tx = p.x; tz = p.z; }
     // driving like a vehicle: speed builds up and eases off near the spot, the wheels roll with the distance covered
@@ -71,7 +74,7 @@ function updSiegeEngines(dt) {
     if (d > .3) { p.x += dx/d*sp*dt; p.z += dz/d*sp*dt; p.y = Math.abs(Math.sin(time*9 + u.ph))*.03*Math.min(1, u.v); const yaw = Math.atan2(dx, dz); let dy = yaw - u.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); u.g.rotation.y += dy*Math.min(1, dt*4); }
     else if (fighting) { const yaw = Math.atan2(0, 1); u.g.rotation.y += (yaw - u.g.rotation.y)*Math.min(1, dt*3); }
     // in the fight: the guns and catapults bombard the enemy camp
-    if (fighting && ranged && d < 3 && (u.cd -= dt) <= 0) {
+    if (fighting && !AD && ranged && d < 3 && (u.cd -= dt) <= 0) {
       const S = SHOOTS[u.k]; u.cd = S.every*(.8 + R()*.4);
       const from = new THREE.Vector3(p.x, u.k === 'mortar' ? .9 : 1.4, p.z + .8), to = new THREE.Vector3(BF.x + (R() - .5)*9, .2, BF.z + 4.5 + R()*3.5);
       const ball = new THREE.Mesh(G.sph, mat(S.ball[0], {roughness:.6})); ball.scale.setScalar(S.ball[1]); ball.position.copy(from); scene.add(ball);

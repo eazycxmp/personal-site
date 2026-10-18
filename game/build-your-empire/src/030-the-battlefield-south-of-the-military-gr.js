@@ -13,6 +13,8 @@ function armyPath(r) {
   if (r.via === 'west') return [...route(start, -85.8, 12), [-39, 12.1], [bx + 8, 12.1], [bx, bz - 3]];
   return [[bx, bz - 3]];
 }
+// how long the march takes: from the barracks to the start of the route, then along it (at the army's pace, with a margin)
+const marchTime = (pts, cap) => Math.min(cap, ((pts.length ? Math.hypot(pts[0][0] - 3, pts[0][1] - 55) : 0) + pathLen(pts)) / 6);
 const pathLen = pts => pts.reduce((a, p, i) => a + (i ? Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);
 // walk straight to a point (the long roads are open country, so no steering needed)
 function march(e, x, z, dt, sp) {
@@ -59,6 +61,8 @@ function updAwayWar(dt) {
   SAILS.g.position.copy(p); SAILS.g.rotation.y = Math.atan2(q.x - p.x, q.z - p.z);
 }
 function startBattle(c) {
+  // anything left on the field from the last battle goes first
+  if (enemies.length || enemyCamp) { for (const e of enemies) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); } enemies.length = 0; if (enemyCamp) { scene.remove(enemyCamp); enemyCamp = null; } }
   enemyCamp = new THREE.Group(); scene.add(enemyCamp);
   for (const [dx, dz] of [[-5, 5.5], [-1.5, 6.5], [2, 5.6], [5, 6.6]]) { const x = BF.x + dx, z = BF.z + dz; mesh(G.cone, 0x7a2a22, [1, 1.5, 1], [x, .75, z], enemyCamp); mesh(G.box, 0x2a1408, [.3, .5, .05], [x, .25, z + .7], enemyCamp); }
   mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [BF.x, 1.5, BF.z + 7.3], enemyCamp);

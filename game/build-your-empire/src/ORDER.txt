@@ -32,6 +32,11 @@
 030b-tribes-out-east.js
 031-a-real-fight-health-duels-volleys-knockb.js
 031b-epic-battles.js
+031c-battle-camera.js
+031d-victory-parade.js
+031e-generals.js
+031f-battle-music.js
+031g-night-and-weather-battles.js
 032-war-at-sea.js
 033-war-in-the-air.js
 034-goals.js
@@ -96,11 +101,15 @@
 089-rival-cities-planned-growing-each-in-its.js
 090-each-city-s-land-forest-sea-peaks-desert.js
 091-a-siege-ladders-on-the-walls-a-ram-at-th.js
+091b-city-defences.js
 092-ruins-a-burned-building-has-to-be-paid-f.js
 093-provinces-conquered-lands-must-be-won-ov.js
 093b-supplying-your-lands.js
 094-the-senate-a-dome-on-the-town-hall-where.js
 094b-fronts.js
+094c-spies.js
+094d-envoys.js
+094e-war-museum.js
 095-crowds-people-step-around-each-other-ins.js
 096-hulls-a-smooth-round-bottomed-hull-lofte.js
 097-ships-and-airliners-from-models.js

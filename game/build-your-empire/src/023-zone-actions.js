@@ -73,6 +73,7 @@ function zoneAct(e, zn, dt) {
       break;
     }
     case 'war': if (e.isPlayer) warAct(zn, e); break;
+    case 'museum': if (e.isPlayer && player.zoneT > .6 && $('modal').hidden) { openMuseum(); player.zoneT = -2; } e.tick = .2; break;
     case 'recruit': if (e.isPlayer) payRecruit(zn, e); e.tick = .2; break;
     case 'spin': if (e.isPlayer) playSlots(zn, e); e.tick = .2; break;
     case 'ferry': if (e.isPlayer && player.zoneT > .6) { takeFerry(zn); player.zoneT = 0; } e.tick = .2; break;

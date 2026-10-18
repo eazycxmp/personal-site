@@ -149,7 +149,7 @@ function empAct(i, a, o) {
     if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
     if (s.stance !== 'war' && !s.by) empAct(i, 'war');
     // a front you planned brings its own odds and the branches that went; otherwise everything you have goes
-    const win = o && o.win != null ? o.win : myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
+    const win = o && o.win != null ? o.win : myPower() >= s.pow*(sabotaged(r) ? .85 : 1)*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
     W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random(), br:o && o.br};
     if (a === 'land' && r.bf && r.id !== 'ostberg') {
       // a long march (or a voyage) to fight before their own walls
@@ -160,7 +160,7 @@ function empAct(i, a, o) {
           : {board:6, pts:[[-13.6, -6], [-13.6, -48], [-13.6, -85], [sx*200, -104], [sx*345, -104], [sx*362, 10], land.map((v, k) => k ? v : v - sx*24)], land};
         C.sail.dur = Math.min(40, pathLen(C.sail.pts) / 22); C.path = [];
         dur += C.sail.board + C.sail.dur;
-      } else { C.path = armyPath(r); dur += Math.min(60, pathLen(C.path) / 6.5); }
+      } else { C.path = armyPath(r); dur += marchTime(C.path, 75); }
       C.t = C.dur = dur; BF.x = r.bf[0]; BF.z = r.bf[1];
       startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight();
     } else if (a === 'land') { startBattle({army:Math.min(14, 6 + Math.round(s.pow/10)), name:r.n}); if (!win) loseFight(); }
@@ -196,14 +196,17 @@ function endSideCamp() {
     else banner('🏳️ The rebels hold out', 'Your army falls back. Come back stronger.');
   } else {
     const r = EMP.list[C.rival], s = es(r);
-    if (C.win) conquer(r);
+    if (C.win) { if (C.type === 'land') genVictory(); if (C.type === 'sea') medal('sea'); if (C.type === 'air') medal('air'); conquer(r); }
     else { s.pow *= 1.1; s.rel -= 10; s.atkT = Math.min(s.atkT, 90); banner(`🏳️ ${r.n} drives you back`, `Their ⚔️${Math.round(s.pow)} was too much. Expect a counter-attack.`); }
   }
   save();
 }
 function conquer(r) {
   const s = es(r), loot = Math.round(s.pow*150);
+  if (s.by) medal('liberate');
   s.owned = true; s.stance = 'owned'; s.by = null;
+  // their walls come down, and much of their army joins yours
+  removeDefences(r); const joined = armyJoins(r); queueParade(r.n); setTimeout(() => note(`🪖 ${joined} of their soldiers join your army`, 'Your army grows with every land you take.'), 2600);
   // the cities they had occupied are free again
   for (const q of EMP.list) { const sq = es(q); if (sq.by === r.id) { sq.by = null; sq.stance = 'peace'; sq.rel = Math.max(sq.rel, 30); } }
   land('r:' + r.id);

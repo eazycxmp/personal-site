@@ -101,3 +101,37 @@ function updRivalWars(dt) {
     return;
   }
 }
+// ------------------------------------------------------------------ the war room: who holds what, and where the fighting is
+const LAND_COL = {us:'#2d6bd8', ostberg:'#2f6b3a', azul:'#0f4c81', kumo:'#7a1a1a', nile:'#c9a45a', aztlan:'#e8762a', hellas:'#2aa6b8', rajpur:'#7a1f3a', nordheim:'#1a2340', rebels:'#555'};
+const ownerKey = r => { const f = flagOwner(r); return f === 'us' ? 'us' : f === 'rebels' ? 'rebels' : f; };
+function drawWarRoom(g, X, Z, sx, sz) {
+  // territories in their holder's colour, with the holder's banner over the city
+  for (const r of EMP.list) {
+    const L = CITY_LAND[r.id]; if (!L || (r.sky && !W.unlocked.has('moonLanding'))) continue;
+    const k = ownerKey(r);
+    g.globalAlpha = .45; g.fillStyle = LAND_COL[k] || '#888'; g.fillRect(X(L.x0), Z(L.z0), (L.x1 - L.x0)*sx, (L.z1 - L.z0)*sz);
+    g.globalAlpha = 1; g.strokeStyle = LAND_COL[k] || '#888'; g.lineWidth = 3; g.strokeRect(X(L.x0), Z(L.z0), (L.x1 - L.x0)*sx, (L.z1 - L.z0)*sz);
+    if (!seen(r.at[0], r.at[1])) continue;
+    const m = flagMat(flagOwner(r)), img = m.map && m.map.image; if (img) { const w = 46, h = 30, x = X(r.at[0]) + 4, y = Z(r.at[1]) - 44; g.fillStyle = '#3a3a3a'; g.fillRect(x - 3, y, 3, 48); g.drawImage(img, x, y, w, h); }
+  }
+  // the fronts: an arrow from home to each battle, with who is fighting it and how long is left
+  let na = 0;
+  const arrow = (x1, z1, col, label) => {
+    const at = .32 + .2*(na++ % 3);   // labels spread along their arrows, so two fronts the same way stay readable
+    const ax = X(1.5), az = Z(.5), bx = X(x1), bz = Z(z1), a = Math.atan2(bz - az, bx - ax);
+    g.strokeStyle = col; g.lineWidth = 6; g.setLineDash([16, 10]); g.beginPath(); g.moveTo(ax, az); g.lineTo(bx - Math.cos(a)*20, bz - Math.sin(a)*20); g.stroke(); g.setLineDash([]);
+    g.fillStyle = col; g.beginPath(); g.moveTo(bx, bz); g.lineTo(bx - Math.cos(a - .4)*26, bz - Math.sin(a - .4)*26); g.lineTo(bx - Math.cos(a + .4)*26, bz - Math.sin(a + .4)*26); g.fill();
+    g.font = 'bold 22px system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.7)'; g.lineWidth = 5; const mx = ax + (bx - ax)*at, mz = az + (bz - az)*at - 14; g.strokeText(label, mx, mz); g.fillText(label, mx, mz);
+  };
+  const icons = br => br.map(b => BRANCH.find(q => q.b === b)?.icon() || '').join('');
+  for (const f of FRONTS.list) { const r = EMP.list[f.i]; arrow(r.at[0], r.at[1], '#ff7a2a', `${icons(f.br)} ${Math.ceil(f.t)}s`); }
+  const C = W.camp;
+  if (C) { const tgt = C.rival != null ? EMP.list[C.rival].at : [C.tx ?? BF.x, C.tz ?? BF.z]; arrow(tgt[0], tgt[1], '#ff3b30', `${C.br ? icons(C.br) : C.branch === 'cav' ? '🐎' : C.type === 'sea' ? '⚓' : C.type === 'air' ? '✈️' : '🪖'} ${C.assault ? 'storming' : Math.ceil(C.t) + 's'}`); }
+  // your army in the field
+  const vis = soldiers.filter(s => s.char.g.visible), far = vis.filter(s => Math.hypot(s.pos.x - 3, s.pos.z - 55) > 25);
+  if (far.length) { const x = far.reduce((a, s) => a + s.pos.x, 0)/far.length, z = far.reduce((a, s) => a + s.pos.z, 0)/far.length; g.font = '30px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🪖', X(x), Z(z)); }
+  // a legend of the powers
+  g.font = 'bold 18px system-ui'; g.textAlign = 'left'; g.textBaseline = 'middle'; let ly = 18;
+  for (const [k, col] of Object.entries(LAND_COL)) { const r = EMP.list.find(q => q.id === k); if (k !== 'us' && (!r || !es(r).met)) continue; if (k === 'rebels') continue;
+    g.fillStyle = col; g.fillRect(14, ly, 18, 18); g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 4; const n = k === 'us' ? 'Your empire' : r.n; g.strokeText(n, 38, ly + 9); g.fillText(n, 38, ly + 9); ly += 24; }
+}

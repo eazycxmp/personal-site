@@ -169,7 +169,7 @@ function adapt(real) {
   fit();
 }
 function frame(now) {
-  const real = (now - last) / 1000, dt = Math.min(.05, real); last = now;
+  const real = (now - last) / 1000, dt = Math.min(.05, real) * slowScale(Math.min(.1, real)); last = now;
   if (paused) { requestAnimationFrame(frame); return; }      // the last frame stays on screen; no time passes
   adapt(real);
   update(dt); updQN(dt); render(dt); BAKE.tick(real);

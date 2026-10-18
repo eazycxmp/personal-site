@@ -97,6 +97,8 @@ function openWorldMap() {
   m.innerHTML = `<div class="card" style="max-width:${Wd + 40}px"><h1 style="font-size:24px">🌍 The world</h1><canvas id="wmap" width="${Wd*2}" height="${Hd*2}" style="width:${Wd}px;height:${Hd}px;border-radius:10px;display:block"></canvas>
     <p style="font-size:13px;margin:8px 0 0">Clouds hide what you have not explored. Sail east far enough and you come back from the west.</p><button class="ghost" id="wmClose">Close</button></div>`;
   $('wmClose').onclick = () => { m.hidden = true; };
+  // the war room keeps itself up to date while it is open
+  clearTimeout(openWorldMap.tick); openWorldMap.tick = setTimeout(() => { if (!m.hidden && m.dataset.panel === 'map') openWorldMap(); }, 700);
   const cv = $('wmap'), g = cv.getContext('2d'), sx = cv.width/960, sz = cv.height/600, X = x => (wrapX(x) + 480)*sx, Z = z => (z + 320)*sz;
   g.fillStyle = '#2a6fa8'; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = '#e2cf98'; g.fillRect(X(WORLD.cx0) - 6, Z(WORLD.cz0) - 6, (WORLD.cx1 - WORLD.cx0)*sx + 12, (WORLD.cz1 - WORLD.cz0)*sz + 12);
@@ -116,6 +118,7 @@ function openWorldMap() {
     g.font = 'bold 18px system-ui'; g.fillStyle = '#1a1410'; g.fillText(c.name, X(p[0]), Z(p[1]) + 26); });
   if (BOAT.docked) for (const d of DOCKS) pin(d.land[0], d.land[1], '⚓', 18);
   if (BOAT.g && !BOAT.on) pin(BOAT.pos.x, BOAT.pos.z, '🛥️', 20);
+  if (typeof drawWarRoom === 'function') drawWarRoom(g, X, Z, sx, sz);
   // the cloud over everything unexplored
   { const fc = document.createElement('canvas'); fc.width = FOG.nx; fc.height = FOG.nz; const fg = fc.getContext('2d'), im = fg.createImageData(FOG.nx, FOG.nz);
     for (let k = 0; k < FOG.data.length; k++) { const v = 214 + ((k*37) % 17); im.data[k*4] = v; im.data[k*4 + 1] = v + 4; im.data[k*4 + 2] = v + 12; im.data[k*4 + 3] = FOG.data[k] ? 0 : 250; }

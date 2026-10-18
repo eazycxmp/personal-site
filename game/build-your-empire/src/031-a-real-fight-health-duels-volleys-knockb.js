@@ -63,7 +63,7 @@ function healthBar(e) {
 function battleSoldier(s, i, dt) {
   if (s.hp === undefined || s.battle !== BT.id) { s.battle = BT.id; s.maxHp = s.hp = 5 + (W.troop || 0); s.down = false; s.fall = 0; s.cd = R()*.8; s.fought = true; s.target = null; }
   const w = wepLvl(), guns = w >= 1, alive = enemies.filter(e => e.alive);
-  s.vel.set(0, 0, 0); s.speed = 3.6;
+  s.vel.set(0, 0, 0); s.speed = 3.6*weatherSlow();
   if (!s.down) {
     // at most three on any one enemy (with guns, any number can shoot): the rest hold the line until a foe is free
     const busy = e => soldiers.filter(o => o !== s && !o.down && o.target === e).length;
