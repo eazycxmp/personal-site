@@ -12,6 +12,7 @@
 011-the-realistic-people-kit.js
 012-realistic-people-quaternius-cc0-bodies-r.js
 013-game-state.js
+013b-coin-ledger.js
 014-fish-species.js
 015-regions.js
 016-more-buildings.js
@@ -123,6 +124,7 @@
 105-conquered-lands-join-your-map-each-in-it.js
 106-siege-engines.js
 107-the-regiment-field-every-soldier-past-th.js
+107b-mass-battle.js
 108-the-lucky-strip.js
 109-combined-arms-and-the-fires-of-war.js
 110-highways-to-the-conquered-lands-with-sem.js

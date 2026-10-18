@@ -62,12 +62,13 @@ function updCivic(dt) {
     if (st) {
       st.truckOn = true; const [x, z] = st.inZ || [st.body.position.x, st.body.position.z];
       banner('🚒 The fire brigade is on its way!', `Heading to the ${st.name}.`);
-      driveTo(T, TOWN_ROUTE(x + 1.2, z + 1.2), () => {
+      // already out on a call: straight on to the next fire by the main road, without going back to the station first
+      driveTo(T, T.away ? [[12.6, 1.6], [x + 1.2, z + 1.2]] : TOWN_ROUTE(x + 1.2, z + 1.2), () => {
         T.wait = 3;
         for (let i = 0; i < 30; i++) setTimeout(() => particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((x - T.g.position.x)*.8 + (R() - .5), 2, (z - T.g.position.z)*.8 + (R() - .5)), .6, .08, {grav:1}), i*90);
         setTimeout(() => {
           if (st.broken) { st.broken = false; if (st.repairZone) removeZone(st.repairZone); st.repairZone = null; puff(x, z); popText(`🚒 Fire out at the ${st.name}`, new THREE.Vector3(x, 2.8, z), '#b8f0a0'); }
-          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [58, 1.6], T.home], () => { T.busy = false; });
+          st.truckOn = false; T.away = true; driveTo(T, [[12.6, 1.6], [14, 1.6], [58, 1.6], T.home], () => { T.away = false; T.busy = false; }); T.busy = false;   // free for the next call on the way home
         }, 3000);
       });
     }

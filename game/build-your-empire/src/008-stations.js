@@ -271,18 +271,21 @@ function buildHut(key, stage, anim) {
     const sign = new THREE.Mesh(G.box, [mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
     sign.scale.set(.9, .3, .06); sign.position.set(.5, 1.75, 1.15); g.add(sign);
   } else {
-    // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and palm trees
-    const tint = {hut1:0xf4b6c2, hut2:0xa8e6d4, hut3:0xffd3a5}[key];
-    mesh(G.box, tint, [2.2, 4.4, 2], [0, 2.2, 0], g);
-    for (const xx of [-1.1, 1.1]) mesh(G.cyl, tint, [.38, 4.4, .38], [xx, 2.2, .7], g);
-    for (let f = 1; f <= 4; f++) mesh(G.box, 0xfdf6ee, [2.32, .09, 2.1], [0, f*1.05, 0], g);
-    windows(g, 2.2, 2, .4, 4, 1.05, 3);
-    mesh(G.box, 0xfdf6ee, [1.2, .7, 1.1], [0, 4.75, 0], g); mesh(G.box, tint, [.6, .5, .6], [0, 5.35, 0], g);
-    for (const xx of [-.42, 0, .42]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.15, .52], g);
-    mesh(G.box, 0x2a1a2a, [.65, .95, .08], [0, .48, 1.02], g);
+    // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and a palm tree. Slim (the three
+    // stand close round the town hall), the sign on its front and the palm on its outer corner, so neighbours never touch;
+    // the one beside the town hall stands back from it a little
+    const tint = {hut1:0xf4b6c2, hut2:0xa8e6d4, hut3:0xffd3a5}[key], b = new THREE.Group(); g.add(b);
+    if (key === 'hut3') b.position.x = .55;
+    mesh(G.box, tint, [1.8, 4.6, 1.8], [0, 2.3, 0], b);
+    for (const xx of [-.9, .9]) mesh(G.cyl, tint, [.3, 4.6, .3], [xx, 2.3, .62], b);
+    for (let f = 1; f <= 4; f++) mesh(G.box, 0xfdf6ee, [1.9, .09, 1.9], [0, f*1.1, 0], b);
+    windows(b, 1.8, 1.8, .4, 4, 1.1, 2);
+    mesh(G.box, 0xfdf6ee, [1.1, .7, 1], [0, 4.95, 0], b); mesh(G.box, tint, [.55, .5, .55], [0, 5.55, 0], b);
+    for (const xx of [-.36, 0, .36]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.35, .48], b);
+    mesh(G.box, 0x2a1a2a, [.6, .95, .08], [0, .48, .92], b);
     const neon = new THREE.Mesh(G.box, [mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
-    neon.scale.set(.5, 2.2, .08); neon.position.set(1.32, 2.9, .75); neon.rotation.z = Math.PI/2; g.add(neon);
-    const palmAt = {hut1:[-1.6, 1.4], hut2:[-1.6, 1.4], hut3:[1.35, 1.25]}[key];
+    neon.scale.set(1.4, .4, .06); neon.position.set(0, 1.25, .95); b.add(neon);   // over the door
+    const palmAt = {hut1:[-1.6, -1.4], hut2:[1.75, 1.15], hut3:[1.95, -.6]}[key];
     palm(g, palmAt[0], palmAt[1]);
   }
   fader(g, 2.5, stage === 3 ? 5 : stage === 2 ? 3.6 : 2.5);

@@ -36,11 +36,23 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   // how a material looks, so copies of the same material can share one draw
   const look = m => [m.type, m.color?.r, m.color?.g, m.color?.b, m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, m.roughness, m.metalness, m.map?.id, m.normalMap?.id, m.emissiveMap?.id,
     m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite, m.userData.bld, m.customProgramCacheKey()].join();
+  // plain coloured materials (no textures, no shader of their own) batch together whatever their colour: the colour
+  // goes into each vertex and the batch draws with one shared white material. Roughness and metalness are rounded to a
+  // tenth, so near-identical surfaces share too.
+  const TINT = m => m.type === 'MeshStandardMaterial' && !TEX.some(k => m[k]) && !m.userData.bld && m.onBeforeCompile === OBC;
+  const lookT = m => TINT(m) ? 'T' + [m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, Math.round(m.roughness*10), Math.round(m.metalness*10),
+    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite].join() : look(m);
+  const TINT_MATS = new Map();
+  function tintMat(m) {
+    const k = lookT(m); let t = TINT_MATS.get(k);
+    if (!t) { t = m.clone(); t.color = new THREE.Color(1, 1, 1); t.vertexColors = true; t.roughness = Math.round(m.roughness*10)/10; t.metalness = Math.round(m.metalness*10)/10; t.userData = {shared:true, bakeTint:true}; TINT_MATS.set(k, t); }
+    return t;
+  }
   // glue the members of one material into one world-space geometry
-  function merge(list, kind) {
+  function merge(list, kind, tint) {
     let nv = 0, ni = 0;
     for (const o of list) { const g = o.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
-    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), uv = kind.includes('u') ? new Float32Array(nv*2) : null, col = kind.includes('c') ? new Float32Array(nv*3) : null;
+    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), uv = kind.includes('u') ? new Float32Array(nv*2) : null, col = kind.includes('c') || tint ? new Float32Array(nv*3) : null;
     const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
     let bv = 0, bi = 0;
     for (const o of list) {
@@ -50,7 +62,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         v.fromBufferAttribute(P, i).applyMatrix4(M); pos[(bv + i)*3] = v.x; pos[(bv + i)*3 + 1] = v.y; pos[(bv + i)*3 + 2] = v.z;
         v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(bv + i)*3] = v.x; nor[(bv + i)*3 + 1] = v.y; nor[(bv + i)*3 + 2] = v.z;
         if (uv) { uv[(bv + i)*2] = U.getX(i); uv[(bv + i)*2 + 1] = U.getY(i); }
-        if (col) { col[(bv + i)*3] = C.getX(i); col[(bv + i)*3 + 1] = C.getY(i); col[(bv + i)*3 + 2] = C.getZ(i); }
+        if (col) { const k = tint ? o.material.color : null, r = C ? C.getX(i) : 1, gg = C ? C.getY(i) : 1, b = C ? C.getZ(i) : 1; col[(bv + i)*3] = k ? r*k.r : r; col[(bv + i)*3 + 1] = k ? gg*k.g : gg; col[(bv + i)*3 + 2] = k ? b*k.b : b; }
       }
       // a mirrored mesh has its triangles wound the other way: turn them back so they still face out
       const flip = M.determinant() < 0, I = g.index, cnt = I ? I.count : n;
@@ -69,17 +81,19 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   // a batch is one merged mesh: the still meshes of one patch that look the same
   function unbake(key) {
     const b = BAKE.batches.get(key); if (!b) return;
-    for (const o of b.members) { o.layers.mask = o.userData.bakeMask ?? 1; delete o.userData.bakeMask; const s = BAKE.seen.get(o); if (s) s.batch = null; }
+    for (const o of b.members) { o.layers.mask = o.userData.bakeMask ?? 1; delete o.userData.bakeMask; o.matrixWorldAutoUpdate = true; const s = BAKE.seen.get(o); if (s) s.batch = null; }
     BAKE.group.remove(b.mesh); b.mesh.geometry.dispose();
     BAKE.batches.delete(key);
   }
   function bake(key, arr) {
-    const s0 = BAKE.seen.get(arr[0]), m = new THREE.Mesh(merge(arr, s0.kind), arr[0].material);
+    const s0 = BAKE.seen.get(arr[0]), tint = TINT(arr[0].material) && arr.some(o => !o.material.color.equals(arr[0].material.color));
+    const m = new THREE.Mesh(merge(arr, s0.kind, tint), tint ? tintMat(arr[0].material) : arr[0].material);
     m.castShadow = arr[0].castShadow; m.receiveShadow = arr[0].receiveShadow; m.matrixAutoUpdate = false; m.userData.noBake = true;
     BAKE.group.add(m);
     // copies of a material are checked by look each tick; a shared material is the same object, so any change shows anyway
     const multi = arr.some(o => o.material !== arr[0].material), b = {members:arr, mesh:m, looks:multi ? new Map(arr.map(o => [o, look(o.material)])) : null};
-    for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
+    // a merged original is hidden, so its matrix isn't worked out every frame any more (the pass below checks it for moves)
+    for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; o.matrixWorldAutoUpdate = false; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
     BAKE.batches.set(key, b); BAKE.merges++;
   }
   // The work is spread over frames: each frame gets a few milliseconds of it, so a pass over the whole town never
@@ -100,6 +114,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
       let broke = false;
       for (const o of b.members) {
         const s = BAKE.seen.get(o);
+        if (o.parent) { o.updateMatrix(); o.matrixWorld.multiplyMatrices(o.parent.matrixWorld, o.matrix); }   // frozen while merged: bring it up to date to compare
         const why = snap(o, s.rec) ? 'snap' : s.rec.vis !== 1 ? 'vis' : b.looks && look(o.material) !== b.looks.get(o) ? 'look' : '';
         if (!why) continue;
         broke = true; s.t = now; if (BAKE.log) BAKE.log.push([why, o]);
@@ -126,7 +141,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         const kind = BAKE.kind(o); BAKE.seen.set(o, s = {rec:newRec(), t:now, kind, batch:null, solo:null, nb:0}); snap(o, s.rec); continue;
       }
       if (s.kind === null || s.solo || s.rec.vis !== 1 || now - s.t < BAKE.wait) continue;
-      const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : look(o.material));
+      const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : lookT(o.material));
       (ready.get(key) || ready.set(key, []).get(key)).push(o);
     }
     // new still meshes make a batch of their own beside the patch's existing ones (with a lone mesh waiting for
@@ -168,10 +183,13 @@ function adapt(real) {
   scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
   fit();
 }
+let FRAMES = 0;
 function frame(now) {
   const real = (now - last) / 1000, dt = Math.min(.05, real) * slowScale(Math.min(.1, real)); last = now;
   if (paused) { requestAnimationFrame(frame); return; }      // the last frame stays on screen; no time passes
   adapt(real);
+  // shadows are redrawn every other frame: the sun hardly moves, and a moving shadow lagging a 60th of a second can't be seen
+  renderer.shadowMap.needsUpdate = (FRAMES = (FRAMES + 1) % 2) === 0;
   update(dt); updQN(dt); render(dt); BAKE.tick(real);
   requestAnimationFrame(frame);
 }

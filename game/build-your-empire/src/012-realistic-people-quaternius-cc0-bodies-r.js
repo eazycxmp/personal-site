@@ -113,6 +113,61 @@ function qnWear(c, FIT, fit, skin, topCol) {
   });
   c.outfit = fit;
 }
+// One draw for the clothes: a person's shirt, trousers and shoes become a single skinned mesh. The merged shape is
+// shared by everyone wearing the same cut; each person's colours ride in a small per-person material.
+const QW = {geos:new Map()};
+function qnWearMat(cols, rough, metal) {
+  const m = new THREE.MeshStandardMaterial({roughness:rough, metalness:metal}), U = {uWear:{value:cols}};
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uWear = U.uWear;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float wpart; varying float vWp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = wpart;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uWear[3]; varying float vWp;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  { int wi = int(vWp + .5); diffuseColor.rgb = wi == 0 ? uWear[0] : wi == 1 ? uWear[1] : uWear[2]; }');
+  };
+  m.customProgramCacheKey = () => 'qnwear';
+  return m;
+}
+function qnMergeWear(c, parts, cols, key) {
+  // only parts that hang off the same parent with the same bind (then the merged mesh skins exactly like them)
+  const p0 = parts[0];
+  if (parts.some(m => m.parent !== p0.parent || !m.matrix.equals(p0.matrix) || !m.bindMatrix.equals(p0.bindMatrix) || m.skeleton !== p0.skeleton)) return null;
+  let geo = QW.geos.get(key);
+  if (!geo) {
+    let nv = 0, ni = 0; for (const m of parts) { const g = m.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), si = new Uint16Array(nv*4), sw = new Float32Array(nv*4), part = new Float32Array(nv), idx = new Uint32Array(ni);
+    let v0 = 0, i0 = 0;
+    parts.forEach((m, k) => {
+      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, n = P.count, I = g.index;
+      for (let i = 0; i < n; i++) {
+        const a = (v0 + i)*3; pos[a] = P.getX(i); pos[a + 1] = P.getY(i); pos[a + 2] = P.getZ(i); nor[a] = N.getX(i); nor[a + 1] = N.getY(i); nor[a + 2] = N.getZ(i);
+        for (let j = 0; j < 4; j++) { si[(v0 + i)*4 + j] = SI.getComponent(i, j); sw[(v0 + i)*4 + j] = SW.getComponent(i, j); }
+        part[v0 + i] = k;
+      }
+      const cnt = I ? I.count : n; for (let t = 0; t < cnt; t++) idx[i0++] = v0 + (I ? I.getX(t) : t);
+      v0 += n;
+    });
+    geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    geo.setAttribute('wpart', new THREE.BufferAttribute(part, 1)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .9, 0), 1.3); geo.userData.qnBound = true;
+    QW.geos.set(key, geo); qnShared().add(geo);
+  }
+  const mat = qnWearMat(cols, parts.find(m => /Shirt/.test(m.name))?.material.roughness ?? .85, parts.find(m => /Shirt/.test(m.name))?.material.metalness ?? 0);
+  const n = new THREE.SkinnedMesh(geo, mat); n.name = 'QN_Wear_merged';
+  n.bind(p0.skeleton, p0.bindMatrix); n.position.copy(p0.position); n.quaternion.copy(p0.quaternion); n.scale.copy(p0.scale);
+  n.computeBoundingSphere = () => { n.boundingSphere = geo.boundingSphere.clone(); return n.boundingSphere; };
+  n.boundingSphere = geo.boundingSphere.clone(); n.frustumCulled = true;
+  n.castShadow = parts.some(m => m.castShadow); n.receiveShadow = true;
+  p0.parent.add(n); for (const m of parts) m.visible = false;
+  return n;
+}
+function sameSkeleton(a, b) {
+  if (a === b) return true;
+  if (a.bones.length !== b.bones.length) return false;
+  for (let i = 0; i < a.bones.length; i++) { if (a.bones[i] !== b.bones[i]) return false; const x = a.boneInverses[i].elements, y = b.boneInverses[i].elements; for (let j = 0; j < 16; j++) if (Math.abs(x[j] - y[j]) > 1e-4) return false; }
+  return true;
+}
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
   if (QN.list.length > 300) for (let i = QN.list.length - 1; i >= 0; i--) { const q = QN.list[i]; if (!q.g.parent) { qnDrop(q); QN.list.splice(i, 1); } }
@@ -159,6 +214,17 @@ function makeQN(o) {
       if (m.visible) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2.2); }
     } else if (/Eyebrows/.test(m.name)) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2); }
   });
+  // every part of the body is bound to the same bones: give them all the body's one skeleton, so each frame the bones
+  // are worked out and sent to the GPU once per person rather than once per hair, shirt, shoe and eyebrow
+  c.fine = []; root.traverse(m => { if (m.isSkinnedMesh && m.visible && /Eyes|Eyebrows/.test(m.name)) c.fine.push(m); });   // drawn only up close
+  if (c.body) { const bs = c.body.skeleton; root.traverse(m => { if (m.isSkinnedMesh && m !== c.body && sameSkeleton(m.skeleton, bs)) m.skeleton = bs; }); }
+  // the clothes as one draw (the cut decides the shared shape, the colours stay this person's own)
+  if (!FIT && !o.metal) {
+    const order = [wearTop, wearLeg, 'Shoes'].filter(Boolean), parts = [], cols = [];
+    root.traverse(m => { if (m.isSkinnedMesh && m.visible && /Wear_/.test(m.name)) parts.push(m); });
+    parts.sort((a, b) => order.findIndex(k => a.name.includes('Wear_' + k + '.') || a.name.endsWith('Wear_' + k)) - order.findIndex(k => b.name.includes('Wear_' + k + '.') || b.name.endsWith('Wear_' + k)));
+    if (parts.length >= 2 && parts.length <= 3) { for (const m of parts) cols.push(m.material.color.clone()); while (cols.length < 3) cols.push(cols[0]); qnMergeWear(c, parts, cols, (fem ? 'f' : 'm') + parts.map(m => m.name).join('|')); }
+  }
   if (FIT && c.body) qnWear(c, FIT, fit, skin, topCol);
   c.look = o;
   // the bones the game poses directly, and stand-ins at the old pivots for the code that hangs things on arms and legs
@@ -191,7 +257,7 @@ function makeQN(o) {
     const line = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xf4f4f4})); line.scale.set(.008, 2.35, .008); line.position.y = -1.18; tip.add(line);
     mesh(G.sph, 0xe03a2a, [.07, .07, .07], [0, -2.35, 0], tip); mesh(G.sph, 0xffffff, [.05, .04, .05], [0, -2.29, 0], tip);
   }
-  if (!MOBILE) { const sh = new THREE.Mesh(G.plane, BLOB.mat); sh.rotation.x = -Math.PI/2; sh.position.y = .035; sh.scale.set(.8, .8, 1); sh.renderOrder = 1; g.add(sh); }
+  c.blob = !MOBILE;   // the soft shadow underfoot: drawn for everyone at once (see updQN)
   // animation: one mixer, the clips started as they are first needed
   c.mixer = new THREE.AnimationMixer(root); c.acts = {}; c.state = ''; c.last = new THREE.Vector3(); c.spd = 0; c.ph = R();
   c.root = root; c.isHero = !!o.hero;
@@ -235,7 +301,8 @@ function qnRaise(c, bone, ang) {
   if (!bone || !ang) return;
   bone.parent.updateWorldMatrix(true, false);
   const pq = bone.parent.getWorldQuaternion(QN.tmpQ), wq = QN.tmpQ2.copy(pq).multiply(bone.quaternion);
-  const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, ang);
+  // (a turn the negative way about the body's side axis swings the arm forward and up; the positive way swung it back)
+  const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, -ang);
   wq.premultiply(rot); bone.quaternion.copy(pq.invert().multiply(wq));
 }
 // work: the game says what someone is doing and for how long; the animation follows
@@ -249,9 +316,15 @@ function qnAct(c, act, dur, restart = false) {
   c.act = act; c.actT = same ? Math.max(c.actT, dur) : dur;
 }
 const QN_LOCO = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop']);
+const QN_BLOB = {im:null, o:new THREE.Object3D(), n:0};
+function qnBlobs() {
+  if (!QN_BLOB.im) { const im = QN_BLOB.im = new THREE.InstancedMesh(G.plane, BLOB.mat, 512); im.count = 0; im.renderOrder = 1; im.frustumCulled = false; im.castShadow = false; im.receiveShadow = false; im.userData.noBake = true; scene.add(im); }
+  return QN_BLOB.im;
+}
 function updQN(dt) {
   if (!QN.list.length) return;
   QN.frame = (QN.frame || 0) + 1;
+  const blobs = qnBlobs(); QN_BLOB.n = 0;
   QN.pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); QN.frustum.setFromProjectionMatrix(QN.pm);
   for (let i = QN.list.length - 1; i >= 0; i--) {
     const c = QN.list[i], g = c.g;
@@ -266,6 +339,10 @@ function updQN(dt) {
     if (c.root.visible === far) c.root.visible = !far;
     if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
     c.seen = QN.frame;
+    if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
+    // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
+    const fine = c.isHero || p.distanceToSquared(camera.position) < 24*24;
+    if (c.fineOn !== fine && c.fine) { c.fineOn = fine; for (const m of c.fine) m.visible = fine; }
     // what are they doing? the game poses the stand-in limbs; read the pose and pick the animation
     const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, lgR = c.legR.rotation.x, fall = g.rotation.x;
     let st, rate = 1;
@@ -315,6 +392,7 @@ function updQN(dt) {
       if (aL < -.75) qnRaise(c, c.bones.armL, -aL*.95);
     }
   }
+  blobs.count = QN_BLOB.n; blobs.instanceMatrix.needsUpdate = true;
 }
 function makeChar(o) {
   if (!o.noQN && qnInit()) return makeQN(o.civ ? {...civLook(o.civ === true ? R()*60|0 : o.civ), ...o, civ:0} : o);
@@ -414,7 +492,8 @@ function entity(charOpts, x, z, speed, cap) {
   ENTS.push(e); CHARS.add(e.char.g);
   e.stack = newStack((i, it, y) => {
     const s = Math.sin(e.yaw), c = Math.cos(e.yaw), lag = i * .03;
-    return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
+    // held out in front in both hands (the arms are lifted forward under it), the top of a tall load swaying behind a little
+    return {x:e.pos.x + .5*s - e.svel.x*lag, y:1.05 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z + .5*c - e.svel.z*lag, ry:e.yaw};
   });
   return e;
 }
@@ -429,7 +508,8 @@ function animEntity(e, dt) {
   const k = Math.min(1, sp / 2.5), c = e.char;
   c.legL.rotation.x = Math.sin(e.walk) * .8 * k; c.legR.rotation.x = -Math.sin(e.walk) * .8 * k;
   const carrying = e.stack.length > 0;
-  c.armL.rotation.x = carrying ? -.5 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -.5 : Math.sin(e.walk) * .7 * k;
+  // carrying: both arms held out in front, under the load (lifted forward on top of the walk)
+  c.armL.rotation.x = carrying ? -1.1 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -1.1 : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
   c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > -49.4 && e.pos.x < -40.6 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
 }

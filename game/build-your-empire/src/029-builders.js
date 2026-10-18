@@ -41,7 +41,7 @@ function updBuilder(w, dt, only) {
   if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
     w.job = builderJob(w, only);
     w.mode = 'fetch'; w.wait = 0; w.pile = null;
-    if (!w.job) { if (!only && crewWork(w, dt)) return; goTo(w, ...w.home, dt); return; }
+    if (!w.job) { if (!only && crewWork(w, dt)) return; if (!only) { maintainRound(w, dt); return; } goTo(w, ...w.home, dt); return; }
   }
   const p = w.job, cur = p.cur, pz = padZones[p.id], rem = p.cost - (W.paid[p.id] || 0);
   while (w.stack.length > w.stack.count([cur])) { const it = w.stack.take(Object.keys(ITEM).filter(k => k !== cur)); flyAway(it.mesh, w.pos.clone().setY(0), .3); }
@@ -79,9 +79,43 @@ function treasurerPile(w) {
 // The iron hauler and the tinker: when their own run is stuck (nothing to fetch, or the smith or workshop has no room)
 // they carry ingots or tools to a tile waiting on them, then go back to their run.
 const IDLE_HAUL = {hauler:['ingot'], tinker:['tools', 'ingot']};
+// Nobody stands around: a worker whose own job is blocked (their station full, or nothing to fetch) finds another use.
+// They take what they hold to another station with room, help the builders with stone and wood, sell surplus at the
+// market, or failing all that keep busy at their own station (stacking, sweeping, mending) until their job frees up.
+const PURPOSE_HAUL = ['stone', 'log'];
+const SELL_AT = () => zones.find(z => z.kind === 'sell');
+function sellRun(w, dt) {
+  const zn = SELL_AT(); if (!zn || !w.stack.length) { w.hauling = false; w.state = 'idle'; return; }
+  if (!goTo(w, zn.x, zn.z, dt)) return;
+  if ((w.tick -= dt) > 0) return; w.tick = .12;
+  const it = w.stack.take(SELLABLE);
+  if (!it) { w.hauling = false; w.state = 'idle'; return; }
+  const v = ITEM[it.type].sell; W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(zn.x, 1, zn.z - 2.2), .25);
+  if (dist2(player, zn.x, zn.z) < 25) popText(`+${v}`, w.pos.clone().setY(2.4 + R()*.4), '#ffe06b');
+  qnAct(w.char, 'serve', .6);
+}
+// a builder with nothing to build does the rounds of the town, mending and checking what is already up
+function maintainRound(w, dt) {
+  if (!w.mend || (w.mendT -= dt) <= 0) {
+    const done = Object.values(padZones).filter(z => W.unlocked.has(z.pad.id) && Math.hypot(z.x - w.home[0], z.z - w.home[1]) < 45);
+    const z = done[R()*done.length|0]; w.mend = z ? [z.x + (R() - .5)*2, z.z + 1.2] : [w.home[0] + (R() - .5)*6, w.home[1] + (R() - .5)*6]; w.mendT = 14;
+  }
+  if (goTo(w, w.mend[0], w.mend[1], dt)) { if ((w.tick -= dt) <= 0) { w.tick = .9 + R()*.5; qnAct(w.char, 'fix', 1); if (R() < .2) w.mend = null; } }
+}
+// busy at the station: step between a couple of spots by it and work with their hands, then look for the job again
+function tendStation(w, dt) {
+  const [hx, hz] = w.home;
+  w.tendSpot ||= [hx + (R() - .5)*2.4, hz + (R() - .5)*2.4];
+  if (goTo(w, w.tendSpot[0], w.tendSpot[1], dt) && (w.tick -= dt) <= 0) { w.tick = 1.1 + R()*.8; qnAct(w.char, R() < .5 ? 'fix' : 'pick', 1); if (R() < .35) w.tendSpot = null; }
+  // back to their own job the moment there is something to fetch (customers never wait on a busy-looking cook)
+  if (!w.stack.length && (w.readyT = (w.readyT || 0) - dt) <= 0) { w.readyT = .5; const r = ROUTES[w.kind]; if (r && r.dst() && r.src().some(z => z && (z.stack ? z.stack.length : 1))) w.tendT = 0; }
+  if ((w.tendT -= dt) <= 0) { w.hauling = false; w.tendSpot = null; w.state = w.stack.length ? 'toDst' : 'idle'; w.wait = 0; }
+}
 function idleHaul(w, dt, curs) {
   if (!w.hauling) {
-    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4);
+    // stuck: standing idle, or waiting at a pickup or drop-off where nothing has changed hands for a while
+    if (w.stack.length !== w.prevN) { w.prevN = w.stack.length; w.noProg = 0; } else w.noProg = (w.noProg || 0) + dt;
+    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4) || ((w.state === 'load' || w.state === 'unload' || w.state === 'idle') && w.noProg > 5);
     if (!stuck) { w.idleT = 0; return false; }
     w.idleT = (w.idleT || 0) + dt;
     if (w.idleT < 3 || (w.haulCheck = (w.haulCheck || 0) - dt) > 0) return false;
@@ -96,9 +130,14 @@ function idleHaul(w, dt, curs) {
       if (alt) { w.dst = alt; w.state = 'toDst'; w.wait = 0; w.idleT = 0; return false; }
     }
     const cur = curs.find(c => (held ? held === c && w.stack.count([c]) === w.stack.length : true) && builderJob(w, c));
-    if (!cur) return false;
-    w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle';
+    if (cur) { w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle'; }
+    // goods nobody has room for go to the market and are sold
+    else if (held && SELLABLE.includes(held) && SELL_AT()) { w.hauling = 'sell'; w.idleT = 0; }
+    // nothing to fetch or carry: get on with the work at their own station
+    else { w.hauling = 'tend'; w.tendT = 6 + R()*4; w.idleT = 0; }
   }
+  if (w.hauling === 'sell') { sellRun(w, dt); return true; }
+  if (w.hauling === 'tend') { tendStation(w, dt); return true; }
   updBuilder(w, dt, w.hauling);
   if (!w.job && !w.stack.count([w.hauling])) { w.hauling = false; w.state = 'idle'; }
   return true;

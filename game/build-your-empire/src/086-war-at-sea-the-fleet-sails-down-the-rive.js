@@ -41,8 +41,8 @@ function updSea(dt) {
     const ours = fleet(), foes = pirates.filter(p => p.sink < .4), roll = R();
     if (roll < .5 && ours.length) {
       const b = ours[R()*ours.length|0], tp = f.g.position.clone().add(new THREE.Vector3((R() - .5)*6, 1 + R(), (R() - .5)*2));
-      broadside(b.g.position, tp, R() < (win ? .8 : .45), () => { fortHit(f); if (R() < .5) particle(0xff7a2a, tp, new THREE.Vector3(0, 2, 0), 1.2, .4, {grow:.6, op:.7}); });
-    } else if (roll < .65 && ours.length && foes.length) { const b = ours[R()*ours.length|0], tg = foes[R()*foes.length|0]; broadside(b.g.position, tg.g.position.clone().setY(.6), R() < .6); }
+      navyShot(b.g.position, tp, R() < (win ? .8 : .45), () => { fortHit(f); if (R() < .5) particle(0xff7a2a, tp, new THREE.Vector3(0, 2, 0), 1.2, .4, {grow:.6, op:.7}); });
+    } else if (roll < .65 && ours.length && foes.length) { const b = ours[R()*ours.length|0], tg = foes[R()*foes.length|0]; navyShot(b.g.position, tg.g.position.clone().setY(.6), R() < .6); }
     else if (ours.length && f.guns.length && f.hp > 0) { const gn = f.guns[R()*f.guns.length|0], from = gn.getWorldPosition(new THREE.Vector3()), tg = ours[R()*ours.length|0]; broadside(from, tg.g.position.clone().setY(.6), R() < (win ? .2 : .45)); }
     else if (ours.length && foes.length) { const p = foes[R()*foes.length|0], tg = ours[R()*ours.length|0]; broadside(p.g.position, tg.g.position.clone().setY(.6), .25); }
   }

@@ -1,7 +1,9 @@
 // ------------------------------------------------------------------ siege engines
-const SENG = {id:null, units:[]};
-// siege engines come from the siege workshop, and only march out against a castle (a rival's walls); a field
-// battle is the soldiers alone. Better troops bring better engines.
+const SENG = {id:null, units:[]}, SIEGE_HOME = [-5.6, 63];
+// siege engines come from the siege workshop, and only march out against big walls: a rival city behind stone walls
+// or a fort (a wooden palisade the soldiers storm alone). In the field battle before the walls they wait at the back;
+// once the assault begins they roll up to the gate and pound it. Better troops bring better engines.
+const bigWalls = C => { if (!C || C.rival == null) return false; const r = EMP.list[C.rival], D = r && DEF[r.id]; return !!D && D.tier >= 1 && !es(r).owned; };
 const armyEngines = () => { if (!W.unlocked.has('siegeWorks')) return []; const t = W.troop || 0; return t >= 5 ? ['tank', 'tank', 'howitzer'] : t >= 4 ? ['cannon', 'cannon', 'mortar'] : t >= 3 ? ['tower', 'trebuchet', 'ram'] : t >= 1 ? ['catapult', 'catapult', 'ram'] : ['ram']; };
 const SHOOTS = {catapult:{every:3.2, arc:5, dur:1.3, ball:[0x8a8478, .28]}, trebuchet:{every:4, arc:8, dur:1.7, ball:[0x8a8478, .38]},
   cannon:{every:2.2, arc:1.6, dur:.55, ball:[0x1a1a1a, .16], flash:true}, mortar:{every:3, arc:9, dur:1.6, ball:[0x1a1a1a, .2], flash:true},
@@ -33,7 +35,7 @@ function engineMesh(k) {
 function updSiegeEngines(dt) {
   const C = W.camp;
   // a land attack sets out: bring the engines
-  if (C && C.type === 'land' && !C.retake && C.away && C.side && (C.sengId ??= Math.random()) !== SENG.id) {
+  if (C && C.type === 'land' && !C.retake && C.away && C.side && bigWalls(C) && (C.sengId ??= Math.random()) !== SENG.id) {
     SENG.id = C.sengId; for (const u of SENG.units) scene.remove(u.g); SENG.units = [];
     armyEngines().forEach((k, i) => {
       const g = engineMesh(k); if (!g) return; g.position.set(3 + (i - 1)*2.4, 0, 86); scene.add(g);
@@ -63,8 +65,9 @@ function updSiegeEngines(dt) {
     // storming a city: the engines roll up before the gate (the assault does the pounding)
     const AD = C && C.assault && DEF[EMP.list[C.rival].id];
     if (AD) { const [ix, iz] = inward(AD.main); tx = AD.main.x - ix*7 - iz*(u.i - 1)*3; tz = AD.main.z - iz*7 + ix*(u.i - 1)*3; }
-    else if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = melee ? BF.z + 1.6 + Math.sin(time*3 + u.ph)*(u.k === 'ram' ? .5 : 0) : BF.z - 7.5; }
-    else if (mid) { tx = mid[0] + (u.i - 1)*2.4; tz = mid[1] - (C ? 5 : -4); }
+    else if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = BF.z - 9; }   // held back while the armies fight in the field
+    else if (!C) { tx = SIEGE_HOME[0] + (u.i - 1)*2.2; tz = SIEGE_HOME[1]; }   // home to the workshop
+    else if (mid) { tx = mid[0] + (u.i - 1)*2.4; tz = mid[1] - 5; }
     else { tx = p.x; tz = p.z; }
     // driving like a vehicle: speed builds up and eases off near the spot, the wheels roll with the distance covered
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz), top = u.k === 'tank' ? 8 : 6.6;
@@ -74,7 +77,14 @@ function updSiegeEngines(dt) {
     if (d > .3) { p.x += dx/d*sp*dt; p.z += dz/d*sp*dt; p.y = Math.abs(Math.sin(time*9 + u.ph))*.03*Math.min(1, u.v); const yaw = Math.atan2(dx, dz); let dy = yaw - u.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); u.g.rotation.y += dy*Math.min(1, dt*4); }
     else if (fighting) { const yaw = Math.atan2(0, 1); u.g.rotation.y += (yaw - u.g.rotation.y)*Math.min(1, dt*3); }
     // in the fight: the guns and catapults bombard the enemy camp
-    if (fighting && !AD && ranged && d < 3 && (u.cd -= dt) <= 0) {
+    if (AD && ranged && !AD.broken && C.t > 16 && d < 3 && (u.cd -= dt) <= 0) {
+      const S = SHOOTS[u.k]; u.cd = S.every*(.6 + R()*.4);
+      const from = new THREE.Vector3(p.x, 1.4, p.z), to = new THREE.Vector3(AD.main.x + (R() - .5)*2, .8 + R(), AD.main.z + (R() - .5)*2);
+      const ball = new THREE.Mesh(G.sph, mat(S.ball[0], {roughness:.6})); ball.scale.setScalar(S.ball[1]); ball.position.copy(from); scene.add(ball);
+      if (S.flash) for (let k = 0; k < 6; k++) particle(k < 2 ? 0xffd070 : 0x9a9a9a, from.clone(), new THREE.Vector3((R() - .5)*1.5, 1 + R(), (R() - .5)*1.5), .6, .25, {grow:1.2, op:.7});
+      flyers.push({m:ball, from, to, t:0, dur:S.dur, arc:S.arc, done:() => { for (let k = 0; k < 14; k++) particle(k % 3 ? 0x8a8478 : 0xa89880, to.clone(), new THREE.Vector3((R() - .5)*5, 2 + R()*3, (R() - .5)*5), .9, .22, {grav:1}); if (watchingWar()) shakeCam(.2); snd(90, .25, 'sawtooth', .04, .5); }});
+    }
+    if (false) {
       const S = SHOOTS[u.k]; u.cd = S.every*(.8 + R()*.4);
       const from = new THREE.Vector3(p.x, u.k === 'mortar' ? .9 : 1.4, p.z + .8), to = new THREE.Vector3(BF.x + (R() - .5)*9, .2, BF.z + 4.5 + R()*3.5);
       const ball = new THREE.Mesh(G.sph, mat(S.ball[0], {roughness:.6})); ball.scale.setScalar(S.ball[1]); ball.position.copy(from); scene.add(ball);
@@ -89,7 +99,7 @@ function updSiegeEngines(dt) {
     }
   }
   // home again: park them back at the base and stand them down
-  if (!C && mid && Math.hypot(mid[0] - 3, mid[1] - 86) < 10) { for (const u of SENG.units) scene.remove(u.g); SENG.units = []; SENG.id = null; }
+  if (!C && SENG.units.every(u => Math.hypot(u.g.position.x - SIEGE_HOME[0] - (u.i - 1)*2.2, u.g.position.z - SIEGE_HOME[1]) < 1)) { for (const u of SENG.units) scene.remove(u.g); SENG.units = []; SENG.id = null; }
 }
 // the siege workshop: a timber shed with a ram and a catapult parked outside
 function siegeYard(anim) {

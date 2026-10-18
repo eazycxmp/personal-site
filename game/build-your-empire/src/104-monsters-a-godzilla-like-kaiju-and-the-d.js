@@ -151,7 +151,7 @@ function updBoss(dt) {
     j.g.position.set(c.x + Math.cos(j.a)*r, 9 + Math.sin(j.a*2)*1.5, c.z + Math.sin(j.a)*r); j.g.rotation.set(0, -j.a, -.6);
     if ((j.cd -= dt) <= 0) { j.cd = 1.4; bossHit(j.g.position, aim(), 0xff6a2a, .1, .45, .2); }
   });
-  if (F.warship && R() < dt*.8) { const w = boats.find(b => b.kind === 'war'); if (w) broadside(w.g.position, aim(), true); }
+  if (F.warship && R() < dt*.8) { const w = boats.find(b => b.kind === 'war'); if (w) navyShot(w.g.position, aim(), true); }
   $('bossFill').style.width = Math.max(0, B.hp / B.maxHp * 100) + '%';
   if (B.hp <= 0 || B.t > 80) {
     const won = B.hp <= 0, pay = won ? 5000 + 2500*W.era : 0;

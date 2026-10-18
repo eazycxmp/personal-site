@@ -66,7 +66,7 @@ function updWarArms(dt) {
   const ws = W.unlocked.has('warship') && boats.find(b => b.kind === 'war'), afloat = SIEGE.ships.filter(q => !q.sink && q.hp > 0);
   if (ws && afloat.length && W.raid && W.raid.siege && (WARFIRE.navyT -= dt) <= 0) {
     WARFIRE.navyT = 2.4; const q = afloat[R()*afloat.length|0];
-    broadside(ws.g.position, q.g.position.clone().setY(.6), true, () => { q.hp -= 3; if (q.hp <= 0) q.sink = .01; if (R() < .5) warFlame(q.g.position.x, .3, q.g.position.z, .9, 12); });
+    navyShot(ws.g.position, q.g.position.clone().setY(.6), true, () => { q.hp -= 3; if (q.hp <= 0) q.sink = .01; if (R() < .5) warFlame(q.g.position.x, .3, q.g.position.z, .9, 12); });
   }
   // enemies at your walls set buildings on fire
   if (W.raid && W.raid.siege && WARFIRE.raid !== W.raid) { WARFIRE.raid = W.raid; WARFIRE.t = 3 + R()*2; WARFIRE.first = true; }
@@ -85,7 +85,8 @@ function updWarArms(dt) {
   for (const st of Object.values(ST)) {
     if (st.warFire == null) continue;
     if (!st.broken) { delete st.warFire; if (st.flame) st.flame.t = 0; continue; }
-    if ((st.warFire -= dt) <= 0) {
+    // a fire with a crew on the way does not burn the building down: the brigade gets there in time
+    if (!st.truckOn && (st.warFire -= dt) <= 0) {
       delete st.warFire; if (st.flame) st.flame.t = 0; if (st.repairZone) { removeZone(st.repairZone); st.repairZone = null; } st.broken = false;
       ruinStation(st, rebuildCost(st)); W.flags.burnedDown = (W.flags.burnedDown || 0) + 1;
       banner(`🔥 The ${st.name} burned down`, 'Rebuild it on the brown tile. Fire stations put fires out before they spread.');

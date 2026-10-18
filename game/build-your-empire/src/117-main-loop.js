@@ -135,6 +135,7 @@ function update(dt) {
   for (const f of [...flyers]) {
     f.t += dt / f.dur; const to = target(f.to), e = Math.min(1, f.t);
     f.m.position.set(f.from.x + (to.x - f.from.x)*e, f.from.y + (to.y - f.from.y)*e + Math.sin(e*Math.PI)*(f.arc ?? (f.leap ? 1.3 : .9)), f.from.z + (to.z - f.from.z)*e);
+    if (f.tick) f.tick(f, dt);
     if (f.leap) f.m.rotation.set(0, 0, 0), f.m.rotation.y = Math.PI/2 * Math.sign(to.z - f.from.z), f.m.rotation.z = (e - .5) * -2.2;
     if (f.t >= 1) { scene.remove(f.m); flyers.splice(flyers.indexOf(f), 1); f.done?.(); }
   }
@@ -184,6 +185,7 @@ function render(dt) {
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);
   if (PHOTO.on) photoCamera(dt, fx, fz);
+  fadePeaks(dt, fx, fy, fz);
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);

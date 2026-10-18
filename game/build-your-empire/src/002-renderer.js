@@ -4,6 +4,7 @@ const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
 renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false;   // redrawn every other frame (see frame())
 // weathering on every standard material (desktop): patterned in the object's own space so moving things don't swim
 // three copies these shared uniforms into every new material, and copying a texture re-uploads its image, so the grain
 // is its own texture object whose copies are itself (one upload, not one per material: that was seconds of freeze per building)

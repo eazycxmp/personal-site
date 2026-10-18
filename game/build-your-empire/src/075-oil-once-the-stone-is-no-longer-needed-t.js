@@ -77,9 +77,11 @@ function updOil(dt) {
   if (OIL.flare) OIL.flare.scale.y = .8 + Math.sin(time*13)*.15 + Math.sin(time*7.3)*.1;
   // oil workers do the rounds of the pump jacks
   for (const w of OIL.men) {
-    if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); continue; }
+    // at a pump jack: a wrench on the valve, both hands at it (and never the arms-out pose of a bare model)
+    const A = w.char; if (A.armL) { A.armL.rotation.z = 0; A.armR.rotation.z = 0; }
+    if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); if (A.armL) { A.armR.rotation.x = -1.3 + Math.sin(time*7 + w.pos.x)*.45; A.armL.rotation.x = -1.1; } w.yaw = Math.atan2(-1, -.9); continue; }
     if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -38]; }
-    if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
+    if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2.5 + R()*2; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
   }
   if (!started) return;
   // crude sells as it is pumped; refined fuel sells for far more

@@ -146,13 +146,35 @@ function treeMat(m) {
   }
 }
 // mountains and the cliff the mine is dug into, north of everything
+const PEAKS = [];
+// a peak in the way of the view (the camera inside it, or the line from the camera to what it looks at passing
+// through it) turns see-through, so you can walk north of the range and still see yourself
+const PEAK_LOOK = [[0, 0], [-5, 0], [5, 0], [0, -5], [0, 5], [-4, -4], [4, 4], [-4, 4], [4, -4]];
+function fadePeaks(dt, fx, fy, fz) {
+  const c = camera.position;
+  for (const P of PEAKS) {
+    // sight lines to you and to the ground round you, so a peak cannot fill the middle of the screen either
+    let hit = false;
+    if (Math.abs(P.x - fx) < 60 && Math.abs(P.z - fz) < 40) for (const [ox, oz] of PEAK_LOOK) for (let i = 0; i <= 10 && !hit; i++) {
+      const tx = fx + ox, tz = fz + oz, t = i/10, x = c.x + (tx - c.x)*t, y = c.y + (fy + 1 - c.y)*t, z = c.z + (tz - c.z)*t, up = (y + .5)/P.h;
+      if (up < 1 && Math.hypot(x - P.x, z - P.z) < P.r*(1 - up) + .6) hit = true;
+    }
+    const a = P.a + ((hit ? .22 : 1) - P.a)*Math.min(1, dt*6);
+    if (Math.abs(a - P.a) < 1e-4 && (a === 1 || hit)) continue;
+    P.a = a > .995 ? 1 : a;
+    for (const m of P.ms) { m.material.opacity = P.a; m.material.transparent = P.a < 1; m.material.depthWrite = P.a === 1; m.castShadow = P.a > .5; }
+  }
+}
 {
   seed = 31;
   for (let x = -50; x <= 64; x += 5 + rnd()*3) {
     const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -56 - rnd()*6;
     if (Math.abs(x + 13.6) < r + 2.5) continue;   // the river runs north between the mountains
-    mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
-    mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
+    const rock = mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
+    const snow = mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
+    // each peak has its own material so it can fade out when it stands between the camera and you
+    for (const m of [rock, snow]) { m.material = m.material.clone(); m.userData.noBake = true; }
+    PEAKS.push({x, z, r, h, ms:[rock, snow], a:1});
   }
   for (let x = -9.4; x <= 16; x += 1.6) {
     const h = 2.6 + rnd()*1.6;

@@ -79,12 +79,12 @@ function updNaval(dt) {
   if (fe < 0 || fe > N.fight || !fl.length || (NAVAL.fireT -= dt) > 0) return;
   NAVAL.fireT = .26;
   const afloat = NAVAL.foes.filter(f => f.sink < .4), b = fl[R()*fl.length|0], roll = R();
-  if (afloat.length && roll < .55) { const f = afloat[R()*afloat.length|0]; broadside(b.g.position, f.g.position.clone().setY(.6), R() < (win ? .7 : .35)); }
+  if (afloat.length && roll < .55) { const f = afloat[R()*afloat.length|0]; navyShot(b.g.position, f.g.position.clone().setY(.6), R() < (win ? .7 : .35)); }
   else if (afloat.length) { const f = afloat[R()*afloat.length|0]; broadside(f.g.position, b.g.position.clone().setY(.6), R() < (win ? .25 : .55)); }
   else {
     // their fleet is gone: shell the harbour, and fires break out in the city
     const [cx, cz] = N.city, tp = new THREE.Vector3(cx + (R() - .5)*12, .8, cz + (R() - .5)*12);
-    broadside(b.g.position, tp, true, () => { for (let k = 0; k < 6; k++) particle(R() < .5 ? 0xff7a2a : 0x555555, tp, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), 1.2, .35, {grow:.6, op:.75}); });
+    navyShot(b.g.position, tp, true, () => { for (let k = 0; k < 6; k++) particle(R() < .5 ? 0xff7a2a : 0x555555, tp, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), 1.2, .35, {grow:.6, op:.75}); });
   }
   if (watchingWar() && R() < .3) shakeCam(.05);
 }

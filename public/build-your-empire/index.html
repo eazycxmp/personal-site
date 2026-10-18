@@ -29,6 +29,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
 .chip{background:#fffaf0ee;color:var(--ink);border-radius:999px;padding:5px 12px;font-weight:800;font-size:15px;
   box-shadow:0 3px 0 #0002;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
 .chip.money{background:linear-gradient(#6ad66f,#2f9e44);color:#fff;text-shadow:0 1px 0 #0005}
+#hudR .chip.money{pointer-events:auto;cursor:pointer}
 .chip.angry{background:#ffd9cf;color:#a0281e}
 .bub.angry{background:#ffcfc4}
 .bub.angry::after{border-top-color:#ffcfc4}
@@ -243,6 +244,7 @@ const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 700;
 renderer.setPixelRatio(Math.min(MOBILE ? 1.5 : 2, window.devicePixelRatio || 1));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false;   // redrawn every other frame (see frame())
 // weathering on every standard material (desktop): patterned in the object's own space so moving things don't swim
 // three copies these shared uniforms into every new material, and copying a texture re-uploads its image, so the grain
 // is its own texture object whose copies are itself (one upload, not one per material: that was seconds of freeze per building)
@@ -835,13 +837,35 @@ function treeMat(m) {
   }
 }
 // mountains and the cliff the mine is dug into, north of everything
+const PEAKS = [];
+// a peak in the way of the view (the camera inside it, or the line from the camera to what it looks at passing
+// through it) turns see-through, so you can walk north of the range and still see yourself
+const PEAK_LOOK = [[0, 0], [-5, 0], [5, 0], [0, -5], [0, 5], [-4, -4], [4, 4], [-4, 4], [4, -4]];
+function fadePeaks(dt, fx, fy, fz) {
+  const c = camera.position;
+  for (const P of PEAKS) {
+    // sight lines to you and to the ground round you, so a peak cannot fill the middle of the screen either
+    let hit = false;
+    if (Math.abs(P.x - fx) < 60 && Math.abs(P.z - fz) < 40) for (const [ox, oz] of PEAK_LOOK) for (let i = 0; i <= 10 && !hit; i++) {
+      const tx = fx + ox, tz = fz + oz, t = i/10, x = c.x + (tx - c.x)*t, y = c.y + (fy + 1 - c.y)*t, z = c.z + (tz - c.z)*t, up = (y + .5)/P.h;
+      if (up < 1 && Math.hypot(x - P.x, z - P.z) < P.r*(1 - up) + .6) hit = true;
+    }
+    const a = P.a + ((hit ? .22 : 1) - P.a)*Math.min(1, dt*6);
+    if (Math.abs(a - P.a) < 1e-4 && (a === 1 || hit)) continue;
+    P.a = a > .995 ? 1 : a;
+    for (const m of P.ms) { m.material.opacity = P.a; m.material.transparent = P.a < 1; m.material.depthWrite = P.a === 1; m.castShadow = P.a > .5; }
+  }
+}
 {
   seed = 31;
   for (let x = -50; x <= 64; x += 5 + rnd()*3) {
     const h = 8 + rnd()*8, r = 5 + rnd()*3, z = -56 - rnd()*6;
     if (Math.abs(x + 13.6) < r + 2.5) continue;   // the river runs north between the mountains
-    mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
-    mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
+    const rock = mesh(G.cone, rnd() < .5 ? 0x8a8f96 : 0x7d838a, [r, h, r], [x, h/2 - .5, z], scene, {flatShading:true});
+    const snow = mesh(G.cone, 0xf4f7fa, [r*.38, h*.38, r*.38], [x, h - h*.19 - .5, z], scene);
+    // each peak has its own material so it can fade out when it stands between the camera and you
+    for (const m of [rock, snow]) { m.material = m.material.clone(); m.userData.noBake = true; }
+    PEAKS.push({x, z, r, h, ms:[rock, snow], a:1});
   }
   for (let x = -9.4; x <= 16; x += 1.6) {
     const h = 2.6 + rnd()*1.6;
@@ -1216,18 +1240,21 @@ function buildHut(key, stage, anim) {
     const sign = new THREE.Mesh(G.box, [mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), mat(0x7a4a2a), new THREE.MeshBasicMaterial({map:signTex('INN', '#7a4a2a', '#ffe9a8'), toneMapped:false}), mat(0x7a4a2a)]);
     sign.scale.set(.9, .3, .06); sign.position.set(.5, 1.75, 1.15); g.add(sign);
   } else {
-    // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and palm trees
-    const tint = {hut1:0xf4b6c2, hut2:0xa8e6d4, hut3:0xffd3a5}[key];
-    mesh(G.box, tint, [2.2, 4.4, 2], [0, 2.2, 0], g);
-    for (const xx of [-1.1, 1.1]) mesh(G.cyl, tint, [.38, 4.4, .38], [xx, 2.2, .7], g);
-    for (let f = 1; f <= 4; f++) mesh(G.box, 0xfdf6ee, [2.32, .09, 2.1], [0, f*1.05, 0], g);
-    windows(g, 2.2, 2, .4, 4, 1.05, 3);
-    mesh(G.box, 0xfdf6ee, [1.2, .7, 1.1], [0, 4.75, 0], g); mesh(G.box, tint, [.6, .5, .6], [0, 5.35, 0], g);
-    for (const xx of [-.42, 0, .42]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.15, .52], g);
-    mesh(G.box, 0x2a1a2a, [.65, .95, .08], [0, .48, 1.02], g);
+    // a Los Angeles hotel: pastel stucco, rounded art-deco corners, a pink neon sign and a palm tree. Slim (the three
+    // stand close round the town hall), the sign on its front and the palm on its outer corner, so neighbours never touch;
+    // the one beside the town hall stands back from it a little
+    const tint = {hut1:0xf4b6c2, hut2:0xa8e6d4, hut3:0xffd3a5}[key], b = new THREE.Group(); g.add(b);
+    if (key === 'hut3') b.position.x = .55;
+    mesh(G.box, tint, [1.8, 4.6, 1.8], [0, 2.3, 0], b);
+    for (const xx of [-.9, .9]) mesh(G.cyl, tint, [.3, 4.6, .3], [xx, 2.3, .62], b);
+    for (let f = 1; f <= 4; f++) mesh(G.box, 0xfdf6ee, [1.9, .09, 1.9], [0, f*1.1, 0], b);
+    windows(b, 1.8, 1.8, .4, 4, 1.1, 2);
+    mesh(G.box, 0xfdf6ee, [1.1, .7, 1], [0, 4.95, 0], b); mesh(G.box, tint, [.55, .5, .55], [0, 5.55, 0], b);
+    for (const xx of [-.36, 0, .36]) mesh(G.box, 0xfdf6ee, [.08, .9, .3], [xx, 5.35, .48], b);
+    mesh(G.box, 0x2a1a2a, [.6, .95, .08], [0, .48, .92], b);
     const neon = new THREE.Mesh(G.box, [mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), mat(0x2a1a2a), new THREE.MeshBasicMaterial({map:signTex('HOTEL', '#2a0a1e', '#ff4fb0'), toneMapped:false}), mat(0x2a1a2a)]);
-    neon.scale.set(.5, 2.2, .08); neon.position.set(1.32, 2.9, .75); neon.rotation.z = Math.PI/2; g.add(neon);
-    const palmAt = {hut1:[-1.6, 1.4], hut2:[-1.6, 1.4], hut3:[1.35, 1.25]}[key];
+    neon.scale.set(1.4, .4, .06); neon.position.set(0, 1.25, .95); b.add(neon);   // over the door
+    const palmAt = {hut1:[-1.6, -1.4], hut2:[1.75, 1.15], hut3:[1.95, -.6]}[key];
     palm(g, palmAt[0], palmAt[1]);
   }
   fader(g, 2.5, stage === 3 ? 5 : stage === 2 ? 3.6 : 2.5);
@@ -1647,6 +1674,61 @@ function qnWear(c, FIT, fit, skin, topCol) {
   });
   c.outfit = fit;
 }
+// One draw for the clothes: a person's shirt, trousers and shoes become a single skinned mesh. The merged shape is
+// shared by everyone wearing the same cut; each person's colours ride in a small per-person material.
+const QW = {geos:new Map()};
+function qnWearMat(cols, rough, metal) {
+  const m = new THREE.MeshStandardMaterial({roughness:rough, metalness:metal}), U = {uWear:{value:cols}};
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uWear = U.uWear;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float wpart; varying float vWp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWp = wpart;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uWear[3]; varying float vWp;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\n  { int wi = int(vWp + .5); diffuseColor.rgb = wi == 0 ? uWear[0] : wi == 1 ? uWear[1] : uWear[2]; }');
+  };
+  m.customProgramCacheKey = () => 'qnwear';
+  return m;
+}
+function qnMergeWear(c, parts, cols, key) {
+  // only parts that hang off the same parent with the same bind (then the merged mesh skins exactly like them)
+  const p0 = parts[0];
+  if (parts.some(m => m.parent !== p0.parent || !m.matrix.equals(p0.matrix) || !m.bindMatrix.equals(p0.bindMatrix) || m.skeleton !== p0.skeleton)) return null;
+  let geo = QW.geos.get(key);
+  if (!geo) {
+    let nv = 0, ni = 0; for (const m of parts) { const g = m.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), si = new Uint16Array(nv*4), sw = new Float32Array(nv*4), part = new Float32Array(nv), idx = new Uint32Array(ni);
+    let v0 = 0, i0 = 0;
+    parts.forEach((m, k) => {
+      const g = m.geometry, P = g.attributes.position, N = g.attributes.normal, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, n = P.count, I = g.index;
+      for (let i = 0; i < n; i++) {
+        const a = (v0 + i)*3; pos[a] = P.getX(i); pos[a + 1] = P.getY(i); pos[a + 2] = P.getZ(i); nor[a] = N.getX(i); nor[a + 1] = N.getY(i); nor[a + 2] = N.getZ(i);
+        for (let j = 0; j < 4; j++) { si[(v0 + i)*4 + j] = SI.getComponent(i, j); sw[(v0 + i)*4 + j] = SW.getComponent(i, j); }
+        part[v0 + i] = k;
+      }
+      const cnt = I ? I.count : n; for (let t = 0; t < cnt; t++) idx[i0++] = v0 + (I ? I.getX(t) : t);
+      v0 += n;
+    });
+    geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    geo.setAttribute('wpart', new THREE.BufferAttribute(part, 1)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, .9, 0), 1.3); geo.userData.qnBound = true;
+    QW.geos.set(key, geo); qnShared().add(geo);
+  }
+  const mat = qnWearMat(cols, parts.find(m => /Shirt/.test(m.name))?.material.roughness ?? .85, parts.find(m => /Shirt/.test(m.name))?.material.metalness ?? 0);
+  const n = new THREE.SkinnedMesh(geo, mat); n.name = 'QN_Wear_merged';
+  n.bind(p0.skeleton, p0.bindMatrix); n.position.copy(p0.position); n.quaternion.copy(p0.quaternion); n.scale.copy(p0.scale);
+  n.computeBoundingSphere = () => { n.boundingSphere = geo.boundingSphere.clone(); return n.boundingSphere; };
+  n.boundingSphere = geo.boundingSphere.clone(); n.frustumCulled = true;
+  n.castShadow = parts.some(m => m.castShadow); n.receiveShadow = true;
+  p0.parent.add(n); for (const m of parts) m.visible = false;
+  return n;
+}
+function sameSkeleton(a, b) {
+  if (a === b) return true;
+  if (a.bones.length !== b.bones.length) return false;
+  for (let i = 0; i < a.bones.length; i++) { if (a.bones[i] !== b.bones[i]) return false; const x = a.boneInverses[i].elements, y = b.boneInverses[i].elements; for (let j = 0; j < 16; j++) if (Math.abs(x[j] - y[j]) > 1e-4) return false; }
+  return true;
+}
 function makeQN(o) {
   // people who have left the world are let go here too (not only while animating)
   if (QN.list.length > 300) for (let i = QN.list.length - 1; i >= 0; i--) { const q = QN.list[i]; if (!q.g.parent) { qnDrop(q); QN.list.splice(i, 1); } }
@@ -1693,6 +1775,17 @@ function makeQN(o) {
       if (m.visible) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2.2); }
     } else if (/Eyebrows/.test(m.name)) { m.material = m.material.clone(); m.material.color = qnCol(o.hairCol ?? 0x2a1a10).multiplyScalar(2); }
   });
+  // every part of the body is bound to the same bones: give them all the body's one skeleton, so each frame the bones
+  // are worked out and sent to the GPU once per person rather than once per hair, shirt, shoe and eyebrow
+  c.fine = []; root.traverse(m => { if (m.isSkinnedMesh && m.visible && /Eyes|Eyebrows/.test(m.name)) c.fine.push(m); });   // drawn only up close
+  if (c.body) { const bs = c.body.skeleton; root.traverse(m => { if (m.isSkinnedMesh && m !== c.body && sameSkeleton(m.skeleton, bs)) m.skeleton = bs; }); }
+  // the clothes as one draw (the cut decides the shared shape, the colours stay this person's own)
+  if (!FIT && !o.metal) {
+    const order = [wearTop, wearLeg, 'Shoes'].filter(Boolean), parts = [], cols = [];
+    root.traverse(m => { if (m.isSkinnedMesh && m.visible && /Wear_/.test(m.name)) parts.push(m); });
+    parts.sort((a, b) => order.findIndex(k => a.name.includes('Wear_' + k + '.') || a.name.endsWith('Wear_' + k)) - order.findIndex(k => b.name.includes('Wear_' + k + '.') || b.name.endsWith('Wear_' + k)));
+    if (parts.length >= 2 && parts.length <= 3) { for (const m of parts) cols.push(m.material.color.clone()); while (cols.length < 3) cols.push(cols[0]); qnMergeWear(c, parts, cols, (fem ? 'f' : 'm') + parts.map(m => m.name).join('|')); }
+  }
   if (FIT && c.body) qnWear(c, FIT, fit, skin, topCol);
   c.look = o;
   // the bones the game poses directly, and stand-ins at the old pivots for the code that hangs things on arms and legs
@@ -1725,7 +1818,7 @@ function makeQN(o) {
     const line = new THREE.Mesh(G.cyl, new THREE.MeshBasicMaterial({color:0xf4f4f4})); line.scale.set(.008, 2.35, .008); line.position.y = -1.18; tip.add(line);
     mesh(G.sph, 0xe03a2a, [.07, .07, .07], [0, -2.35, 0], tip); mesh(G.sph, 0xffffff, [.05, .04, .05], [0, -2.29, 0], tip);
   }
-  if (!MOBILE) { const sh = new THREE.Mesh(G.plane, BLOB.mat); sh.rotation.x = -Math.PI/2; sh.position.y = .035; sh.scale.set(.8, .8, 1); sh.renderOrder = 1; g.add(sh); }
+  c.blob = !MOBILE;   // the soft shadow underfoot: drawn for everyone at once (see updQN)
   // animation: one mixer, the clips started as they are first needed
   c.mixer = new THREE.AnimationMixer(root); c.acts = {}; c.state = ''; c.last = new THREE.Vector3(); c.spd = 0; c.ph = R();
   c.root = root; c.isHero = !!o.hero;
@@ -1769,7 +1862,8 @@ function qnRaise(c, bone, ang) {
   if (!bone || !ang) return;
   bone.parent.updateWorldMatrix(true, false);
   const pq = bone.parent.getWorldQuaternion(QN.tmpQ), wq = QN.tmpQ2.copy(pq).multiply(bone.quaternion);
-  const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, ang);
+  // (a turn the negative way about the body's side axis swings the arm forward and up; the positive way swung it back)
+  const ax = QN.tmpV.set(1, 0, 0).applyQuaternion(c.g.quaternion), rot = new THREE.Quaternion().setFromAxisAngle(ax, -ang);
   wq.premultiply(rot); bone.quaternion.copy(pq.invert().multiply(wq));
 }
 // work: the game says what someone is doing and for how long; the animation follows
@@ -1783,9 +1877,15 @@ function qnAct(c, act, dur, restart = false) {
   c.act = act; c.actT = same ? Math.max(c.actT, dur) : dur;
 }
 const QN_LOCO = new Set(['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop']);
+const QN_BLOB = {im:null, o:new THREE.Object3D(), n:0};
+function qnBlobs() {
+  if (!QN_BLOB.im) { const im = QN_BLOB.im = new THREE.InstancedMesh(G.plane, BLOB.mat, 512); im.count = 0; im.renderOrder = 1; im.frustumCulled = false; im.castShadow = false; im.receiveShadow = false; im.userData.noBake = true; scene.add(im); }
+  return QN_BLOB.im;
+}
 function updQN(dt) {
   if (!QN.list.length) return;
   QN.frame = (QN.frame || 0) + 1;
+  const blobs = qnBlobs(); QN_BLOB.n = 0;
   QN.pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); QN.frustum.setFromProjectionMatrix(QN.pm);
   for (let i = QN.list.length - 1; i >= 0; i--) {
     const c = QN.list[i], g = c.g;
@@ -1800,6 +1900,10 @@ function updQN(dt) {
     if (c.root.visible === far) c.root.visible = !far;
     if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) continue;
     c.seen = QN.frame;
+    if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
+    // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
+    const fine = c.isHero || p.distanceToSquared(camera.position) < 24*24;
+    if (c.fineOn !== fine && c.fine) { c.fineOn = fine; for (const m of c.fine) m.visible = fine; }
     // what are they doing? the game poses the stand-in limbs; read the pose and pick the animation
     const aR = c.armR.rotation.x, aL = c.armL.rotation.x, lg = c.legL.rotation.x, lgR = c.legR.rotation.x, fall = g.rotation.x;
     let st, rate = 1;
@@ -1849,6 +1953,7 @@ function updQN(dt) {
       if (aL < -.75) qnRaise(c, c.bones.armL, -aL*.95);
     }
   }
+  blobs.count = QN_BLOB.n; blobs.instanceMatrix.needsUpdate = true;
 }
 function makeChar(o) {
   if (!o.noQN && qnInit()) return makeQN(o.civ ? {...civLook(o.civ === true ? R()*60|0 : o.civ), ...o, civ:0} : o);
@@ -1948,7 +2053,8 @@ function entity(charOpts, x, z, speed, cap) {
   ENTS.push(e); CHARS.add(e.char.g);
   e.stack = newStack((i, it, y) => {
     const s = Math.sin(e.yaw), c = Math.cos(e.yaw), lag = i * .03;
-    return {x:e.pos.x - .42*s - e.svel.x*lag, y:1.0 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z - .42*c - e.svel.z*lag, ry:e.yaw};
+    // held out in front in both hands (the arms are lifted forward under it), the top of a tall load swaying behind a little
+    return {x:e.pos.x + .5*s - e.svel.x*lag, y:1.05 + y + ITEM[it.type].h/2 + e.char.g.position.y, z:e.pos.z + .5*c - e.svel.z*lag, ry:e.yaw};
   });
   return e;
 }
@@ -1963,7 +2069,8 @@ function animEntity(e, dt) {
   const k = Math.min(1, sp / 2.5), c = e.char;
   c.legL.rotation.x = Math.sin(e.walk) * .8 * k; c.legR.rotation.x = -Math.sin(e.walk) * .8 * k;
   const carrying = e.stack.length > 0;
-  c.armL.rotation.x = carrying ? -.5 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -.5 : Math.sin(e.walk) * .7 * k;
+  // carrying: both arms held out in front, under the load (lifted forward on top of the walk)
+  c.armL.rotation.x = carrying ? -1.1 : -Math.sin(e.walk) * .7 * k; c.armR.rotation.x = carrying ? -1.1 : Math.sin(e.walk) * .7 * k;
   c.bob = Math.abs(Math.sin(e.walk)) * .07 * k;
   c.g.position.set(e.pos.x, c.bob + elevAt(e.pos.x, e.pos.z) + (e.rideY || 0) + (e === player && IHW.open && e.pos.x > -49.4 && e.pos.x < -40.6 ? ihwH(e.pos.z) : 0), e.pos.z); c.g.rotation.y = e.yaw;
 }
@@ -2070,6 +2177,69 @@ const binZone = addZone({kind:'bin', x:-.4, z:-2.6, w:1.7, d:1.7, icon:'🗑️'
   circles.push({x:-1.75, z:-2.6, r:.4});
 }
 
+// ------------------------------------------------------------------ the coin ledger: where your money goes
+// Every coin that leaves is booked with what took it (found from the code that spent it). Drops show for a moment
+// beside the money chip ("-1,200 📈 Brokers' auto-invest"), and tapping 💵 opens the last five minutes: spent by
+// reason, and earned, so money never just vanishes.
+const LEDGER = {on:false, log:[], gain:[], pend:{}, flushT:0, el:null};
+const SPEND_WHY = {
+  payPad:'🏗️ Building', payUpgrade:'⬆️ Upgrading buildings', placeDecor:'🌳 Decorations', updMarket:"📈 Brokers' auto-invest", invest:'📈 Invested in the fund',
+  payGas:'⛽ Gas station', payRebuild:'🔨 Rebuilding burned buildings', paySenate:'🏛️ The senate', payFix:'🔧 Repairs in your lands', playSlots:'🎰 The slots',
+  payRecruit:'🪖 Recruiting soldiers', growLand:'🏙️ Growing a land', sendGovernor:'👑 Sending a governor', sendScouts:'🔭 Scouts', empAct:'🤝 Gifts and peace deals',
+  sendSpy:'🕵️ Spies', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
+};
+const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'spend', 'Error']);
+function whySpent() {
+  const st = String(new Error().stack || '').split('\n');
+  for (const line of st) {
+    const m = line.match(/at (?:Object\.|W\.)?([\w$]+)[ (]/) || line.match(/^([\w$]+)@/);
+    if (m && !LEDGER_SKIP.has(m[1])) return m[1];
+  }
+  return '?';
+}
+const spendLabel = n => SPEND_WHY[n] || `💸 ${n}`;
+function ledgerSpend(amt) {
+  const why = spendLabel(whySpent()), t = W.playT;
+  const last = LEDGER.log[LEDGER.log.length - 1];
+  if (last && last.why === why && t - last.t < 1) last.amt += amt; else LEDGER.log.push({t, why, amt});
+  LEDGER.pend[why] = (LEDGER.pend[why] || 0) + amt;
+}
+{
+  let coins = W.coins;
+  Object.defineProperty(W, 'coins', {enumerable:true, get:() => coins, set:v => {
+    const d = v - coins; coins = v;
+    if (!LEDGER.on || !d) return;
+    if (d < 0) ledgerSpend(-d); else { const g = LEDGER.gain[LEDGER.gain.length - 1]; if (g && W.playT - g.t < 2) g.amt += d; else LEDGER.gain.push({t:W.playT, amt:d}); }
+  }});
+}
+function updLedger(dt) {
+  if (!started) return; LEDGER.on = true;
+  const old = W.playT - 300; while (LEDGER.log.length && LEDGER.log[0].t < old) LEDGER.log.shift(); while (LEDGER.gain.length && LEDGER.gain[0].t < old) LEDGER.gain.shift();
+  if ((LEDGER.flushT -= dt) > 0) return; LEDGER.flushT = 1.2;
+  const items = Object.entries(LEDGER.pend).filter(([, a]) => a >= 1); LEDGER.pend = {};
+  if (!items.length) return;
+  // one pill just left of the money chip, naming the biggest drops of the last moment
+  const chip = document.querySelector('#hudR .chip.money'); if (!chip) return;
+  const r = chip.getBoundingClientRect(), sr = $('stage').getBoundingClientRect();
+  const d = document.createElement('div');
+  d.style.cssText = `position:absolute;z-index:6;pointer-events:none;right:${Math.round(sr.right - r.left + 6)}px;top:${Math.round(r.top - sr.top)}px;background:#2b2118e6;color:#ffb3a6;font:800 13px/1 ui-rounded,system-ui,sans-serif;padding:${Math.round((r.height - 13)/2)}px 10px;border-radius:999px;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis;transition:opacity .6s`;
+  d.textContent = items.sort((p, q) => q[1] - p[1]).slice(0, 2).map(([why, a]) => `−${Math.round(a).toLocaleString()} ${why}`).join(' · ');
+  if (LEDGER.el) LEDGER.el.remove(); LEDGER.el = d; $('stage').appendChild(d);
+  setTimeout(() => { d.style.opacity = '0'; }, 2600); setTimeout(() => d.remove(), 3300);
+}
+function openLedger() {
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'ledger';
+  const by = {}; for (const e of LEDGER.log) by[e.why] = (by[e.why] || 0) + e.amt;
+  const spent = Object.values(by).reduce((a, b) => a + b, 0), earned = LEDGER.gain.reduce((a, g) => a + g.amt, 0), fmt = n => Math.round(n).toLocaleString();
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([w, a]) => `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-bottom:1px solid #0001"><span>${w}</span><b style="color:#b83a2a">−${fmt(a)}</b></div>`).join('');
+  m.innerHTML = `<div class="card"><h1 style="font-size:24px">💵 Where your money went</h1><p>The last five minutes: earned <b style="color:#2f9e44">+${fmt(earned)}</b>, spent <b style="color:#b83a2a">−${fmt(spent)}</b>.</p>
+    <div style="text-align:left;max-height:50vh;overflow:auto">${rows || '<p>Nothing spent in the last five minutes.</p>'}</div>
+    ${W.autoInvest ? `<p class="keys">Your brokers invest 5% of spare cash for you (your fund holds ${fmt(W.fund || 0)} 💵). <button class="ghost" id="lgAuto">Stop auto-investing</button></p>` : ''}
+    <button class="ghost" id="lgClose">Close</button></div>`;
+  $('lgClose').onclick = () => { m.hidden = true; };
+  if ($('lgAuto')) $('lgAuto').onclick = () => { W.autoInvest = false; save(); openLedger(); };
+}
+$('hudR').addEventListener('click', e => { if (e.target.closest('.money')) openLedger(); });
 // ------------------------------------------------------------------ fish species
 // small minnows, trout, and big salmon that grill into two portions
 const SPECIES = [
@@ -2911,6 +3081,8 @@ function updWorker(w, dt) {
   if (gt && w.kind === 'mason' && masonHaul(w, dt)) return;
   if (gt) {
     const pile = gt.pile().outStack;
+    // the pile is full: they find something else useful to do till it is used
+    if ((w.hauling || (w.state === 'unload' && pile.length >= pile.cap)) && idleHaul(w, dt, [w.kind === 'lumber' ? 'log' : 'stone'])) return;
     if (w.state === 'idle' || w.state === 'toSrc') {
       if (w.stack.length >= w.cap) { w.state = 'toDst'; return; }
       if (!w.node || w.node.logs <= 0) w.node = gt.nodes().filter(t => t.logs > 0).sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
@@ -2921,6 +3093,7 @@ function updWorker(w, dt) {
       if (goTo(w, ...gt.drop, dt)) w.state = 'unload';
     } else if (w.state === 'unload') {
       if ((w.tick -= dt) <= 0) { w.tick = .08; if (w.stack.length && pile.length < pile.cap) transfer(w.stack, pile); }
+      w.wait = w.stack.length !== before ? 0 : (w.wait || 0) + dt;
       if (!w.stack.length) w.state = 'idle';
     }
     return;
@@ -2939,7 +3112,7 @@ function updWorker(w, dt) {
     }
     return;
   }
-  if (IDLE_HAUL[w.kind] && idleHaul(w, dt, IDLE_HAUL[w.kind])) return;
+  if (idleHaul(w, dt, IDLE_HAUL[w.kind] || PURPOSE_HAUL)) return;
   const r = ROUTES[w.kind];
   switch (w.state) {
     case 'idle': {
@@ -2981,6 +3154,8 @@ function updWorker(w, dt) {
     case 'toBin': if (goTo(w, binZone.x, binZone.z, dt)) w.state = 'binning'; break;
     case 'binning': zoneAct(w, binZone, dt); if (!w.stack.length) w.state = 'idle'; break;
   }
+  // waiting at a counter for the next thing to change hands: they keep working at it rather than standing still
+  if ((w.state === 'load' || w.state === 'unload') && w.stack.length === before && (w.busyT = (w.busyT ?? 1) - dt) <= 0) { w.busyT = .9 + R()*.6; qnAct(w.char, w.state === 'load' ? 'pick' : 'serve', .7); }
 }
 
 // ------------------------------------------------------------------ guests, recruits and soldiers
@@ -4302,7 +4477,7 @@ function updBuilder(w, dt, only) {
   if (!w.job || !padZones[w.job.id] || padZones[w.job.id].locked) {
     w.job = builderJob(w, only);
     w.mode = 'fetch'; w.wait = 0; w.pile = null;
-    if (!w.job) { if (!only && crewWork(w, dt)) return; goTo(w, ...w.home, dt); return; }
+    if (!w.job) { if (!only && crewWork(w, dt)) return; if (!only) { maintainRound(w, dt); return; } goTo(w, ...w.home, dt); return; }
   }
   const p = w.job, cur = p.cur, pz = padZones[p.id], rem = p.cost - (W.paid[p.id] || 0);
   while (w.stack.length > w.stack.count([cur])) { const it = w.stack.take(Object.keys(ITEM).filter(k => k !== cur)); flyAway(it.mesh, w.pos.clone().setY(0), .3); }
@@ -4340,9 +4515,43 @@ function treasurerPile(w) {
 // The iron hauler and the tinker: when their own run is stuck (nothing to fetch, or the smith or workshop has no room)
 // they carry ingots or tools to a tile waiting on them, then go back to their run.
 const IDLE_HAUL = {hauler:['ingot'], tinker:['tools', 'ingot']};
+// Nobody stands around: a worker whose own job is blocked (their station full, or nothing to fetch) finds another use.
+// They take what they hold to another station with room, help the builders with stone and wood, sell surplus at the
+// market, or failing all that keep busy at their own station (stacking, sweeping, mending) until their job frees up.
+const PURPOSE_HAUL = ['stone', 'log'];
+const SELL_AT = () => zones.find(z => z.kind === 'sell');
+function sellRun(w, dt) {
+  const zn = SELL_AT(); if (!zn || !w.stack.length) { w.hauling = false; w.state = 'idle'; return; }
+  if (!goTo(w, zn.x, zn.z, dt)) return;
+  if ((w.tick -= dt) > 0) return; w.tick = .12;
+  const it = w.stack.take(SELLABLE);
+  if (!it) { w.hauling = false; w.state = 'idle'; return; }
+  const v = ITEM[it.type].sell; W.coins += v; W.earned += v; flyAway(it.mesh, new THREE.Vector3(zn.x, 1, zn.z - 2.2), .25);
+  if (dist2(player, zn.x, zn.z) < 25) popText(`+${v}`, w.pos.clone().setY(2.4 + R()*.4), '#ffe06b');
+  qnAct(w.char, 'serve', .6);
+}
+// a builder with nothing to build does the rounds of the town, mending and checking what is already up
+function maintainRound(w, dt) {
+  if (!w.mend || (w.mendT -= dt) <= 0) {
+    const done = Object.values(padZones).filter(z => W.unlocked.has(z.pad.id) && Math.hypot(z.x - w.home[0], z.z - w.home[1]) < 45);
+    const z = done[R()*done.length|0]; w.mend = z ? [z.x + (R() - .5)*2, z.z + 1.2] : [w.home[0] + (R() - .5)*6, w.home[1] + (R() - .5)*6]; w.mendT = 14;
+  }
+  if (goTo(w, w.mend[0], w.mend[1], dt)) { if ((w.tick -= dt) <= 0) { w.tick = .9 + R()*.5; qnAct(w.char, 'fix', 1); if (R() < .2) w.mend = null; } }
+}
+// busy at the station: step between a couple of spots by it and work with their hands, then look for the job again
+function tendStation(w, dt) {
+  const [hx, hz] = w.home;
+  w.tendSpot ||= [hx + (R() - .5)*2.4, hz + (R() - .5)*2.4];
+  if (goTo(w, w.tendSpot[0], w.tendSpot[1], dt) && (w.tick -= dt) <= 0) { w.tick = 1.1 + R()*.8; qnAct(w.char, R() < .5 ? 'fix' : 'pick', 1); if (R() < .35) w.tendSpot = null; }
+  // back to their own job the moment there is something to fetch (customers never wait on a busy-looking cook)
+  if (!w.stack.length && (w.readyT = (w.readyT || 0) - dt) <= 0) { w.readyT = .5; const r = ROUTES[w.kind]; if (r && r.dst() && r.src().some(z => z && (z.stack ? z.stack.length : 1))) w.tendT = 0; }
+  if ((w.tendT -= dt) <= 0) { w.hauling = false; w.tendSpot = null; w.state = w.stack.length ? 'toDst' : 'idle'; w.wait = 0; }
+}
 function idleHaul(w, dt, curs) {
   if (!w.hauling) {
-    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4);
+    // stuck: standing idle, or waiting at a pickup or drop-off where nothing has changed hands for a while
+    if (w.stack.length !== w.prevN) { w.prevN = w.stack.length; w.noProg = 0; } else w.noProg = (w.noProg || 0) + dt;
+    const stuck = (w.state === 'idle' && !w.stack.length) || (w.state === 'unload' && w.wait > 4) || ((w.state === 'load' || w.state === 'unload' || w.state === 'idle') && w.noProg > 5);
     if (!stuck) { w.idleT = 0; return false; }
     w.idleT = (w.idleT || 0) + dt;
     if (w.idleT < 3 || (w.haulCheck = (w.haulCheck || 0) - dt) > 0) return false;
@@ -4357,9 +4566,14 @@ function idleHaul(w, dt, curs) {
       if (alt) { w.dst = alt; w.state = 'toDst'; w.wait = 0; w.idleT = 0; return false; }
     }
     const cur = curs.find(c => (held ? held === c && w.stack.count([c]) === w.stack.length : true) && builderJob(w, c));
-    if (!cur) return false;
-    w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle';
+    if (cur) { w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle'; }
+    // goods nobody has room for go to the market and are sold
+    else if (held && SELLABLE.includes(held) && SELL_AT()) { w.hauling = 'sell'; w.idleT = 0; }
+    // nothing to fetch or carry: get on with the work at their own station
+    else { w.hauling = 'tend'; w.tendT = 6 + R()*4; w.idleT = 0; }
   }
+  if (w.hauling === 'sell') { sellRun(w, dt); return true; }
+  if (w.hauling === 'tend') { tendStation(w, dt); return true; }
   updBuilder(w, dt, w.hauling);
   if (!w.job && !w.stack.count([w.hauling])) { w.hauling = false; w.state = 'idle'; }
   return true;
@@ -4483,7 +4697,7 @@ function startBattle(c) {
   mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [BF.x, 1.5, BF.z + 7.3], enemyCamp);
   enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [BF.x + .47, 2.7, BF.z + 7.3], enemyCamp);
   // a real enemy host that holds the field until the rout (the odds, not this, decide who wins)
-  const n = Math.min(18, campNeed(c) + 4), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
+  const n = Math.min(27, campNeed(c) + 6), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
   BT.id = (BT.id || 0) + 1;
   for (let i = 0; i < n; i++) {
     const e = entity(look, BF.x - 5.8 + (i % 9)*1.45, BF.z + 2.6 + Math.floor(i / 9)*1.3, 3, 0);
@@ -8023,12 +8237,13 @@ function updCivic(dt) {
     if (st) {
       st.truckOn = true; const [x, z] = st.inZ || [st.body.position.x, st.body.position.z];
       banner('🚒 The fire brigade is on its way!', `Heading to the ${st.name}.`);
-      driveTo(T, TOWN_ROUTE(x + 1.2, z + 1.2), () => {
+      // already out on a call: straight on to the next fire by the main road, without going back to the station first
+      driveTo(T, T.away ? [[12.6, 1.6], [x + 1.2, z + 1.2]] : TOWN_ROUTE(x + 1.2, z + 1.2), () => {
         T.wait = 3;
         for (let i = 0; i < 30; i++) setTimeout(() => particle(0xcfefff, T.g.position.clone().setY(1.3), new THREE.Vector3((x - T.g.position.x)*.8 + (R() - .5), 2, (z - T.g.position.z)*.8 + (R() - .5)), .6, .08, {grav:1}), i*90);
         setTimeout(() => {
           if (st.broken) { st.broken = false; if (st.repairZone) removeZone(st.repairZone); st.repairZone = null; puff(x, z); popText(`🚒 Fire out at the ${st.name}`, new THREE.Vector3(x, 2.8, z), '#b8f0a0'); }
-          st.truckOn = false; driveTo(T, [[12.6, 1.6], [14, 1.6], [58, 1.6], T.home], () => { T.busy = false; });
+          st.truckOn = false; T.away = true; driveTo(T, [[12.6, 1.6], [14, 1.6], [58, 1.6], T.home], () => { T.away = false; T.busy = false; }); T.busy = false;   // free for the next call on the way home
         }, 3000);
       });
     }
@@ -8796,9 +9011,11 @@ function updOil(dt) {
   if (OIL.flare) OIL.flare.scale.y = .8 + Math.sin(time*13)*.15 + Math.sin(time*7.3)*.1;
   // oil workers do the rounds of the pump jacks
   for (const w of OIL.men) {
-    if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); continue; }
+    // at a pump jack: a wrench on the valve, both hands at it (and never the arms-out pose of a bare model)
+    const A = w.char; if (A.armL) { A.armL.rotation.z = 0; A.armR.rotation.z = 0; }
+    if (w.wait > 0) { w.wait -= dt; w.vel.set(0, 0, 0); if (A.armL) { A.armR.rotation.x = -1.3 + Math.sin(time*7 + w.pos.x)*.45; A.armL.rotation.x = -1.1; } w.yaw = Math.atan2(-1, -.9); continue; }
     if (!w.goal) { const r = rocks[R()*rocks.length|0]; w.goal = r ? [r.x + 1, r.z + .9] : [0, -38]; }
-    if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2 + R()*3; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
+    if (moveTo(w, w.goal[0], w.goal[1], dt)) { w.goal = null; w.wait = 2.5 + R()*2; w.chopT = w.chopDur = .5; w.chopAt = [w.pos.x - 1, w.pos.z - .9]; w.chopItem = 'stone'; }
   }
   if (!started) return;
   // crude sells as it is pumped; refined fuel sells for far more
@@ -9525,6 +9742,51 @@ function broadside(from, to, hit, onHit) {
   }});
   snd(70 + R()*40, .28, 'sawtooth', .045, .4);
 }
+// what lands where a shot comes down: a blast on a hit (and the hit itself), a splash in the water on a miss
+function shotLands(tgt, hit, onHit, col = 0xff7a2a) {
+  if (hit) { for (let i = 0; i < 9; i++) particle(i % 2 ? col : 0x6a5a4a, tgt, new THREE.Vector3((R() - .5)*4, 2 + R()*3, (R() - .5)*4), .8, .16, {grav:1}); onHit?.(); if (watchingWar() || player.pos.distanceTo(tgt) < 14) shakeCam(.15); }
+  else if (tgt.y < .2) splashAt(tgt.x, tgt.z);
+}
+// Your warships fire the weapons of their age: the wooden galleon its cannonballs, ironclads fast flat explosive shells,
+// dreadnoughts missiles that climb on a smoke trail and dive, and the carrier fleet laser beams that strike at once.
+const BEAM_MAT = new THREE.MeshBasicMaterial({color:0x8ff8ff, transparent:true, opacity:.85, toneMapped:false, depthWrite:false, fog:false});
+const BEAM_CORE = new THREE.MeshBasicMaterial({color:0xffffff, toneMapped:false, fog:false});
+const MISSILE_MAT = new THREE.MeshBasicMaterial({color:0xffc070, toneMapped:false});
+const SHELL_MAT = new THREE.MeshStandardMaterial({color:0x2a2a2e, metalness:.6, roughness:.4});
+const UP3 = new THREE.Vector3(0, 1, 0);
+function navyShot(from, to, hit, onHit) {
+  const lv = navLvl();
+  if (lv <= 1) return broadside(from, to, hit, onHit);
+  const dir = to.clone().sub(from).setY(0).normalize(), muzzle = from.clone().addScaledVector(dir, .9).setY(from.y + 1.1);
+  const tgt = hit ? to.clone() : to.clone().add(new THREE.Vector3((R() - .5)*5, -to.y - .2, (R() - .5)*4));
+  if (lv >= 4) {
+    // a laser: a beam with a white-hot core for a blink, a burst where it strikes
+    const d = tgt.clone().sub(muzzle), len = d.length(), q = new THREE.Quaternion().setFromUnitVectors(UP3, d.clone().normalize()), mid = muzzle.clone().addScaledVector(d, .5);
+    const beam = new THREE.Mesh(G.cyl, BEAM_MAT), core = new THREE.Mesh(G.cyl, BEAM_CORE);
+    beam.scale.set(.09, len, .09); core.scale.set(.03, len, .03);
+    for (const b of [beam, core]) { b.position.copy(mid); b.quaternion.copy(q); scene.add(b); }
+    setTimeout(() => { scene.remove(beam); scene.remove(core); }, 140);
+    particle(0x8ff8ff, muzzle, new THREE.Vector3(0, .3, 0), .18, .35);
+    for (let i = 0; i < 4; i++) particle(0xbffcff, tgt, new THREE.Vector3((R() - .5)*2, 1 + R(), (R() - .5)*2), .35, .12);
+    shotLands(tgt, hit, onHit, 0x8ff8ff);
+    snd(1500, .16, 'sawtooth', .03, .25);
+    return;
+  }
+  if (lv === 3) {
+    // a missile: a glowing head that climbs high on a trail of smoke and dives onto the target
+    const m = new THREE.Mesh(G.sph, MISSILE_MAT); m.scale.setScalar(.1); m.position.copy(muzzle); scene.add(m);
+    particle(0xd8d8d8, muzzle, new THREE.Vector3(0, .6, 0), 1, .35, {grow:1.2, op:.5});
+    flyers.push({m, from:muzzle, to:tgt, t:0, dur:1.15, arc:6, tick:f => { if (R() < .7) particle(0xe0e0e0, f.m.position.clone(), new THREE.Vector3((R() - .5)*.2, .15, (R() - .5)*.2), .9, .13, {grow:1.3, op:.5}); },
+      done:() => shotLands(tgt, hit, onHit)});
+    snd(220, .35, 'sawtooth', .03, 2.2);
+    return;
+  }
+  // an explosive shell: a big muzzle flash and a fast, flat shot
+  particle(0xffd070, muzzle, new THREE.Vector3(0, .5, 0), .14, .55); particle(0xb0b0b0, muzzle, new THREE.Vector3((R() - .5), .8, 0), 1.2, .38, {grow:.9, op:.55});
+  const sh = new THREE.Mesh(G.sph, SHELL_MAT); sh.scale.setScalar(.1); sh.position.copy(muzzle); scene.add(sh);
+  flyers.push({m:sh, from:muzzle, to:tgt, t:0, dur:.45, arc:.9, done:() => shotLands(tgt, hit, onHit, 0xffb040)});
+  snd(55 + R()*30, .3, 'square', .045, .4);
+}
 function fortReset(f) { f.hp = f.max; f.towers.forEach(t => { t.rotation.z = 0; t.position.y = 0; }); }
 // a fort takes the pounding: towers lean and sink, and fires break out
 function fortHit(f) {
@@ -9576,8 +9838,8 @@ function updSea(dt) {
     const ours = fleet(), foes = pirates.filter(p => p.sink < .4), roll = R();
     if (roll < .5 && ours.length) {
       const b = ours[R()*ours.length|0], tp = f.g.position.clone().add(new THREE.Vector3((R() - .5)*6, 1 + R(), (R() - .5)*2));
-      broadside(b.g.position, tp, R() < (win ? .8 : .45), () => { fortHit(f); if (R() < .5) particle(0xff7a2a, tp, new THREE.Vector3(0, 2, 0), 1.2, .4, {grow:.6, op:.7}); });
-    } else if (roll < .65 && ours.length && foes.length) { const b = ours[R()*ours.length|0], tg = foes[R()*foes.length|0]; broadside(b.g.position, tg.g.position.clone().setY(.6), R() < .6); }
+      navyShot(b.g.position, tp, R() < (win ? .8 : .45), () => { fortHit(f); if (R() < .5) particle(0xff7a2a, tp, new THREE.Vector3(0, 2, 0), 1.2, .4, {grow:.6, op:.7}); });
+    } else if (roll < .65 && ours.length && foes.length) { const b = ours[R()*ours.length|0], tg = foes[R()*foes.length|0]; navyShot(b.g.position, tg.g.position.clone().setY(.6), R() < .6); }
     else if (ours.length && f.guns.length && f.hp > 0) { const gn = f.guns[R()*f.guns.length|0], from = gn.getWorldPosition(new THREE.Vector3()), tg = ours[R()*ours.length|0]; broadside(from, tg.g.position.clone().setY(.6), R() < (win ? .2 : .45)); }
     else if (ours.length && foes.length) { const p = foes[R()*foes.length|0], tg = ours[R()*ours.length|0]; broadside(p.g.position, tg.g.position.clone().setY(.6), .25); }
   }
@@ -9684,12 +9946,12 @@ function updNaval(dt) {
   if (fe < 0 || fe > N.fight || !fl.length || (NAVAL.fireT -= dt) > 0) return;
   NAVAL.fireT = .26;
   const afloat = NAVAL.foes.filter(f => f.sink < .4), b = fl[R()*fl.length|0], roll = R();
-  if (afloat.length && roll < .55) { const f = afloat[R()*afloat.length|0]; broadside(b.g.position, f.g.position.clone().setY(.6), R() < (win ? .7 : .35)); }
+  if (afloat.length && roll < .55) { const f = afloat[R()*afloat.length|0]; navyShot(b.g.position, f.g.position.clone().setY(.6), R() < (win ? .7 : .35)); }
   else if (afloat.length) { const f = afloat[R()*afloat.length|0]; broadside(f.g.position, b.g.position.clone().setY(.6), R() < (win ? .25 : .55)); }
   else {
     // their fleet is gone: shell the harbour, and fires break out in the city
     const [cx, cz] = N.city, tp = new THREE.Vector3(cx + (R() - .5)*12, .8, cz + (R() - .5)*12);
-    broadside(b.g.position, tp, true, () => { for (let k = 0; k < 6; k++) particle(R() < .5 ? 0xff7a2a : 0x555555, tp, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), 1.2, .35, {grow:.6, op:.75}); });
+    navyShot(b.g.position, tp, true, () => { for (let k = 0; k < 6; k++) particle(R() < .5 ? 0xff7a2a : 0x555555, tp, new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), 1.2, .35, {grow:.6, op:.75}); });
   }
   if (watchingWar() && R() < .3) shakeCam(.05);
 }
@@ -11711,7 +11973,7 @@ function updBoss(dt) {
     j.g.position.set(c.x + Math.cos(j.a)*r, 9 + Math.sin(j.a*2)*1.5, c.z + Math.sin(j.a)*r); j.g.rotation.set(0, -j.a, -.6);
     if ((j.cd -= dt) <= 0) { j.cd = 1.4; bossHit(j.g.position, aim(), 0xff6a2a, .1, .45, .2); }
   });
-  if (F.warship && R() < dt*.8) { const w = boats.find(b => b.kind === 'war'); if (w) broadside(w.g.position, aim(), true); }
+  if (F.warship && R() < dt*.8) { const w = boats.find(b => b.kind === 'war'); if (w) navyShot(w.g.position, aim(), true); }
   $('bossFill').style.width = Math.max(0, B.hp / B.maxHp * 100) + '%';
   if (B.hp <= 0 || B.t > 80) {
     const won = B.hp <= 0, pay = won ? 5000 + 2500*W.era : 0;
@@ -11894,9 +12156,11 @@ function updLand() {
   }
 }
 // ------------------------------------------------------------------ siege engines
-const SENG = {id:null, units:[]};
-// siege engines come from the siege workshop, and only march out against a castle (a rival's walls); a field
-// battle is the soldiers alone. Better troops bring better engines.
+const SENG = {id:null, units:[]}, SIEGE_HOME = [-5.6, 63];
+// siege engines come from the siege workshop, and only march out against big walls: a rival city behind stone walls
+// or a fort (a wooden palisade the soldiers storm alone). In the field battle before the walls they wait at the back;
+// once the assault begins they roll up to the gate and pound it. Better troops bring better engines.
+const bigWalls = C => { if (!C || C.rival == null) return false; const r = EMP.list[C.rival], D = r && DEF[r.id]; return !!D && D.tier >= 1 && !es(r).owned; };
 const armyEngines = () => { if (!W.unlocked.has('siegeWorks')) return []; const t = W.troop || 0; return t >= 5 ? ['tank', 'tank', 'howitzer'] : t >= 4 ? ['cannon', 'cannon', 'mortar'] : t >= 3 ? ['tower', 'trebuchet', 'ram'] : t >= 1 ? ['catapult', 'catapult', 'ram'] : ['ram']; };
 const SHOOTS = {catapult:{every:3.2, arc:5, dur:1.3, ball:[0x8a8478, .28]}, trebuchet:{every:4, arc:8, dur:1.7, ball:[0x8a8478, .38]},
   cannon:{every:2.2, arc:1.6, dur:.55, ball:[0x1a1a1a, .16], flash:true}, mortar:{every:3, arc:9, dur:1.6, ball:[0x1a1a1a, .2], flash:true},
@@ -11928,7 +12192,7 @@ function engineMesh(k) {
 function updSiegeEngines(dt) {
   const C = W.camp;
   // a land attack sets out: bring the engines
-  if (C && C.type === 'land' && !C.retake && C.away && C.side && (C.sengId ??= Math.random()) !== SENG.id) {
+  if (C && C.type === 'land' && !C.retake && C.away && C.side && bigWalls(C) && (C.sengId ??= Math.random()) !== SENG.id) {
     SENG.id = C.sengId; for (const u of SENG.units) scene.remove(u.g); SENG.units = [];
     armyEngines().forEach((k, i) => {
       const g = engineMesh(k); if (!g) return; g.position.set(3 + (i - 1)*2.4, 0, 86); scene.add(g);
@@ -11958,8 +12222,9 @@ function updSiegeEngines(dt) {
     // storming a city: the engines roll up before the gate (the assault does the pounding)
     const AD = C && C.assault && DEF[EMP.list[C.rival].id];
     if (AD) { const [ix, iz] = inward(AD.main); tx = AD.main.x - ix*7 - iz*(u.i - 1)*3; tz = AD.main.z - iz*7 + ix*(u.i - 1)*3; }
-    else if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = melee ? BF.z + 1.6 + Math.sin(time*3 + u.ph)*(u.k === 'ram' ? .5 : 0) : BF.z - 7.5; }
-    else if (mid) { tx = mid[0] + (u.i - 1)*2.4; tz = mid[1] - (C ? 5 : -4); }
+    else if (fighting) { tx = BF.x + (u.i - 1)*3.2; tz = BF.z - 9; }   // held back while the armies fight in the field
+    else if (!C) { tx = SIEGE_HOME[0] + (u.i - 1)*2.2; tz = SIEGE_HOME[1]; }   // home to the workshop
+    else if (mid) { tx = mid[0] + (u.i - 1)*2.4; tz = mid[1] - 5; }
     else { tx = p.x; tz = p.z; }
     // driving like a vehicle: speed builds up and eases off near the spot, the wheels roll with the distance covered
     const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz), top = u.k === 'tank' ? 8 : 6.6;
@@ -11969,7 +12234,14 @@ function updSiegeEngines(dt) {
     if (d > .3) { p.x += dx/d*sp*dt; p.z += dz/d*sp*dt; p.y = Math.abs(Math.sin(time*9 + u.ph))*.03*Math.min(1, u.v); const yaw = Math.atan2(dx, dz); let dy = yaw - u.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); u.g.rotation.y += dy*Math.min(1, dt*4); }
     else if (fighting) { const yaw = Math.atan2(0, 1); u.g.rotation.y += (yaw - u.g.rotation.y)*Math.min(1, dt*3); }
     // in the fight: the guns and catapults bombard the enemy camp
-    if (fighting && !AD && ranged && d < 3 && (u.cd -= dt) <= 0) {
+    if (AD && ranged && !AD.broken && C.t > 16 && d < 3 && (u.cd -= dt) <= 0) {
+      const S = SHOOTS[u.k]; u.cd = S.every*(.6 + R()*.4);
+      const from = new THREE.Vector3(p.x, 1.4, p.z), to = new THREE.Vector3(AD.main.x + (R() - .5)*2, .8 + R(), AD.main.z + (R() - .5)*2);
+      const ball = new THREE.Mesh(G.sph, mat(S.ball[0], {roughness:.6})); ball.scale.setScalar(S.ball[1]); ball.position.copy(from); scene.add(ball);
+      if (S.flash) for (let k = 0; k < 6; k++) particle(k < 2 ? 0xffd070 : 0x9a9a9a, from.clone(), new THREE.Vector3((R() - .5)*1.5, 1 + R(), (R() - .5)*1.5), .6, .25, {grow:1.2, op:.7});
+      flyers.push({m:ball, from, to, t:0, dur:S.dur, arc:S.arc, done:() => { for (let k = 0; k < 14; k++) particle(k % 3 ? 0x8a8478 : 0xa89880, to.clone(), new THREE.Vector3((R() - .5)*5, 2 + R()*3, (R() - .5)*5), .9, .22, {grav:1}); if (watchingWar()) shakeCam(.2); snd(90, .25, 'sawtooth', .04, .5); }});
+    }
+    if (false) {
       const S = SHOOTS[u.k]; u.cd = S.every*(.8 + R()*.4);
       const from = new THREE.Vector3(p.x, u.k === 'mortar' ? .9 : 1.4, p.z + .8), to = new THREE.Vector3(BF.x + (R() - .5)*9, .2, BF.z + 4.5 + R()*3.5);
       const ball = new THREE.Mesh(G.sph, mat(S.ball[0], {roughness:.6})); ball.scale.setScalar(S.ball[1]); ball.position.copy(from); scene.add(ball);
@@ -11984,7 +12256,7 @@ function updSiegeEngines(dt) {
     }
   }
   // home again: park them back at the base and stand them down
-  if (!C && mid && Math.hypot(mid[0] - 3, mid[1] - 86) < 10) { for (const u of SENG.units) scene.remove(u.g); SENG.units = []; SENG.id = null; }
+  if (!C && SENG.units.every(u => Math.hypot(u.g.position.x - SIEGE_HOME[0] - (u.i - 1)*2.2, u.g.position.z - SIEGE_HOME[1]) < 1)) { for (const u of SENG.units) scene.remove(u.g); SENG.units = []; SENG.id = null; }
 }
 // the siege workshop: a timber shed with a ram and a catapult parked outside
 function siegeYard(anim) {
@@ -12056,7 +12328,7 @@ function updRegiments(dt) {
   if (REGT.tile.label !== label) { REGT.tile.label = label; drawTile(REGT.tile.tc.g, '🪖', {alpha:1, size:84, label, fill:'rgba(60,70,40,.6)'}); REGT.tile.tc.t.needsUpdate = true; }
   // away at war on land: the regiments march with the army, otherwise they stand on the field
   const vis = soldiers.filter(q => q.char.g.visible && !q.down), away = C && C.away && C.type === 'land' && !(C.sail && !vis.length) && vis.length;
-  const nf = away ? 0 : Math.min(REGT.cap, extra), nc = away ? Math.min(REGT.colCap, extra) : 0;
+  const nf = away ? 0 : Math.min(REGT.cap, extra), nc = away && !(C.t <= 22.5 && C.t > 6) ? Math.min(REGT.colCap, extra) : 0;   // in the fight itself the mass battle draws them
   if (nf !== REGT.n) { REGT.n = nf; for (let k = 0; k < nf; k++) { const [x, z] = regtSlot(k); regtPut(k, x, z, -Math.PI/2); } }
   if (nc) {
     const mid = vis.reduce((a, q) => [a[0] + q.pos.x/vis.length, a[1] + q.pos.z/vis.length], [0, 0]);
@@ -12082,6 +12354,81 @@ function payRecruit(zn, e) {
   popText('+10 🛡️ soldiers', e.pos.clone().setY(2.6), '#b8d4ff'); snd(392, .1, 'square', .04);
   for (let i = 0; i < 6; i++) particle(0xf2c200, new THREE.Vector3(zn.x, 1, zn.z), new THREE.Vector3((R() - .5)*3, 2 + R()*2, (R() - .5)*3), .7, .12, {grav:1});
   refreshPads(); save();
+}
+// ------------------------------------------------------------------ the mass battle: hundreds a side behind the duelling front
+// The duels up front are fought by real soldiers. Behind them each side's main body (your regiments, their host) stands
+// in ranks: they close in when the fighting starts, the front ranks lunge and fire, men fall as the battle turns, and
+// at the end the beaten side breaks and runs. Drawn as instanced figures (the regiment field's), so hundreds cost little.
+const MASS = {id:-1, ims:null, foe:null, us:[], them:[], cap:312, fireT:0, look:-1};
+const MASS_O = new THREE.Object3D();
+function massBuild() {
+  // the same figures as the regiment field: ours share its uniform, theirs get their own colours
+  const mk = (src, col) => { const m = src.material.clone(); if (col !== undefined) m.color.set(col); const im = new THREE.InstancedMesh(src.geometry, m, MASS.cap); im.count = 0; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); return im; };
+  MASS.ims = REGT.ims.map(im => mk(im));
+  MASS.foe = REGT.ims.map(im => mk(im));
+}
+// a side's ranks. The camera looks on from the south-east, so the two main bodies face each other across the screen
+// (ours to the right, theirs to the left) and never stand between the camera and the duels in the middle.
+const MASS_W = 24, MASS_AX = [Math.SQRT1_2, -Math.SQRT1_2], MASS_LAT = [Math.SQRT1_2, Math.SQRT1_2];
+function massSide(n, dir) {
+  // dir 1: ours, on the right facing left; -1: theirs, on the left facing right
+  const fx = -dir*MASS_AX[0], fz = -dir*MASS_AX[1], ox = BF.x + 1.5 + dir*MASS_AX[0]*8.5, oz = BF.z + 1.2 + dir*MASS_AX[1]*8.5;
+  return [...Array(n)].map((_, k) => { const row = Math.floor(k / MASS_W), c = (k % MASS_W) - (MASS_W - 1)/2 + (row % 2)*.35, x = ox + MASS_LAT[0]*c*.72 - fx*row*.8, z = oz + MASS_LAT[1]*c*.72 - fz*row*.8;
+    return {x, z, hx:x, hz:z, fx, fz, down:-1, ph:R()*6, run:0}; });
+}
+function massPut(im, k, u, yaw) {
+  if (u.down >= 0) { const t = Math.min(1, u.down*3); MASS_O.position.set(u.x, .08*t, u.z); MASS_O.rotation.set(-Math.PI/2*t*u.fallDir, yaw, 0, 'YXZ'); }
+  else { MASS_O.position.set(u.x, u.bob || 0, u.z); MASS_O.rotation.set(u.lean || 0, yaw, 0, 'YXZ'); }
+  MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix);
+}
+function updMassBattle(dt) {
+  const C = W.camp || W.raid, land = C && C.type === 'land' && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
+  if (!land) { if (MASS.ims && MASS.ims[0].count) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; } MASS.id = -1; return; }
+  if (!MASS.ims) massBuild();
+  // a new battle: our regiments (or, before there are any, the levies of the town) against their host, sized to the campaign
+  if (MASS.id !== BT.id) {
+    MASS.id = BT.id;
+    const ours = Math.min(MASS.cap, Math.max(Math.max(0, (W.army || 0) - 24), 40 + (W.army || 0)*3)), theirs = Math.min(MASS.cap, 60 + enemies.length*12);
+    MASS.us = massSide(ours, 1); MASS.them = massSide(theirs, -1);
+    const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, C.army && !C.name ? (W.troop || 0) + 1 : W.conquests)];
+    MASS.gun = !!look.gun; for (const i of REGT.real ? [0] : [1, 3]) MASS.foe[i].material.color.set(i === 3 ? (look.hatCol || look.pants) : look.body);
+    for (let i = 0; i < MASS.ims.length; i++) MASS.ims[i].material.color.copy(REGT.ims[i].material.color);
+  }
+  const f = clamp((22 - C.t)/13, 0, 1), c5 = Math.min(1, f*5), close = c5*c5*(3 - 2*c5), lose = !!BT.lose, rout = C.t <= 10.5;
+  // how many have fallen by now: the losing side bleeds far faster
+  const killU = Math.floor(MASS.us.length*(lose ? .5 : .1)*f), killT = Math.floor(MASS.them.length*(lose ? .15 : .45)*f);
+  const side = (list, dir, kill, beaten, im) => {
+    const fy = Math.atan2(list[0] ? list[0].fx : 0, list[0] ? list[0].fz : 1); let fallen = 0;
+    for (let k = 0; k < list.length; k++) {
+      const u = list[k], row = Math.floor(k / MASS_W);
+      if (u.down >= 0) { u.down += dt; fallen++; continue; }
+      if (fallen < kill && row < 3 + fallen/MASS_W && R() < dt*2.5) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; fallen++; continue; }
+      if (rout && beaten) {   // the beaten side breaks: they turn and run for it
+        u.run = Math.min(1, u.run + dt*(1 + R())); u.x -= u.fx*u.run*4.2*dt; u.z -= u.fz*u.run*4.2*dt; u.x += Math.sin(u.ph*3)*dt*.4; u.bob = Math.abs(Math.sin(time*11 + u.ph))*.1; u.lean = .25;
+        if (Math.hypot(u.x - BF.x, u.z - BF.z) > 36) u.down = 99;
+        continue;
+      }
+      // the ranks close in; the front rank lunges, the rest step and sway, waiting their turn
+      u.x = u.hx + u.fx*close*3.4; u.z = u.hz + u.fz*close*3.4;
+      const front = row < 2;
+      u.bob = front ? Math.max(0, Math.sin(time*7 + u.ph))*.08 : Math.abs(Math.sin(time*3 + u.ph))*.03;
+      u.lean = front && close > .5 && !rout ? Math.max(0, Math.sin(time*5 + u.ph))*.35 : 0;
+      if (rout && !beaten) u.bob = Math.abs(Math.sin(time*9 + u.ph))*.18;   // the winners cheer
+    }
+    for (let k = 0; k < list.length; k++) { const u = list[k]; if (u.down > 50) { MASS_O.position.set(0, -50, 0); MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix); continue; } massPut(im, k, u, fy + (rout && beaten && u.down < 0 ? Math.PI : 0) + (u.down < 0 ? Math.sin(u.ph)*.12 : 0)); }
+    for (const m of im) { m.count = list.length; m.instanceMatrix.needsUpdate = true; }
+  };
+  side(MASS.us, 1, killU, lose, MASS.ims); side(MASS.them, -1, killT, !lose, MASS.foe);
+  // shots and arrows from the front ranks while they close
+  if (close > .3 && !rout && (MASS.fireT -= dt) <= 0) {
+    MASS.fireT = .07;
+    const ranged = wepLvl() >= 1, pick = (list, dir, gun) => { const u = list[R()*Math.min(MASS_W*2, list.length)|0]; if (!u || u.down >= 0) return;
+      const at = new THREE.Vector3(u.x + u.fx*.4, 1.3, u.z + u.fz*.4);
+      if (gun) { particle(0xe8e8e8, at, new THREE.Vector3(u.fx*.5, .4, u.fz*.5), 1.3, .4, {grow:1.1, op:.5}); particle(0xffd070, at, new THREE.Vector3(0, .2, 0), .09, .16); }
+      else particle(0x5a4630, at, new THREE.Vector3(u.fx*9 + (R() - .5)*.6, 4, u.fz*9), .7, .06, {grav:1}); };
+    if (ranged) pick(MASS.us, 1, wepLvl() >= 2);
+    pick(MASS.them, -1, MASS.gun);
+  }
 }
 // ------------------------------------------------------------------ the Lucky Strip
 // The Strip is a long boulevard south of the wonders park: two lanes either side of a planted median, wide sidewalks,
@@ -12392,7 +12739,7 @@ function updWarArms(dt) {
   const ws = W.unlocked.has('warship') && boats.find(b => b.kind === 'war'), afloat = SIEGE.ships.filter(q => !q.sink && q.hp > 0);
   if (ws && afloat.length && W.raid && W.raid.siege && (WARFIRE.navyT -= dt) <= 0) {
     WARFIRE.navyT = 2.4; const q = afloat[R()*afloat.length|0];
-    broadside(ws.g.position, q.g.position.clone().setY(.6), true, () => { q.hp -= 3; if (q.hp <= 0) q.sink = .01; if (R() < .5) warFlame(q.g.position.x, .3, q.g.position.z, .9, 12); });
+    navyShot(ws.g.position, q.g.position.clone().setY(.6), true, () => { q.hp -= 3; if (q.hp <= 0) q.sink = .01; if (R() < .5) warFlame(q.g.position.x, .3, q.g.position.z, .9, 12); });
   }
   // enemies at your walls set buildings on fire
   if (W.raid && W.raid.siege && WARFIRE.raid !== W.raid) { WARFIRE.raid = W.raid; WARFIRE.t = 3 + R()*2; WARFIRE.first = true; }
@@ -12411,7 +12758,8 @@ function updWarArms(dt) {
   for (const st of Object.values(ST)) {
     if (st.warFire == null) continue;
     if (!st.broken) { delete st.warFire; if (st.flame) st.flame.t = 0; continue; }
-    if ((st.warFire -= dt) <= 0) {
+    // a fire with a crew on the way does not burn the building down: the brigade gets there in time
+    if (!st.truckOn && (st.warFire -= dt) <= 0) {
       delete st.warFire; if (st.flame) st.flame.t = 0; if (st.repairZone) { removeZone(st.repairZone); st.repairZone = null; } st.broken = false;
       ruinStation(st, rebuildCost(st)); W.flags.burnedDown = (W.flags.burnedDown || 0) + 1;
       banner(`🔥 The ${st.name} burned down`, 'Rebuild it on the brown tile. Fire stations put fires out before they spread.');
@@ -12615,7 +12963,7 @@ function updDistricts(dt) {
   if (!wondersOpen && started && W.unlocked.has('bridge1') && regionOpen('airfield')) wondersPark();
   if (started && (AGE_NEED.t = (AGE_NEED.t || 0) - dt) <= 0) { AGE_NEED.t = 1; setEra(AGE_NEED.length - 1, true); }
   if (!AIRBASE.built && started && (W.unlocked.has('hangar') || W.unlocked.has('airfieldGate')) && regionOpen('south')) airbaseFx();   // ready for the fighters' hangar
-  updFog(dt); updStrip(dt); updRegiments(dt); updCrossings(dt); updSkyDragon(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
+  updFog(dt); updStrip(dt); updRegiments(dt); updMassBattle(dt); updLedger(dt); updCrossings(dt); updSkyDragon(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
   if (W.unlocked.has('speedboat') && !BOAT.docked) boatDocks();
   updAirstrips();
   updMarkets(dt);
@@ -13465,6 +13813,7 @@ function update(dt) {
   for (const f of [...flyers]) {
     f.t += dt / f.dur; const to = target(f.to), e = Math.min(1, f.t);
     f.m.position.set(f.from.x + (to.x - f.from.x)*e, f.from.y + (to.y - f.from.y)*e + Math.sin(e*Math.PI)*(f.arc ?? (f.leap ? 1.3 : .9)), f.from.z + (to.z - f.from.z)*e);
+    if (f.tick) f.tick(f, dt);
     if (f.leap) f.m.rotation.set(0, 0, 0), f.m.rotation.y = Math.PI/2 * Math.sign(to.z - f.from.z), f.m.rotation.z = (e - .5) * -2.2;
     if (f.t >= 1) { scene.remove(f.m); flyers.splice(flyers.indexOf(f), 1); f.done?.(); }
   }
@@ -13514,6 +13863,7 @@ function render(dt) {
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);
   if (PHOTO.on) photoCamera(dt, fx, fz);
+  fadePeaks(dt, fx, fy, fz);
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);
@@ -13619,11 +13969,23 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   // how a material looks, so copies of the same material can share one draw
   const look = m => [m.type, m.color?.r, m.color?.g, m.color?.b, m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, m.roughness, m.metalness, m.map?.id, m.normalMap?.id, m.emissiveMap?.id,
     m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite, m.userData.bld, m.customProgramCacheKey()].join();
+  // plain coloured materials (no textures, no shader of their own) batch together whatever their colour: the colour
+  // goes into each vertex and the batch draws with one shared white material. Roughness and metalness are rounded to a
+  // tenth, so near-identical surfaces share too.
+  const TINT = m => m.type === 'MeshStandardMaterial' && !TEX.some(k => m[k]) && !m.userData.bld && m.onBeforeCompile === OBC;
+  const lookT = m => TINT(m) ? 'T' + [m.emissive?.r, m.emissive?.g, m.emissive?.b, m.emissiveIntensity, m.opacity, Math.round(m.roughness*10), Math.round(m.metalness*10),
+    m.flatShading, m.side, m.vertexColors, m.visible, m.toneMapped, m.fog, m.envMapIntensity, m.alphaTest, m.depthWrite, m.depthTest, m.wireframe, m.colorWrite].join() : look(m);
+  const TINT_MATS = new Map();
+  function tintMat(m) {
+    const k = lookT(m); let t = TINT_MATS.get(k);
+    if (!t) { t = m.clone(); t.color = new THREE.Color(1, 1, 1); t.vertexColors = true; t.roughness = Math.round(m.roughness*10)/10; t.metalness = Math.round(m.metalness*10)/10; t.userData = {shared:true, bakeTint:true}; TINT_MATS.set(k, t); }
+    return t;
+  }
   // glue the members of one material into one world-space geometry
-  function merge(list, kind) {
+  function merge(list, kind, tint) {
     let nv = 0, ni = 0;
     for (const o of list) { const g = o.geometry; nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
-    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), uv = kind.includes('u') ? new Float32Array(nv*2) : null, col = kind.includes('c') ? new Float32Array(nv*3) : null;
+    const pos = new Float32Array(nv*3), nor = new Float32Array(nv*3), uv = kind.includes('u') ? new Float32Array(nv*2) : null, col = kind.includes('c') || tint ? new Float32Array(nv*3) : null;
     const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
     let bv = 0, bi = 0;
     for (const o of list) {
@@ -13633,7 +13995,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         v.fromBufferAttribute(P, i).applyMatrix4(M); pos[(bv + i)*3] = v.x; pos[(bv + i)*3 + 1] = v.y; pos[(bv + i)*3 + 2] = v.z;
         v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(bv + i)*3] = v.x; nor[(bv + i)*3 + 1] = v.y; nor[(bv + i)*3 + 2] = v.z;
         if (uv) { uv[(bv + i)*2] = U.getX(i); uv[(bv + i)*2 + 1] = U.getY(i); }
-        if (col) { col[(bv + i)*3] = C.getX(i); col[(bv + i)*3 + 1] = C.getY(i); col[(bv + i)*3 + 2] = C.getZ(i); }
+        if (col) { const k = tint ? o.material.color : null, r = C ? C.getX(i) : 1, gg = C ? C.getY(i) : 1, b = C ? C.getZ(i) : 1; col[(bv + i)*3] = k ? r*k.r : r; col[(bv + i)*3 + 1] = k ? gg*k.g : gg; col[(bv + i)*3 + 2] = k ? b*k.b : b; }
       }
       // a mirrored mesh has its triangles wound the other way: turn them back so they still face out
       const flip = M.determinant() < 0, I = g.index, cnt = I ? I.count : n;
@@ -13652,17 +14014,19 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   // a batch is one merged mesh: the still meshes of one patch that look the same
   function unbake(key) {
     const b = BAKE.batches.get(key); if (!b) return;
-    for (const o of b.members) { o.layers.mask = o.userData.bakeMask ?? 1; delete o.userData.bakeMask; const s = BAKE.seen.get(o); if (s) s.batch = null; }
+    for (const o of b.members) { o.layers.mask = o.userData.bakeMask ?? 1; delete o.userData.bakeMask; o.matrixWorldAutoUpdate = true; const s = BAKE.seen.get(o); if (s) s.batch = null; }
     BAKE.group.remove(b.mesh); b.mesh.geometry.dispose();
     BAKE.batches.delete(key);
   }
   function bake(key, arr) {
-    const s0 = BAKE.seen.get(arr[0]), m = new THREE.Mesh(merge(arr, s0.kind), arr[0].material);
+    const s0 = BAKE.seen.get(arr[0]), tint = TINT(arr[0].material) && arr.some(o => !o.material.color.equals(arr[0].material.color));
+    const m = new THREE.Mesh(merge(arr, s0.kind, tint), tint ? tintMat(arr[0].material) : arr[0].material);
     m.castShadow = arr[0].castShadow; m.receiveShadow = arr[0].receiveShadow; m.matrixAutoUpdate = false; m.userData.noBake = true;
     BAKE.group.add(m);
     // copies of a material are checked by look each tick; a shared material is the same object, so any change shows anyway
     const multi = arr.some(o => o.material !== arr[0].material), b = {members:arr, mesh:m, looks:multi ? new Map(arr.map(o => [o, look(o.material)])) : null};
-    for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
+    // a merged original is hidden, so its matrix isn't worked out every frame any more (the pass below checks it for moves)
+    for (const o of arr) { o.userData.bakeMask = o.layers.mask; o.layers.mask = 0; o.matrixWorldAutoUpdate = false; const s = BAKE.seen.get(o); s.batch = key; s.solo = null; }
     BAKE.batches.set(key, b); BAKE.merges++;
   }
   // The work is spread over frames: each frame gets a few milliseconds of it, so a pass over the whole town never
@@ -13683,6 +14047,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
       let broke = false;
       for (const o of b.members) {
         const s = BAKE.seen.get(o);
+        if (o.parent) { o.updateMatrix(); o.matrixWorld.multiplyMatrices(o.parent.matrixWorld, o.matrix); }   // frozen while merged: bring it up to date to compare
         const why = snap(o, s.rec) ? 'snap' : s.rec.vis !== 1 ? 'vis' : b.looks && look(o.material) !== b.looks.get(o) ? 'look' : '';
         if (!why) continue;
         broke = true; s.t = now; if (BAKE.log) BAKE.log.push([why, o]);
@@ -13709,7 +14074,7 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
         const kind = BAKE.kind(o); BAKE.seen.set(o, s = {rec:newRec(), t:now, kind, batch:null, solo:null, nb:0}); snap(o, s.rec); continue;
       }
       if (s.kind === null || s.solo || s.rec.vis !== 1 || now - s.t < BAKE.wait) continue;
-      const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : look(o.material));
+      const e = o.matrixWorld.elements, key = Math.floor(e[12] / BAKE.cell) + ',' + Math.floor(e[14] / BAKE.cell) + '|' + s.kind + s.rec.sh + '|' + (s.vol || ANIM.has(o.material) ? '#' + o.material.id : lookT(o.material));
       (ready.get(key) || ready.set(key, []).get(key)).push(o);
     }
     // new still meshes make a batch of their own beside the patch's existing ones (with a lone mesh waiting for
@@ -13751,10 +14116,13 @@ function adapt(real) {
   scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
   fit();
 }
+let FRAMES = 0;
 function frame(now) {
   const real = (now - last) / 1000, dt = Math.min(.05, real) * slowScale(Math.min(.1, real)); last = now;
   if (paused) { requestAnimationFrame(frame); return; }      // the last frame stays on screen; no time passes
   adapt(real);
+  // shadows are redrawn every other frame: the sun hardly moves, and a moving shadow lagging a 60th of a second can't be seen
+  renderer.shadowMap.needsUpdate = (FRAMES = (FRAMES + 1) % 2) === 0;
   update(dt); updQN(dt); render(dt); BAKE.tick(real);
   requestAnimationFrame(frame);
 }
@@ -13990,7 +14358,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

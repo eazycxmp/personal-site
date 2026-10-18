@@ -69,6 +69,51 @@ function broadside(from, to, hit, onHit) {
   }});
   snd(70 + R()*40, .28, 'sawtooth', .045, .4);
 }
+// what lands where a shot comes down: a blast on a hit (and the hit itself), a splash in the water on a miss
+function shotLands(tgt, hit, onHit, col = 0xff7a2a) {
+  if (hit) { for (let i = 0; i < 9; i++) particle(i % 2 ? col : 0x6a5a4a, tgt, new THREE.Vector3((R() - .5)*4, 2 + R()*3, (R() - .5)*4), .8, .16, {grav:1}); onHit?.(); if (watchingWar() || player.pos.distanceTo(tgt) < 14) shakeCam(.15); }
+  else if (tgt.y < .2) splashAt(tgt.x, tgt.z);
+}
+// Your warships fire the weapons of their age: the wooden galleon its cannonballs, ironclads fast flat explosive shells,
+// dreadnoughts missiles that climb on a smoke trail and dive, and the carrier fleet laser beams that strike at once.
+const BEAM_MAT = new THREE.MeshBasicMaterial({color:0x8ff8ff, transparent:true, opacity:.85, toneMapped:false, depthWrite:false, fog:false});
+const BEAM_CORE = new THREE.MeshBasicMaterial({color:0xffffff, toneMapped:false, fog:false});
+const MISSILE_MAT = new THREE.MeshBasicMaterial({color:0xffc070, toneMapped:false});
+const SHELL_MAT = new THREE.MeshStandardMaterial({color:0x2a2a2e, metalness:.6, roughness:.4});
+const UP3 = new THREE.Vector3(0, 1, 0);
+function navyShot(from, to, hit, onHit) {
+  const lv = navLvl();
+  if (lv <= 1) return broadside(from, to, hit, onHit);
+  const dir = to.clone().sub(from).setY(0).normalize(), muzzle = from.clone().addScaledVector(dir, .9).setY(from.y + 1.1);
+  const tgt = hit ? to.clone() : to.clone().add(new THREE.Vector3((R() - .5)*5, -to.y - .2, (R() - .5)*4));
+  if (lv >= 4) {
+    // a laser: a beam with a white-hot core for a blink, a burst where it strikes
+    const d = tgt.clone().sub(muzzle), len = d.length(), q = new THREE.Quaternion().setFromUnitVectors(UP3, d.clone().normalize()), mid = muzzle.clone().addScaledVector(d, .5);
+    const beam = new THREE.Mesh(G.cyl, BEAM_MAT), core = new THREE.Mesh(G.cyl, BEAM_CORE);
+    beam.scale.set(.09, len, .09); core.scale.set(.03, len, .03);
+    for (const b of [beam, core]) { b.position.copy(mid); b.quaternion.copy(q); scene.add(b); }
+    setTimeout(() => { scene.remove(beam); scene.remove(core); }, 140);
+    particle(0x8ff8ff, muzzle, new THREE.Vector3(0, .3, 0), .18, .35);
+    for (let i = 0; i < 4; i++) particle(0xbffcff, tgt, new THREE.Vector3((R() - .5)*2, 1 + R(), (R() - .5)*2), .35, .12);
+    shotLands(tgt, hit, onHit, 0x8ff8ff);
+    snd(1500, .16, 'sawtooth', .03, .25);
+    return;
+  }
+  if (lv === 3) {
+    // a missile: a glowing head that climbs high on a trail of smoke and dives onto the target
+    const m = new THREE.Mesh(G.sph, MISSILE_MAT); m.scale.setScalar(.1); m.position.copy(muzzle); scene.add(m);
+    particle(0xd8d8d8, muzzle, new THREE.Vector3(0, .6, 0), 1, .35, {grow:1.2, op:.5});
+    flyers.push({m, from:muzzle, to:tgt, t:0, dur:1.15, arc:6, tick:f => { if (R() < .7) particle(0xe0e0e0, f.m.position.clone(), new THREE.Vector3((R() - .5)*.2, .15, (R() - .5)*.2), .9, .13, {grow:1.3, op:.5}); },
+      done:() => shotLands(tgt, hit, onHit)});
+    snd(220, .35, 'sawtooth', .03, 2.2);
+    return;
+  }
+  // an explosive shell: a big muzzle flash and a fast, flat shot
+  particle(0xffd070, muzzle, new THREE.Vector3(0, .5, 0), .14, .55); particle(0xb0b0b0, muzzle, new THREE.Vector3((R() - .5), .8, 0), 1.2, .38, {grow:.9, op:.55});
+  const sh = new THREE.Mesh(G.sph, SHELL_MAT); sh.scale.setScalar(.1); sh.position.copy(muzzle); scene.add(sh);
+  flyers.push({m:sh, from:muzzle, to:tgt, t:0, dur:.45, arc:.9, done:() => shotLands(tgt, hit, onHit, 0xffb040)});
+  snd(55 + R()*30, .3, 'square', .045, .4);
+}
 function fortReset(f) { f.hp = f.max; f.towers.forEach(t => { t.rotation.z = 0; t.position.y = 0; }); }
 // a fort takes the pounding: towers lean and sink, and fires break out
 function fortHit(f) {

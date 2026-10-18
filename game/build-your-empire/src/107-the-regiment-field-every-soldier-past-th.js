@@ -57,7 +57,7 @@ function updRegiments(dt) {
   if (REGT.tile.label !== label) { REGT.tile.label = label; drawTile(REGT.tile.tc.g, '🪖', {alpha:1, size:84, label, fill:'rgba(60,70,40,.6)'}); REGT.tile.tc.t.needsUpdate = true; }
   // away at war on land: the regiments march with the army, otherwise they stand on the field
   const vis = soldiers.filter(q => q.char.g.visible && !q.down), away = C && C.away && C.type === 'land' && !(C.sail && !vis.length) && vis.length;
-  const nf = away ? 0 : Math.min(REGT.cap, extra), nc = away ? Math.min(REGT.colCap, extra) : 0;
+  const nf = away ? 0 : Math.min(REGT.cap, extra), nc = away && !(C.t <= 22.5 && C.t > 6) ? Math.min(REGT.colCap, extra) : 0;   // in the fight itself the mass battle draws them
   if (nf !== REGT.n) { REGT.n = nf; for (let k = 0; k < nf; k++) { const [x, z] = regtSlot(k); regtPut(k, x, z, -Math.PI/2); } }
   if (nc) {
     const mid = vis.reduce((a, q) => [a[0] + q.pos.x/vis.length, a[1] + q.pos.z/vis.length], [0, 0]);

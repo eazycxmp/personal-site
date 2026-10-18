@@ -68,7 +68,7 @@ function startBattle(c) {
   mesh(G.cyl, 0x5e3f22, [.06, 3, .06], [BF.x, 1.5, BF.z + 7.3], enemyCamp);
   enemyCamp.flag = mesh(G.box, 0x9a1a1a, [.9, .55, .03], [BF.x + .47, 2.7, BF.z + 7.3], enemyCamp);
   // a real enemy host that holds the field until the rout (the odds, not this, decide who wins)
-  const n = Math.min(18, campNeed(c) + 4), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
+  const n = Math.min(27, campNeed(c) + 6), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, c.army && !c.name ? (W.troop || 0) + 1 : W.conquests)];
   BT.id = (BT.id || 0) + 1;
   for (let i = 0; i < n; i++) {
     const e = entity(look, BF.x - 5.8 + (i % 9)*1.45, BF.z + 2.6 + Math.floor(i / 9)*1.3, 3, 0);

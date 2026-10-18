@@ -94,6 +94,8 @@ function updWorker(w, dt) {
   if (gt && w.kind === 'mason' && masonHaul(w, dt)) return;
   if (gt) {
     const pile = gt.pile().outStack;
+    // the pile is full: they find something else useful to do till it is used
+    if ((w.hauling || (w.state === 'unload' && pile.length >= pile.cap)) && idleHaul(w, dt, [w.kind === 'lumber' ? 'log' : 'stone'])) return;
     if (w.state === 'idle' || w.state === 'toSrc') {
       if (w.stack.length >= w.cap) { w.state = 'toDst'; return; }
       if (!w.node || w.node.logs <= 0) w.node = gt.nodes().filter(t => t.logs > 0).sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
@@ -104,6 +106,7 @@ function updWorker(w, dt) {
       if (goTo(w, ...gt.drop, dt)) w.state = 'unload';
     } else if (w.state === 'unload') {
       if ((w.tick -= dt) <= 0) { w.tick = .08; if (w.stack.length && pile.length < pile.cap) transfer(w.stack, pile); }
+      w.wait = w.stack.length !== before ? 0 : (w.wait || 0) + dt;
       if (!w.stack.length) w.state = 'idle';
     }
     return;
@@ -122,7 +125,7 @@ function updWorker(w, dt) {
     }
     return;
   }
-  if (IDLE_HAUL[w.kind] && idleHaul(w, dt, IDLE_HAUL[w.kind])) return;
+  if (idleHaul(w, dt, IDLE_HAUL[w.kind] || PURPOSE_HAUL)) return;
   const r = ROUTES[w.kind];
   switch (w.state) {
     case 'idle': {
@@ -164,5 +167,7 @@ function updWorker(w, dt) {
     case 'toBin': if (goTo(w, binZone.x, binZone.z, dt)) w.state = 'binning'; break;
     case 'binning': zoneAct(w, binZone, dt); if (!w.stack.length) w.state = 'idle'; break;
   }
+  // waiting at a counter for the next thing to change hands: they keep working at it rather than standing still
+  if ((w.state === 'load' || w.state === 'unload') && w.stack.length === before && (w.busyT = (w.busyT ?? 1) - dt) <= 0) { w.busyT = .9 + R()*.6; qnAct(w.char, w.state === 'load' ? 'pick' : 'serve', .7); }
 }
 
