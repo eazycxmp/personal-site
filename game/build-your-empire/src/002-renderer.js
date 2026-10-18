@@ -55,7 +55,7 @@ scene.background = new THREE.Color(0x9fd6f2);
 scene.fog = new THREE.Fog(0x9fd6f2, 42, 82);
 // the camera looks at the camp diagonally, for the diorama look
 const CAM_YAW = Math.PI / 4;
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);   // a wide view (was 32)
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);   // a wide view (was 32, then 38)
 const hemi = new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
 sun.castShadow = true;

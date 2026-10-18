@@ -151,7 +151,7 @@ function update(dt) {
 }
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
-const CAMV = {i:0, list:[{n:'Classic view', d:13, h:14.4}, {n:'Top-down view', d:2.4, h:18.9}, {n:'Overview', d:20, h:22.5}]};   // 10% lower than before
+const CAMV = {i:0, list:[{n:'Classic view', d:13, h:13}, {n:'Top-down view', d:2.4, h:17}, {n:'Overview', d:20, h:20.3}]};   // lower again (was 16, 21, 25)
 try { CAMV.i = +(localStorage.getItem('bye.cam') || 0) % CAMV.list.length; } catch (e) {}
 function nextCam() {
   CAMV.i = (CAMV.i + 1) % CAMV.list.length; try { localStorage.setItem('bye.cam', CAMV.i); } catch (e) {}
@@ -162,7 +162,7 @@ function render(dt) {
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
   if (k !== render.k) {   // fog and the sun's shadow reach out as far as the view does
     render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
-    Object.assign(sun.shadow.camera, {left:-22*k, right:22*k, top:22*k, bottom:-22*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
+    Object.assign(sun.shadow.camera, {left:-25*k, right:25*k, top:25*k, bottom:-25*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
   const wtype = W.camp ? W.camp.type : 'land';

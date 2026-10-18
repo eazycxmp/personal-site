@@ -22,6 +22,8 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
   #obj{top:46px;font-size:13px}
 }
 #stage canvas{display:block;width:100%;height:100%;outline:none}
+/* full screen: the game is the whole screen */
+:fullscreen #app{max-width:none}:fullscreen #stage{aspect-ratio:auto;width:100vw;height:100vh;max-height:none;border-radius:0}
 .hud{position:absolute;top:10px;display:flex;gap:6px;flex-wrap:wrap;z-index:3;pointer-events:none}
 #hudL{left:10px;top:auto;bottom:10px;max-width:calc(100% - 110px)}#hudR{right:10px;justify-content:flex-end;max-width:calc(100% - 20px)}
 .chip{background:#fffaf0ee;color:var(--ink);border-radius:999px;padding:5px 12px;font-weight:800;font-size:15px;
@@ -153,7 +155,7 @@ html:not(.framed) #stage{max-height:100vh;max-height:100svh}
     <div id="bossBar" hidden><span id="bossName"></span><i><b id="bossFill"></b></i></div>
     <div id="ticker" hidden><div id="tickerText"></div></div>
     <div id="photoBar" hidden><span>📷 Drag or use arrows to move the camera</span><button id="bSnap">Save photo</button><button id="bPhotoX">✕</button></div>
-    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bMount" title="Switch ride (M)" hidden>🐎</button><button id="bSettings" title="Saves &amp; settings">⚙️</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
+    <button id="tripSkip" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,20,40,.8);color:#fff;cursor:pointer">⏩ Skip</button><button id="bWatch" hidden style="position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:9px 18px;border-radius:22px;border:0;background:rgba(120,20,20,.85);color:#fff;cursor:pointer">🎥 Follow the army</button><button id="bBoat" hidden style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;font:600 15px system-ui;padding:10px 20px;border-radius:22px;border:0;background:rgba(10,40,90,.85);color:#fff;cursor:pointer">⚓ Step ashore</button><div id="btns"><button id="bWorld" title="World map (G)">🌍</button><button id="bInvest" title="Invest" hidden>📈 Invest</button><button id="bBuild" title="Build parks and rides">🏗️ Build</button><button id="bSpace" title="Space" hidden>🪐</button><button id="bEmpire" title="Empire &amp; diplomacy (E)">🏛️</button><button id="bTrade" title="Trade routes">🗺️</button><button id="bTrophy" title="Trophies">🏅</button><button id="bPhoto" title="Photo mode">📷</button><button id="bBoard" title="Leaderboard">🏆</button><button id="bTravel" title="Travel (T)">🧭</button><button id="bCam" title="Camera view (C)">🎥</button><button id="bMount" title="Switch ride (M)" hidden>🐎</button><button id="bFull" title="Full screen">⛶</button><button id="bSettings" title="Saves &amp; settings">⚙️</button><button id="bPause" title="Pause (P)">⏸️</button><button id="bMute" title="Sound">🔊</button><button id="bReset" title="Start over">↺</button></div>
     <div id="pauseOv" hidden>
       <div class="card">
         <h1>⏸️ Paused</h1>
@@ -292,7 +294,7 @@ scene.background = new THREE.Color(0x9fd6f2);
 scene.fog = new THREE.Fog(0x9fd6f2, 42, 82);
 // the camera looks at the camp diagonally, for the diorama look
 const CAM_YAW = Math.PI / 4;
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);   // a wide view (was 32)
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 220);   // a wide view (was 32, then 38)
 const hemi = new THREE.HemisphereLight(0xdcefff, 0x4f6a34, 1.25); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d4, 3.4);
 sun.castShadow = true;
@@ -12111,7 +12113,7 @@ function update(dt) {
 }
 const camWant = new THREE.Vector3();
 // camera views: the usual diagonal, straight down (to see between tall buildings), or pulled right back
-const CAMV = {i:0, list:[{n:'Classic view', d:13, h:14.4}, {n:'Top-down view', d:2.4, h:18.9}, {n:'Overview', d:20, h:22.5}]};   // 10% lower than before
+const CAMV = {i:0, list:[{n:'Classic view', d:13, h:13}, {n:'Top-down view', d:2.4, h:17}, {n:'Overview', d:20, h:20.3}]};   // lower again (was 16, 21, 25)
 try { CAMV.i = +(localStorage.getItem('bye.cam') || 0) % CAMV.list.length; } catch (e) {}
 function nextCam() {
   CAMV.i = (CAMV.i + 1) % CAMV.list.length; try { localStorage.setItem('bye.cam', CAMV.i); } catch (e) {}
@@ -12122,7 +12124,7 @@ function render(dt) {
   const aspect = stage.clientWidth / Math.max(1, stage.clientHeight), k = aspect < 1 ? 1.45 : MOBILE ? 1 : clamp(stage.clientHeight / 740, 1, 1.5);
   if (k !== render.k) {   // fog and the sun's shadow reach out as far as the view does
     render.k = k; scene.fog.near = 42*k; scene.fog.far = 82*k;
-    Object.assign(sun.shadow.camera, {left:-22*k, right:22*k, top:22*k, bottom:-22*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
+    Object.assign(sun.shadow.camera, {left:-25*k, right:25*k, top:25*k, bottom:-25*k});   // the wider view needs shadows further out sun.shadow.camera.updateProjectionMatrix();
   }
   const V = CAMV.list[CAMV.i], war = watchingWar();
   const wtype = W.camp ? W.camp.type : 'land';
@@ -12576,7 +12578,25 @@ function setPause(v) {
   for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
   if (v) save(); else renderer.domElement.focus({preventScroll:true});
 }
-$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bMount').onclick = () => { if (started) cycleMount(); }; $('bBoat').onclick = () => { if (BOAT.on && BOAT.near) boatOff(BOAT.near); }; $('bWorld').onclick = () => { if (started) openWorldMap(); }; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
+$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam;
+// full screen: the whole game page (inside the site's frame too, which allows it); Esc or ⛶ again comes back
+{ const bf = $('bFull'), fsOk = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen);
+  // where the browser refuses real full screen, the site stretches the game's frame over the whole window instead
+  const framed = window.parent !== window; let filled = false;
+  const show = on => { bf.textContent = on ? '🗗' : '⛶'; bf.title = on ? 'Leave full screen' : 'Full screen'; setTimeout(fit, 60); };
+  const fill = on => { filled = on; window.parent.postMessage({rfFill:on}, '*'); show(on); };
+  bf.hidden = !fsOk && !framed;
+  bf.onclick = () => {
+    if (filled) return fill(false);
+    if (document.fullscreenElement) return document.exitFullscreen();
+    if (!fsOk) return fill(true);
+    // some browsers refuse, and some never answer: half a second without full screen and the frame fills the window instead
+    let settled = false;
+    document.documentElement.requestFullscreen().then(() => { settled = true; }, () => { settled = true; if (framed) fill(true); });
+    setTimeout(() => { if (!settled && !document.fullscreenElement && framed) fill(true); }, 500);
+  };
+  addEventListener('keydown', e => { if (e.key === 'Escape' && filled) fill(false); });
+  document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement && filled) fill(false); show(!!document.fullscreenElement); }); } $('bMount').onclick = () => { if (started) cycleMount(); }; $('bBoat').onclick = () => { if (BOAT.on && BOAT.near) boatOff(BOAT.near); }; $('bWorld').onclick = () => { if (started) openWorldMap(); }; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
 addEventListener('keydown', e => {
   if (e.repeat || e.target.closest?.('input, textarea')) return;
   const k = e.key.toLowerCase();

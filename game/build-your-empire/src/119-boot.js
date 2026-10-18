@@ -27,7 +27,25 @@ function setPause(v) {
   for (const k in keys) keys[k] = false; joy.x = joy.y = 0;
   if (v) save(); else renderer.domElement.focus({preventScroll:true});
 }
-$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam; $('bMount').onclick = () => { if (started) cycleMount(); }; $('bBoat').onclick = () => { if (BOAT.on && BOAT.near) boatOff(BOAT.near); }; $('bWorld').onclick = () => { if (started) openWorldMap(); }; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
+$('bPause').onclick = () => setPause(!paused); $('bCam').onclick = nextCam;
+// full screen: the whole game page (inside the site's frame too, which allows it); Esc or ⛶ again comes back
+{ const bf = $('bFull'), fsOk = !!(document.fullscreenEnabled && document.documentElement.requestFullscreen);
+  // where the browser refuses real full screen, the site stretches the game's frame over the whole window instead
+  const framed = window.parent !== window; let filled = false;
+  const show = on => { bf.textContent = on ? '🗗' : '⛶'; bf.title = on ? 'Leave full screen' : 'Full screen'; setTimeout(fit, 60); };
+  const fill = on => { filled = on; window.parent.postMessage({rfFill:on}, '*'); show(on); };
+  bf.hidden = !fsOk && !framed;
+  bf.onclick = () => {
+    if (filled) return fill(false);
+    if (document.fullscreenElement) return document.exitFullscreen();
+    if (!fsOk) return fill(true);
+    // some browsers refuse, and some never answer: half a second without full screen and the frame fills the window instead
+    let settled = false;
+    document.documentElement.requestFullscreen().then(() => { settled = true; }, () => { settled = true; if (framed) fill(true); });
+    setTimeout(() => { if (!settled && !document.fullscreenElement && framed) fill(true); }, 500);
+  };
+  addEventListener('keydown', e => { if (e.key === 'Escape' && filled) fill(false); });
+  document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement && filled) fill(false); show(!!document.fullscreenElement); }); } $('bMount').onclick = () => { if (started) cycleMount(); }; $('bBoat').onclick = () => { if (BOAT.on && BOAT.near) boatOff(BOAT.near); }; $('bWorld').onclick = () => { if (started) openWorldMap(); }; $('bWatch').onclick = () => setWatch(!WATCH.on); $('tripSkip').onclick = () => { if (TRIP.on) TRIP.t = TRIP.dur; }; $('bTravel').onclick = () => { if (started) openTravel(); }; $('bEmpire').onclick = () => { if (started) openEmpire(); }; $('bResume').onclick = () => setPause(false);
 addEventListener('keydown', e => {
   if (e.repeat || e.target.closest?.('input, textarea')) return;
   const k = e.key.toLowerCase();

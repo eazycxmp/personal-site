@@ -33,7 +33,7 @@ export default function BuildYourEmpirePage() {
         </div>
       </main>
       {/* the game gets nearly the whole screen on a computer; on a phone it keeps its usual size */}
-      <div className="mx-auto max-w-[1920px] px-5 md:px-6 pb-16">
+      <div className="mx-auto max-w-[2400px] px-3 md:px-4 pb-16">
         <BuildYourEmpireFrame />
       </div>
       <Footer />
