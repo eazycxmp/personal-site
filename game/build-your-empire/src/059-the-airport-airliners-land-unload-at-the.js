@@ -40,23 +40,22 @@ function makeJet(big, kind = 'pax', slot = 0) {
   g.visible = false;
 }
 const JET = {hold:[-32, 12], top:[-32, -12]};
-function jetPose(J, x, y, z, nx, ny, nz) {
-  J.g.position.set(x, y, z); const dx = nx - x, dy = ny - y, dz = nz - z, h = Math.hypot(dx, dz);
-  if (h > .001) { J.g.rotation.y = Math.atan2(dx, dz); J.g.rotation.x = -Math.atan2(dy, h); }
-}
+// airliners fly like the fighters do (see flyPose): smoothed along their legs, nose along the way they go, banking in turns
+function jetPose(J, x, y, z, nx, ny, nz) { flyPose(J, [x, y, z], [nx, ny, nz], JET.dt || 1/60); }
 // one plane at a time on the runway; the others hold at the gate or circle out of sight
 const RUNWAY_LEGS = new Set(['approach', 'rollout', 'toHold', 'takeoff']);
 function updJet(dt) {
   for (const J of JETS) if (J) updOneJet(J, dt);
 }
 function updOneJet(J, dt) {
+  JET.dt = dt;
   const L = (a, b, u) => a + (b - a)*clamp(u, 0, 1), G0 = J.gate;
   if (W.camp && W.camp.type === 'air' && J.leg === 'away') return;
   const runwayFree = !JETS.some(o => o && o !== J && RUNWAY_LEGS.has(o.leg));
   J.t += dt;
   const legs = {
     away:() => { J.g.visible = false; if (J.t > J.wait && runwayFree) next('approach'); },
-    approach:() => { const u = J.t/6; J.g.visible = true; jetPose(J, RUNWAY.x, L(14, .2, u), L(-70, -12, u), RUNWAY.x, L(14, .2, u + .02), L(-70, -12, u + .02)); if (u >= 1) next('rollout'); },
+    approach:() => { const u = J.t/6; if (!J.g.visible) J.fly = null; /* appears on the approach, not sliding in from where it vanished */ J.g.visible = true; jetPose(J, RUNWAY.x, L(14, .2, u), L(-70, -12, u), RUNWAY.x, L(14, .2, u + .02), L(-70, -12, u + .02)); if (u >= 1) next('rollout'); },
     rollout:() => { const u = J.t/3.2, e = 1 - (1 - u)*(1 - u); jetPose(J, RUNWAY.x, .2*(1 - u), L(-12, 9, e), RUNWAY.x, 0, L(-12, 9, e) + 1); if (u >= 1) next('toGate'); },
     toGate:() => { const u = J.t/3; jetPose(J, L(RUNWAY.x, G0[0], u), 0, L(9, G0[1], u), L(RUNWAY.x, G0[0], u + .05), 0, L(9, G0[1], u + .05)); if (u >= 1) { next('gate'); landed(J); } },
     gate:() => {

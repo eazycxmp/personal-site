@@ -132,11 +132,13 @@ function idleHaul(w, dt, curs) {
     const cur = curs.find(c => (held ? held === c && w.stack.count([c]) === w.stack.length : true) && builderJob(w, c));
     if (cur) { w.hauling = cur; w.job = null; w.idleT = 0; w.state = 'idle'; }
     // goods nobody has room for go to the market and are sold
+    else if (held && supplyOn() && SUP.zone && landKeys().some(k => !land(k).lost && tierOfLand(k).wants.includes(held))) { w.hauling = 'depot'; w.idleT = 0; }
     else if (held && SELLABLE.includes(held) && SELL_AT()) { w.hauling = 'sell'; w.idleT = 0; }
     // nothing to fetch or carry: get on with the work at their own station
     else { w.hauling = 'tend'; w.tendT = 6 + R()*4; w.idleT = 0; }
   }
   if (w.hauling === 'sell') { sellRun(w, dt); return true; }
+  if (w.hauling === 'depot') { const zn = SUP.zone; if (!zn || !w.stack.length) { w.hauling = false; w.state = 'idle'; return true; } if (goTo(w, zn.x, zn.z, dt)) { const n0 = w.stack.length; zoneAct(w, zn, dt); if (w.stack.length === n0 && w.tick > .2) w.hauling = SELLABLE.includes(w.stack.items[0]?.type) && SELL_AT() ? 'sell' : false; } return true; }
   if (w.hauling === 'tend') { tendStation(w, dt); return true; }
   updBuilder(w, dt, w.hauling);
   if (!w.job && !w.stack.count([w.hauling])) { w.hauling = false; w.state = 'idle'; }

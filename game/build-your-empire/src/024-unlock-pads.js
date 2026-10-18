@@ -175,6 +175,7 @@ const PADS = [
   // military technology is bought with cash, like the planes and tanks: builders never pay for it (029 MIL_PADS)
   {id:'supplyDepot', x:22.4, z:-9.2, cost:4000, cur:'coin', icon:'📦', label:'Supply depot', after:['warTable'], need:() => landKeys().length > 0},
   {id:'supplyClerk', x:18.6, z:-6.4, cost:1500, cur:'coin', icon:'🧑‍💼', label:'Supply clerk', after:['supplyDepot']},
+  {id:'foodMarket', x:29.2, z:-6.4, cost:20000, cur:'coin', icon:'🧺', label:'Food market', after:['supplyDepot']},
   {id:'gardener', x:23.8, z:5.6, cost:300, cur:'coin', icon:'🧑‍🌾', label:'Gardener', after:['garden']},
   {id:'tomatobed', x:27.1, z:5.6, cost:500, cur:'coin', icon:'🍅', label:'Tomato bed', after:['garden', 'market']},
   {id:'burgerBar', x:20.75, z:14.3, cost:900, cur:'coin', icon:'🍔', label:'Burger station', after:['tomatobed', 'gardener', 'market', 'workshop']},
@@ -467,7 +468,7 @@ const UNLOCK = {
   refinery(a) { refineryFx(a); if (a) banner('🏭 Oil refinery!', 'The quarry now refines its own oil. Fuel sells for four times as much as crude.'); },
   hw_nile(a) { hwyBuild('nile', a); }, hw_hellas(a) { hwyBuild('hellas', a); }, hw_kumo(a) { hwyBuild('kumo', a); }, hw_aztlan(a) { hwyBuild('aztlan', a); },
   garden(a) { lettuceGarden(a); },
-  supplyDepot(a) { supplyDepot(a); }, supplyClerk(a) { addWorker('clerk', 18.6, -6.4, a); },
+  supplyDepot(a) { supplyDepot(a); }, foodMarket(a) { foodMarketFx(a); }, supplyClerk(a) { addWorker('clerk', 18.6, -6.4, a); },
   gardener(a) { addWorker('gardener', 23.8, 5.6, a); },
   bunbaker(a) { addWorker('bunbaker', 17.2, 5.6, a); },
   tomatobed(a) { tomatoBed(a); },
