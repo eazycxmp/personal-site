@@ -11,6 +11,7 @@ export const SHARES = {
   "build-your-empire": { emoji: "🏰", title: "Build Your Empire", line: "One campfire, one fish. Grow it into castles, trains, air strikes and a trip to the Moon.", from: "#f2a51a", to: "#d9443a", path: "/play/build-your-empire" },
   run: { emoji: "🌀", title: "Maze Run", line: "It keeps getting faster. How long can you last?", from: "#7c4fb0", to: "#3f7cc0", path: "/play/run" },
   paint: { emoji: "🐶", title: "Paint the Pup", line: "Grab a color and finger-paint a very good dog.", from: "#ffb8d0", to: "#8fd0ff", path: "/play/paint" },
+  skyward: { emoji: "✈️", title: "Skyward", line: "Fly an F-16, a Mustang, an A380 or a stunt plane through a mountain valley.", from: "#3a78c6", to: "#ffb547", path: "/play/skyward" },
 } satisfies Record<string, Share>;
 
 export const ogSize = { width: 1200, height: 630 };
