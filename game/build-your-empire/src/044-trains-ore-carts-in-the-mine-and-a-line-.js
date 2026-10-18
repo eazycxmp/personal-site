@@ -87,7 +87,7 @@ function makeTrain(kind) {
       if (i === 0) { const n = mesh(G.sph, 0xf4f6f8, [.58, .55, 1.4], [0, .95, 1.3], c, {metalness:.3, roughness:.3}); mesh(G.box, 0x2a3440, [.8, .3, .5], [0, 1.25, 1.55], c, {metalness:.5, roughness:.15}).rotation.x = .5; }
     }
   }
-  const lens = kind === 0 ? [1.5, 2.3] : kind === 1 ? [2.9, 1.6, 2.8, 2.8, 2.8] : [3.4, 2.8, 2.8, 2.8];
+  const lens = kind === 0 ? [cars[0].team ? 1.9 : 1.5, 2.3] : kind === 1 ? [2.9, 1.6, 2.8, 2.8, 2.8] : [3.4, 2.8, 2.8, 2.8];
   railTrain = {g, cars, lens, kind, z:RAIL.z0 - 8, v:0, leg:0, wait:0, smokeT:0};
 }
 // stops: the station, the town in the south, the station, the tunnel in the north
@@ -112,7 +112,8 @@ function updTrain(dt) {
     c.position.set(RAIL.x, 0, T.z - dir*off); c.rotation.y = dir > 0 ? 0 : Math.PI;
     c.visible = c.position.z > RAIL.z0 - .2 && c.position.z < RAIL.z1;
   });
-  if (T.kind === 0) for (const [i, l] of T.cars[0].legs.entries()) l.rotation.x = T.v ? Math.sin(time*11 + i*1.7) * .55 : 0;
+  if (T.kind === 0 && T.cars[0].team) { if (T.cars[0].visible) for (const H of T.cars[0].team) horseGait(H, dt, Math.abs(T.v)); }
+  else if (T.kind === 0) for (const [i, l] of T.cars[0].legs.entries()) l.rotation.x = T.v ? Math.sin(time*11 + i*1.7) * .55 : 0;
   if (T.kind === 1 && T.v && (T.smokeT -= dt) <= 0 && T.cars[0].visible) {
     T.smokeT = .12;
     particle(0xe8e8e8, new THREE.Vector3(RAIL.x, 2.1, T.z + dir*.85), new THREE.Vector3((R() - .5)*.4, 1.4, -dir*1.2), 1.6, .22, {grow:.5, op:.55});

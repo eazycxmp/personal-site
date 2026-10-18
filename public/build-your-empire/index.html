@@ -2407,8 +2407,9 @@ Object.assign(buildFx, {
   },
   boatyard(anim) {
     const g = new THREE.Group(); scene.add(g);
-    for (let i = 0; i < 6; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-12.9 + i*.52, .22, -7.2], g);
-    for (const z of [-8, -6.4]) mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [-14.2, .1, z], g);
+    // the fishing jetty, the fishing boats moor alongside it
+    for (let i = 0; i < 4; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-11.95 + i*.52, .22, -9.6], g);
+    for (const z of [-10.4, -8.8]) mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [-12.15, .1, z], g);
     if (anim) popIn(g);
   },
 });
@@ -2615,41 +2616,63 @@ function house(x, z, anim) {
 
 // ------------------------------------------------------------------ boats
 const boats = [];
+// the harbour: everything moors alongside the quay on the east bank, ships coming up from the sea keep to the middle of
+// the river and ships heading out keep to the west, so nothing sails through a moored boat. Merchant ships each take a
+// berth of their own (one, or two with the bigger docks), and wait out at sea when the berths are full.
+const HARBOR = {moor:-12.8, laneIn:-15.2, laneOut:-17.7, merchant:[-27.3, -18.8]};
+// the wide merchant galleon ties up a little further out so it clears the quay posts; each big ship waits at its own spot at sea
+const moorX = b => b.kind === 'trade' ? -13.2 : HARBOR.moor;
+const merchants = () => boats.filter(o => o.kind === 'trade' || o.kind === 'cargo' || o.kind === 'cruise');
+const seaX = b => -24 - 6*merchants().indexOf(b), seaZ = b => -115 - 8*merchants().indexOf(b);   // spread out off the river mouth, clear of both lanes
+// how long each kind is, so a boat keeps a hull's length behind the one ahead
+const BOAT_LEN = {fish:3.4, trade:5.4, cargo:6.4, cruise:7, war:6.1, troop:4.8};
+const merchantBerths = () => W.unlocked.has('docks2') ? HARBOR.merchant : HARBOR.merchant.slice(1);
+// a ship can reach a berth only if the berths nearer the sea are empty (it would sail through them); take the farthest in
+function freeBerth(b) {
+  const bs = merchantBerths(), taken = z => boats.some(o => o !== b && o.berth === z);
+  // nor one a ship already on its way in still has to sail past
+  let best = null; for (const z of bs) { if (taken(z) || boats.some(o => o !== b && o.state === 'in' && o.berth > z)) break; best = z; }
+  return best;
+}
 function makeBoat(kind) {
   const g = new THREE.Group(); scene.add(g);
   const big = kind !== 'fish', war = kind === 'war';
   if (kind === 'cargo' || kind === 'cruise') modernShip(g, kind); else galleon(g, SHIPS[kind]());
   const sailor = makeChar({body:big ? 0x3a5a8a : 0x3f6fb5, hat:big ? 'beanie' : 'straw', hatCol:0x2a2a4a});
-  sailor.g.scale.setScalar(.7); sailor.g.position.set(0, .53, big ? -.2 : -.6); g.add(sailor.g);
+  sailor.g.scale.setScalar(.7); sailor.g.position.set(0, .53, big ? -.2 : -.6); sailor.g.userData.sailor = true; g.add(sailor.g);
   const sail = null;
-  const b = {g, kind, sail, state:'dock', t:big ? 20 : 2, x:war ? -13.4 : big ? -14.4 : -13, z:war ? -4.6 : big ? -115 : -7.2, cargo:0};
+  const b = {g, kind, sail, state:'dock', t:big ? 20 : 2, x:war ? HARBOR.moor : big ? HARBOR.laneOut : HARBOR.moor, z:war ? -4.6 : big ? -115 : -9.6, home:war ? -4.6 : -9.6, cargo:0};
+  boats.push(b); if (big && !war) { b.x = seaX(b); b.z = seaZ(b); }
   b.g.position.set(b.x, 0, b.z);
-  boats.push(b);
   return b;
 }
 function updBoats(dt) {
   for (const b of boats) {
     if (b.inFleet) continue;   // the fleet is steered by the naval battle
-    let vz = 0;
+    let vz = 0; b.pull = false;
     // keep to the lane for the way you are going (out to sea on the west side, in to the docks on the east side) and
     // never overtake: hold back if a boat ahead in the same lane is too close
     const sail = (to, sp) => {
       const d = to - b.z; if (Math.abs(d) < .2) { b.dir = 0; return true; }
-      const dir = Math.sign(d); b.dir = dir; const lane = dir < 0 ? -17.2 : -12.8;
+      const dir = Math.sign(d); b.dir = dir; const lane = dir < 0 ? HARBOR.laneOut : HARBOR.laneIn;
+      // pull out into the lane first, then get under way
+      if (Math.abs(lane - b.x) > .5) { b.pull = true; b.x += Math.sign(lane - b.x) * Math.min(Math.abs(lane - b.x), dt*1.6); return false; }
       b.x += (lane - b.x) * Math.min(1, dt*.8);
-      const ahead = boats.find(o => o !== b && !o.inFleet && o.dir === dir && Math.abs(o.x - b.x) < 2 && (o.z - b.z)*dir > 0 && (o.z - b.z)*dir < 6.5);
+      // the one ahead in this lane, or level with us and earlier in the list (so two boats side by side never both go)
+      const gap = o => ((BOAT_LEN[o.kind] || 5) + (BOAT_LEN[b.kind] || 5))/2 + .8, dz = o => (o.z - b.z)*dir;
+      const ahead = boats.find(o => o !== b && !o.inFleet && o.dir === dir && Math.abs(o.x - b.x) < 2.2 && dz(o) < gap(o) && (dz(o) > .3 || (dz(o) > -.3 && boats.indexOf(o) < boats.indexOf(b))));
       b.waiting = !!ahead; if (ahead) { vz = 0; return false; }
       vz = dir*sp; b.z += vz*dt; return false;
     };
     if (b.kind === 'war') {
       // the warship sails off with the army and comes home when the campaign ends
       if (W.camp && W.camp.ships) { if (b.state !== 'gone') { if (sail(-105, 4)) b.state = 'gone'; } }
-      else if (sail(-4.6, 4)) b.state = 'dock';
+      else if (sail(b.home, 4)) b.state = 'dock';
     } else if (b.kind === 'fish') {
       if (b.state === 'dock') { if ((b.t -= dt) <= 0) b.state = 'out'; }
       else if (b.state === 'out') { if (sail(84, 3.4)) { b.state = 'fishing'; b.t = 5; } }
       else if (b.state === 'fishing') { if ((b.t -= dt) <= 0) { b.cargo = 8; b.state = 'home'; } }
-      else if (b.state === 'home') { if (sail(-7.2, 3.4)) b.state = 'unload'; }
+      else if (b.state === 'home') { if (sail(b.home, 3.4)) b.state = 'unload'; }
       else if (b.state === 'unload') {
         const pile = ST.harbor.outStack;
         if ((b.t -= dt) <= 0) {
@@ -2659,16 +2682,20 @@ function updBoats(dt) {
         }
       }
     } else {
-      if (b.state === 'dock') { if ((b.t -= dt) <= 0) b.state = 'in'; }
-      else if (b.state === 'in') { if (sail(-9.6, 3)) { b.state = 'trade'; b.t = 2.5;
+      if (b.state === 'dock') { if ((b.t -= dt) <= 0) { const z = freeBerth(b); if (z == null) b.t = 4; else { b.berth = z; b.state = 'in'; } } }
+      else if (b.state === 'in') { if (sail(b.berth, 3)) { b.state = 'trade'; b.t = 2.5;
         const pay = b.kind === 'cargo' ? 900 + 150*W.era : b.kind === 'cruise' ? 1500 + 200*W.era : 40 + 15*W.era;
         addCash(CASH.harbor, pay, {x:-9.3, z:-9.75}); popText(b.kind === 'cruise' ? `🛳️ +${pay} cruise` : b.kind === 'cargo' ? `📦 +${pay} cargo` : '+💵 trade', new THREE.Vector3(b.x, 4, b.z), '#ffe06b');
         // cruise passengers come ashore hungry
         if (b.kind === 'cruise') for (let i = 0; i < 3; i++) { const L = LINES.main; if (!L || L.q.length >= L.max) break; spawnIn(L); L.q[L.q.length - 1].pos.set(-9.4, 0, -9 + i*.4); L.q[L.q.length - 1].pre = null; } snd(880, .12, 'triangle', .05); } }
-      else if (b.state === 'trade') { if ((b.t -= dt) <= 0) b.state = 'out'; }
-      else if (b.state === 'out') { if (sail(-115, 3)) { b.state = 'dock'; b.t = 30; } }
+      else if (b.state === 'trade') { if ((b.t -= dt) <= 0) { b.state = 'out'; b.berth = null; } }
+      else if (b.state === 'out') { if (sail(seaZ(b), 3)) { b.state = 'dock'; b.t = 30; } }
     }
     if (!vz && !b.waiting) b.dir = 0;
+    // tied up: ease in alongside the quay
+    const moored = b.kind === 'war' ? b.state === 'dock' : b.kind === 'fish' ? b.state === 'dock' || b.state === 'unload' : b.state === 'trade';
+    if (!vz && moored && !b.pull) b.x += (moorX(b) - b.x) * Math.min(1, dt*1.2);
+    if (!vz && !b.pull && b.state === 'dock' && merchants().includes(b)) b.x += (seaX(b) - b.x) * Math.min(1, dt*.5);
     b.g.position.set(b.x, Math.sin(time*2 + b.x)*.06 - .26, b.z);
     if (vz) b.g.rotation.y = vz > 0 ? 0 : Math.PI;
     b.g.rotation.z = Math.sin(time*1.6 + b.z*.1)*.04;
@@ -2687,6 +2714,16 @@ function leapingFish(dt) {
   splashAt(x, z);
 }
 
+// the quay: a timber deck along the bank with posts in the water and bollards, out to the merchant berths (n = how many)
+function quayFx(n, anim) {
+  const Q = quayFx.g ||= (() => { const g = new THREE.Group(); scene.add(g); return g; })();
+  const z0 = n >= 2 ? -31.8 : -23.3, z1 = quayFx.z1 ?? -15.2; if (quayFx.n >= n) return;
+  const g = new THREE.Group(); Q.add(g);
+  for (let z = z1; z > z0; z -= .5) mesh(G.box, ((z*2)|0) % 2 ? 0x9a6b40 : 0x8a5d36, [1.3, .14, .5], [-11.3, .22, z - .25], g);
+  for (let z = z1 - .4; z > z0; z -= 1.6) { mesh(G.cyl, 0x5e3f22, [.1, .8, .1], [-11.95, .05, z], g); mesh(G.cyl, 0x3a3a3e, [.08, .22, .08], [-11.75, .38, z], g, {metalness:.5}); }
+  quayFx.z1 = z0; quayFx.n = n;
+  if (anim) popIn(g);
+}
 // ------------------------------------------------------------------ helpers (workers)
 const workers = [];
 const LOOKS = {
@@ -3065,8 +3102,9 @@ function warTile() {
 }
 // who can go: the army marches (or lands from the boats on a coast), the navy needs a coast, planes reach anywhere
 function forcePower(branch) {
-  if (branch === 'army') return W.army + (W.unlocked.has('tanks') ? 10 : 0);
-  if (branch === 'navy') return W.unlocked.has('warship') ? 14 + Math.min(10, Math.floor(W.army / 3)) : 0;
+  if (branch === 'army') return W.army;
+  if (branch === 'cav') return cavPower();
+  if (branch === 'navy') return navLvl() ? NAVY[navLvl()].fleet + Math.min(10, Math.floor(W.army / 3)) : 0;
   return planesBuilt() * 6;
 }
 function forceOptions(c) {
@@ -3074,9 +3112,10 @@ function forceOptions(c) {
   return [
     // a sea target (the pirate cove, the old empire) needs ships to carry the army over
     {b:'army', icon:'🪖', n:'Army', pow:forcePower('army'), ok:goal !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship'), how:goal === 'sea' ? (W.unlocked.has('boatyard') || W.unlocked.has('warship') ? 'Lands from troop boats' : 'Build a boatyard first: your army needs boats') : goal === 'air' ? 'Marches over the hills' : 'Marches out the south gate'},
-    {b:'navy', icon:'⚓', n:'Navy', pow:forcePower('navy'), ok:goal === 'sea', how:goal === 'sea' ? (W.unlocked.has('warship') ? 'Warship and marines' : 'Build a warship first') : 'No coast to sail to'},
+    {b:'cav', icon:W.unlocked.has('tanks') ? '🪖' : '🐎', n:cavName(), pow:forcePower('cav'), ok:cavLvl() > 0 && (goal !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship')), how:!cavLvl() ? 'Buy cavalry in the military grounds first' : goal === 'sea' ? (W.unlocked.has('boatyard') || W.unlocked.has('warship') ? 'Lands from troop boats' : 'Build a boatyard first') : W.unlocked.has('tanks') ? 'The tanks roll out' : 'The riders gallop out'},
+    {b:'navy', icon:navLvl() ? NAVY[navLvl()].icon : '⚓', n:navName(), pow:forcePower('navy'), ok:goal === 'sea', how:goal === 'sea' ? (W.unlocked.has('warship') ? 'Warship and marines' : 'Build a warship first') : 'No coast to sail to'},
     {b:'air', icon:'✈️', n:'Air force', pow:forcePower('air'), ok:planesBuilt() > 0, how:planesBuilt() ? `${planesBuilt()} plane${planesBuilt() > 1 ? 's' : ''} fly the raid` : 'Build a fighter plane first'},
-  ].map(o => ({...o, need, win:o.ok && o.pow >= need}));
+  ].map(o => { const busy = FRONTS.busy(o.b); return {...o, ok:o.ok && !busy, how:busy ? 'Away fighting on another front' : o.how, need, win:o.ok && !busy && o.pow >= need}; });
 }
 function warAct(zn, e) {
   e.tick = .5;
@@ -3109,7 +3148,7 @@ function launchCamp(c, branch) {
   if (tsite) { const C = W.camp; C.away = true; C.bf = tsite; C.path = tribePath(tsite); C.id = Math.random(); C.t = C.dur = dur + Math.min(50, pathLen(C.path)/6.5); BF.x = tsite[0]; BF.z = tsite[1]; }
   if (goal === 'air') startAir(c);
   if (type === 'land') startBattle(c); else if (type === 'sea') startSea(); else if (goal === 'sea') { COAST.cur = coastFort(site); fortReset(COAST.cur); }
-  banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
+  banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : branch === 'cav' ? `${W.unlocked.has('tanks') ? '🪖' : '🐎'} Your ${cavName().toLowerCase()} ${W.unlocked.has('tanks') ? 'roll' : 'ride'} on the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
     'Tap 🎥 Follow the army (or press F) to ride along.');
   snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
 }
@@ -3321,6 +3360,7 @@ const PADS = [
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
   {id:'speedboat', x:-9.4, z:7.6, cost:50000, cur:'coin', icon:'🛥️', label:'Speed boat', after:['boat2', 'mount4']},
   {id:'tradeShip', x:-9.3, z:-9.75, cost:2500, cur:'coin', icon:'🚢', label:'Merchant ship', after:['boatyard']},
+  {id:'docks2', x:-6.9, z:-7.2, cost:3000, cur:'coin', icon:'⚓', label:'Bigger docks', after:['tradeShip']},
   {id:'brewery', x:43.5, z:63.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
   {id:'brewer', x:36.2, z:63.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
   {id:'beerGarden', x:46, z:75.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
@@ -3341,6 +3381,9 @@ const PADS = [
   {id:'plane5', x:86.4, z:95.8, cost:120000, cur:'coin', icon:'✈️', label:'5th fighter plane', after:['plane4']},
   {id:'downtownGate', x:34.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
   {id:'warship', x:-9.4, z:-4.6, cost:12000, cur:'coin', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
+  {id:'nav2', x:-9.4, z:-4.6, cost:20000, cur:'coin', icon:'⛴️', label:'Ironclads', after:['warship', 'guns']},
+  {id:'nav3', x:-9.4, z:-4.6, cost:45000, cur:'coin', icon:'🚢', label:'Dreadnoughts', after:['nav2', 'labs']},
+  {id:'nav4', x:-9.4, z:-4.6, cost:90000, cur:'coin', icon:'🛳️', label:'Aircraft carrier', after:['nav3', 'plane2']},
   // the military grounds, south
   {id:'southGate', x:3, z:12.6, cost:1000, cur:'coin', icon:'🛡️', label:'South gate', after:['townhall']},
   {id:'smith', x:-5, z:66.5, cost:800, cur:'coin', icon:'⚒️', label:'Blacksmith', after:['southGate', 'smelter'], region:'south'},
@@ -3357,6 +3400,9 @@ const PADS = [
   {id:'troop3', x:-8.6, z:69, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
   {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
   {id:'troop5', x:-8.6, z:69, cost:150000, cur:'coin', icon:'🎖️', label:'Special forces', after:['guns', 'labs'], region:'south'},
+  {id:'cav1', x:9.6, z:57.8, cost:4000, cur:'coin', icon:'🐎', label:'Cavalry', after:['barracks'], region:'south'},
+  {id:'cav2', x:9.6, z:57.8, cost:9000, cur:'coin', icon:'🏇', label:'Lancers', after:['cav1', 'troop3'], region:'south'},
+  {id:'cav3', x:9.6, z:57.8, cost:16000, cur:'coin', icon:'🎖️', label:'Dragoons', after:['cav2', 'guns'], region:'south'},
   {id:'castle2', x:-5.5, z:71.7, cost:10000, cur:'coin', icon:'🏯', label:'Stone castle', after:['castle', 'mason2'], region:'south'},
   {id:'castle3', x:-5.5, z:71.7, cost:18000, cur:'coin', icon:'🏰', label:'Moat & drawbridge', after:['castle2', 'workshop'], region:'south'},
   {id:'castle4', x:-5.5, z:71.7, cost:60000, cur:'coin', icon:'🪖', label:'Bunker complex', after:['castle3', 'labs'], region:'south'},
@@ -3375,7 +3421,7 @@ const PADS = [
   {id:'airport', x:-36.5, z:-9.6, cost:40, cur:'tools', icon:'🛫', label:'Passenger airport', after:['hangar', 'downtownGate'], region:'airfield'},
   {id:'jumbo', x:-35.9, z:.9, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
   {id:'concert', x:45, z:78.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
-  {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'workshop']},
+  {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'docks2', 'workshop']},
   {id:'cruisePort', x:-9.2, z:-11.8, cost:60000, cur:'coin', icon:'🛳️', label:'Cruise ships', after:['cargoPort', 'hall']},
   {id:'police', x:49.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
   {id:'fireStation', x:49.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
@@ -3384,7 +3430,7 @@ const PADS = [
   {id:'exchange', x:39, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
   {id:'highway', x:34.6, z:-45.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
   {id:'dome', x:48.73, z:71.12, cost:150000, cur:'coin', icon:'🌐', label:'Domed stadium', after:['stadium', 'aiLab'], region:'farm'},
-  {id:'tanks', x:2.75, z:65.95, cost:25000, cur:'coin', icon:'🪖', label:'Tank division', after:['guns', 'castle3'], region:'south'},
+  {id:'tanks', x:9.6, z:57.8, cost:25000, cur:'coin', icon:'🪖', label:'Tank division', after:['cav3', 'castle3'], region:'south'},
   {id:'stadium', x:48.73, z:71.12, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'terminal2', x:-35.9, z:.9, cost:60, cur:'tools', icon:'🏢', label:'Terminal 2', after:['airport'], region:'airfield'},
   {id:'jet2', x:-35.9, z:.9, cost:90000, cur:'coin', icon:'🛫', label:'2nd airliner', after:['terminal2'], region:'airfield'},
@@ -3589,6 +3635,7 @@ const UNLOCK = {
   fleet1(a) { fleetUp(1, a); }, fleet2(a) { fleetUp(2, a); }, fleet3(a) { fleetUp(3, a); }, fleet4(a) { fleetUp(4, a); },
   carts() { WORKER.cap += 4; for (const w of workers) w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); },
   warship() { makeBoat('war'); },
+  nav2(a) { navyStage(2, a); }, nav3(a) { navyStage(3, a); }, nav4(a) { navyStage(4, a); },
   brewery(a) {
     station('brewery', {name:'brewery', in:'wheat', out:'beer', t:1.8, inZ:[41.1, 63.5], outZ:[45.9, 63.5], fireAt:[43.5, 1.2, 64.7]});
     brewery(a); boxes.push({x0:42.3, x1:44.7, z0:62.55, z1:64.45});
@@ -3628,8 +3675,9 @@ const UNLOCK = {
     station('harbor', {name:'harbor', pile:'fish', outZ:[-9.4, -7.2], outCap:30});
     makeBoat('fish');
   },
-  boat2() { const b = makeBoat('fish'); b.t = 9; b.x = -14.2; },
-  tradeShip() { makeCash('harbor', -9.3, -9.75); makeBoat('trade'); },
+  boat2() { const b = makeBoat('fish'); b.t = 9; b.z = b.home = -13.2; },
+  tradeShip(a) { makeCash('harbor', -9.3, -9.75); makeBoat('trade'); quayFx(1, a); },
+  docks2(a) { quayFx(2, a); if (a) banner('⚓ Bigger docks!', 'A second berth up the quay: two merchant ships can unload at once.'); },
   southGate(a) { openRegion('south', a); },
   smith(a) {
     station('smith', {name:'blacksmith', in:'ingot', out:'sword', t:2.4, group:'metal', inZ:[-7.4, 66.5], outZ:[-2.6, 66.5], fireAt:[-5.3, 1.1, 66.5]});
@@ -3678,7 +3726,9 @@ const UNLOCK = {
   highway(a) { highwayFx(a); interstateFx(a); gasPlotFx(); if (a) banner('🛣️ The highway!', 'An elevated freeway over the railway to the next city. Cars pay tolls.'); },
   stadium(a) { arenaStage(2, a); },
   dome(a) { arenaStage(3, a); },
-  tanks(a) { if (BASE.built) motorPool(a); if (a && !BASE.pool) banner('🪖 Tank division!', 'Three tanks roll out through the south gate whenever a monster attacks.'); },
+  cav1(a) { cavStage(1, a); }, cav2(a) { cavStage(2, a); }, cav3(a) { cavStage(3, a); },
+  // the horses retire: tanks park in the paddock and the cavalry fights on as an armoured branch
+  tanks(a) { cavStage(cavLvl(), false); if (BASE.built) motorPool(a); if (a) banner('🪖 Tank division!', `Your cavalry trades its horses for tanks: strength ${TANK_POW}. They also roll out whenever a monster attacks.`); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
   terminal2(a) { terminal2Fx(a); if (a) banner('🏢 Terminal 2!', 'A second gate: room for another airliner.'); },
@@ -4185,7 +4235,7 @@ function payUpgrade(zn, e) {
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
 // military technology is the player's own decision: builders and masons never pay for these tiles
-const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5',
+const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5', 'cav1', 'cav2', 'cav3', 'nav2', 'nav3', 'nav4',
   'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));
@@ -5239,6 +5289,54 @@ function gunRack(anim) {
   if (anim) popIn(g);
 }
 
+// ------------------------------------------------------------------ cavalry: horsemen, then lancers, then dragoons; tanks take over from the horses
+// A branch of its own beside the army, the navy and the air force. Each tier is military technology you buy; the riders
+// wait in a paddock on the military grounds, and the tank division parks in the same paddock once the horses retire.
+const CAV = [null,
+  {n:'Cavalry', icon:'🐎', pow:6, o:{body:0x6a5040, trim:0x8a6a4a, hat:'helmet', pants:0x4a3a2a, sword:true}},
+  {n:'Lancers', icon:'🏇', pow:12, o:{body:0xb8bcc4, trim:0x2d4fa8, hat:'greathelm', pants:0x8a8f96, metal:true}, lance:true},
+  {n:'Dragoons', icon:'🎖️', pow:20, o:{body:0x2d4fa8, trim:0xf2c200, hat:'tricorne', pants:0xf0ece0, gun:true, belts:true}}];
+const TANK_POW = 30;
+const PADDOCK = {x0:5.4, x1:12.6, z0:50.6, z1:55.4, g:null, rides:[], lvl:0};
+const cavLvl = () => count(['cav1', 'cav2', 'cav3']);
+const cavPower = () => W.unlocked.has('tanks') ? TANK_POW : cavLvl() ? CAV[cavLvl()].pow : 0;
+const cavName = () => W.unlocked.has('tanks') ? 'Tank division' : cavLvl() ? CAV[cavLvl()].n : 'Cavalry';
+function cavStage(n, anim) {
+  const P = PADDOCK;
+  if (!P.g) {
+    // a rail fence round the paddock, open on the side facing the drill yard
+    P.g = new THREE.Group(); scene.add(P.g);
+    slab(0xb59a6a, P.x1 - P.x0, P.z1 - P.z0, (P.x0 + P.x1)/2, (P.z0 + P.z1)/2, .005);
+    const post = (x, z) => mesh(G.box, 0x6a4a2a, [.1, .9, .1], [x, .45, z], P.g);
+    const rail = (x, z, len, alongX) => { for (const y of [.4, .75]) mesh(G.box, 0x8a6a42, alongX ? [len, .06, .05] : [.05, .06, len], [x, y, z], P.g); };
+    for (let x = P.x0; x <= P.x1 + .01; x += 1.2) { post(x, P.z0); post(x, P.z1); }
+    for (let z = P.z0 + 1.2; z < P.z1; z += 1.2) post(P.x1, z);
+    rail((P.x0 + P.x1)/2, P.z0, P.x1 - P.x0, true); rail((P.x0 + P.x1)/2, P.z1, P.x1 - P.x0, true); rail(P.x1, (P.z0 + P.z1)/2, P.z1 - P.z0, false);
+    boxes.push({x0:P.x0, x1:P.x1, z0:P.z0, z1:P.z1});
+    if (anim) popIn(P.g);
+  }
+  for (const r of P.rides) P.g.remove(r.g);
+  P.rides = []; P.lvl = n;
+  if (!n || W.unlocked.has('tanks')) return;
+  // two more riders than the tier: three horsemen, four lancers, five dragoons, side by side facing the gate
+  const k = n + 2, C = CAV[n];
+  for (let i = 0; i < k; i++) {
+    const H = horseModel(HORSE.s, [1, .72, 1.15, .85, .6][i]); if (!H) break;
+    const g = new THREE.Group(); g.position.set(P.x0 + 1 + i*(P.x1 - P.x0 - 2)/Math.max(1, k - 1), 0, (P.z0 + P.z1)/2 + (i % 2 ? .4 : -.4)); g.rotation.y = Math.PI; P.g.add(g);
+    H.g.position.z = HORSE.z; g.add(H.g); saddleOn(g);
+    const rider = makeChar(C.o); rider.ride = 'horse'; g.add(rider.g); rider.g.position.set(0, HORSE.ride, 0);
+    if (C.lance) mesh(G.cyl, 0x8a6a42, [.04, 2.6, .04], [.32, HORSE.ride + 1.4, -.1], g).rotation.x = .25;
+    H.idleT = R()*8; P.rides.push({g, H, rider});
+  }
+  if (anim) { puff((P.x0 + P.x1)/2, (P.z0 + P.z1)/2); banner(`${C.icon} ${C.n}!`, `Your mounted troops: strength ${C.pow}. Send them to war on their own, beside the army.`); }
+}
+function updCavalry(dt) {
+  const P = PADDOCK; if (!P.rides.length) return;
+  // the riders leave the paddock while they are away at war
+  const away = !!(W.camp && W.camp.branch === 'cav') || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
+  const near = camera.position.distanceToSquared(new THREE.Vector3((P.x0 + P.x1)/2, 0, (P.z0 + P.z1)/2)) < 70*70;
+  for (const r of P.rides) { r.g.visible = !away; if (!away && near) horseGait(r.H, dt, 0); }
+}
 // ------------------------------------------------------------------ castles: a wooden fort, a stone castle, a moat with a drawbridge, then a bunker
 let castleG = null, drawbridge = null, turrets = [];
 const CASTLE_NAMES = ['', '🪵 Wooden fort!', '🏯 Stone castle!', '🏰 Moat and drawbridge!', '🪖 Bunker complex!'];
@@ -5684,7 +5782,7 @@ function makeTrain(kind) {
       if (i === 0) { const n = mesh(G.sph, 0xf4f6f8, [.58, .55, 1.4], [0, .95, 1.3], c, {metalness:.3, roughness:.3}); mesh(G.box, 0x2a3440, [.8, .3, .5], [0, 1.25, 1.55], c, {metalness:.5, roughness:.15}).rotation.x = .5; }
     }
   }
-  const lens = kind === 0 ? [1.5, 2.3] : kind === 1 ? [2.9, 1.6, 2.8, 2.8, 2.8] : [3.4, 2.8, 2.8, 2.8];
+  const lens = kind === 0 ? [cars[0].team ? 1.9 : 1.5, 2.3] : kind === 1 ? [2.9, 1.6, 2.8, 2.8, 2.8] : [3.4, 2.8, 2.8, 2.8];
   railTrain = {g, cars, lens, kind, z:RAIL.z0 - 8, v:0, leg:0, wait:0, smokeT:0};
 }
 // stops: the station, the town in the south, the station, the tunnel in the north
@@ -5709,7 +5807,8 @@ function updTrain(dt) {
     c.position.set(RAIL.x, 0, T.z - dir*off); c.rotation.y = dir > 0 ? 0 : Math.PI;
     c.visible = c.position.z > RAIL.z0 - .2 && c.position.z < RAIL.z1;
   });
-  if (T.kind === 0) for (const [i, l] of T.cars[0].legs.entries()) l.rotation.x = T.v ? Math.sin(time*11 + i*1.7) * .55 : 0;
+  if (T.kind === 0 && T.cars[0].team) { if (T.cars[0].visible) for (const H of T.cars[0].team) horseGait(H, dt, Math.abs(T.v)); }
+  else if (T.kind === 0) for (const [i, l] of T.cars[0].legs.entries()) l.rotation.x = T.v ? Math.sin(time*11 + i*1.7) * .55 : 0;
   if (T.kind === 1 && T.v && (T.smokeT -= dt) <= 0 && T.cars[0].visible) {
     T.smokeT = .12;
     particle(0xe8e8e8, new THREE.Vector3(RAIL.x, 2.1, T.z + dir*.85), new THREE.Vector3((R() - .5)*.4, 1.4, -dir*1.2), 1.6, .22, {grow:.5, op:.55});
@@ -6073,7 +6172,10 @@ function railStage(n, anim) {
 }
 function makeWagon(g, cars) {
   const h = new THREE.Group(); g.add(h); cars.push(h); h.legs = [];
-  for (const x of [-.35, .35]) {
+  // a team of two real horses when the model has loaded (the old box horses otherwise)
+  const team = [-.3, .3].map((x, i) => { const H = horseModel(.3, i ? .72 : 1); if (H) { H.g.position.x = x; h.add(H.g); } return H; });
+  if (team.every(Boolean)) h.team = team;
+  else for (const x of [-.35, .35]) {
     const horse = new THREE.Group(); horse.position.x = x; h.add(horse);
     mesh(G.box, x < 0 ? 0x6a4226 : 0x3a2618, [.32, .36, .9], [0, .85, 0], horse);
     mesh(G.box, x < 0 ? 0x6a4226 : 0x3a2618, [.18, .45, .2], [0, 1.15, .45], horse).rotation.x = -.5;
@@ -6294,6 +6396,55 @@ function updShips(dt) {
   for (const s of SHIP_ANIM) s.p.children.forEach((m, k) => { m.position.x = Math.sin(time*5 + s.ph + k*.9) * .05 * k; m.rotation.y = Math.sin(time*5 + s.ph + k*.9) * .25; });
 }
 
+// ------------------------------------------------------------------ the navy grows up: the wooden warship, then ironclads, dreadnoughts and an aircraft carrier
+// Each is military technology you buy at the harbour; your warship is rebuilt in the new style and the navy fights harder.
+const NAVY = [null,
+  {n:'Wooden warship', icon:'⚓', pow:6, fleet:14},
+  {n:'Ironclads', icon:'⛴️', pow:12, fleet:22},
+  {n:'Dreadnoughts', icon:'🚢', pow:20, fleet:32},
+  {n:'Aircraft carrier', icon:'🛳️', pow:30, fleet:44}];
+const navLvl = () => W.unlocked.has('warship') ? 1 + count(['nav2', 'nav3', 'nav4']) : 0;
+const navName = () => navLvl() ? NAVY[navLvl()].n : 'Navy';
+// the warship's look for a tier (bow toward +z, like the cargo ships); tier 1 is the wooden galleon
+function warshipLook(g, lvl) {
+  if (lvl <= 1) { galleon(g, SHIPS.war()); return; }
+  const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o), M = {metalness:.5, roughness:.45};
+  const gun = (x, y, z, back) => { const t = P(G.cyl, 0x5e666c, [.24, .16, .24], [x, y, z], M); for (const dx of [-.07, .07]) { const b = P(G.cyl, 0x3a3e44, [.035, .6, .035], [x + dx, y + .02, z + (back ? -.36 : .36)], M); b.rotation.x = Math.PI/2; } return t; };
+  if (lvl === 2) {
+    // an ironclad: low black hull, an armoured casemate with gun ports, one tall funnel
+    steelHull(g, 4.6, 1.35, 0x26262c, 0x6a5a40);
+    P(G.box, 0x34343a, [1, .5, 1.9], [0, .86, -.1], M); P(G.box, 0x2a2a30, [.8, .08, 1.7], [0, 1.15, -.1], M);
+    for (const sx of [-1, 1]) for (const z of [-.7, -.1, .5]) P(G.box, 0x0e0e10, [.04, .14, .2], [sx*.51, .88, z]);
+    P(G.cyl, 0x1a1a1a, [.17, .9, .17], [0, 1.6, .15]); P(G.cyl, 0x8a2a1e, [.18, .1, .18], [0, 2.02, .15]);
+    P(G.cyl, 0x5e3f22, [.03, 1.4, .03], [0, 1.4, -1.6]);
+  } else if (lvl === 3) {
+    // a dreadnought: long and grey, a bridge and two funnels amidships, big-gun turrets fore and aft, a tripod mast
+    steelHull(g, 5.2, 1.4, 0x7a8288, 0x3a3e44);
+    P(G.box, 0x8a9298, [.8, .45, 1.3], [0, .9, .15], M); P(G.box, 0x9aa2a8, [.6, .32, .45], [0, 1.28, .6], M); P(G.box, 0x1e2a3a, [.62, .08, .2], [0, 1.36, .82]);
+    for (const z of [-.25, -.75]) { P(G.cyl, 0x6a7278, [.16, .7, .16], [0, 1.45, z], M); P(G.cyl, 0x1a1a1a, [.17, .06, .17], [0, 1.82, z]); }
+    for (const a of [-.25, .25]) P(G.cyl, 0x6a7278, [.025, 1.5, .025], [a*.5, 1.85, .95]).rotation.z = a*.3;
+    P(G.box, 0x6a7278, [.3, .14, .3], [0, 2.5, .95], M);
+    gun(0, .76, 1.75); gun(0, .9, 1.15); gun(0, .76, -1.65, true);
+  } else {
+    // an aircraft carrier: a flat deck with its runway lines, the island on the starboard side, fighters parked on deck
+    steelHull(g, 5.8, 1.5, 0x6a7278, 0x3a3e44);
+    P(G.box, 0x4a4e54, [1.8, .08, 6.1], [0, .74, 0], M);
+    P(G.box, 0xf4f4f4, [.04, .012, 5.6], [0, .785, 0]); for (let z = -2.4; z <= 2.4; z += .8) P(G.box, 0xf2c200, [.5, .012, .04], [0, .785, z]);
+    P(G.box, 0x7a8288, [.35, .75, 1], [.72, 1.15, -.6], M); P(G.box, 0x1e2a3a, [.37, .1, .4], [.72, 1.42, -.35]);
+    P(G.cyl, 0x6a7278, [.03, .8, .03], [.72, 1.9, -.7]); P(G.box, 0x8a9298, [.3, .05, .05], [.72, 2.15, -.7]);
+    for (const [x, z] of [[-.4, 1.6], [-.35, .4], [-.4, -2]]) { const j = model('fighter', 1.15, 'x'); if (j) { j.position.set(x, .82, z); j.rotation.y = Math.PI; g.add(j); } }
+  }
+}
+// rebuild your warship in the new style (its sailor stays aboard)
+function navyStage(n, anim) {
+  const b = boats.find(q => q.kind === 'war'); if (!b) return;
+  for (const o of [...b.g.children]) if (!o.userData.sailor) b.g.remove(o);
+  warshipLook(b.g, n);
+  // the sailor finds a clear patch of deck on the steel ships (and is sized to match the carrier's jets)
+  const spot = {2:[0, .62, -1.35], 3:[0, .62, -1.2], 4:[-.5, .78, -.9]}[n];
+  for (const o of b.g.children) if (o.userData.sailor) { if (spot) { o.position.set(...spot); o.scale.setScalar(.55); } else { o.position.set(0, .53, -.2); o.scale.setScalar(.7); } }
+  if (anim) { puff(b.g.position.x, b.g.position.z); const N = NAVY[n]; banner(`${N.icon} ${N.n}!`, `Your warship is rebuilt for a new age: navy strength ${N.fleet}.`); }
+}
 // ------------------------------------------------------------------ post-processing on capable screens: bloom, a tilt-shift focus and grading
 const POST = {on:!MOBILE};
 const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), postScene = new THREE.Scene(), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
@@ -7398,9 +7549,9 @@ function cargoYard(anim) {
   slab(0x8a8f96, 4.4, 3.6, -25, -12.3, .005);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0x8a3a8a, 0xf4f4f4];
   for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 1 + ((i + j) % 3); k++)
-    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-81.4 + i*1, .25 + k*.5, -43.4 + j*.6], g);
+    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-26.4 + i*1, .25 + k*.5, -12.6 + j*.6], g);
   // a gantry crane on the bank
-  for (const z of [-31.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-23.2, 1.5, z], g, {metalness:.4});
+  for (const z of [-13.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-23.2, 1.5, z], g, {metalness:.4});
   mesh(G.box, 0xf2a21a, [.2, .2, 2.8], [-23.2, 3, -12.3], g, {metalness:.4}); const jib = mesh(G.box, 0xf2a21a, [4, .18, .25], [-21.6, 3.1, -12.3], g, {metalness:.4});
   if (anim) popIn(g);
 }
@@ -8215,6 +8366,31 @@ const heroFlies = () => W.mount === 5 || !!(MOUNTS[W.mount] && MOUNTS[W.mount].f
 let mountG = null, jetFlame = null;
 // the horse model: scale, where it sits under you, where its saddle is (under your hips) and how high you ride
 const HORSE = {s:.4, z:-.28, seat:-.3, saddle:1.4, ride:.96, walk:1.3, gallop:4.6, IDLES:['Idle', 'Idle', 'Idle_2', 'Idle_Headlow', 'Eating']};
+// a real horse (Quaternius, CC0) at any size, optionally darker; horseGait plays the walk, gallop or an idle to match a speed
+function horseModel(scale = HORSE.s, shade = 1) {
+  if (!MODELS.horse || !MODELS.horse.userData.anims) return null;
+  const g = skClone(MODELS.horse); g.scale.setScalar(scale);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (shade !== 1 && /^Main/.test(o.material.name)) { o.material = o.material.clone(); o.material.color.multiplyScalar(shade); } } });
+  const mx = new THREE.AnimationMixer(g), acts = {};
+  for (const c of MODELS.horse.userData.anims) acts[c.name] = mx.clipAction(c);
+  return {g, mx, acts, k:scale/HORSE.s, cur:null, idle:'Idle', idleT:R()*6};
+}
+// a red blanket, a leather seat with a pommel in front and a cantle behind, and a girth strap round the belly
+function saddleOn(g) {
+  const S = HORSE.saddle, Z = HORSE.seat, P = (c, s, p) => mesh(G.box, c, s, p, g);
+  P(0x8a2a1e, [.6, .03, .7], [0, S - .03, Z]); P(0x5a3418, [.46, .07, .5], [0, S + .01, Z]);
+  P(0x4a2a12, [.2, .1, .08], [0, S + .07, Z + .24]); P(0x4a2a12, [.36, .1, .07], [0, S + .06, Z - .24]);
+  P(0x3a2414, [.58, .34, .04], [0, S - .2, Z + .06]);
+}
+function horseGait(H, dt, sp) {
+  // a walk when starting or slowing, a gallop at pace (strides scale with the horse's size); standing, it idles, drops its head or grazes
+  if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
+  const want = sp > 3.2*H.k ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
+  if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
+  if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/(HORSE.walk*H.k), .6, 2.2);
+  if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/(HORSE.gallop*H.k), .8, 1.7);
+  H.mx.update(dt);
+}
 function mountStage(n, anim) {
   W.mount = n;
   if (mountG) player.char.g.remove(mountG);
@@ -8223,16 +8399,8 @@ function mountStage(n, anim) {
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
   if (n === 1 && MODELS.horse && MODELS.horse.userData.anims) {
     // a real horse (Quaternius, CC0) that walks, gallops, idles and grazes; a saddle sits where you do
-    const h = skClone(MODELS.horse); h.scale.setScalar(HORSE.s); h.position.z = HORSE.z; g.add(h);
-    h.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
-    // a red blanket, a leather seat with a pommel in front and a cantle behind, and a girth strap round the belly
-    const S = HORSE.saddle, Z = HORSE.seat;
-    P(G.box, 0x8a2a1e, [.6, .03, .7], [0, S - .03, Z]); P(G.box, 0x5a3418, [.46, .07, .5], [0, S + .01, Z]);
-    P(G.box, 0x4a2a12, [.2, .1, .08], [0, S + .07, Z + .24]); P(G.box, 0x4a2a12, [.36, .1, .07], [0, S + .06, Z - .24]);
-    P(G.box, 0x3a2414, [.58, .34, .04], [0, S - .2, Z + .06]);
-    const mx = new THREE.AnimationMixer(h), acts = {};
-    for (const c of MODELS.horse.userData.anims) acts[c.name] = mx.clipAction(c);
-    g.horse = {mx, acts, cur:null, idle:'Idle', idleT:4};
+    const H = horseModel(); H.g.position.z = HORSE.z; g.add(H.g); g.horse = H;
+    saddleOn(g);
   } else if (n === 1) {
     P(G.box, 0x7a4a26, [.42, .5, 1.3], [0, .85, 0]); P(G.box, 0x7a4a26, [.24, .6, .28], [0, 1.25, .62]).rotation.x = -.5; P(G.box, 0x6a3e20, [.2, .2, .5], [0, 1.5, .85]);
     P(G.box, 0x2a1a10, [.06, .4, .3], [0, 1.3, .48]); P(G.box, 0x8a2a1e, [.46, .08, .5], [0, 1.12, -.05]);
@@ -8302,16 +8470,7 @@ function updMount(dt) {
     if (mountG.dragon) flapDragon(mountG.dragon, time, player.rideY > 1 ? (up > player.rideY + .5 ? 9 : 5) : 2);
     if (mountG.plane && moving && R() < dt*12) particle(0xf4fbff, player.pos.clone().setY(player.rideY + .4), new THREE.Vector3(-player.vel.x*.2, .1, -player.vel.z*.2), .9, .12, {grow:.6, op:.5});
   }
-  if (mountG && mountG.horse) {
-    // the gait follows your speed: a walk when you start or slow, a gallop at full pace; standing, it idles, drops its head or grazes
-    const H = mountG.horse, sp = Math.hypot(player.vel.x, player.vel.z);
-    if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
-    const want = sp > 3.2 ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
-    if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
-    if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/HORSE.walk, .6, 2.2);
-    if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/HORSE.gallop, .8, 1.7);
-    H.mx.update(dt);
-  }
+  if (mountG && mountG.horse) horseGait(mountG.horse, dt, Math.hypot(player.vel.x, player.vel.z));
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });
   if (jetFlame) { jetFlame.visible = moving; jetFlame.scale.y = .8 + Math.sin(time*30)*.2; if (moving && R() < dt*20) particle(0xd8f0ff, player.pos.clone().setY(player.rideY + .3), new THREE.Vector3((R() - .5), -1.5, (R() - .5)), .5, .1, {grow:.5, op:.5}); }
@@ -8963,7 +9122,7 @@ function powerParts() {
   const troop = 1 + .25*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.4 : 1;
   const sci = PADS.filter(p => p.sci && W.unlocked.has(p.id)).length*2 + (W.unlocked.has('labs') ? 6 : 0) + (W.unlocked.has('aiLab') ? 12 : 0);
   const allies = EMP.list.filter(r => W.flags.emp?.[r.id]?.stance === 'ally').reduce((a, r) => a + es(r).pow*.3, 0);
-  return {army:Math.round(W.army*troop*guns), castle:[0, 6, 14, 24, 36][W.castle || 0], science:sci, air:planesBuilt()*6, navy:W.unlocked.has('warship') ? 6 : 0, allies:Math.round(allies)};
+  return {army:Math.round(W.army*troop*guns), cav:cavPower(), castle:[0, 6, 14, 24, 36][W.castle || 0], science:sci, air:planesBuilt()*6, navy:navLvl() ? NAVY[navLvl()].pow : 0, allies:Math.round(allies)};
 }
 const myPower = () => Object.values(powerParts()).reduce((a, b) => a + b, 0);
 // walls count twice when you are the one defending them
@@ -9287,7 +9446,7 @@ function updEmpires(dt) {
   }
   updLands(t);
 }
-function empAct(i, a) {
+function empAct(i, a, o) {
   const r = EMP.list[i], s = es(r);
   if (a === 'gift') { if (W.coins < giftCost()) return; spend(giftCost()); s.rel = Math.min(100, s.rel + 15); banner(`🎁 Gifts to ${r.n}`, 'They think a little better of you.'); }
   else if (a === 'ally') { s.stance = 'ally'; s.rel = Math.max(s.rel, 60); banner(`🤝 Alliance with ${r.icon} ${r.n}!`, 'They pay tribute, lend you strength and will never attack you.'); }
@@ -9305,8 +9464,9 @@ function empAct(i, a) {
     // a walled city needs rams and catapults to break in
     if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
     if (s.stance !== 'war') empAct(i, 'war');
-    const win = myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
-    W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random()};
+    // a front you planned brings its own odds and the branches that went; otherwise everything you have goes
+    const win = o && o.win != null ? o.win : myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
+    W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random(), br:o && o.br};
     if (a === 'land' && r.bf && r.id !== 'ostberg') {
       // a long march (or a voyage) to fight before their own walls
       const C = W.camp; C.away = true; C.bf = r.bf;
@@ -9329,7 +9489,7 @@ function empAct(i, a) {
 // a battle you are going to lose: they hit harder, and your side can fall
 function loseFight() { BT.lose = BT.noCap = true; for (const e of enemies) e.hp = e.maxHp = e.maxHp*2.5; }
 function sailAway(war) {
-  const g = new THREE.Group(); galleon(g, SHIPS[war ? 'war' : 'trade']()); g.position.set(-13.6, -.26, -10); g.rotation.y = Math.PI; scene.add(g);
+  const g = new THREE.Group(); if (war) warshipLook(g, navLvl()); else galleon(g, SHIPS.trade()); g.position.set(-13.6, -.26, -10); g.rotation.y = Math.PI; scene.add(g);
   COAST.fleets.push({g, t:0});
 }
 function updFleets(dt) {
@@ -9884,6 +10044,7 @@ function empireChips() {
   let h = '';
   const war = EMP.list.filter(r => W.flags.emp?.[r.id]?.stance === 'war');
   if (war.length) h += `<span class="chip angry">⚔️ ${war.map(r => r.icon).join('')}</span>`;
+  if (FRONTS.list.length) h += `<span class="chip">🔥 ${FRONTS.list.map(f => `${EMP.list[f.i].icon}${Math.ceil(f.t)}s`).join(' ')}</span>`;
   const low = landKeys().filter(k => !land(k).lost).sort((a, b) => land(a).loy - land(b).loy)[0];
   if (low && land(low).loy < 30) h += `<span class="chip angry">🏛️ ${Math.round(land(low).loy)}%</span>`;
   return h;
@@ -9906,7 +10067,8 @@ function empireHTML() {
     if (s.owned) btns = '<em>🏴 Part of your empire</em>';
     else if (s.stance === 'ally') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('unally', '💔 Break');
     else if (s.stance === 'peace') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + B('ally', '🤝 Ally', s.rel < 60) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('war', '⚔️ War', busy);
-    else btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + `<button data-pa="${i}" ${busy ? 'disabled' : ''}>⚔️ Plan attack</button>`;
+    else { const F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
+      btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>⚔️ Plan attack</button>`); }
     return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
       <div class="rel"><i style="width:${(s.rel + 100)/2}%"></i></div><div class="eb">${btns}</div></div>`;
   }).join('');
@@ -9914,7 +10076,7 @@ function empireHTML() {
     return `<div class="ec ${L.lost ? 'war' : ''}"><b>${landName(k)}</b><span>${L.lost ? `🏳️ lost to ${L.by === 'rebels' ? 'rebels' : EMP.list.find(r => r.id === L.by)?.n || 'rivals'}` : `loyalty ${Math.round(L.loy)}% (${loyRate(k) >= 0 ? '+' : ''}${loyRate(k).toFixed(1)}/min)${L.gov ? ' · 🏛️ governor' : ''}`}</span>
       ${L.lost ? `<div class="eb"><button data-l="${k}" ${W.camp || W.raid || W.army < 5 ? 'disabled' : ''}>⚔️ Retake</button></div>` : `<div class="rel loy"><i style="width:${L.loy}%"></i></div>${landSupplyHTML(k)}
       <div class="eb">${L.gov ? '<em>🏛️ Governor in office</em>' : `<button data-g="${k}" ${!W.unlocked.has('senate') || W.coins < govCost() ? 'disabled' : ''}>🏛️ Send governor · ${govCost()} 💵</button>${W.unlocked.has('senate') ? '' : '<em>Build the Senate first</em>'}`}</div>`}</div>`; }).join('');
-  return `<div class="emp"><div class="pow">Your strength <b>⚔️ ${mine}</b><small>🛡️ army ${P.army} · 🏰 castle ${P.castle} · 🔬 science ${P.science} · ✈️ air ${P.air} · ⚓ navy ${P.navy}${P.allies ? ` · 🤝 allies ${P.allies}` : ''}</small></div>${cards}
+  return `<div class="emp"><div class="pow">Your strength <b>⚔️ ${mine}</b><small>🛡️ army ${P.army}${P.cav ? ` · ${W.unlocked.has('tanks') ? '🪖' : '🐎'} ${cavName().toLowerCase()} ${P.cav}` : ''} · 🏰 castle ${P.castle} · 🔬 science ${P.science} · ✈️ air ${P.air} · ⚓ navy ${P.navy}${P.allies ? ` · 🤝 allies ${P.allies}` : ''}</small></div>${cards}
     ${lands ? `<h2 class="trh">🏛️ Your provinces</h2><p class="empHint">${W.unlocked.has('senate') ? 'Governors and the Senate win hearts; soldiers alone only keep order.' : 'Soldiers alone only keep order. Build the 🏛️ Senate to win hearts.'}</p>${lands}` : ''}</div>`;
 }
 function bindEmpire(m) {
@@ -9960,26 +10122,84 @@ function updScouts() {
   }
 }
 // ------------------------------------------------------------------ planning an attack on a rival: who goes, against what, and the odds
+// ------------------------------------------------------------------ fronts: wars on several rivals at once, each fought by the branches you send
+// You choose who goes: the army, the cavalry (later tanks), the navy and the air force. A branch fights on one front at a
+// time, so splitting your forces lets you fight in several places at once. The first front with the army (or the navy)
+// is fought on screen; the others are fought far away while their city burns, and you hear how it went.
+const BRANCH = [
+  {b:'army', icon:() => '🪖', n:() => 'Army'},
+  {b:'cav', icon:() => W.unlocked.has('tanks') ? '🪖' : '🐎', n:() => cavName()},
+  {b:'navy', icon:() => navLvl() ? NAVY[navLvl()].icon : '⚓', n:() => navName()},
+  {b:'air', icon:() => '✈️', n:() => 'Air force'}];
+const FRONT_DUR = 55;
+const FRONTS = {
+  get list() { return W.flags.fronts ||= []; },
+  // a branch is busy on a front, or away in the battle on screen
+  busy(b) {
+    if (FRONTS.list.some(f => f.br.includes(b))) return true;
+    const C = W.camp; if (!C) return false;
+    if (C.br) return C.br.includes(b);
+    return C.branch ? C.branch === b : C.side && (C.type === 'land' ? b === 'army' : C.type === 'sea' ? b === 'navy' : false);
+  },
+  at(i) { return FRONTS.list.find(f => f.i === i) || (W.camp && W.camp.side && W.camp.rival === i ? W.camp : null); },
+};
+const branchPow = b => { const P = powerParts(); return b === 'army' ? (W.army >= 5 ? P.army : 0) : P[b] || 0; };
+// science and allies back every front
+const supportPow = () => { const P = powerParts(); return P.science + P.allies; };
+const frontPow = br => br.reduce((a, b) => a + branchPow(b), 0) + supportPow();
+const frontNeed = (r, br) => Math.round(es(r).pow * spec(r, br.length && br.every(b => b === 'navy') ? 'navy' : 'army'));
+function frontWhy(r, b) {
+  const walled = r.bf && r.id !== 'ostberg', boats = r.via !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship');
+  if (FRONTS.busy(b)) return 'Away fighting on another front';
+  if (b === 'army' || b === 'cav') {
+    if (b === 'army' && W.army < 5) return 'Train at least 5 soldiers';
+    if (b === 'cav' && !cavLvl() && !W.unlocked.has('tanks')) return 'Buy cavalry in the military grounds';
+    if (!r.land) return 'No way in by land';
+    if (walled && !W.unlocked.has('siegeWorks')) return 'Their city is walled: build the Siege workshop';
+    if (!boats) return 'Across the sea: build a boatyard for troop boats';
+  }
+  if (b === 'navy') { if (!navLvl()) return 'Build a warship first'; if (!r.sea) return 'No coast to sail to'; }
+  if (b === 'air' && !planesBuilt()) return 'Build a fighter plane first';
+  return '';
+}
+function launchFront(i, br) {
+  const r = EMP.list[i], s = es(r); if (!br.length || br.some(b => frontWhy(r, b)) || FRONTS.at(i)) return;
+  const win = frontPow(br) >= frontNeed(r, br);
+  if (s.stance !== 'war') empAct(i, 'war');
+  // on screen when the stage is free: the army marches (or sails over), or the navy bombards their harbour
+  if (!W.camp && !W.raid && (br.includes('army') || (br.includes('navy') && !br.includes('cav')))) { empAct(i, br.includes('army') ? 'land' : 'sea', {win, br}); return; }
+  FRONTS.list.push({i, br, t:FRONT_DUR, dur:FRONT_DUR, win});
+  banner(`⚔️ A new front: ${br.map(b => BRANCH.find(q => q.b === b).icon()).join('')} against ${r.icon} ${r.n}`, win ? 'Your forces should carry the day. Watch their city burn from the map.' : 'They are stronger than what you sent: expect to be driven back.');
+  snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
+}
+function updFronts(dt) {
+  for (const f of [...FRONTS.list]) {
+    const r = EMP.list[f.i];
+    // smoke and fire rise over their city while the fighting lasts
+    if (r.at && R() < dt*6) { const x = r.at[0] + (R() - .5)*14, z = r.at[1] + (R() - .5)*14; particle(R() < .4 ? 0xff7a2a : 0x4a4a4a, new THREE.Vector3(x, 1 + R()*2, z), new THREE.Vector3(0, 2.5 + R()*2, 0), 2.4, .5, {grow:1.2, op:.7}); }
+    if ((f.t -= dt) > 0) continue;
+    FRONTS.list.splice(FRONTS.list.indexOf(f), 1);
+    const s = es(r); if (s.owned) continue;
+    if (f.win) conquer(r);
+    else { s.pow *= 1.1; s.rel -= 10; s.atkT = Math.min(s.atkT, 90); banner(`🏳️ ${r.n} holds the front`, `Their ⚔️${Math.round(s.pow)} was too much for what you sent. Expect a counter-attack.`); }
+  }
+}
 function planAttack(i) {
-  const r = EMP.list[i], s = es(r), mine = myPower(), m = $('modal'); m.hidden = false; m.dataset.panel = 'attack';
-  const walled = r.bf && r.id !== 'ostberg', overseas = r.via === 'sea';
-  const opts = [];
-  if (r.land) {
-    const need = Math.round(s.pow*spec(r, 'army')), boats = !overseas || W.unlocked.has('boatyard') || W.unlocked.has('warship');
-    const why = W.army < 5 ? 'Train at least 5 soldiers' : walled && !W.unlocked.has('siegeWorks') ? 'Their city is walled: build the Siege workshop' : !boats ? 'Across the sea: build a boatyard for troop boats' : '';
-    opts.push({a:'land', icon:'🪖', n:overseas ? 'Army, by troop boat' : 'Army', how:walled ? 'March to their walls with rams and catapults' : 'March out and meet them in the field', need, ok:!why, why});
-  }
-  if (r.sea) {
-    const need = Math.round(s.pow*spec(r, 'navy'));
-    opts.push({a:'sea', icon:'⚓', n:'Navy', how:'Warships bombard their harbour', need, ok:W.unlocked.has('warship'), why:W.unlocked.has('warship') ? '' : 'Build a warship first'});
-  }
-  m.innerHTML = `<div class="card"><h1 style="font-size:24px">⚔️ Attack ${r.icon} ${r.n}?</h1>
-    <p>Your strength ⚔️ ${mine}. Choose who goes; a loss costs men and makes them angrier.</p>
-    <div class="votes">${opts.map(o => `<button data-a="${o.a}" ${o.ok ? '' : 'disabled style="opacity:.45;cursor:default"'}><b>${o.icon} ${o.n}</b><small>${o.how}</small>
-      <small>Their strength ⚔️ ${o.need} · ${mine >= o.need ? '✅ you should win' : '⚠️ you will probably lose'}</small>${o.why ? `<small>🔒 ${o.why}</small>` : ''}</button>`).join('')}</div>
-    <button class="ghost" id="paClose">Not now</button></div>`;
-  m.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { if (b.disabled) return; m.hidden = true; empAct(i, b.dataset.a); });
-  $('paClose').onclick = () => { m.hidden = true; };
+  const r = EMP.list[i], m = $('modal'); m.hidden = false; m.dataset.panel = 'front';
+  const sel = new Set(BRANCH.filter(q => !frontWhy(r, q.b) && branchPow(q.b) > 0).map(q => q.b));
+  const draw = () => {
+    const br = [...sel], pow = frontPow(br), need = frontNeed(r, br);
+    m.innerHTML = `<div class="card"><h1 style="font-size:24px">⚔️ Attack ${r.icon} ${r.n}</h1>
+      <p>Choose who goes. Forces you keep at home can fight on another front at the same time.</p>
+      <div class="votes">${BRANCH.map(q => { const why = frontWhy(r, q.b), on = sel.has(q.b);
+        return `<button data-br="${q.b}" ${why ? 'disabled style="opacity:.45;cursor:default"' : on ? 'style="outline:3px solid #f2c200"' : ''}><b>${on ? '✅' : '⬜'} ${q.icon()} ${q.n()}</b><small>Strength ${branchPow(q.b)}</small>${why ? `<small>🔒 ${why}</small>` : ''}</button>`; }).join('')}</div>
+      <p>You send ⚔️ <b>${pow}</b>${supportPow() ? ` (with 🔬🤝 ${supportPow()} from science and allies)` : ''} against their ⚔️ <b>${need}</b>: ${!br.length ? 'choose at least one' : pow >= need ? '✅ you should win' : '⚠️ you will probably lose'}</p>
+      <button id="frGo" ${br.length ? '' : 'disabled'}>⚔️ Attack</button> <button class="ghost" id="frClose">Not now</button></div>`;
+    m.querySelectorAll('button[data-br]').forEach(b => b.onclick = () => { if (b.disabled) return; const k = b.dataset.br; if (sel.has(k)) sel.delete(k); else sel.add(k); draw(); });
+    $('frGo').onclick = () => { if (!sel.size) return; m.hidden = true; m.dataset.panel = ''; launchFront(i, [...sel]); };
+    $('frClose').onclick = () => { m.hidden = true; m.dataset.panel = ''; };
+  };
+  draw();
 }
 // ------------------------------------------------------------------ crowds: people step around each other instead of walking through one another
 const SEP = {on:true, r:.5};
@@ -12141,7 +12361,7 @@ function update(dt) {
   updBridge(dt); updMineTrain(dt); updTrain(dt); updStrollers(dt);
   updCitizens(dt); updBuild(dt); updEvents(dt); updSpace(dt); updCastle(dt); updResidents(dt); updMarket(dt); updJet(dt); updConcert(dt);
   updRobber(dt); updCivic(dt); updTraffic(dt); updRugby(dt); updRideIncome(dt); updAch(dt); updHighway(dt); updOil(dt); updAI(dt);
-  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
+  updEmpires(dt); updScouts(); updSiege(dt); updCrowd(dt); updFleets(dt); updArena(dt); updInvestTile(); updDistricts(dt); updHero(dt); if (started && (OBJ.t -= dt) <= 0) { OBJ.t = 1; OBJ.z = objective().z; } updMount(dt); updCavalry(dt); updFronts(dt); updWonders(dt); updRanch(dt); updBoss(dt); updTrade(dt); updZoo(dt); updCouncil(dt); updSpaceMining(dt);
   if (wheel) wheel.rotation.x -= dt * .9;
   for (const a of clarifiers) a.rotation.y += dt * .25;
   if (fountainAt && R() < dt*14) particle(0xcfefff, fountainAt.clone(), new THREE.Vector3((R() - .5)*1.2, 1.6 + R(), (R() - .5)*1.2), .7, .05, {grav:1});
@@ -12691,7 +12911,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {launchCamp, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {launchCamp, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

@@ -115,8 +115,9 @@ Object.assign(buildFx, {
   },
   boatyard(anim) {
     const g = new THREE.Group(); scene.add(g);
-    for (let i = 0; i < 6; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-12.9 + i*.52, .22, -7.2], g);
-    for (const z of [-8, -6.4]) mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [-14.2, .1, z], g);
+    // the fishing jetty, the fishing boats moor alongside it
+    for (let i = 0; i < 4; i++) mesh(G.box, i % 2 ? 0x9a6b40 : 0x8a5d36, [.5, .14, 1.8], [-11.95 + i*.52, .22, -9.6], g);
+    for (const z of [-10.4, -8.8]) mesh(G.cyl, 0x5e3f22, [.09, .7, .09], [-12.15, .1, z], g);
     if (anim) popIn(g);
   },
 });

@@ -40,6 +40,7 @@
 038-input.js
 039-save.js
 040-guns.js
+040b-cavalry.js
 041-castles-a-wooden-fort-a-stone-castle-a-m.js
 042-water-and-sewers-from-a-pit-by-the-river.js
 043-bridges-over-the-river-wood-to-steel-cab.js
@@ -49,6 +50,7 @@
 047-the-line-to-the-next-towns-stagecoach-st.js
 048-footbridges-over-the-railway-so-nobody-w.js
 049-ships-with-painted-sails-gold-trim-and-l.js
+049b-navy.js
 050-post-processing-on-capable-screens-bloom.js
 051-seasons-and-weather.js
 052-build-mode-place-parks-statues-and-rides.js
@@ -95,6 +97,7 @@
 093-provinces-conquered-lands-must-be-won-ov.js
 093b-supplying-your-lands.js
 094-the-senate-a-dome-on-the-town-hall-where.js
+094b-fronts.js
 095-crowds-people-step-around-each-other-ins.js
 096-hulls-a-smooth-round-bottomed-hull-lofte.js
 097-ships-and-airliners-from-models.js

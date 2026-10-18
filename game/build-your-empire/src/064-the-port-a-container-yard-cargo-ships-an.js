@@ -5,9 +5,9 @@ function cargoYard(anim) {
   slab(0x8a8f96, 4.4, 3.6, -25, -12.3, .005);
   const cols = [0xd9443a, 0x3f7cc0, 0xf2a21a, 0x3f9a6a, 0x8a3a8a, 0xf4f4f4];
   for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 1 + ((i + j) % 3); k++)
-    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-81.4 + i*1, .25 + k*.5, -43.4 + j*.6], g);
+    mesh(G.box, cols[(i*3 + j*5 + k) % cols.length], [.9, .5, .45], [-26.4 + i*1, .25 + k*.5, -12.6 + j*.6], g);
   // a gantry crane on the bank
-  for (const z of [-31.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-23.2, 1.5, z], g, {metalness:.4});
+  for (const z of [-13.6, -11]) mesh(G.box, 0xf2a21a, [.15, 3, .15], [-23.2, 1.5, z], g, {metalness:.4});
   mesh(G.box, 0xf2a21a, [.2, .2, 2.8], [-23.2, 3, -12.3], g, {metalness:.4}); const jib = mesh(G.box, 0xf2a21a, [4, .18, .25], [-21.6, 3.1, -12.3], g, {metalness:.4});
   if (anim) popIn(g);
 }

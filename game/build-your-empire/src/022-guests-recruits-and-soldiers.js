@@ -139,8 +139,9 @@ function warTile() {
 }
 // who can go: the army marches (or lands from the boats on a coast), the navy needs a coast, planes reach anywhere
 function forcePower(branch) {
-  if (branch === 'army') return W.army + (W.unlocked.has('tanks') ? 10 : 0);
-  if (branch === 'navy') return W.unlocked.has('warship') ? 14 + Math.min(10, Math.floor(W.army / 3)) : 0;
+  if (branch === 'army') return W.army;
+  if (branch === 'cav') return cavPower();
+  if (branch === 'navy') return navLvl() ? NAVY[navLvl()].fleet + Math.min(10, Math.floor(W.army / 3)) : 0;
   return planesBuilt() * 6;
 }
 function forceOptions(c) {
@@ -148,9 +149,10 @@ function forceOptions(c) {
   return [
     // a sea target (the pirate cove, the old empire) needs ships to carry the army over
     {b:'army', icon:'🪖', n:'Army', pow:forcePower('army'), ok:goal !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship'), how:goal === 'sea' ? (W.unlocked.has('boatyard') || W.unlocked.has('warship') ? 'Lands from troop boats' : 'Build a boatyard first: your army needs boats') : goal === 'air' ? 'Marches over the hills' : 'Marches out the south gate'},
-    {b:'navy', icon:'⚓', n:'Navy', pow:forcePower('navy'), ok:goal === 'sea', how:goal === 'sea' ? (W.unlocked.has('warship') ? 'Warship and marines' : 'Build a warship first') : 'No coast to sail to'},
+    {b:'cav', icon:W.unlocked.has('tanks') ? '🪖' : '🐎', n:cavName(), pow:forcePower('cav'), ok:cavLvl() > 0 && (goal !== 'sea' || W.unlocked.has('boatyard') || W.unlocked.has('warship')), how:!cavLvl() ? 'Buy cavalry in the military grounds first' : goal === 'sea' ? (W.unlocked.has('boatyard') || W.unlocked.has('warship') ? 'Lands from troop boats' : 'Build a boatyard first') : W.unlocked.has('tanks') ? 'The tanks roll out' : 'The riders gallop out'},
+    {b:'navy', icon:navLvl() ? NAVY[navLvl()].icon : '⚓', n:navName(), pow:forcePower('navy'), ok:goal === 'sea', how:goal === 'sea' ? (W.unlocked.has('warship') ? 'Warship and marines' : 'Build a warship first') : 'No coast to sail to'},
     {b:'air', icon:'✈️', n:'Air force', pow:forcePower('air'), ok:planesBuilt() > 0, how:planesBuilt() ? `${planesBuilt()} plane${planesBuilt() > 1 ? 's' : ''} fly the raid` : 'Build a fighter plane first'},
-  ].map(o => ({...o, need, win:o.ok && o.pow >= need}));
+  ].map(o => { const busy = FRONTS.busy(o.b); return {...o, ok:o.ok && !busy, how:busy ? 'Away fighting on another front' : o.how, need, win:o.ok && !busy && o.pow >= need}; });
 }
 function warAct(zn, e) {
   e.tick = .5;
@@ -183,7 +185,7 @@ function launchCamp(c, branch) {
   if (tsite) { const C = W.camp; C.away = true; C.bf = tsite; C.path = tribePath(tsite); C.id = Math.random(); C.t = C.dur = dur + Math.min(50, pathLen(C.path)/6.5); BF.x = tsite[0]; BF.z = tsite[1]; }
   if (goal === 'air') startAir(c);
   if (type === 'land') startBattle(c); else if (type === 'sea') startSea(); else if (goal === 'sea') { COAST.cur = coastFort(site); fortReset(COAST.cur); }
-  banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
+  banner(type === 'air' ? `✈️ ${n} plane${n > 1 ? 's' : ''} fly against the ${c.name}` : branch === 'navy' ? `⚓ Your fleet sails against the ${c.name}` : branch === 'cav' ? `${W.unlocked.has('tanks') ? '🪖' : '🐎'} Your ${cavName().toLowerCase()} ${W.unlocked.has('tanks') ? 'roll' : 'ride'} on the ${c.name}` : type === 'sea' ? `🪖 Your army sails to land at the ${c.name}` : `⚔️ Your army marches on the ${c.name}`,
     'Tap 🎥 Follow the army (or press F) to ride along.');
   snd(196, .3, 'square', .05); setTimeout(() => snd(262, .3, 'square', .05), 200);
 }

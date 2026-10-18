@@ -65,7 +65,10 @@ function railStage(n, anim) {
 }
 function makeWagon(g, cars) {
   const h = new THREE.Group(); g.add(h); cars.push(h); h.legs = [];
-  for (const x of [-.35, .35]) {
+  // a team of two real horses when the model has loaded (the old box horses otherwise)
+  const team = [-.3, .3].map((x, i) => { const H = horseModel(.3, i ? .72 : 1); if (H) { H.g.position.x = x; h.add(H.g); } return H; });
+  if (team.every(Boolean)) h.team = team;
+  else for (const x of [-.35, .35]) {
     const horse = new THREE.Group(); horse.position.x = x; h.add(horse);
     mesh(G.box, x < 0 ? 0x6a4226 : 0x3a2618, [.32, .36, .9], [0, .85, 0], horse);
     mesh(G.box, x < 0 ? 0x6a4226 : 0x3a2618, [.18, .45, .2], [0, 1.15, .45], horse).rotation.x = -.5;

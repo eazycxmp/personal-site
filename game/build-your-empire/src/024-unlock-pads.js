@@ -81,6 +81,7 @@ const PADS = [
   {id:'boat2', x:-9.4, z:7.6, cost:1500, cur:'coin', icon:'⛵', label:'2nd fishing boat', after:['boatyard']},
   {id:'speedboat', x:-9.4, z:7.6, cost:50000, cur:'coin', icon:'🛥️', label:'Speed boat', after:['boat2', 'mount4']},
   {id:'tradeShip', x:-9.3, z:-9.75, cost:2500, cur:'coin', icon:'🚢', label:'Merchant ship', after:['boatyard']},
+  {id:'docks2', x:-6.9, z:-7.2, cost:3000, cur:'coin', icon:'⚓', label:'Bigger docks', after:['tradeShip']},
   {id:'brewery', x:43.5, z:63.5, cost:1200, cur:'coin', icon:'🍺', label:'Brewery', after:['field2'], region:'farm'},
   {id:'brewer', x:36.2, z:63.2, cost:800, cur:'coin', icon:'🧑‍🌾', label:'Brewer', after:['brewery'], region:'farm'},
   {id:'beerGarden', x:46, z:75.5, cost:40, cur:'stone', icon:'🍻', label:'Beer garden', after:['brewery'], region:'farm'},
@@ -101,6 +102,9 @@ const PADS = [
   {id:'plane5', x:86.4, z:95.8, cost:120000, cur:'coin', icon:'✈️', label:'5th fighter plane', after:['plane4']},
   {id:'downtownGate', x:34.8, z:-11.6, cost:3000, cur:'coin', icon:'🏙️', label:'Downtown', after:['house3', 'workshop'], region:'east'},
   {id:'warship', x:-9.4, z:-4.6, cost:12000, cur:'coin', icon:'⚓', label:'Warship', after:['boatyard', 'workshop']},
+  {id:'nav2', x:-9.4, z:-4.6, cost:20000, cur:'coin', icon:'⛴️', label:'Ironclads', after:['warship', 'guns']},
+  {id:'nav3', x:-9.4, z:-4.6, cost:45000, cur:'coin', icon:'🚢', label:'Dreadnoughts', after:['nav2', 'labs']},
+  {id:'nav4', x:-9.4, z:-4.6, cost:90000, cur:'coin', icon:'🛳️', label:'Aircraft carrier', after:['nav3', 'plane2']},
   // the military grounds, south
   {id:'southGate', x:3, z:12.6, cost:1000, cur:'coin', icon:'🛡️', label:'South gate', after:['townhall']},
   {id:'smith', x:-5, z:66.5, cost:800, cur:'coin', icon:'⚒️', label:'Blacksmith', after:['southGate', 'smelter'], region:'south'},
@@ -117,6 +121,9 @@ const PADS = [
   {id:'troop3', x:-8.6, z:69, cost:12000, cur:'coin', icon:'🛡️', label:'Knights', after:['troop2', 'castle2'], region:'south'},
   {id:'guns', x:-1.2, z:64.3, cost:15000, cur:'coin', icon:'🔫', label:'Redcoat muskets', after:['troop3', 'workshop'], region:'south'},
   {id:'troop5', x:-8.6, z:69, cost:150000, cur:'coin', icon:'🎖️', label:'Special forces', after:['guns', 'labs'], region:'south'},
+  {id:'cav1', x:9.6, z:57.8, cost:4000, cur:'coin', icon:'🐎', label:'Cavalry', after:['barracks'], region:'south'},
+  {id:'cav2', x:9.6, z:57.8, cost:9000, cur:'coin', icon:'🏇', label:'Lancers', after:['cav1', 'troop3'], region:'south'},
+  {id:'cav3', x:9.6, z:57.8, cost:16000, cur:'coin', icon:'🎖️', label:'Dragoons', after:['cav2', 'guns'], region:'south'},
   {id:'castle2', x:-5.5, z:71.7, cost:10000, cur:'coin', icon:'🏯', label:'Stone castle', after:['castle', 'mason2'], region:'south'},
   {id:'castle3', x:-5.5, z:71.7, cost:18000, cur:'coin', icon:'🏰', label:'Moat & drawbridge', after:['castle2', 'workshop'], region:'south'},
   {id:'castle4', x:-5.5, z:71.7, cost:60000, cur:'coin', icon:'🪖', label:'Bunker complex', after:['castle3', 'labs'], region:'south'},
@@ -135,7 +142,7 @@ const PADS = [
   {id:'airport', x:-36.5, z:-9.6, cost:40, cur:'tools', icon:'🛫', label:'Passenger airport', after:['hangar', 'downtownGate'], region:'airfield'},
   {id:'jumbo', x:-35.9, z:.9, cost:150000, cur:'coin', icon:'🛬', label:'Jumbo jets', after:['airport', 'labs'], region:'airfield'},
   {id:'concert', x:45, z:78.1, cost:25000, cur:'coin', icon:'🎸', label:'Concert hall', after:['beerGarden', 'downtownGate'], region:'farm'},
-  {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'workshop']},
+  {id:'cargoPort', x:-9.2, z:-11.8, cost:40, cur:'tools', icon:'🏗️', label:'Cargo port', after:['tradeShip', 'docks2', 'workshop']},
   {id:'cruisePort', x:-9.2, z:-11.8, cost:60000, cur:'coin', icon:'🛳️', label:'Cruise ships', after:['cargoPort', 'hall']},
   {id:'police', x:49.2, z:6, cost:15000, cur:'coin', icon:'🚓', label:'Police station', after:['eastGate', 'townhall'], region:'east'},
   {id:'fireStation', x:49.2, z:6, cost:20000, cur:'coin', icon:'🚒', label:'Fire station', after:['police'], region:'east'},
@@ -144,7 +151,7 @@ const PADS = [
   {id:'exchange', x:39, z:-11, cost:40000, cur:'coin', icon:'🏛️', label:'Stock exchange', after:['downtownGate'], region:'east'},
   {id:'highway', x:34.6, z:-45.8, cost:80000, cur:'coin', icon:'🚗', label:'Highway', after:['traffic'], region:'downtown'},
   {id:'dome', x:48.73, z:71.12, cost:150000, cur:'coin', icon:'🌐', label:'Domed stadium', after:['stadium', 'aiLab'], region:'farm'},
-  {id:'tanks', x:2.75, z:65.95, cost:25000, cur:'coin', icon:'🪖', label:'Tank division', after:['guns', 'castle3'], region:'south'},
+  {id:'tanks', x:9.6, z:57.8, cost:25000, cur:'coin', icon:'🪖', label:'Tank division', after:['cav3', 'castle3'], region:'south'},
   {id:'stadium', x:48.73, z:71.12, cost:50000, cur:'coin', icon:'🏉', label:'Rugby stadium', after:['concert'], region:'farm'},
   {id:'terminal2', x:-35.9, z:.9, cost:60, cur:'tools', icon:'🏢', label:'Terminal 2', after:['airport'], region:'airfield'},
   {id:'jet2', x:-35.9, z:.9, cost:90000, cur:'coin', icon:'🛫', label:'2nd airliner', after:['terminal2'], region:'airfield'},
@@ -349,6 +356,7 @@ const UNLOCK = {
   fleet1(a) { fleetUp(1, a); }, fleet2(a) { fleetUp(2, a); }, fleet3(a) { fleetUp(3, a); }, fleet4(a) { fleetUp(4, a); },
   carts() { WORKER.cap += 4; for (const w of workers) w.cap = WORKER.cap + (w.kind === 'builder' ? 10 : 0); },
   warship() { makeBoat('war'); },
+  nav2(a) { navyStage(2, a); }, nav3(a) { navyStage(3, a); }, nav4(a) { navyStage(4, a); },
   brewery(a) {
     station('brewery', {name:'brewery', in:'wheat', out:'beer', t:1.8, inZ:[41.1, 63.5], outZ:[45.9, 63.5], fireAt:[43.5, 1.2, 64.7]});
     brewery(a); boxes.push({x0:42.3, x1:44.7, z0:62.55, z1:64.45});
@@ -388,8 +396,9 @@ const UNLOCK = {
     station('harbor', {name:'harbor', pile:'fish', outZ:[-9.4, -7.2], outCap:30});
     makeBoat('fish');
   },
-  boat2() { const b = makeBoat('fish'); b.t = 9; b.x = -14.2; },
-  tradeShip() { makeCash('harbor', -9.3, -9.75); makeBoat('trade'); },
+  boat2() { const b = makeBoat('fish'); b.t = 9; b.z = b.home = -13.2; },
+  tradeShip(a) { makeCash('harbor', -9.3, -9.75); makeBoat('trade'); quayFx(1, a); },
+  docks2(a) { quayFx(2, a); if (a) banner('⚓ Bigger docks!', 'A second berth up the quay: two merchant ships can unload at once.'); },
   southGate(a) { openRegion('south', a); },
   smith(a) {
     station('smith', {name:'blacksmith', in:'ingot', out:'sword', t:2.4, group:'metal', inZ:[-7.4, 66.5], outZ:[-2.6, 66.5], fireAt:[-5.3, 1.1, 66.5]});
@@ -438,7 +447,9 @@ const UNLOCK = {
   highway(a) { highwayFx(a); interstateFx(a); gasPlotFx(); if (a) banner('🛣️ The highway!', 'An elevated freeway over the railway to the next city. Cars pay tolls.'); },
   stadium(a) { arenaStage(2, a); },
   dome(a) { arenaStage(3, a); },
-  tanks(a) { if (BASE.built) motorPool(a); if (a && !BASE.pool) banner('🪖 Tank division!', 'Three tanks roll out through the south gate whenever a monster attacks.'); },
+  cav1(a) { cavStage(1, a); }, cav2(a) { cavStage(2, a); }, cav3(a) { cavStage(3, a); },
+  // the horses retire: tanks park in the paddock and the cavalry fights on as an armoured branch
+  tanks(a) { cavStage(cavLvl(), false); if (BASE.built) motorPool(a); if (a) banner('🪖 Tank division!', `Your cavalry trades its horses for tanks: strength ${TANK_POW}. They also roll out whenever a monster attacks.`); },
   moonBase(a) { if (a) { W.flags.base = true; const S = spaceScene('moon'); S.built = -1; SPACE.view = 'moon'; SPACE.tour = 9; stage.classList.add('space'); buildBase(S); banner('🧑‍🚀 Moon base!', 'Domes, labs and solar farms on the Moon. Visit any time with 🪐.'); } },
   mars(a) { if (a) launch('mars'); else { W.flags.mars = true; setEra(12, false); } },
   terminal2(a) { terminal2Fx(a); if (a) banner('🏢 Terminal 2!', 'A second gate: room for another airliner.'); },

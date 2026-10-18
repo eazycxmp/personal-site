@@ -37,6 +37,7 @@ function empireChips() {
   let h = '';
   const war = EMP.list.filter(r => W.flags.emp?.[r.id]?.stance === 'war');
   if (war.length) h += `<span class="chip angry">⚔️ ${war.map(r => r.icon).join('')}</span>`;
+  if (FRONTS.list.length) h += `<span class="chip">🔥 ${FRONTS.list.map(f => `${EMP.list[f.i].icon}${Math.ceil(f.t)}s`).join(' ')}</span>`;
   const low = landKeys().filter(k => !land(k).lost).sort((a, b) => land(a).loy - land(b).loy)[0];
   if (low && land(low).loy < 30) h += `<span class="chip angry">🏛️ ${Math.round(land(low).loy)}%</span>`;
   return h;
@@ -59,7 +60,8 @@ function empireHTML() {
     if (s.owned) btns = '<em>🏴 Part of your empire</em>';
     else if (s.stance === 'ally') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('unally', '💔 Break');
     else if (s.stance === 'peace') btns = B('gift', `🎁 Gift ${giftCost()}`, W.coins < giftCost()) + B('ally', '🤝 Ally', s.rel < 60) + (r.sea ? B('fleet', '⛵ Trade fleet', !fleetOk) : '') + B('war', '⚔️ War', busy);
-    else btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + `<button data-pa="${i}" ${busy ? 'disabled' : ''}>⚔️ Plan attack</button>`;
+    else { const F = FRONTS.at(i), free = BRANCH.some(q => !frontWhy(r, q.b) && branchPow(q.b) > 0);
+      btns = B('peace', `🕊️ Peace ${peaceCost(r)}`, W.coins < peaceCost(r)) + (F ? `<em>⚔️ Fighting · ${Math.ceil(F.t)}s</em>` : `<button data-pa="${i}" ${free ? '' : 'disabled'}>⚔️ Plan attack</button>`); }
     return `<div class="ec ${s.stance}"><b>${r.icon} ${r.n}</b>${SPEC[r.id] ? `<small style="display:block;opacity:.8">${SPEC[r.id].icon} ${SPEC[r.id].n}</small>` : ''}<span>⚔️ ${Math.round(s.pow)} · ${tierOf(s.pow)} · ${s.owned ? 'yours' : s.stance === 'war' ? '<i>at war</i>' : s.stance === 'ally' ? '🤝 ally' : d(s)}</span>
       <div class="rel"><i style="width:${(s.rel + 100)/2}%"></i></div><div class="eb">${btns}</div></div>`;
   }).join('');
@@ -67,7 +69,7 @@ function empireHTML() {
     return `<div class="ec ${L.lost ? 'war' : ''}"><b>${landName(k)}</b><span>${L.lost ? `🏳️ lost to ${L.by === 'rebels' ? 'rebels' : EMP.list.find(r => r.id === L.by)?.n || 'rivals'}` : `loyalty ${Math.round(L.loy)}% (${loyRate(k) >= 0 ? '+' : ''}${loyRate(k).toFixed(1)}/min)${L.gov ? ' · 🏛️ governor' : ''}`}</span>
       ${L.lost ? `<div class="eb"><button data-l="${k}" ${W.camp || W.raid || W.army < 5 ? 'disabled' : ''}>⚔️ Retake</button></div>` : `<div class="rel loy"><i style="width:${L.loy}%"></i></div>${landSupplyHTML(k)}
       <div class="eb">${L.gov ? '<em>🏛️ Governor in office</em>' : `<button data-g="${k}" ${!W.unlocked.has('senate') || W.coins < govCost() ? 'disabled' : ''}>🏛️ Send governor · ${govCost()} 💵</button>${W.unlocked.has('senate') ? '' : '<em>Build the Senate first</em>'}`}</div>`}</div>`; }).join('');
-  return `<div class="emp"><div class="pow">Your strength <b>⚔️ ${mine}</b><small>🛡️ army ${P.army} · 🏰 castle ${P.castle} · 🔬 science ${P.science} · ✈️ air ${P.air} · ⚓ navy ${P.navy}${P.allies ? ` · 🤝 allies ${P.allies}` : ''}</small></div>${cards}
+  return `<div class="emp"><div class="pow">Your strength <b>⚔️ ${mine}</b><small>🛡️ army ${P.army}${P.cav ? ` · ${W.unlocked.has('tanks') ? '🪖' : '🐎'} ${cavName().toLowerCase()} ${P.cav}` : ''} · 🏰 castle ${P.castle} · 🔬 science ${P.science} · ✈️ air ${P.air} · ⚓ navy ${P.navy}${P.allies ? ` · 🤝 allies ${P.allies}` : ''}</small></div>${cards}
     ${lands ? `<h2 class="trh">🏛️ Your provinces</h2><p class="empHint">${W.unlocked.has('senate') ? 'Governors and the Senate win hearts; soldiers alone only keep order.' : 'Soldiers alone only keep order. Build the 🏛️ Senate to win hearts.'}</p>${lands}` : ''}</div>`;
 }
 function bindEmpire(m) {
@@ -113,24 +115,3 @@ function updScouts() {
   }
 }
 // ------------------------------------------------------------------ planning an attack on a rival: who goes, against what, and the odds
-function planAttack(i) {
-  const r = EMP.list[i], s = es(r), mine = myPower(), m = $('modal'); m.hidden = false; m.dataset.panel = 'attack';
-  const walled = r.bf && r.id !== 'ostberg', overseas = r.via === 'sea';
-  const opts = [];
-  if (r.land) {
-    const need = Math.round(s.pow*spec(r, 'army')), boats = !overseas || W.unlocked.has('boatyard') || W.unlocked.has('warship');
-    const why = W.army < 5 ? 'Train at least 5 soldiers' : walled && !W.unlocked.has('siegeWorks') ? 'Their city is walled: build the Siege workshop' : !boats ? 'Across the sea: build a boatyard for troop boats' : '';
-    opts.push({a:'land', icon:'🪖', n:overseas ? 'Army, by troop boat' : 'Army', how:walled ? 'March to their walls with rams and catapults' : 'March out and meet them in the field', need, ok:!why, why});
-  }
-  if (r.sea) {
-    const need = Math.round(s.pow*spec(r, 'navy'));
-    opts.push({a:'sea', icon:'⚓', n:'Navy', how:'Warships bombard their harbour', need, ok:W.unlocked.has('warship'), why:W.unlocked.has('warship') ? '' : 'Build a warship first'});
-  }
-  m.innerHTML = `<div class="card"><h1 style="font-size:24px">⚔️ Attack ${r.icon} ${r.n}?</h1>
-    <p>Your strength ⚔️ ${mine}. Choose who goes; a loss costs men and makes them angrier.</p>
-    <div class="votes">${opts.map(o => `<button data-a="${o.a}" ${o.ok ? '' : 'disabled style="opacity:.45;cursor:default"'}><b>${o.icon} ${o.n}</b><small>${o.how}</small>
-      <small>Their strength ⚔️ ${o.need} · ${mine >= o.need ? '✅ you should win' : '⚠️ you will probably lose'}</small>${o.why ? `<small>🔒 ${o.why}</small>` : ''}</button>`).join('')}</div>
-    <button class="ghost" id="paClose">Not now</button></div>`;
-  m.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { if (b.disabled) return; m.hidden = true; empAct(i, b.dataset.a); });
-  $('paClose').onclick = () => { m.hidden = true; };
-}

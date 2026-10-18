@@ -4,7 +4,7 @@
 // they fetch from the nearest pile that can fill the load, and two builders never haul for a tile one load will finish
 const BSTAT = {items:0, dist:0, loads:0, goal:0};
 // military technology is the player's own decision: builders and masons never pay for these tiles
-const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5',
+const MIL_PADS = new Set(['hangar', 'warship', 'mess', 'barracks', 'siegeWorks', 'troop1', 'troop2', 'troop3', 'guns', 'castle', 'castle2', 'castle3', 'castle4', 'tanks', 'troop5', 'cav1', 'cav2', 'cav3', 'nav2', 'nav3', 'nav4',
   'plane1', 'plane2', 'plane3', 'plane4', 'plane5', 'armorer', 'quartermaster', 'warTable', 'smith', 'hauler']);
 function builderJob(w, only) {
   const piles = cur => zones.filter(z => z.kind === 'out' && z.stack.count([cur]));

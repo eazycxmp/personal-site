@@ -130,7 +130,7 @@ function updEmpires(dt) {
   }
   updLands(t);
 }
-function empAct(i, a) {
+function empAct(i, a, o) {
   const r = EMP.list[i], s = es(r);
   if (a === 'gift') { if (W.coins < giftCost()) return; spend(giftCost()); s.rel = Math.min(100, s.rel + 15); banner(`🎁 Gifts to ${r.n}`, 'They think a little better of you.'); }
   else if (a === 'ally') { s.stance = 'ally'; s.rel = Math.max(s.rel, 60); banner(`🤝 Alliance with ${r.icon} ${r.n}!`, 'They pay tribute, lend you strength and will never attack you.'); }
@@ -148,8 +148,9 @@ function empAct(i, a) {
     // a walled city needs rams and catapults to break in
     if (a === 'land' && r.bf && r.id !== 'ostberg' && !W.unlocked.has('siegeWorks')) { banner(`🏰 ${r.n} is walled`, 'Build the Siege workshop in the military district first: rams and catapults to breach their walls.'); return; }
     if (s.stance !== 'war') empAct(i, 'war');
-    const win = myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
-    W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random()};
+    // a front you planned brings its own odds and the branches that went; otherwise everything you have goes
+    const win = o && o.win != null ? o.win : myPower() >= s.pow*(a === 'sea' ? spec(r, 'navy') : spec(r, 'army')); let dur = a === 'land' ? 30 : 44;
+    W.camp = {t:dur, dur, type:a, side:true, rival:i, win, ships:a === 'sea', site:'azul', id:Math.random(), br:o && o.br};
     if (a === 'land' && r.bf && r.id !== 'ostberg') {
       // a long march (or a voyage) to fight before their own walls
       const C = W.camp; C.away = true; C.bf = r.bf;
@@ -172,7 +173,7 @@ function empAct(i, a) {
 // a battle you are going to lose: they hit harder, and your side can fall
 function loseFight() { BT.lose = BT.noCap = true; for (const e of enemies) e.hp = e.maxHp = e.maxHp*2.5; }
 function sailAway(war) {
-  const g = new THREE.Group(); galleon(g, SHIPS[war ? 'war' : 'trade']()); g.position.set(-13.6, -.26, -10); g.rotation.y = Math.PI; scene.add(g);
+  const g = new THREE.Group(); if (war) warshipLook(g, navLvl()); else galleon(g, SHIPS.trade()); g.position.set(-13.6, -.26, -10); g.rotation.y = Math.PI; scene.add(g);
   COAST.fleets.push({g, t:0});
 }
 function updFleets(dt) {

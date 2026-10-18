@@ -21,7 +21,7 @@ function powerParts() {
   const troop = 1 + .25*(W.troop || 0), guns = W.unlocked.has('guns') ? 1.4 : 1;
   const sci = PADS.filter(p => p.sci && W.unlocked.has(p.id)).length*2 + (W.unlocked.has('labs') ? 6 : 0) + (W.unlocked.has('aiLab') ? 12 : 0);
   const allies = EMP.list.filter(r => W.flags.emp?.[r.id]?.stance === 'ally').reduce((a, r) => a + es(r).pow*.3, 0);
-  return {army:Math.round(W.army*troop*guns), castle:[0, 6, 14, 24, 36][W.castle || 0], science:sci, air:planesBuilt()*6, navy:W.unlocked.has('warship') ? 6 : 0, allies:Math.round(allies)};
+  return {army:Math.round(W.army*troop*guns), cav:cavPower(), castle:[0, 6, 14, 24, 36][W.castle || 0], science:sci, air:planesBuilt()*6, navy:navLvl() ? NAVY[navLvl()].pow : 0, allies:Math.round(allies)};
 }
 const myPower = () => Object.values(powerParts()).reduce((a, b) => a + b, 0);
 // walls count twice when you are the one defending them

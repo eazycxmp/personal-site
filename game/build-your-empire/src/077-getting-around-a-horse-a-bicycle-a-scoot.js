@@ -8,6 +8,31 @@ const heroFlies = () => W.mount === 5 || !!(MOUNTS[W.mount] && MOUNTS[W.mount].f
 let mountG = null, jetFlame = null;
 // the horse model: scale, where it sits under you, where its saddle is (under your hips) and how high you ride
 const HORSE = {s:.4, z:-.28, seat:-.3, saddle:1.4, ride:.96, walk:1.3, gallop:4.6, IDLES:['Idle', 'Idle', 'Idle_2', 'Idle_Headlow', 'Eating']};
+// a real horse (Quaternius, CC0) at any size, optionally darker; horseGait plays the walk, gallop or an idle to match a speed
+function horseModel(scale = HORSE.s, shade = 1) {
+  if (!MODELS.horse || !MODELS.horse.userData.anims) return null;
+  const g = skClone(MODELS.horse); g.scale.setScalar(scale);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (shade !== 1 && /^Main/.test(o.material.name)) { o.material = o.material.clone(); o.material.color.multiplyScalar(shade); } } });
+  const mx = new THREE.AnimationMixer(g), acts = {};
+  for (const c of MODELS.horse.userData.anims) acts[c.name] = mx.clipAction(c);
+  return {g, mx, acts, k:scale/HORSE.s, cur:null, idle:'Idle', idleT:R()*6};
+}
+// a red blanket, a leather seat with a pommel in front and a cantle behind, and a girth strap round the belly
+function saddleOn(g) {
+  const S = HORSE.saddle, Z = HORSE.seat, P = (c, s, p) => mesh(G.box, c, s, p, g);
+  P(0x8a2a1e, [.6, .03, .7], [0, S - .03, Z]); P(0x5a3418, [.46, .07, .5], [0, S + .01, Z]);
+  P(0x4a2a12, [.2, .1, .08], [0, S + .07, Z + .24]); P(0x4a2a12, [.36, .1, .07], [0, S + .06, Z - .24]);
+  P(0x3a2414, [.58, .34, .04], [0, S - .2, Z + .06]);
+}
+function horseGait(H, dt, sp) {
+  // a walk when starting or slowing, a gallop at pace (strides scale with the horse's size); standing, it idles, drops its head or grazes
+  if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
+  const want = sp > 3.2*H.k ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
+  if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
+  if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/(HORSE.walk*H.k), .6, 2.2);
+  if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/(HORSE.gallop*H.k), .8, 1.7);
+  H.mx.update(dt);
+}
 function mountStage(n, anim) {
   W.mount = n;
   if (mountG) player.char.g.remove(mountG);
@@ -16,16 +41,8 @@ function mountStage(n, anim) {
   const P = (geo, c, s, p, o) => mesh(geo, c, s, p, g, o);
   if (n === 1 && MODELS.horse && MODELS.horse.userData.anims) {
     // a real horse (Quaternius, CC0) that walks, gallops, idles and grazes; a saddle sits where you do
-    const h = skClone(MODELS.horse); h.scale.setScalar(HORSE.s); h.position.z = HORSE.z; g.add(h);
-    h.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
-    // a red blanket, a leather seat with a pommel in front and a cantle behind, and a girth strap round the belly
-    const S = HORSE.saddle, Z = HORSE.seat;
-    P(G.box, 0x8a2a1e, [.6, .03, .7], [0, S - .03, Z]); P(G.box, 0x5a3418, [.46, .07, .5], [0, S + .01, Z]);
-    P(G.box, 0x4a2a12, [.2, .1, .08], [0, S + .07, Z + .24]); P(G.box, 0x4a2a12, [.36, .1, .07], [0, S + .06, Z - .24]);
-    P(G.box, 0x3a2414, [.58, .34, .04], [0, S - .2, Z + .06]);
-    const mx = new THREE.AnimationMixer(h), acts = {};
-    for (const c of MODELS.horse.userData.anims) acts[c.name] = mx.clipAction(c);
-    g.horse = {mx, acts, cur:null, idle:'Idle', idleT:4};
+    const H = horseModel(); H.g.position.z = HORSE.z; g.add(H.g); g.horse = H;
+    saddleOn(g);
   } else if (n === 1) {
     P(G.box, 0x7a4a26, [.42, .5, 1.3], [0, .85, 0]); P(G.box, 0x7a4a26, [.24, .6, .28], [0, 1.25, .62]).rotation.x = -.5; P(G.box, 0x6a3e20, [.2, .2, .5], [0, 1.5, .85]);
     P(G.box, 0x2a1a10, [.06, .4, .3], [0, 1.3, .48]); P(G.box, 0x8a2a1e, [.46, .08, .5], [0, 1.12, -.05]);
@@ -95,16 +112,7 @@ function updMount(dt) {
     if (mountG.dragon) flapDragon(mountG.dragon, time, player.rideY > 1 ? (up > player.rideY + .5 ? 9 : 5) : 2);
     if (mountG.plane && moving && R() < dt*12) particle(0xf4fbff, player.pos.clone().setY(player.rideY + .4), new THREE.Vector3(-player.vel.x*.2, .1, -player.vel.z*.2), .9, .12, {grow:.6, op:.5});
   }
-  if (mountG && mountG.horse) {
-    // the gait follows your speed: a walk when you start or slow, a gallop at full pace; standing, it idles, drops its head or grazes
-    const H = mountG.horse, sp = Math.hypot(player.vel.x, player.vel.z);
-    if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
-    const want = sp > 3.2 ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
-    if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
-    if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/HORSE.walk, .6, 2.2);
-    if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/HORSE.gallop, .8, 1.7);
-    H.mx.update(dt);
-  }
+  if (mountG && mountG.horse) horseGait(mountG.horse, dt, Math.hypot(player.vel.x, player.vel.z));
   if (mountG && mountG.legs) mountG.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time*12 + i*1.6)*.6 : 0; });
   if (mountG && mountG.wheels && moving) mountG.wheels.forEach(w => { w.rotation.x += dt*14; });
   if (jetFlame) { jetFlame.visible = moving; jetFlame.scale.y = .8 + Math.sin(time*30)*.2; if (moving && R() < dt*20) particle(0xd8f0ff, player.pos.clone().setY(player.rideY + .3), new THREE.Vector3((R() - .5), -1.5, (R() - .5)), .5, .1, {grow:.5, op:.5}); }
