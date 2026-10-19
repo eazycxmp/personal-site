@@ -30,11 +30,8 @@ function spaceDressing(S) {
 }
 function moonWalker(S) {
   if (S.walker) return S.walker;
-  const c = makeChar({hero:true, body:0xf2f2f0, trim:0xc8302a, pants:0xf2f2f0, shoe:0xd8dce2, noPack:true, hair:'bald', long:true});
-  scene.remove(c.g); S.sc.add(c.g);
-  const k = MODELS.spacekit;
-  if (k) { const h = k.getObjectByName('helmet').clone(true); h.scale.setScalar(.76); h.position.set(0, 1.66, 0); c.g.add(h); const p = k.getObjectByName('pack').clone(true); p.scale.setScalar(.55); p.position.set(0, 1.05, -.32); c.g.add(p); }
-  for (const arm of [c.armL, c.armR]) { mesh(G.box, 0xc8302a, [.17, .13, .21], [0, .02, 0], arm); mesh(G.sph, 0xf2f2f0, [.09, .1, .09], [0, -.49, 0], arm); }
+  // you, in the same suit as your astronauts (helmet on the head, pack on the back), walking with the animations
+  const c = astronaut(); S.sc.add(c.g);
   S.walker = {c, x:3, z:5, yaw:0, walk:0};
   return S.walker;
 }

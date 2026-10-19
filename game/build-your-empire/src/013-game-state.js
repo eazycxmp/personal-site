@@ -63,7 +63,7 @@ const studyMult = () => { const L = studyLvl(); return Math.min(2, 1 + .05*Math.
 const studyNeed = L => Math.round(10 * Math.pow(1.4, L));
 function addCash(c, value, from) {
   value = Math.round(value * studyMult());
-  c.value += value; W.earned += value;
+  c.value += value; W.earned += value; ledgerIncome(value);   // credited to whatever earned it (picking it up later isn't counted again)
   for (let i = 0; i < Math.min(value, 12) && c.stack.length < 45; i++) {
     const m = itemMesh('coin'); m.position.set(from.x + R()*.4 - .2, 1.2, from.z + R()*.4 - .2); c.stack.push({type:'coin', mesh:m});
   }

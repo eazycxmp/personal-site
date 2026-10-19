@@ -2214,7 +2214,7 @@ const studyMult = () => { const L = studyLvl(); return Math.min(2, 1 + .05*Math.
 const studyNeed = L => Math.round(10 * Math.pow(1.4, L));
 function addCash(c, value, from) {
   value = Math.round(value * studyMult());
-  c.value += value; W.earned += value;
+  c.value += value; W.earned += value; ledgerIncome(value);   // credited to whatever earned it (picking it up later isn't counted again)
   for (let i = 0; i < Math.min(value, 12) && c.stack.length < 45; i++) {
     const m = itemMesh('coin'); m.position.set(from.x + R()*.4 - .2, 1.2, from.z + R()*.4 - .2); c.stack.push({type:'coin', mesh:m});
   }
@@ -2241,7 +2241,24 @@ const SPEND_WHY = {
   payRecruit:'🪖 Recruiting soldiers', growLand:'🏙️ Growing a land', sendGovernor:'👑 Sending a governor', sendScouts:'🔭 Scouts', empAct:'🤝 Gifts and peace deals',
   sendSpy:'🕵️ Spies', payLandMarket:'🧺 Building a land\'s market', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
 };
-const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'spend', 'Error']);
+const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'ledgerIncome', 'spend', 'addCash', 'Error']);
+// and where the money comes in from (cash piles count when they are earned, not again when they are picked up)
+const INCOME_WHY = {
+  update:'🍽️ Customers paying for meals', payOut:'🍽️ Customers paying for meals', zoneAct:'💰 Selling at the market', sellRun:'💰 Workers selling surplus',
+  updHomes:'🏠 Rent', updCitizens:'🧑 Townsfolk shopping', landed:'✈️ Airport fares and freight', trainArrives:'🚂 Train freight', updBoats:'⛵ Boats and fishing', boatStep:'⛵ Boats and fishing',
+  updOil:'⛽ Oil and fuel', updTrade:'🗺️ Trade routes', updEnvoys:'📜 Trade pacts', updEmpires:'👑 Tribute from your lands', updMarkets:'🛒 Market stalls abroad',
+  conquer:'⚔️ Spoils of conquest', updWar:'⚔️ Battle spoils', updEvents:'🛡️ Raiders beaten off', endSiege:'🛡️ Sieges broken', updBoss:'🐉 Monster bounties', updSpies:'🕵️ Spy loot',
+  envoyOffer:'🕊️ Peace payments', empAct:'🤝 Diplomacy', updZoo:'🦁 Zoo tickets', updWonders:'🏛️ World wonders', updStrip:'🎰 The Strip', playSlots:'🎰 Slot wins',
+  updConcert:'🎤 Concerts', updRugby:'🏉 Rugby', updRideIncome:'🎡 Rides and parks', updInterstate:'🛣️ Road tolls', updHighways:'🛣️ Road tolls', updHighway:'🛣️ Road tolls', updBridge:'🌉 Bridge tolls',
+  updSpace:'🚀 Space', updSpaceMining:'☄️ Asteroid mining', updGoals:'🎯 Goal rewards', showOffline:'🌙 Earned while you were away', cashOut:'📈 Cashing out the fund',
+  refundWholesaler:'↩️ Refunds', openBuild:'↩️ Refunds'};
+const incomeLabel = n => INCOME_WHY[n] || `💵 ${n.replace(/^upd/, '').replace(/([a-z])([A-Z])/g, '$1 $2')}`;
+function ledgerIncome(amt, why) {
+  if (!LEDGER.on || !(amt > 0)) return;
+  why ||= incomeLabel(whySpent());
+  const last = LEDGER.gain[LEDGER.gain.length - 1];
+  if (last && last.why === why && W.playT - last.t < 2) last.amt += amt; else LEDGER.gain.push({t:W.playT, why, amt});
+}
 function whySpent() {
   const st = String(new Error().stack || '').split('\n');
   for (const line of st) {
@@ -2262,7 +2279,7 @@ function ledgerSpend(amt) {
   Object.defineProperty(W, 'coins', {enumerable:true, get:() => coins, set:v => {
     const d = v - coins; coins = v;
     if (!LEDGER.on || !d) return;
-    if (d < 0) ledgerSpend(-d); else { const g = LEDGER.gain[LEDGER.gain.length - 1]; if (g && W.playT - g.t < 2) g.amt += d; else LEDGER.gain.push({t:W.playT, amt:d}); }
+    if (d < 0) ledgerSpend(-d); else if (!LEDGER.collecting) ledgerIncome(d);
   }});
 }
 function updLedger(dt) {
@@ -2283,10 +2300,13 @@ function updLedger(dt) {
 function openLedger() {
   const m = $('modal'); m.hidden = false; m.dataset.panel = 'ledger';
   const by = {}; for (const e of LEDGER.log) by[e.why] = (by[e.why] || 0) + e.amt;
+  const inc = {}; for (const g of LEDGER.gain) inc[g.why || '💵 Other'] = (inc[g.why || '💵 Other'] || 0) + g.amt;
   const spent = Object.values(by).reduce((a, b) => a + b, 0), earned = LEDGER.gain.reduce((a, g) => a + g.amt, 0), fmt = n => Math.round(n).toLocaleString();
-  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([w, a]) => `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-bottom:1px solid #0001"><span>${w}</span><b style="color:#b83a2a">−${fmt(a)}</b></div>`).join('');
+  const row = (w, a, plus) => `<div style="display:flex;justify-content:space-between;gap:16px;padding:4px 0;border-bottom:1px solid #0001"><span>${w}</span><b style="color:${plus ? '#2f9e44' : '#b83a2a'}">${plus ? '+' : '−'}${fmt(a)}</b></div>`;
+  const rows = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([w, a]) => row(w, a)).join('');
+  const inRows = Object.entries(inc).sort((a, b) => b[1] - a[1]).map(([w, a]) => row(w, a, true)).join('');
   m.innerHTML = `<div class="card"><h1 style="font-size:24px">💵 Where your money went</h1><p>The last five minutes: earned <b style="color:#2f9e44">+${fmt(earned)}</b>, spent <b style="color:#b83a2a">−${fmt(spent)}</b>.</p>
-    <div style="text-align:left;max-height:50vh;overflow:auto">${rows || '<p>Nothing spent in the last five minutes.</p>'}</div>
+    <div style="text-align:left;max-height:56vh;overflow:auto"><h3 style="margin:6px 0 2px;font-size:15px">Money in</h3>${inRows || '<p>Nothing came in.</p>'}<h3 style="margin:12px 0 2px;font-size:15px">Money out</h3>${rows || '<p>Nothing spent in the last five minutes.</p>'}</div>
     ${W.autoInvest ? `<p class="keys">Your brokers invest 5% of spare cash for you (your fund holds ${fmt(W.fund || 0)} 💵). <button class="ghost" id="lgAuto">Stop auto-investing</button></p>` : ''}
     <p class="keys">🔨 Repair crew: ${W.flags.autoRepair ? 'repairs automatically, paying from your coins' : 'waits for you (repairs are yours to pay for)'}. <button class="ghost" id="lgRepair">${W.flags.autoRepair ? 'Stop automatic repairs' : 'Let them repair for me'}</button></p>
     <button class="ghost" id="lgClose">Close</button></div>`;
@@ -3173,7 +3193,7 @@ function updWorker(w, dt) {
     w.pile = c;
     if (!c) { goTo(w, ...w.home, dt); return; }
     if (goTo(w, c.x, c.z, dt)) {
-      qnAct(w.char, 'pick', .8); W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
+      qnAct(w.char, 'pick', .8); LEDGER.collecting = true; W.coins += c.value; LEDGER.collecting = false; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
       c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => w.pos.clone().setY(1.4), .25 + i*.015));
       snd(1046, .06, 'triangle', .03); w.pile = null;
     }
@@ -3490,7 +3510,7 @@ function zoneAct(e, zn, dt) {
       const c = zn.cash;
       if (e.isPlayer && c.value > 0) {
         const [fx0, fy0] = project(new THREE.Vector3(c.x, .5, c.z)); flyCash(fx0, fy0, Math.min(8, 2 + Math.floor(c.value / 40)));
-        W.coins += c.value; popText(`+${c.value}`, e.pos.clone().setY(2.6), '#ffe06b'); c.value = 0; W.flags.collected = true;
+        LEDGER.collecting = true; W.coins += c.value; LEDGER.collecting = false; popText(`+${c.value}`, e.pos.clone().setY(2.6), '#ffe06b'); c.value = 0; W.flags.collected = true;
         c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => e.pos.clone().setY(1.4), .25 + i*.015));
         snd(1046, .08, 'triangle', .05); setTimeout(() => snd(1318, .1, 'triangle', .05), 60);
         save();
@@ -12939,12 +12959,22 @@ function updSpecials(dt, C, close, rout, lose) {
     }
     if (u.monkey) { updMonkey(u, dt, close, rout, lose); continue; }
     // chariots and knights charge across the field at your lines as the fighting starts, then wheel back
-    const [fx, fz] = WARSPEC.f, go = close > .2 && !rout, d = go ? Math.min(10, close*11) : rout && !lose ? -14*Math.min(1, (10.5 - C.t)*.4) : 0;
+    const [fx, fz] = WARSPEC.f, go = close > .2 && !rout, reach = u.beast ? 17 : 10, d = go ? Math.min(reach, close*(reach + 1)) : rout && !lose ? -14*Math.min(1, (10.5 - C.t)*.4) : 0;
     const tx = u.x0 + fx*d, tz = u.z0 + fz*d, p = u.g.position, dd = Math.hypot(tx - p.x, tz - p.z);
     const want = dd > .2 ? Math.min(8*(u.slow || 1), dd*2) : 0; u.sp += (want - u.sp)*Math.min(1, dt*3);
     if (dd > .05) { p.x += (tx - p.x)/dd*Math.min(dd, u.sp*dt); p.z += (tz - p.z)/dd*Math.min(dd, u.sp*dt); u.g.rotation.y = Math.atan2(d >= 0 ? fx : -fx, d >= 0 ? fz : -fz); }
     if (u.ch) chariotRoll(u.ch, dt, u.sp); if (u.H) horseGait(u.H, dt, u.sp);
-    if (u.beast) { u.ph += u.sp*dt*2.2; stride(u.beast, u.ph, Math.min(.45, u.sp*.12)); u.g.position.y = Math.abs(Math.sin(u.ph))*.05*Math.min(1, u.sp); }
+    if (u.beast) {
+      u.ph += u.sp*dt*2.2; stride(u.beast, u.ph, Math.min(.45, u.sp*.12)); u.g.position.y = Math.abs(Math.sin(u.ph))*.05*Math.min(1, u.sp);
+      // the charge: a trumpet blast, then whoever is in the way is trampled (your ranks and the soldiers fighting up front)
+      if (go && !u.blown) { u.blown = true; snd(220, .6, 'sawtooth', .05, 2.4); setTimeout(() => snd(330, .5, 'sawtooth', .04, 1.8), 220); if (watchingWar()) shakeCam(.15); }
+      if (go && u.sp > 1.2) {
+        const ex = p.x, ez = p.z;
+        for (const m of MASS.us) if (m.down < 0 && Math.abs(m.x - ex) < 1.7 && Math.abs(m.z - ez) < 1.7 && Math.hypot(m.x - ex, m.z - ez) < 1.6) { m.down = 0; m.fallDir = R() < .5 ? 1 : -1; m.drop = .8; m.fx = (m.x - ex) || .1; m.fz = (m.z - ez) || .1; const l = Math.hypot(m.fx, m.fz); m.fx /= l; m.fz /= l; }
+        for (const sd of soldiers) if (!sd.down && sd.hp > 0 && Math.hypot(sd.pos.x - ex, sd.pos.z - ez) < 1.5) { sd.hp -= 4; sd.hit = .2; const kx = sd.pos.x - ex, kz = sd.pos.z - ez, kd = Math.hypot(kx, kz) || 1; sd.pos.x += kx/kd*1.2; sd.pos.z += kz/kd*1.2; if (sd.hp <= 0) { sd.down = true; sd.fall = 0; } }
+        if (R() < dt*6) particle(0xc8b48a, new THREE.Vector3(ex + (R() - .5)*1.6, .15, ez + (R() - .5)*1.6), new THREE.Vector3((R() - .5)*.8, .7, (R() - .5)*.8), .5, .25, {grow:.8, op:.4});
+      }
+    }
   }
   if (C.t <= 7) { for (const u of WARSPEC.list) scene.remove(u.g); WARSPEC.list = []; WARSPEC.c = null; }
 }
@@ -13753,11 +13783,8 @@ function spaceDressing(S) {
 }
 function moonWalker(S) {
   if (S.walker) return S.walker;
-  const c = makeChar({hero:true, body:0xf2f2f0, trim:0xc8302a, pants:0xf2f2f0, shoe:0xd8dce2, noPack:true, hair:'bald', long:true});
-  scene.remove(c.g); S.sc.add(c.g);
-  const k = MODELS.spacekit;
-  if (k) { const h = k.getObjectByName('helmet').clone(true); h.scale.setScalar(.76); h.position.set(0, 1.66, 0); c.g.add(h); const p = k.getObjectByName('pack').clone(true); p.scale.setScalar(.55); p.position.set(0, 1.05, -.32); c.g.add(p); }
-  for (const arm of [c.armL, c.armR]) { mesh(G.box, 0xc8302a, [.17, .13, .21], [0, .02, 0], arm); mesh(G.sph, 0xf2f2f0, [.09, .1, .09], [0, -.49, 0], arm); }
+  // you, in the same suit as your astronauts (helmet on the head, pack on the back), walking with the animations
+  const c = astronaut(); S.sc.add(c.g);
   S.walker = {c, x:3, z:5, yaw:0, walk:0};
   return S.walker;
 }

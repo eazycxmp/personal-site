@@ -47,7 +47,7 @@ function zoneAct(e, zn, dt) {
       const c = zn.cash;
       if (e.isPlayer && c.value > 0) {
         const [fx0, fy0] = project(new THREE.Vector3(c.x, .5, c.z)); flyCash(fx0, fy0, Math.min(8, 2 + Math.floor(c.value / 40)));
-        W.coins += c.value; popText(`+${c.value}`, e.pos.clone().setY(2.6), '#ffe06b'); c.value = 0; W.flags.collected = true;
+        LEDGER.collecting = true; W.coins += c.value; LEDGER.collecting = false; popText(`+${c.value}`, e.pos.clone().setY(2.6), '#ffe06b'); c.value = 0; W.flags.collected = true;
         c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => e.pos.clone().setY(1.4), .25 + i*.015));
         snd(1046, .08, 'triangle', .05); setTimeout(() => snd(1318, .1, 'triangle', .05), 60);
         save();

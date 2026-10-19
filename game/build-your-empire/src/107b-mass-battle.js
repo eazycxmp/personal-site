@@ -250,12 +250,22 @@ function updSpecials(dt, C, close, rout, lose) {
     }
     if (u.monkey) { updMonkey(u, dt, close, rout, lose); continue; }
     // chariots and knights charge across the field at your lines as the fighting starts, then wheel back
-    const [fx, fz] = WARSPEC.f, go = close > .2 && !rout, d = go ? Math.min(10, close*11) : rout && !lose ? -14*Math.min(1, (10.5 - C.t)*.4) : 0;
+    const [fx, fz] = WARSPEC.f, go = close > .2 && !rout, reach = u.beast ? 17 : 10, d = go ? Math.min(reach, close*(reach + 1)) : rout && !lose ? -14*Math.min(1, (10.5 - C.t)*.4) : 0;
     const tx = u.x0 + fx*d, tz = u.z0 + fz*d, p = u.g.position, dd = Math.hypot(tx - p.x, tz - p.z);
     const want = dd > .2 ? Math.min(8*(u.slow || 1), dd*2) : 0; u.sp += (want - u.sp)*Math.min(1, dt*3);
     if (dd > .05) { p.x += (tx - p.x)/dd*Math.min(dd, u.sp*dt); p.z += (tz - p.z)/dd*Math.min(dd, u.sp*dt); u.g.rotation.y = Math.atan2(d >= 0 ? fx : -fx, d >= 0 ? fz : -fz); }
     if (u.ch) chariotRoll(u.ch, dt, u.sp); if (u.H) horseGait(u.H, dt, u.sp);
-    if (u.beast) { u.ph += u.sp*dt*2.2; stride(u.beast, u.ph, Math.min(.45, u.sp*.12)); u.g.position.y = Math.abs(Math.sin(u.ph))*.05*Math.min(1, u.sp); }
+    if (u.beast) {
+      u.ph += u.sp*dt*2.2; stride(u.beast, u.ph, Math.min(.45, u.sp*.12)); u.g.position.y = Math.abs(Math.sin(u.ph))*.05*Math.min(1, u.sp);
+      // the charge: a trumpet blast, then whoever is in the way is trampled (your ranks and the soldiers fighting up front)
+      if (go && !u.blown) { u.blown = true; snd(220, .6, 'sawtooth', .05, 2.4); setTimeout(() => snd(330, .5, 'sawtooth', .04, 1.8), 220); if (watchingWar()) shakeCam(.15); }
+      if (go && u.sp > 1.2) {
+        const ex = p.x, ez = p.z;
+        for (const m of MASS.us) if (m.down < 0 && Math.abs(m.x - ex) < 1.7 && Math.abs(m.z - ez) < 1.7 && Math.hypot(m.x - ex, m.z - ez) < 1.6) { m.down = 0; m.fallDir = R() < .5 ? 1 : -1; m.drop = .8; m.fx = (m.x - ex) || .1; m.fz = (m.z - ez) || .1; const l = Math.hypot(m.fx, m.fz); m.fx /= l; m.fz /= l; }
+        for (const sd of soldiers) if (!sd.down && sd.hp > 0 && Math.hypot(sd.pos.x - ex, sd.pos.z - ez) < 1.5) { sd.hp -= 4; sd.hit = .2; const kx = sd.pos.x - ex, kz = sd.pos.z - ez, kd = Math.hypot(kx, kz) || 1; sd.pos.x += kx/kd*1.2; sd.pos.z += kz/kd*1.2; if (sd.hp <= 0) { sd.down = true; sd.fall = 0; } }
+        if (R() < dt*6) particle(0xc8b48a, new THREE.Vector3(ex + (R() - .5)*1.6, .15, ez + (R() - .5)*1.6), new THREE.Vector3((R() - .5)*.8, .7, (R() - .5)*.8), .5, .25, {grow:.8, op:.4});
+      }
+    }
   }
   if (C.t <= 7) { for (const u of WARSPEC.list) scene.remove(u.g); WARSPEC.list = []; WARSPEC.c = null; }
 }

@@ -119,7 +119,7 @@ function updWorker(w, dt) {
     w.pile = c;
     if (!c) { goTo(w, ...w.home, dt); return; }
     if (goTo(w, c.x, c.z, dt)) {
-      qnAct(w.char, 'pick', .8); W.coins += c.value; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
+      qnAct(w.char, 'pick', .8); LEDGER.collecting = true; W.coins += c.value; LEDGER.collecting = false; popText(`+${c.value}`, new THREE.Vector3(c.x, 2.6, c.z), '#ffe06b'); c.value = 0;
       c.stack.items.splice(0).forEach((it, i) => flyAway(it.mesh, () => w.pos.clone().setY(1.4), .25 + i*.015));
       snd(1046, .06, 'triangle', .03); w.pile = null;
     }
