@@ -335,9 +335,10 @@ function updQN(dt) {
     let vis = g.visible; for (let o = g.parent; vis && o && o !== scene; o = o.parent) vis = o.visible;
     QN.sphere.center.copy(p).setY(p.y + 1); QN.sphere.radius = 1.4;
     // past the draw distance a person is a speck: don't draw or animate them (the hero always shows)
-    const far = !c.isHero && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
+    const far = !c.isHero && !c.space && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
     if (c.root.visible === far) c.root.visible = !far;
-    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
+    // (people in the space scenes are seen through another camera: always animated)
+    if (!c.space && (far || !vis || !QN.frustum.intersectsSphere(QN.sphere))) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
     c.seen = QN.frame;
     if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
     // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
@@ -386,7 +387,7 @@ function updQN(dt) {
     }
     // further from the camera, the pose is worked out every other frame (with both frames' time): nobody can tell at that
     // distance, and it halves the bone work for most of the crowd
-    const lod = !c.isHero && !c.ride && p.distanceToSquared(camera.position) > 26*26;
+    const lod = !c.isHero && !c.ride && !c.space && p.distanceToSquared(camera.position) > 26*26;
     c.mixDt = (c.mixDt || 0) + dt;
     if (lod && (QN.frame + i) % 2) { c.root.matrixWorldAutoUpdate = false; continue; }
     c.root.matrixWorldAutoUpdate = true;

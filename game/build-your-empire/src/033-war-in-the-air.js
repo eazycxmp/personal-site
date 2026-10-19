@@ -147,8 +147,10 @@ function airPos(e, p, tx, tz) {
   };
   const [ox0, , oz0] = oval(0);
   if (e < 17) { const u = (e - 9)/8, w = Math.sin(u*Math.PI*2.5 + S.ph)*S.weave*(1 - u); return [L(RW.x, ox0, u) + w, 5 + (S.alt - 2)*Math.sin(Math.min(1, u*1.6)*Math.PI/2) - (u > .75 ? (u - .75)/.25*3 : 0), L(RW.z1, oz0, u) + w*.4]; }
-  if (e < 29) return oval(e - 17);
-  const [ex, , ez] = oval(12);
+  // (p.hold: extra seconds on the racetrack, while an assault on a city's walls goes on below)
+  const H = p.hold || 0;
+  if (e < 29 + H) return oval(e - 17);
+  const [ex, , ez] = oval(12 + H); e -= H;
   if (e < 36) { const u = (e - 29)/7; return [L(ex, RW.x, u), 9 + 3*Math.sin(u*Math.PI) - 4*u, L(ez, RW.z1 - 8, u)]; }
   if (e < 40) { const u = (e - 36)/4; return [RW.x, 5*(1 - u)*(1 - u), L(RW.z1 - 8, RW.z0 - 2, u)]; }
   const u = (e - 40)/2; return [L(RW.x, px, u), 0, L(RW.z0 - 2, pz, u)];
@@ -187,7 +189,7 @@ function planeVsBoss(p, i, B, dt) {
   p.alt = a[1]; flyPose(p, a, b, dt);
   p.prop.rotation.z += dt*(e > 0 && e < 42 ? 40 : 0);
   // over an enemy army: bombs at the bottom of each dive
-  if (B && B.foes && e > 17 && e < 29 && a[1] < 5.5 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
+  if (B && B.foes && e > 17 && e < 29 && a[1] < 6.2 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
     p.bombT = .45; const f = B.foes[R()*B.foes.length|0]; if (!f) return;
     const to = new THREE.Vector3(f.pos.x + (R() - .5)*2, 0, f.pos.z + (R() - .5)*2), bomb = new THREE.Mesh(G.sph, mat(0x2a2a2e)); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
     flyers.push({m:bomb, from:bomb.position.clone(), to, t:0, dur:.6, arc:0, done:() => warHit(to, 2.6, 5, true)});
@@ -208,7 +210,17 @@ function updAir(dt) {
   if (HANGAR.g && ((HANGAR.chk = (HANGAR.chk || 0) - dt) <= 0)) { HANGAR.chk = 2; hangarLook(true); }
   const C = W.camp, airT = C && C.type === 'air';
   airSupport(C);
-  if (AIRS.on && time - AIRS.t0 > 44 + .7*AIRS.n) AIRS.on = false;   // once the last one in line has landed
+  // storming a city's walls: the planes come (if they are not already up) and hold over the gate, bombing the walls,
+  // until the city falls
+  if (C && C.assault && C.rival != null && planesBuilt()) {
+    const D = DEF[EMP.list[C.rival].id];
+    if (D && D.main) {
+      // a fresh sortie as the assault begins (the planes over the field battle are on their way home by now)
+      if (AIRS.id !== 'assault' + (C.id || '')) Object.assign(AIRS, {id:'assault' + (C.id || ''), on:true, t0:time - 9, tx:D.main.x, tz:D.main.z, n:planesBuilt(), hold:0});
+      else { AIRS.tx = D.main.x; AIRS.tz = D.main.z; if (time - AIRS.t0 - .7*(AIRS.n - 1) > 17) AIRS.hold = (AIRS.hold || 0) + dt; }
+    }
+  }
+  if (AIRS.on && time - AIRS.t0 > 44 + .7*AIRS.n + (AIRS.hold || 0)) { AIRS.on = false; AIRS.hold = 0; }   // once the last one in line has landed
   const air = airT || AIRS.on;
   const c0 = airT ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
   const B0 = typeof WARFIRE !== 'undefined' ? sortieTarget() : null;
@@ -217,13 +229,14 @@ function updAir(dt) {
     const c = c0, e = airT ? C.dur - C.t - i*.7 : AIRS.on ? time - AIRS.t0 - i*.7 : -1;
     const [tx, tz] = airT ? (C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0]) : [AIRS.tx, AIRS.tz];
     const flying = air && i < (airT ? C.n ?? (c ? c.planes : 0) : AIRS.n);
+    p.hold = AIRS.on && !airT ? AIRS.hold || 0 : 0;
     const a = flying ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = flying ? airPos(e + .08, p, tx, tz) : a;
     // banked by the turn itself, and a barrel roll on the way in for the show-offs
     const S = p.style || {dir:1};
     p.alt = a[1]; flyPose(p, a, b, dt, flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0);
     p.prop.rotation.z += dt * (flying && e > 0 && e < 42 ? 40 : 0);
     // bombs go only at the bottom of each dive
-    if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
+    if (flying && e > 17 && e < 28.5 + (p.hold || 0) && a[1] < 6.2 && (p.bombT -= dt) <= 0) {
       p.bombT = .22;
       const f = c && c.target != null && C && C.goal === 'air' ? forts[c.target] : null, bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
       const gx = a[0]*.35 + tx*.65 + (R() - .5)*4, gz = a[2]*.35 + tz*.65 + (R() - .5)*4;
@@ -233,6 +246,7 @@ function updAir(dt) {
         if (watchingWar()) shakeCam(.35);
         // the blast knocks down enemy soldiers caught near it
         for (const en of enemies) if (en.alive && Math.hypot(en.pos.x - gx, en.pos.z - gz) < 2.6) { en.hp -= 4; en.hit = .18; if (en.hp <= 0) knockOut(en); }
+        wallBomb(gx, gz);   // defenders on a city's walls are blown off them
         if (f) {
           f.hits++; const t = f.towers[Math.min(3, Math.floor(f.hits / 6))]; if (f.hits % 6 === 0 && t) t.rotation.z = .9;
           for (const tp of f.troops) if (!tp.down && Math.hypot(tp.x - gx, tp.z - gz) < 2.4) tp.down = true;
@@ -323,6 +337,8 @@ function warFocus() {
   const mid = list => { const a = list.filter(e => !e.down && (e.alive !== false)); if (!a.length) return null; let x = 0, z = 0; for (const e of a) { x += e.pos.x; z += e.pos.z; } return [x/a.length, z/a.length]; };
   if (!C && INV.on && INV.units.length) { const m = mid(INV.units); if (m) return [m[0], m[1] + 1.5]; }
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
+  // storming the walls: the camera frames the gate, your army below it and the defenders along the wall top
+  if (C.type === 'land' && C.assault && C.rival != null) { const D = DEF[EMP.list[C.rival].id]; if (D && D.main) { const [ix, iz] = inward(D.main); return C.t < 13 && D.hq ? [D.hq.x, D.hq.z + 1.5] : [D.main.x - ix*1.5, D.main.z - iz*1.5 + 1]; } }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
   if (C.type === 'sea' && C.naval) { const fl = fleet(); if (fl.length) { let x = 0, z = 0; for (const b of fl) { x += b.g.position.x; z += b.g.position.z; } return [x/fl.length, z/fl.length]; } }
   if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }

@@ -1908,9 +1908,10 @@ function updQN(dt) {
     let vis = g.visible; for (let o = g.parent; vis && o && o !== scene; o = o.parent) vis = o.visible;
     QN.sphere.center.copy(p).setY(p.y + 1); QN.sphere.radius = 1.4;
     // past the draw distance a person is a speck: don't draw or animate them (the hero always shows)
-    const far = !c.isHero && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
+    const far = !c.isHero && !c.space && p.distanceToSquared(camera.position) > QN.DRAW*QN.DRAW;
     if (c.root.visible === far) c.root.visible = !far;
-    if (far || !vis || !QN.frustum.intersectsSphere(QN.sphere)) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
+    // (people in the space scenes are seen through another camera: always animated)
+    if (!c.space && (far || !vis || !QN.frustum.intersectsSphere(QN.sphere))) { c.root.matrixWorldAutoUpdate = true; c.mixDt = 0; continue; }
     c.seen = QN.frame;
     if (c.blob && QN_BLOB.n < 512) { const O = QN_BLOB.o; O.position.set(p.x, p.y + .035 - (c.bob || 0), p.z); O.rotation.set(-Math.PI/2, 0, 0); O.scale.set(.8, .8, 1); O.updateMatrix(); blobs.setMatrixAt(QN_BLOB.n++, O.matrix); }
     // eyes and eyebrows are a pixel or two from the usual camera: only drawn on people near it
@@ -1959,7 +1960,7 @@ function updQN(dt) {
     }
     // further from the camera, the pose is worked out every other frame (with both frames' time): nobody can tell at that
     // distance, and it halves the bone work for most of the crowd
-    const lod = !c.isHero && !c.ride && p.distanceToSquared(camera.position) > 26*26;
+    const lod = !c.isHero && !c.ride && !c.space && p.distanceToSquared(camera.position) > 26*26;
     c.mixDt = (c.mixDt || 0) + dt;
     if (lod && (QN.frame + i) % 2) { c.root.matrixWorldAutoUpdate = false; continue; }
     c.root.matrixWorldAutoUpdate = true;
@@ -5482,8 +5483,10 @@ function airPos(e, p, tx, tz) {
   };
   const [ox0, , oz0] = oval(0);
   if (e < 17) { const u = (e - 9)/8, w = Math.sin(u*Math.PI*2.5 + S.ph)*S.weave*(1 - u); return [L(RW.x, ox0, u) + w, 5 + (S.alt - 2)*Math.sin(Math.min(1, u*1.6)*Math.PI/2) - (u > .75 ? (u - .75)/.25*3 : 0), L(RW.z1, oz0, u) + w*.4]; }
-  if (e < 29) return oval(e - 17);
-  const [ex, , ez] = oval(12);
+  // (p.hold: extra seconds on the racetrack, while an assault on a city's walls goes on below)
+  const H = p.hold || 0;
+  if (e < 29 + H) return oval(e - 17);
+  const [ex, , ez] = oval(12 + H); e -= H;
   if (e < 36) { const u = (e - 29)/7; return [L(ex, RW.x, u), 9 + 3*Math.sin(u*Math.PI) - 4*u, L(ez, RW.z1 - 8, u)]; }
   if (e < 40) { const u = (e - 36)/4; return [RW.x, 5*(1 - u)*(1 - u), L(RW.z1 - 8, RW.z0 - 2, u)]; }
   const u = (e - 40)/2; return [L(RW.x, px, u), 0, L(RW.z0 - 2, pz, u)];
@@ -5522,7 +5525,7 @@ function planeVsBoss(p, i, B, dt) {
   p.alt = a[1]; flyPose(p, a, b, dt);
   p.prop.rotation.z += dt*(e > 0 && e < 42 ? 40 : 0);
   // over an enemy army: bombs at the bottom of each dive
-  if (B && B.foes && e > 17 && e < 29 && a[1] < 5.5 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
+  if (B && B.foes && e > 17 && e < 29 && a[1] < 6.2 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
     p.bombT = .45; const f = B.foes[R()*B.foes.length|0]; if (!f) return;
     const to = new THREE.Vector3(f.pos.x + (R() - .5)*2, 0, f.pos.z + (R() - .5)*2), bomb = new THREE.Mesh(G.sph, mat(0x2a2a2e)); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
     flyers.push({m:bomb, from:bomb.position.clone(), to, t:0, dur:.6, arc:0, done:() => warHit(to, 2.6, 5, true)});
@@ -5543,7 +5546,17 @@ function updAir(dt) {
   if (HANGAR.g && ((HANGAR.chk = (HANGAR.chk || 0) - dt) <= 0)) { HANGAR.chk = 2; hangarLook(true); }
   const C = W.camp, airT = C && C.type === 'air';
   airSupport(C);
-  if (AIRS.on && time - AIRS.t0 > 44 + .7*AIRS.n) AIRS.on = false;   // once the last one in line has landed
+  // storming a city's walls: the planes come (if they are not already up) and hold over the gate, bombing the walls,
+  // until the city falls
+  if (C && C.assault && C.rival != null && planesBuilt()) {
+    const D = DEF[EMP.list[C.rival].id];
+    if (D && D.main) {
+      // a fresh sortie as the assault begins (the planes over the field battle are on their way home by now)
+      if (AIRS.id !== 'assault' + (C.id || '')) Object.assign(AIRS, {id:'assault' + (C.id || ''), on:true, t0:time - 9, tx:D.main.x, tz:D.main.z, n:planesBuilt(), hold:0});
+      else { AIRS.tx = D.main.x; AIRS.tz = D.main.z; if (time - AIRS.t0 - .7*(AIRS.n - 1) > 17) AIRS.hold = (AIRS.hold || 0) + dt; }
+    }
+  }
+  if (AIRS.on && time - AIRS.t0 > 44 + .7*AIRS.n + (AIRS.hold || 0)) { AIRS.on = false; AIRS.hold = 0; }   // once the last one in line has landed
   const air = airT || AIRS.on;
   const c0 = airT ? CAMPAIGNS[C.ci] : null, f0 = c0 && c0.target != null && C.goal === 'air' ? forts[c0.target] : null;
   const B0 = typeof WARFIRE !== 'undefined' ? sortieTarget() : null;
@@ -5552,13 +5565,14 @@ function updAir(dt) {
     const c = c0, e = airT ? C.dur - C.t - i*.7 : AIRS.on ? time - AIRS.t0 - i*.7 : -1;
     const [tx, tz] = airT ? (C.tx != null ? [C.tx, C.tz] : c ? AIR_TARGETS[c.target] : [0, 0]) : [AIRS.tx, AIRS.tz];
     const flying = air && i < (airT ? C.n ?? (c ? c.planes : 0) : AIRS.n);
+    p.hold = AIRS.on && !airT ? AIRS.hold || 0 : 0;
     const a = flying ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = flying ? airPos(e + .08, p, tx, tz) : a;
     // banked by the turn itself, and a barrel roll on the way in for the show-offs
     const S = p.style || {dir:1};
     p.alt = a[1]; flyPose(p, a, b, dt, flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0);
     p.prop.rotation.z += dt * (flying && e > 0 && e < 42 ? 40 : 0);
     // bombs go only at the bottom of each dive
-    if (flying && e > 17 && e < 28.5 && a[1] < 5 && (p.bombT -= dt) <= 0) {
+    if (flying && e > 17 && e < 28.5 + (p.hold || 0) && a[1] < 6.2 && (p.bombT -= dt) <= 0) {
       p.bombT = .22;
       const f = c && c.target != null && C && C.goal === 'air' ? forts[c.target] : null, bomb = new THREE.Mesh(G.sph, ballMat); bomb.scale.set(.12, .2, .12); bomb.position.set(a[0], a[1] - .3, a[2]); scene.add(bomb);
       const gx = a[0]*.35 + tx*.65 + (R() - .5)*4, gz = a[2]*.35 + tz*.65 + (R() - .5)*4;
@@ -5568,6 +5582,7 @@ function updAir(dt) {
         if (watchingWar()) shakeCam(.35);
         // the blast knocks down enemy soldiers caught near it
         for (const en of enemies) if (en.alive && Math.hypot(en.pos.x - gx, en.pos.z - gz) < 2.6) { en.hp -= 4; en.hit = .18; if (en.hp <= 0) knockOut(en); }
+        wallBomb(gx, gz);   // defenders on a city's walls are blown off them
         if (f) {
           f.hits++; const t = f.towers[Math.min(3, Math.floor(f.hits / 6))]; if (f.hits % 6 === 0 && t) t.rotation.z = .9;
           for (const tp of f.troops) if (!tp.down && Math.hypot(tp.x - gx, tp.z - gz) < 2.4) tp.down = true;
@@ -5658,6 +5673,8 @@ function warFocus() {
   const mid = list => { const a = list.filter(e => !e.down && (e.alive !== false)); if (!a.length) return null; let x = 0, z = 0; for (const e of a) { x += e.pos.x; z += e.pos.z; } return [x/a.length, z/a.length]; };
   if (!C && INV.on && INV.units.length) { const m = mid(INV.units); if (m) return [m[0], m[1] + 1.5]; }
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
+  // storming the walls: the camera frames the gate, your army below it and the defenders along the wall top
+  if (C.type === 'land' && C.assault && C.rival != null) { const D = DEF[EMP.list[C.rival].id]; if (D && D.main) { const [ix, iz] = inward(D.main); return C.t < 13 && D.hq ? [D.hq.x, D.hq.z + 1.5] : [D.main.x - ix*1.5, D.main.z - iz*1.5 + 1]; } }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
   if (C.type === 'sea' && C.naval) { const fl = fleet(); if (fl.length) { let x = 0, z = 0; for (const b of fl) { x += b.g.position.x; z += b.g.position.z; } return [x/fl.length, z/fl.length]; } }
   if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }
@@ -8686,9 +8703,22 @@ function lander(l) {
   mesh(G.box, 0x1a2a3a, [.4, .3, .05], [0, 2.4, .56], l);
   for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const g = mesh(G.cyl, 0xb8bcc2, [.05, 1.4, .05], [x*.8, .7, z*.8], l, {metalness:.6}); g.rotation.z = -x*.3; g.rotation.x = z*.3; mesh(G.cyl, 0xb8bcc2, [.22, .05, .22], [x*1.05, .03, z*1.05], l); }
 }
+// an astronaut: a white suit, a glass bubble helmet with a gold visor on the head, a life-support pack on the back.
+// Realistic people are animated even in the space scenes (c.space), so they walk rather than stand in a T.
 function astronaut() {
-  const c = makeChar({body:0xf4f4f4, body2:0xf4f4f4, pants:0xeeeeee, hair:'bald', skin:0xe8b892, hat:'helmet', hatCol:0xf4f4f4, shoe:0xb8bcc2});
-  scene.remove(c.g); mesh(G.sph, 0xd9a52a, [.2, .16, .1], [0, 1.62, .2], c.g, {metalness:.9, roughness:.1}); mesh(G.box, 0xdfe4ea, [.4, .5, .22], [0, 1.05, -.3], c.g);
+  const c = makeChar({body:0xf4f4f4, body2:0xf4f4f4, pants:0xeeeeee, top:'jacket', long:true, hair:'bald', skin:0xe8b892, shoe:0xb8bcc2, noFit:true});
+  scene.remove(c.g); c.space = true; c.blob = false;   // (the shadow blobs are drawn in the town's scene)
+  const helmet = new THREE.Group(), pack = new THREE.Group();
+  const glass = new THREE.Mesh(G.sph, new THREE.MeshStandardMaterial({color:0xdfefff, transparent:true, opacity:.28, roughness:.05, metalness:.2, depthWrite:false})); glass.scale.setScalar(.21); glass.position.set(0, 1.74, .01); helmet.add(glass);
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10, Math.PI*.12, Math.PI*.76, Math.PI*.2, Math.PI*.42), new THREE.MeshStandardMaterial({color:0xd9a52a, metalness:.95, roughness:.12, side:THREE.DoubleSide}));
+  visor.scale.setScalar(.215); visor.position.set(0, 1.74, .01); helmet.add(visor);
+  mesh(G.cyl, 0xe8e8ec, [.16, .05, .16], [0, 1.54, 0], helmet, {metalness:.4});   // the neck ring
+  mesh(G.box, 0xdfe4ea, [.36, .46, .2], [0, 1.28, -.2], pack); mesh(G.box, 0x9aa0a8, [.3, .08, .16], [0, 1.53, -.2], pack, {metalness:.5});
+  if (c.qn && c.bones.head) {
+    // fixed to the head and the spine, so they move with every step
+    c.root.updateMatrixWorld(true);
+    for (const [g, bone] of [[helmet, c.bones.head], [pack, c.bones.spine || c.bones.head]]) { g.scale.setScalar(1/QN.S); g.position.multiplyScalar(1/QN.S); c.root.add(g); bone.attach(g); }
+  } else { c.g.add(helmet); c.g.add(pack); }
   return c;
 }
 function startCut(planet) {
@@ -12559,13 +12589,16 @@ function massSiege(C, ours, theirs) {
   return {us:massRanks(ours, gx + nx*7, gz + nz*7, -nx, -nz, (x, z) => !inside(x, z, -1.2)), them:massRanks(theirs, gx - nx*3.5, gz - nz*3.5, nx, nz, (x, z) => inside(x, z, 1))};
 }
 function massPut(im, k, u, yaw) {
-  if (u.down >= 0) { const t = Math.min(1, u.down*3); MASS_O.position.set(u.x, .08*t, u.z); MASS_O.rotation.set(-Math.PI/2*t*u.fallDir, yaw, 0, 'YXZ'); }
-  else { MASS_O.position.set(u.x, u.bob || 0, u.z); MASS_O.rotation.set(u.lean || 0, yaw, 0, 'YXZ'); }
+  const y0 = u.y0 || 0;
+  if (u.down >= 0) { const t = Math.min(1, u.down*3), y = y0 ? Math.max(0, y0*(1 - u.down*u.down*4)) : 0; MASS_O.position.set(u.x + (u.drop || 0)*Math.min(1, u.down*2)*u.fx, y + .08*t, u.z + (u.drop || 0)*Math.min(1, u.down*2)*u.fz); MASS_O.rotation.set(-Math.PI/2*t*u.fallDir, yaw, 0, 'YXZ'); }
+  else { MASS_O.position.set(u.x, y0 + (u.bob || 0), u.z); MASS_O.rotation.set(u.lean || 0, yaw, 0, 'YXZ'); }
   MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix);
 }
 function updMassBattle(dt) {
-  // (not while storming a city's walls: that fight is at the gate, and ranks drawn round it would stand in the walls)
-  const C = W.camp || W.raid, land = C && C.type === 'land' && !C.assault && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
+  const C = W.camp || W.raid;
+  // storming a city's walls: its defenders man the walls and your army attacks them there
+  if (C && C.assault && REGT.built) { if (!MASS.ims) massBuild(); wallBattle(C, dt); return; }
+  const land = C && C.type === 'land' && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
   if (!land) { if (MASS.ims && MASS.ims[0].count) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; } MASS.id = -1; return; }
   if (!MASS.ims) massBuild();
   // a new battle: your regiments against their host, sized to the campaign
@@ -12615,6 +12648,81 @@ function updMassBattle(dt) {
     if (ranged) pick(MASS.us, 1, wepLvl() >= 2);
     pick(MASS.them, -1, MASS.gun);
   }
+}
+
+// ------------------------------------------------------------------ the battle for the walls
+// When the field is won and your army storms the city, its defenders man the walls on the gate side, shooting down at
+// you. Your army forms up at the foot of the wall and fires back up; your planes bomb the walls from above (wallBomb).
+// Defenders fall from the walls as the assault goes on; when the gate breaks the last of them are swept off and your
+// army pours in through it.
+const WALL = {c:null, n:0, shotT:0};
+function wallBattle(C, dt) {
+  const r = EMP.list[C.rival], D = r && DEF[r.id];
+  if (!D || !D.main) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; return; }
+  const G0 = gatesOf(r), R0 = G0.R0, gx = D.main.x, gz = D.main.z, h = LOOK[D.tier].h;
+  const [ix, iz] = inward(D.main), nx = -ix, nz = -iz, lx = -nz, lz = nx;   // n: out from the city; l: along the wall
+  if (WALL.c !== C) {
+    WALL.c = C; MASS.id = -1;
+    const ours = Math.min(MASS.cap, Math.max(0, (W.army || 0) - 24)), inside = (x, z) => x > R0.x0 + .5 && x < R0.x1 - .5 && z > R0.z0 + .5 && z < R0.z1 - .5;
+    // your army: ranks at the foot of the wall, either side of the gate (the duellers take the gate itself)
+    MASS.us = massRanks(ours, gx + nx*3.4, gz + nz*3.4, -nx, -nz, (x, z) => !inside(x, z));
+    // the defenders: a man every 0.9 along the wall top, out to 13 either side of the gate's gap
+    const them = [];
+    for (let t = -14; t <= 14; t += .72) {
+      if (Math.abs(t) < 2.3) continue;
+      const x = gx + lx*t - ix*.1, z = gz + lz*t - iz*.1;
+      if (!(x >= R0.x0 - .5 && x <= R0.x1 + .5 && z >= R0.z0 - .5 && z <= R0.z1 + .5)) continue;   // the wall ends at the corner
+      them.push({x, z, hx:x, hz:z, fx:nx, fz:nz, y0:h + .02, down:-1, ph:R()*6, run:0, drop:1.2});
+    }
+    MASS.them = them;
+    MASS.gun = !!ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, W.conquests)].gun;
+    for (const i of REGT.real ? [0] : [1, 3]) MASS.foe[i].material.color.set(i === 3 ? 0x3a1412 : 0x9a2620);
+    for (let i = 0; i < MASS.ims.length; i++) MASS.ims[i].material.color.copy(REGT.ims[i].material.color);
+  }
+  const ph = C.t, broken = ph < 16, fy = Math.atan2(-nx, -nz);
+  // the defenders: they fire down while the gate holds, fall to your fire and your bombs, and are swept away when it breaks
+  const alive = MASS.them.filter(u => u.down < 0).length;
+  for (const u of MASS.them) {
+    if (u.down >= 0) { u.down += dt; continue; }
+    if (broken) { if (R() < dt*3) { u.down = 0; u.fallDir = -1; } continue; }
+    if (R() < dt*.035*(1 + (26 - ph)*.25)) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; }
+    u.bob = Math.max(0, Math.sin(time*6 + u.ph))*.05; u.lean = Math.max(0, Math.sin(time*4 + u.ph))*.25;
+  }
+  // your army: firing up at the walls, then in through the broken gate
+  for (const [k, u] of MASS.us.entries()) {
+    if (u.down >= 0) { u.down += dt; continue; }
+    if (broken) {
+      const tx = gx - nx*4 + lx*((k % 9) - 4)*.5, tz = gz - nz*4 + lz*((k % 9) - 4)*.5, d = Math.hypot(tx - u.x, tz - u.z);
+      if (d > .3) { const st = Math.min(d, 4.5*dt*(.6 + (k % 7)*.08)); u.x += (tx - u.x)/d*st; u.z += (tz - u.z)/d*st; u.bob = Math.abs(Math.sin(time*11 + u.ph))*.1; }
+      else u.down = 99;   // through the gate and on into the city
+      continue;
+    }
+    u.bob = Math.abs(Math.sin(time*5 + u.ph))*.04; u.lean = Math.max(0, Math.sin(time*4 + u.ph))*.2;
+    if (R() < dt*.05) { u.down = 0; u.fallDir = 1; }   // the walls' fire takes its toll too
+  }
+  // shots both ways: tracers and puffs up from the foot of the wall, down from the wall top
+  if (!broken && (WALL.shotT -= dt) <= 0) {
+    WALL.shotT = .09;
+    const a = MASS.us[R()*Math.min(MASS_W*2, MASS.us.length)|0], d = MASS.them.filter(q => q.down < 0)[R()*Math.max(1, alive)|0];
+    const gun = wepLvl() >= 2;
+    if (a && a.down < 0 && d) {
+      const from = new THREE.Vector3(a.x, 1.3, a.z), to = new THREE.Vector3(d.x, d.y0 + 1, d.z);
+      if (gun) { particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .08, .14); particle(0xfff0b0, from.clone().lerp(to, .5), to.clone().sub(from).multiplyScalar(2.4), .2, .05); }
+      else particle(0x5a4630, from, to.clone().sub(from).multiplyScalar(1.3).setY(4), .8, .06, {grav:1});
+    }
+    if (d && a && R() < .6) {
+      const from = new THREE.Vector3(d.x, d.y0 + 1.2, d.z), to = new THREE.Vector3(a.x, .3, a.z);
+      if (MASS.gun) { particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .08, .14); particle(0xfff0b0, from.clone().lerp(to, .5), to.clone().sub(from).multiplyScalar(2.4), .2, .05); }
+      else particle(0x5a4630, from, to.clone().sub(from).multiplyScalar(1.4).setY(1), .7, .06, {grav:1});
+    }
+  }
+  const put = (list, im, yaw) => { for (let k = 0; k < list.length; k++) { const u = list[k]; if (u.down > 50) { MASS_O.position.set(0, -50, 0); MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix); continue; } massPut(im, k, u, yaw); } for (const m of im) { m.count = list.length; m.instanceMatrix.needsUpdate = true; } };
+  put(MASS.us, MASS.ims, fy); put(MASS.them, MASS.foe, fy + Math.PI);
+}
+// a bomb lands: defenders near it are blown off the wall
+function wallBomb(x, z) {
+  if (!WALL.c || !WALL.c.assault) return;
+  for (const u of MASS.them) if (u.down < 0 && Math.hypot(u.x - x, u.z - z) < 3.2) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; u.drop = 2 + R()*1.5; }
 }
 // ------------------------------------------------------------------ the Lucky Strip
 // The Strip is a long boulevard south of the wonders park: two lanes either side of a planted median, wide sidewalks,
@@ -14191,10 +14299,11 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   const v = new THREE.Vector3(), nm = new THREE.Matrix3();
   // can this mesh ever be merged? (things that animate in a shader, skin, sort or draw part of a geometry cannot)
   // people and carried items come and go all the time: they are already merged per person and per item
-  const MOVERS = new Set([itemMat, CHAR_MAT, CHAR_METAL]);
+  // (and items' outlines: they travel with the items, and baking them broke a batch every time anyone picked one up)
+  const MOVERS = new Set([itemMat, CHAR_MAT, CHAR_METAL, OUTLINE_MAT]);
   const ANIM = {has:m => winMats.includes(m) || lampMats.includes(m)};
   BAKE.kind = o => {
-    if (MOVERS.has(o.material) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
+    if (MOVERS.has(o.material) || (o.layers.mask !== 1 && o.userData.bakeMask == null) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
     const m = o.material, g = o.geometry;
     if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || (m.onBeforeCompile !== OBC && !m.userData.bakeSafe)) return null;
     if (!g.attributes.position || !g.attributes.normal || g.drawRange.count !== Infinity || g.drawRange.start || Object.keys(g.morphAttributes).length) return null;

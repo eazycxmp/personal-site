@@ -84,9 +84,22 @@ function lander(l) {
   mesh(G.box, 0x1a2a3a, [.4, .3, .05], [0, 2.4, .56], l);
   for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const g = mesh(G.cyl, 0xb8bcc2, [.05, 1.4, .05], [x*.8, .7, z*.8], l, {metalness:.6}); g.rotation.z = -x*.3; g.rotation.x = z*.3; mesh(G.cyl, 0xb8bcc2, [.22, .05, .22], [x*1.05, .03, z*1.05], l); }
 }
+// an astronaut: a white suit, a glass bubble helmet with a gold visor on the head, a life-support pack on the back.
+// Realistic people are animated even in the space scenes (c.space), so they walk rather than stand in a T.
 function astronaut() {
-  const c = makeChar({body:0xf4f4f4, body2:0xf4f4f4, pants:0xeeeeee, hair:'bald', skin:0xe8b892, hat:'helmet', hatCol:0xf4f4f4, shoe:0xb8bcc2});
-  scene.remove(c.g); mesh(G.sph, 0xd9a52a, [.2, .16, .1], [0, 1.62, .2], c.g, {metalness:.9, roughness:.1}); mesh(G.box, 0xdfe4ea, [.4, .5, .22], [0, 1.05, -.3], c.g);
+  const c = makeChar({body:0xf4f4f4, body2:0xf4f4f4, pants:0xeeeeee, top:'jacket', long:true, hair:'bald', skin:0xe8b892, shoe:0xb8bcc2, noFit:true});
+  scene.remove(c.g); c.space = true; c.blob = false;   // (the shadow blobs are drawn in the town's scene)
+  const helmet = new THREE.Group(), pack = new THREE.Group();
+  const glass = new THREE.Mesh(G.sph, new THREE.MeshStandardMaterial({color:0xdfefff, transparent:true, opacity:.28, roughness:.05, metalness:.2, depthWrite:false})); glass.scale.setScalar(.21); glass.position.set(0, 1.74, .01); helmet.add(glass);
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10, Math.PI*.12, Math.PI*.76, Math.PI*.2, Math.PI*.42), new THREE.MeshStandardMaterial({color:0xd9a52a, metalness:.95, roughness:.12, side:THREE.DoubleSide}));
+  visor.scale.setScalar(.215); visor.position.set(0, 1.74, .01); helmet.add(visor);
+  mesh(G.cyl, 0xe8e8ec, [.16, .05, .16], [0, 1.54, 0], helmet, {metalness:.4});   // the neck ring
+  mesh(G.box, 0xdfe4ea, [.36, .46, .2], [0, 1.28, -.2], pack); mesh(G.box, 0x9aa0a8, [.3, .08, .16], [0, 1.53, -.2], pack, {metalness:.5});
+  if (c.qn && c.bones.head) {
+    // fixed to the head and the spine, so they move with every step
+    c.root.updateMatrixWorld(true);
+    for (const [g, bone] of [[helmet, c.bones.head], [pack, c.bones.spine || c.bones.head]]) { g.scale.setScalar(1/QN.S); g.position.multiplyScalar(1/QN.S); c.root.add(g); bone.attach(g); }
+  } else { c.g.add(helmet); c.g.add(pack); }
   return c;
 }
 function startCut(planet) {

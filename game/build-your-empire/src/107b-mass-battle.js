@@ -37,13 +37,16 @@ function massSiege(C, ours, theirs) {
   return {us:massRanks(ours, gx + nx*7, gz + nz*7, -nx, -nz, (x, z) => !inside(x, z, -1.2)), them:massRanks(theirs, gx - nx*3.5, gz - nz*3.5, nx, nz, (x, z) => inside(x, z, 1))};
 }
 function massPut(im, k, u, yaw) {
-  if (u.down >= 0) { const t = Math.min(1, u.down*3); MASS_O.position.set(u.x, .08*t, u.z); MASS_O.rotation.set(-Math.PI/2*t*u.fallDir, yaw, 0, 'YXZ'); }
-  else { MASS_O.position.set(u.x, u.bob || 0, u.z); MASS_O.rotation.set(u.lean || 0, yaw, 0, 'YXZ'); }
+  const y0 = u.y0 || 0;
+  if (u.down >= 0) { const t = Math.min(1, u.down*3), y = y0 ? Math.max(0, y0*(1 - u.down*u.down*4)) : 0; MASS_O.position.set(u.x + (u.drop || 0)*Math.min(1, u.down*2)*u.fx, y + .08*t, u.z + (u.drop || 0)*Math.min(1, u.down*2)*u.fz); MASS_O.rotation.set(-Math.PI/2*t*u.fallDir, yaw, 0, 'YXZ'); }
+  else { MASS_O.position.set(u.x, y0 + (u.bob || 0), u.z); MASS_O.rotation.set(u.lean || 0, yaw, 0, 'YXZ'); }
   MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix);
 }
 function updMassBattle(dt) {
-  // (not while storming a city's walls: that fight is at the gate, and ranks drawn round it would stand in the walls)
-  const C = W.camp || W.raid, land = C && C.type === 'land' && !C.assault && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
+  const C = W.camp || W.raid;
+  // storming a city's walls: its defenders man the walls and your army attacks them there
+  if (C && C.assault && REGT.built) { if (!MASS.ims) massBuild(); wallBattle(C, dt); return; }
+  const land = C && C.type === 'land' && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
   if (!land) { if (MASS.ims && MASS.ims[0].count) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; } MASS.id = -1; return; }
   if (!MASS.ims) massBuild();
   // a new battle: your regiments against their host, sized to the campaign
@@ -93,4 +96,79 @@ function updMassBattle(dt) {
     if (ranged) pick(MASS.us, 1, wepLvl() >= 2);
     pick(MASS.them, -1, MASS.gun);
   }
+}
+
+// ------------------------------------------------------------------ the battle for the walls
+// When the field is won and your army storms the city, its defenders man the walls on the gate side, shooting down at
+// you. Your army forms up at the foot of the wall and fires back up; your planes bomb the walls from above (wallBomb).
+// Defenders fall from the walls as the assault goes on; when the gate breaks the last of them are swept off and your
+// army pours in through it.
+const WALL = {c:null, n:0, shotT:0};
+function wallBattle(C, dt) {
+  const r = EMP.list[C.rival], D = r && DEF[r.id];
+  if (!D || !D.main) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; return; }
+  const G0 = gatesOf(r), R0 = G0.R0, gx = D.main.x, gz = D.main.z, h = LOOK[D.tier].h;
+  const [ix, iz] = inward(D.main), nx = -ix, nz = -iz, lx = -nz, lz = nx;   // n: out from the city; l: along the wall
+  if (WALL.c !== C) {
+    WALL.c = C; MASS.id = -1;
+    const ours = Math.min(MASS.cap, Math.max(0, (W.army || 0) - 24)), inside = (x, z) => x > R0.x0 + .5 && x < R0.x1 - .5 && z > R0.z0 + .5 && z < R0.z1 - .5;
+    // your army: ranks at the foot of the wall, either side of the gate (the duellers take the gate itself)
+    MASS.us = massRanks(ours, gx + nx*3.4, gz + nz*3.4, -nx, -nz, (x, z) => !inside(x, z));
+    // the defenders: a man every 0.9 along the wall top, out to 13 either side of the gate's gap
+    const them = [];
+    for (let t = -14; t <= 14; t += .72) {
+      if (Math.abs(t) < 2.3) continue;
+      const x = gx + lx*t - ix*.1, z = gz + lz*t - iz*.1;
+      if (!(x >= R0.x0 - .5 && x <= R0.x1 + .5 && z >= R0.z0 - .5 && z <= R0.z1 + .5)) continue;   // the wall ends at the corner
+      them.push({x, z, hx:x, hz:z, fx:nx, fz:nz, y0:h + .02, down:-1, ph:R()*6, run:0, drop:1.2});
+    }
+    MASS.them = them;
+    MASS.gun = !!ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, W.conquests)].gun;
+    for (const i of REGT.real ? [0] : [1, 3]) MASS.foe[i].material.color.set(i === 3 ? 0x3a1412 : 0x9a2620);
+    for (let i = 0; i < MASS.ims.length; i++) MASS.ims[i].material.color.copy(REGT.ims[i].material.color);
+  }
+  const ph = C.t, broken = ph < 16, fy = Math.atan2(-nx, -nz);
+  // the defenders: they fire down while the gate holds, fall to your fire and your bombs, and are swept away when it breaks
+  const alive = MASS.them.filter(u => u.down < 0).length;
+  for (const u of MASS.them) {
+    if (u.down >= 0) { u.down += dt; continue; }
+    if (broken) { if (R() < dt*3) { u.down = 0; u.fallDir = -1; } continue; }
+    if (R() < dt*.035*(1 + (26 - ph)*.25)) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; }
+    u.bob = Math.max(0, Math.sin(time*6 + u.ph))*.05; u.lean = Math.max(0, Math.sin(time*4 + u.ph))*.25;
+  }
+  // your army: firing up at the walls, then in through the broken gate
+  for (const [k, u] of MASS.us.entries()) {
+    if (u.down >= 0) { u.down += dt; continue; }
+    if (broken) {
+      const tx = gx - nx*4 + lx*((k % 9) - 4)*.5, tz = gz - nz*4 + lz*((k % 9) - 4)*.5, d = Math.hypot(tx - u.x, tz - u.z);
+      if (d > .3) { const st = Math.min(d, 4.5*dt*(.6 + (k % 7)*.08)); u.x += (tx - u.x)/d*st; u.z += (tz - u.z)/d*st; u.bob = Math.abs(Math.sin(time*11 + u.ph))*.1; }
+      else u.down = 99;   // through the gate and on into the city
+      continue;
+    }
+    u.bob = Math.abs(Math.sin(time*5 + u.ph))*.04; u.lean = Math.max(0, Math.sin(time*4 + u.ph))*.2;
+    if (R() < dt*.05) { u.down = 0; u.fallDir = 1; }   // the walls' fire takes its toll too
+  }
+  // shots both ways: tracers and puffs up from the foot of the wall, down from the wall top
+  if (!broken && (WALL.shotT -= dt) <= 0) {
+    WALL.shotT = .09;
+    const a = MASS.us[R()*Math.min(MASS_W*2, MASS.us.length)|0], d = MASS.them.filter(q => q.down < 0)[R()*Math.max(1, alive)|0];
+    const gun = wepLvl() >= 2;
+    if (a && a.down < 0 && d) {
+      const from = new THREE.Vector3(a.x, 1.3, a.z), to = new THREE.Vector3(d.x, d.y0 + 1, d.z);
+      if (gun) { particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .08, .14); particle(0xfff0b0, from.clone().lerp(to, .5), to.clone().sub(from).multiplyScalar(2.4), .2, .05); }
+      else particle(0x5a4630, from, to.clone().sub(from).multiplyScalar(1.3).setY(4), .8, .06, {grav:1});
+    }
+    if (d && a && R() < .6) {
+      const from = new THREE.Vector3(d.x, d.y0 + 1.2, d.z), to = new THREE.Vector3(a.x, .3, a.z);
+      if (MASS.gun) { particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .08, .14); particle(0xfff0b0, from.clone().lerp(to, .5), to.clone().sub(from).multiplyScalar(2.4), .2, .05); }
+      else particle(0x5a4630, from, to.clone().sub(from).multiplyScalar(1.4).setY(1), .7, .06, {grav:1});
+    }
+  }
+  const put = (list, im, yaw) => { for (let k = 0; k < list.length; k++) { const u = list[k]; if (u.down > 50) { MASS_O.position.set(0, -50, 0); MASS_O.updateMatrix(); for (const m of im) m.setMatrixAt(k, MASS_O.matrix); continue; } massPut(im, k, u, yaw); } for (const m of im) { m.count = list.length; m.instanceMatrix.needsUpdate = true; } };
+  put(MASS.us, MASS.ims, fy); put(MASS.them, MASS.foe, fy + Math.PI);
+}
+// a bomb lands: defenders near it are blown off the wall
+function wallBomb(x, z) {
+  if (!WALL.c || !WALL.c.assault) return;
+  for (const u of MASS.them) if (u.down < 0 && Math.hypot(u.x - x, u.z - z) < 3.2) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; u.drop = 2 + R()*1.5; }
 }

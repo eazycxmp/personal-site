@@ -12,10 +12,11 @@ BAKE.group.name = 'bake'; scene.add(BAKE.group);
   const v = new THREE.Vector3(), nm = new THREE.Matrix3();
   // can this mesh ever be merged? (things that animate in a shader, skin, sort or draw part of a geometry cannot)
   // people and carried items come and go all the time: they are already merged per person and per item
-  const MOVERS = new Set([itemMat, CHAR_MAT, CHAR_METAL]);
+  // (and items' outlines: they travel with the items, and baking them broke a batch every time anyone picked one up)
+  const MOVERS = new Set([itemMat, CHAR_MAT, CHAR_METAL, OUTLINE_MAT]);
   const ANIM = {has:m => winMats.includes(m) || lampMats.includes(m)};
   BAKE.kind = o => {
-    if (MOVERS.has(o.material) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
+    if (MOVERS.has(o.material) || (o.layers.mask !== 1 && o.userData.bakeMask == null) || !o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || o.morphTargetInfluences || o.renderOrder || o.onBeforeRender !== OBR || !o.frustumCulled || o.userData.noBake) return null;
     const m = o.material, g = o.geometry;
     if (!m || Array.isArray(m) || !PLAIN.has(m.type) || m.transparent || (m.onBeforeCompile !== OBC && !m.userData.bakeSafe)) return null;
     if (!g.attributes.position || !g.attributes.normal || g.drawRange.count !== Infinity || g.drawRange.start || Object.keys(g.morphAttributes).length) return null;
