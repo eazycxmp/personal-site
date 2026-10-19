@@ -50,6 +50,7 @@ function payLandMarket(zn, e) {
 }
 function updLandMarkets(dt) {
   if (!started || !supplyOn() || (LMK.chk -= dt) > 0) return; LMK.chk = 1.5;
+  const waiting = [];
   for (const k of landKeys()) {
     const L = land(k);
     if (L.lost) { if (LMK.zone[k]) { removeZone(LMK.zone[k]); LMK.zone[k] = null; } continue; }
@@ -64,6 +65,8 @@ function updLandMarkets(dt) {
     if (!LMK.zone[k]) { const [, [x, z]] = landMarketSpots(k); LMK.zone[k] = addZone({kind:'landMarket', land:k, x, z, w:1.6, d:1.6, icon:'🧺', tile:landMarketTile(k)}); }
     // the first time food is waiting there with nobody to hand it out, say so
     const stock = Object.values(landSup(k).stock).reduce((a, b) => a + b, 0);
-    if (stock >= 4 && !LMK.told[k] && !(W.flags.lmTold || {})[k]) { LMK.told[k] = true; (W.flags.lmTold ||= {})[k] = true; note(`🧺 Food is waiting in ${landName(k)}`, 'Its depot has food but no market to hand it out. Travel there with 🧭 (islands by boat) and build its market on the 🧺 tile.'); }
+    if (stock >= 4 && !LMK.told[k] && !(W.flags.lmTold || {})[k]) { LMK.told[k] = true; (W.flags.lmTold ||= {})[k] = true; waiting.push(landName(k)); }
   }
+  // one message for every land waiting, not one each
+  if (waiting.length) note(`🧺 Food is waiting in ${waiting.length > 1 ? waiting.length + ' lands' : waiting[0]}`, `${waiting.length > 1 ? waiting.join(', ') + ': their depots have' : 'Its depot has'} food but no market to hand it out. Travel there with 🧭 (islands by boat) and build the market on the 🧺 tile.`);
 }

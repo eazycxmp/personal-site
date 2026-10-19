@@ -8,7 +8,7 @@ const CAV = [null,
 const TANK_POW = 30;
 const PADDOCK = {x0:5.4, x1:12.6, z0:50.6, z1:55.4, g:null, rides:[], lvl:0};
 const cavLvl = () => count(['cav1', 'cav2', 'cav3']);
-const cavPower = () => W.unlocked.has('tanks') ? TANK_POW : cavLvl() ? CAV[cavLvl()].pow : 0;
+const cavPower = () => W.unlocked.has('tanks') ? TANK_POW : (cavLvl() ? CAV[cavLvl()].pow : 0) + (W.unlocked.has('chariots') ? 5 : 0);
 const cavName = () => W.unlocked.has('tanks') ? 'Tank division' : cavLvl() ? CAV[cavLvl()].n : 'Cavalry';
 function cavStage(n, anim) {
   const P = PADDOCK;
@@ -30,21 +30,37 @@ function cavStage(n, anim) {
   // two more riders than the tier: three horsemen, four lancers, five dragoons, side by side facing the gate
   const k = n + 2, C = CAV[n];
   for (let i = 0; i < k; i++) {
-    const H = horseModel(HORSE.s, [1, .72, 1.15, .85, .6][i]); if (!H) break;
-    const g = new THREE.Group(); g.position.set(P.x0 + 1 + i*(P.x1 - P.x0 - 2)/Math.max(1, k - 1), 0, (P.z0 + P.z1)/2 + (i % 2 ? .4 : -.4)); g.rotation.y = Math.PI; P.g.add(g);
+    const H = horseModel(HORSE.s); if (!H) break; horseCoat(H.g, i*3 + 1);
+    // loosely about the paddock, each facing its own way
+    const g = new THREE.Group(); g.position.set(P.x0 + 1 + i*(P.x1 - P.x0 - 2)/Math.max(1, k - 1) + (R() - .5)*.6, 0, (P.z0 + P.z1)/2 + (R() - .5)*2.2); g.rotation.y = Math.PI + (R() - .5)*2.4; P.g.add(g);
     H.g.position.z = HORSE.z; g.add(H.g); saddleOn(g);
     const rider = makeChar(C.o); rider.ride = 'horse'; g.add(rider.g); rider.g.position.set(0, HORSE.ride, 0);
     if (C.lance) mesh(G.cyl, 0x8a6a42, [.04, 2.6, .04], [.32, HORSE.ride + 1.4, -.1], g).rotation.x = .25;
-    H.idleT = R()*8; P.rides.push({g, H, rider});
+    H.idleT = R()*8; P.rides.push({g, H, rider, wT:4 + R()*10, tgt:null});
   }
   if (anim) { puff((P.x0 + P.x1)/2, (P.z0 + P.z1)/2); banner(`${C.icon} ${C.n}!`, `Your mounted troops: strength ${C.pow}. Send them to war on their own, beside the army.`); }
 }
 function updCavalry(dt) {
-  const P = PADDOCK; if (!P.rides.length) return;
+  const P = PADDOCK; if (!P.rides.length && !CHYARD.g) return;
   // the riders leave the paddock while they are away at war
   const away = CHARGE.riders.length > 0 || (typeof FRONTS !== 'undefined' && FRONTS.busy('cav'));
   const near = camera.position.distanceToSquared(new THREE.Vector3((P.x0 + P.x1)/2, 0, (P.z0 + P.z1)/2)) < 70*70;
-  for (const r of P.rides) { r.g.visible = !away; if (!away && near) horseGait(r.H, dt, 0); }
+  if (CHYARD.g) { CHYARD.g.visible = !away; if (!away && near) for (const CH of CHYARD.ch) chariotRoll(CH, dt, 0); }
+  for (const r of P.rides) {
+    r.g.visible = !away; if (away || !near) continue;
+    // every so often a horse wanders to another spot in the paddock, turns, and settles to graze or doze there
+    let sp = 0;
+    if (!r.tgt && (r.wT -= dt) <= 0) {
+      for (let n = 0; n < 12; n++) { const x = P.x0 + 1 + R()*(P.x1 - P.x0 - 2), z = P.z0 + 1 + R()*(P.z1 - P.z0 - 2); if (P.rides.every(q => q === r || Math.hypot(q.g.position.x - x, q.g.position.z - z) > 1.9)) { r.tgt = [x, z]; break; } }
+      r.wT = 8 + R()*14;
+    }
+    if (r.tgt) {
+      const p = r.g.position, dx = r.tgt[0] - p.x, dz = r.tgt[1] - p.z, d = Math.hypot(dx, dz);
+      let dy = Math.atan2(dx, dz) - r.g.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.g.rotation.y += dy*Math.min(1, dt*2);
+      if (d < .15) r.tgt = null; else if (Math.abs(dy) < .8) { sp = Math.min(1.1, d*1.5); p.x += dx/d*sp*dt; p.z += dz/d*sp*dt; }
+    }
+    horseGait(r.H, dt, sp);
+  }
 }
 // ------------------------------------------------------------------ the charge: your cavalry (or tanks) ride out to a land battle and fight it
 // Who goes to a land battle: the army unless you sent only other branches; the cavalry when you sent it.
@@ -62,7 +78,7 @@ function chargeStart(C) {
     const r = {g, i, n, tank:tanks, pos:new THREE.Vector3(), vel:new THREE.Vector3(), yaw:0, hp:99, maxHp:99, pi:0, mode:'ride', cd:R(), sp:0};
     if (tanks) { const t = model('tank', 2.4, 'z'); if (t) g.add(t); }
     else {
-      r.H = horseModel(HORSE.s, [1, .72, 1.15, .85, .6][i]); if (r.H) { r.H.g.position.z = HORSE.z; g.add(r.H.g); }
+      r.H = horseModel(HORSE.s); if (r.H) { horseCoat(r.H.g, i*3 + 1); r.H.g.position.z = HORSE.z; g.add(r.H.g); }
       saddleOn(g); r.char = makeChar(Cv.o); r.char.ride = 'horse'; g.add(r.char.g); r.char.g.position.y = HORSE.ride;
       if (Cv.lance) { r.lance = mesh(G.cyl, 0x8a6a42, [.04, 2.6, .04], [.32, HORSE.ride + 1.2, .2], g); r.lance.rotation.x = .25; }
     }
@@ -70,6 +86,49 @@ function chargeStart(C) {
     r.pos.set(sx + (i - (n - 1)/2)*1.6, 0, sz - (C.away ? i*1.4 : 0)); g.position.copy(r.pos);
     CHARGE.riders.push(r);
   }
+  if (!tanks && W.unlocked.has('chariots')) for (let k = 0; k < 2; k++) {
+    const CH = chariotModel(k), g = CH.g; scene.add(g);
+    const r = {g, i:n + k, n:n + 2, chariot:CH, pos:new THREE.Vector3(), vel:new THREE.Vector3(), yaw:0, hp:99, maxHp:99, pi:0, mode:'ride', cd:R(), sp:0};
+    const [sx, sz] = CHARGE.path[0] || [BF.x, BF.z - 30]; r.pos.set(sx + (k - .5)*2.4, 0, sz - 2.5 - k*1.6); g.position.copy(r.pos);
+    CHARGE.riders.push(r);
+  }
+}
+// ------------------------------------------------------------------ war chariots, Roman style
+// Two horses on a yoke pole draw a two-wheeled car; a driver stands at the reins. Iron spikes stud the hubs and a scythe
+// blade sticks out from each wheel, turning with it: in a charge they cut down whoever stands beside the chariot.
+function chariotModel(i = 0, paint = 0xa8322a, crew = null) {
+  const g = new THREE.Group(), horses = [], wheels = [];
+  for (const sx of [-.44, .44]) { const H = horseModel(HORSE.s*.92); if (!H) continue; horseCoat(H.g, i*2 + (sx > 0 ? 3 : 0)); H.g.position.set(sx, 0, 1.25); g.add(H.g); horses.push(H); }
+  const M = {metalness:.6, roughness:.4};
+  mesh(G.box, 0x6b4526, [.06, .06, 1.9], [0, .78, .55], g);                     // the yoke pole
+  mesh(G.box, 0x6b4526, [1.15, .06, .06], [0, .9, 1.5], g);                      // the yoke
+  mesh(G.box, 0x8a5a2b, [1, .08, .8], [0, .58, -.45], g);                        // the car floor
+  mesh(G.box, paint, [1, .62, .06], [0, .9, -.07], g);                           // its front, painted, with a bronze rim
+  mesh(G.box, 0xc8a24a, [1.04, .06, .08], [0, 1.22, -.07], g, M);
+  for (const sx of [-.5, .5]) mesh(G.box, paint, [.06, .42, .7], [sx, .8, -.42], g);
+  mesh(G.cyl, 0x4a3a2a, [.05, 1.5, .05], [0, .42, -.5], g).rotation.z = Math.PI/2;   // the axle
+  for (const sx of [-.64, .64]) {
+    const w = new THREE.Group(); w.position.set(sx, .44, -.5); g.add(w); wheels.push(w);
+    const rim = mesh(G.cyl, 0x5e3f22, [.44, .07, .44], [0, 0, 0], w); rim.rotation.z = Math.PI/2;
+    for (let k = 0; k < 6; k++) { const sp = mesh(G.box, 0x6b4526, [.04, .84, .04], [0, 0, 0], w); sp.rotation.x = k/6*Math.PI; }
+    const hub = mesh(G.cyl, 0x9aa0a8, [.1, .14, .1], [sx > 0 ? .06 : -.06, 0, 0], w, M); hub.rotation.z = Math.PI/2;
+    for (let k = 0; k < 4; k++) { const s = mesh(G.cone, 0xb8bcc4, [.04, .16, .04], [sx > 0 ? .16 : -.16, Math.cos(k*Math.PI/2)*.07, Math.sin(k*Math.PI/2)*.07], w, M); s.rotation.z = sx > 0 ? -Math.PI/2 : Math.PI/2; }
+    const blade = mesh(G.box, 0xd8dce2, [.62, .03, .1], [sx > 0 ? .42 : -.42, 0, 0], w, M); blade.rotation.x = .3;   // the scythe
+  }
+  const driver = makeChar(crew || {body:0xa8322a, trim:0xc8a24a, hat:'roman', pants:0x5a3a22, cape:0xa8322a});
+  driver.ride = 'stand'; driver.g.position.set(0, .62, -.45); g.add(driver.g); driver.armR.rotation.x = driver.armL.rotation.x = -1;   // at the reins
+  g.traverse(o => { if (o.isMesh) o.userData.noBake = true; });
+  return {g, horses, wheels, driver};
+}
+function chariotRoll(CH, dt, sp) { for (const H of CH.horses) horseGait(H, dt, sp); for (const w of CH.wheels) w.rotation.x += sp*dt/.44; }
+// parked by the paddock, the horses idling, until there is a battle
+const CHYARD = {g:null, ch:[]};
+function chariotYard(anim) {
+  if (CHYARD.g) return;
+  const g = CHYARD.g = new THREE.Group(); scene.add(g);
+  for (let i = 0; i < 2; i++) { const CH = chariotModel(i); CH.g.position.set(14.6 + i*1.8, 0, 50.8); g.add(CH.g); CHYARD.ch.push(CH); }
+  boxes.push({x0:13.6, x1:17.4, z0:49.8, z1:53.4});
+  if (anim) { popIn(g); banner('🛞 War chariots!', 'Scythed wheels and two horses each: they charge beside your cavalry and cut down whoever stands near. Cavalry +5.'); }
 }
 function chargeClear() { for (const r of CHARGE.riders) { scene.remove(r.g); if (r.bar) scene.remove(r.bar); } CHARGE.riders = []; CHARGE.id = null; }
 // move toward a point at a gallop, turning like a horse (not on the spot); true when there
@@ -137,6 +196,11 @@ function updCharge(dt) {
   for (const r of CHARGE.riders) {
     r.g.position.set(r.pos.x, 0, r.pos.z); r.g.rotation.y = r.yaw;
     if (r.H && r.g.visible) horseGait(r.H, dt, r.sp);
+    if (r.chariot && r.g.visible) {
+      chariotRoll(r.chariot, dt, r.sp);
+      // the scythes: anyone close beside a chariot at speed is cut down
+      if (live && ph > 9 && ph <= 22 && r.sp > 3) for (const e of alive) if (e.alive && Math.hypot(e.pos.x - r.pos.x, e.pos.z - r.pos.z) < 1.5 && R() < dt*6) { e.hp -= 3; e.hit = .18; if (e.hp <= 0) knockOut(e); }
+    }
   }
   if (!live && home >= CHARGE.riders.length) chargeClear();
 }

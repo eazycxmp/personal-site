@@ -9,6 +9,15 @@ let mountG = null, jetFlame = null;
 // the horse model: scale, where it sits under you, where its saddle is (under your hips) and how high you ride
 const HORSE = {s:.4, z:-.28, seat:-.3, saddle:1.4, ride:.96, walk:1.3, gallop:4.6, IDLES:['Idle', 'Idle', 'Idle_2', 'Idle_Headlow', 'Eating']};
 // a real horse (Quaternius, CC0) at any size, optionally darker; horseGait plays the walk, gallop or an idle to match a speed
+// real coat colours: body, its darker and lighter patches, mane and tail
+const COATS = [[0x7a5432, 0x5d4127, 0x9b6a3f, 0x2a2420],   // bay
+  [0x8f4f26, 0x6e3a1c, 0xb06a38, 0x7a3e1e], [0x2e2622, 0x221c18, 0x3e342e, 0x1a1614],   // chestnut, black
+  [0xa8a49e, 0x8a8680, 0xc8c4be, 0x6a6660], [0xe6e2da, 0xcfcac0, 0xf4f0ea, 0xd8d2c6],   // grey, white
+  [0xb4905a, 0x8e6e40, 0xcaa874, 0x3a2e22], [0x5a3a26, 0x3e281a, 0xe8e2d8, 0x2a2018]];   // dun, pinto-ish
+function horseCoat(g, i) {
+  const C = COATS[((i % COATS.length) + COATS.length) % COATS.length], by = {Main:C[0], Main_Dark:C[1], Main_Light:C[2], Hair:C[3]};
+  g.traverse(o => { if (o.isMesh && by[o.material.name] != null) { o.material = o.material.clone(); o.material.color.set(by[o.material.name]); } });
+}
 function horseModel(scale = HORSE.s, shade = 1) {
   if (!MODELS.horse || !MODELS.horse.userData.anims) return null;
   const g = skClone(MODELS.horse); g.scale.setScalar(scale);
@@ -28,7 +37,7 @@ function horseGait(H, dt, sp) {
   // a walk when starting or slowing, a gallop at pace (strides scale with the horse's size); standing, it idles, drops its head or grazes
   if (sp <= .3 && (H.idleT -= dt) <= 0) { H.idleT = 5 + R()*6; H.idle = HORSE.IDLES[R()*HORSE.IDLES.length|0]; }
   const want = sp > 3.2*H.k ? 'Gallop' : sp > .3 ? 'Walk' : H.idle;
-  if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }
+  if (want !== H.cur && H.acts[want]) { const a = H.acts[want]; a.reset().setEffectiveWeight(1).fadeIn(.25).play(); if (want !== 'Walk' && want !== 'Gallop') { a.timeScale = .8 + R()*.4; a.time = R()*a.getClip().duration; } if (H.cur) H.acts[H.cur].fadeOut(.25); H.cur = want; }   // (each at its own pace, never in step with the next)
   if (H.acts.Walk) H.acts.Walk.timeScale = clamp(sp/(HORSE.walk*H.k), .6, 2.2);
   if (H.acts.Gallop) H.acts.Gallop.timeScale = clamp(sp/(HORSE.gallop*H.k), .8, 1.7);
   H.mx.update(dt);

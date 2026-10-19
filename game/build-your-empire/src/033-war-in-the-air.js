@@ -339,6 +339,8 @@ function warFocus() {
   if (!C) { const m = mid(enemies) || mid(soldiers); return m ? [m[0], m[1] + 1.5] : [player.pos.x, player.pos.z]; }
   // storming the walls: the camera frames the gate, your army below it and the defenders along the wall top
   if (C.type === 'land' && C.assault && C.rival != null) { const D = DEF[EMP.list[C.rival].id]; if (D && D.main) { const [ix, iz] = inward(D.main); return C.t < 13 && D.hq ? [D.hq.x, D.hq.z + 1.5] : [D.main.x - ix*1.5, D.main.z - iz*1.5 + 1]; } }
+  // only the cavalry (and chariots) sent: follow them, not the foot soldiers who stayed home
+  if (C.type === 'land' && !armyGoes(C) && CHARGE.riders.length) { const v = CHARGE.riders.filter(r => r.g.visible); if (v.length) { let x = 0, z = 0; for (const r of v) { x += r.pos.x; z += r.pos.z; } return [x/v.length, z/v.length + 1.5]; } }
   if (C.type === 'land') { if (C.sail && SAILS.g) return [SAILS.g.position.x, SAILS.g.position.z]; const m = mid(soldiers.filter(q => q.char.g.visible)); return m && C.t > 9 ? [m[0], m[1] + 1.5] : [BF.x - 1, BF.z + 1.5]; }
   if (C.type === 'sea' && C.naval) { const fl = fleet(); if (fl.length) { let x = 0, z = 0; for (const b of fl) { x += b.g.position.x; z += b.g.position.z; } return [x/fl.length, z/fl.length]; } }
   if (C.type === 'sea') { const fl = fleet().map(b => b.g ? b.g.position : b).filter(q => q.z > -81); if (fl.length) { let x = 0, z = 0; for (const q of fl) { x += q.x; z += q.z; } return [x/fl.length, z/fl.length]; } const f = COAST.cur; return f ? [f.g.position.x - 3, -94] : [-13.6, -68]; }
