@@ -28,10 +28,11 @@ function updMassBattle(dt) {
   const C = W.camp || W.raid, land = C && C.type === 'land' && C.away !== false && C.t <= 22.5 && C.t > 6 && REGT.built && enemies.length;
   if (!land) { if (MASS.ims && MASS.ims[0].count) { for (const im of [...MASS.ims, ...MASS.foe]) im.count = 0; } MASS.id = -1; return; }
   if (!MASS.ims) massBuild();
-  // a new battle: our regiments (or, before there are any, the levies of the town) against their host, sized to the campaign
-  if (MASS.id !== BT.id) {
-    MASS.id = BT.id;
-    const ours = Math.min(MASS.cap, Math.max(Math.max(0, (W.army || 0) - 24), 40 + (W.army || 0)*3)), theirs = Math.min(MASS.cap, 60 + enemies.length*12);
+  // a new battle: your regiments against their host, sized to the campaign
+  if (MASS.id !== BT.id || MASS.c !== C) {
+    MASS.id = BT.id; MASS.c = C;
+    // ours are only the soldiers you have trained: everyone past the 24 who fight up front (none, with 24 or fewer)
+    const ours = Math.min(MASS.cap, Math.max(0, (W.army || 0) - 24)), theirs = Math.min(MASS.cap, 60 + enemies.length*12);
     MASS.us = massSide(ours, 1); MASS.them = massSide(theirs, -1);
     const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, C.army && !C.name ? (W.troop || 0) + 1 : W.conquests)];
     MASS.gun = !!look.gun; for (const i of REGT.real ? [0] : [1, 3]) MASS.foe[i].material.color.set(i === 3 ? (look.hatCol || look.pants) : look.body);
