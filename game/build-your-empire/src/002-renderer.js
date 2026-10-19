@@ -10,6 +10,36 @@ renderer.shadowMap.autoUpdate = false;   // redrawn every other frame (see frame
 // is its own texture object whose copies are itself (one upload, not one per material: that was seconds of freeze per building)
 const GRAIN = TEX.plastered_wall_02 && TEX.plastered_wall_02.map && texClone(TEX.plastered_wall_02.map), WHITE1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); WHITE1.needsUpdate = true;
 for (const t of [GRAIN, WHITE1]) if (t) t.clone = function () { return this; };
+// See-through cutaway: anything standing between the camera and you (or the tile the guide points at) opens a dithered
+// window, so hotels, towers and trees never hide what matters. One set of shared uniforms (plain objects, which three
+// shares between materials rather than copying), set every frame in render(); ground below .55 is never cut, shadows
+// are untouched (the depth pass has its own shaders).
+const CUT = {cam:{x:0, y:0, z:0, w:0}, a:{x:0, y:0, z:0, w:0}, b:{x:0, y:0, z:0, w:0}};
+for (const id of ['standard', 'physical']) {
+  const L = THREE.ShaderLib[id];
+  L.uniforms.cutCam = {value:CUT.cam}; L.uniforms.cutA = {value:CUT.a}; L.uniforms.cutB = {value:CUT.b};
+  L.vertexShader = L.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCW;').replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+  { vec4 cw = vec4(transformed, 1.);
+    #ifdef USE_BATCHING
+    cw = batchingMatrix * cw;
+    #endif
+    #ifdef USE_INSTANCING
+    cw = instanceMatrix * cw;
+    #endif
+    vCW = (modelMatrix * cw).xyz; }`);
+  L.fragmentShader = L.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vCW; uniform vec4 cutCam, cutA, cutB;
+float cutAt(vec4 P) {
+  if (P.w <= 0.) return 1.;
+  vec3 C = cutCam.xyz, D = P.xyz - C; float t = dot(vCW - C, D) / max(1e-3, dot(D, D));
+  if (t < .04 || t > .9) return 1.;
+  return length(vCW - (C + D*t)) / (P.w*mix(.45, 1., t));
+}`).replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  if (cutCam.w > 0. && vCW.y > .55) {
+    float k = min(cutAt(cutA), cutAt(cutB));
+    if (k < 1.) { vec2 g = mod(floor(gl_FragCoord.xy), 4.); float th = (mod(g.x*2. + g.y*3., 4.) + mod(g.y, 2.)*.5 + .25)/4.5; if (k < .62 || th > (k - .62)/.38) discard; }
+  }`);
+}
 if (!MOBILE) for (const id of ['standard', 'physical']) {
   const L = THREE.ShaderLib[id];
   L.uniforms.tGrain = {value:GRAIN || WHITE1}; L.uniforms.gAvg = {value:GRAIN ? Math.max(.05, TEX.plastered_wall_02.avg.g) : 1};

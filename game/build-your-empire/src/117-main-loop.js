@@ -246,6 +246,11 @@ function render(dt) {
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);
   if (PHOTO.on) photoCamera(dt, fx, fz);
   fadePeaks(dt, fx, fy, fz);
+  // the see-through window onto you and onto the guide's tile (see CUT in 002)
+  CUT.cam.x = camera.position.x; CUT.cam.y = camera.position.y; CUT.cam.z = camera.position.z; CUT.cam.w = SPACE.view || PHOTO.on ? 0 : 1;
+  const me = war ? null : (follow || player).pos, G1 = OBJ.steady && OBJ.steady.cur && OBJ.steady.cur.z;
+  if (me) { CUT.a.x = me.x; CUT.a.y = 1 + (player.rideY || 0); CUT.a.z = me.z; CUT.a.w = 2.3; } else CUT.a.w = 0;
+  if (G1 && me && Math.hypot(G1.x - me.x, G1.z - me.z) < 28) { CUT.b.x = G1.x; CUT.b.y = .8; CUT.b.z = G1.z; CUT.b.w = 2.1; } else CUT.b.w = 0;
   if (camShake > .01) { camera.position.x += (R() - .5)*camShake; camera.position.y += (R() - .5)*camShake*.6; camShake *= Math.pow(.02, dt); }
   // day and night: a four-minute cycle that never gets too dark to play
   const dk = .5 + .5*Math.cos(time / 240 * Math.PI * 2);

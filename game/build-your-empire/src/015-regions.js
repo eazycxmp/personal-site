@@ -89,6 +89,18 @@ function travelSpots() {
     out.push([`${{north:'⛏️', east:'💰', south:'⚔️', farm:'🌾', downtown:'🏙️', airfield:'✈️', ranch:'🐄'}[id] || '🗺️'} ${r.name.replace(/^the /, 'The ')}`, p[0], p[1]]);
   }
   if (typeof DISTRICT !== 'undefined' && DISTRICT.ferry) out.push(['⛵ The coast', -9, -78.4]);
+  // your lands and the rivals you are at war with: over the water by boat (islands, the city at sea), the rest by road,
+  // landing on walkable ground there (by the land's depot and market when it has them)
+  if (typeof landKeys === 'function') {
+    const spot = (x, z) => { for (let r = 0; r <= 30; r += 1.5) for (let i = 0; i < 16; i++) { const a = i/16*Math.PI*2, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r; if (AREAS.some(q => px - .8 >= q.x0 && px + .8 <= q.x1 && pz - .8 >= q.z0 && pz + .8 <= q.z1) && !boxes.some(b => px > b.x0 - .5 && px < b.x1 + .5 && pz > b.z0 - .5 && pz < b.z1 + .5) && !isWater(px, pz)) return [px, pz]; } return null; };
+    const byWater = (x, z) => onIsland(x, z, 4) || isWater(x, z) || Math.abs(wrapX(x)) > 245;
+    for (const k of landKeys()) {
+      if (land(k).lost) continue;
+      const at = (LMK.at[k] && LMK.at[k][0]) || landAt(k), p = spot(at[0], at[1] + 2); if (!p) continue;
+      out.push([`${byWater(...landAt(k)) ? '⛵' : '🐎'} ${landName(k)}${byWater(...landAt(k)) ? ' (by boat)' : ''}`, p[0], p[1]]);
+    }
+    for (const r of EMP.list) { const s = es(r); if (s.owned || s.stance !== 'war' || !r.at || (r.sky && !W.unlocked.has('moonLanding'))) continue; const p = spot(r.at[0], r.at[1] + 16); if (p) out.push([`⚔️ ${r.icon} ${r.n} (at war${byWater(...r.at) ? ', by boat' : ''})`, p[0], p[1]]); }
+  }
   return out;
 }
 function openWorldMap() {
@@ -135,7 +147,7 @@ function openTravel() {
   m.querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
     const [n, x, z] = spots[+b.dataset.i]; m.hidden = true;
     for (let i = 0; i < 14; i++) particle(0xe8f8ff, player.pos.clone().setY(.4), new THREE.Vector3((R() - .5)*3, 1 + R()*2, (R() - .5)*3), .6, .15, {grav:1});
-    player.pos.set(x, 0, z); camera.position.set(x + 11.8, 19, z + 11.8); note(`🧭 ${n}`, 'You travel by road.');
+    player.pos.set(x, 0, z); camera.position.set(x + 11.8, 19, z + 11.8); note(`🧭 ${n}`, /by boat|⛵/.test(n) ? 'You sail over.' : 'You travel by road.');
   });
   $('tvClose').onclick = () => { m.hidden = true; };
 }

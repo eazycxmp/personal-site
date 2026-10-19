@@ -64,6 +64,6 @@ function updLandMarkets(dt) {
     if (!LMK.zone[k]) { const [, [x, z]] = landMarketSpots(k); LMK.zone[k] = addZone({kind:'landMarket', land:k, x, z, w:1.6, d:1.6, icon:'🧺', tile:landMarketTile(k)}); }
     // the first time food is waiting there with nobody to hand it out, say so
     const stock = Object.values(landSup(k).stock).reduce((a, b) => a + b, 0);
-    if (stock >= 4 && !LMK.told[k] && !(W.flags.lmTold || {})[k]) { LMK.told[k] = true; (W.flags.lmTold ||= {})[k] = true; note(`🧺 Food is waiting in ${landName(k)}`, 'Its depot has food but no market to hand it out. Travel there and build its market (the 🧺 tile).'); }
+    if (stock >= 4 && !LMK.told[k] && !(W.flags.lmTold || {})[k]) { LMK.told[k] = true; (W.flags.lmTold ||= {})[k] = true; note(`🧺 Food is waiting in ${landName(k)}`, 'Its depot has food but no market to hand it out. Travel there with 🧭 (islands by boat) and build its market on the 🧺 tile.'); }
   }
 }
