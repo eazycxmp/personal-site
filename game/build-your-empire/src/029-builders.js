@@ -174,6 +174,8 @@ function crewWork(w, dt) {
   const near = list => list.sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
   if (k === 0) {
     const z = near(zones.filter(q => q.kind === 'rebuild' || q.kind === 'fix')); if (!z || W.coins <= 0) return false;
+    // the crew only spends your money on repairs once you have said they may (the 💵 panel); until then they say they're ready
+    if (!W.flags.autoRepair) { if (!W.flags.repairAsked) { W.flags.repairAsked = true; note('🔨 Your repair crew is ready', 'There are buildings to repair. Tap 💵 and turn on automatic repairs to let them pay and rebuild for you.'); } return false; }
     if (goTo(w, z.x, z.z, dt) && (w.tick -= dt) <= 0) { if (z.kind === 'rebuild') payRebuild(z, w); else payFix(z, w); qnAct(w.char, 'fix', 1); }
     return true;
   }

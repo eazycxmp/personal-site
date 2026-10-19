@@ -2256,8 +2256,10 @@ function openLedger() {
   m.innerHTML = `<div class="card"><h1 style="font-size:24px">💵 Where your money went</h1><p>The last five minutes: earned <b style="color:#2f9e44">+${fmt(earned)}</b>, spent <b style="color:#b83a2a">−${fmt(spent)}</b>.</p>
     <div style="text-align:left;max-height:50vh;overflow:auto">${rows || '<p>Nothing spent in the last five minutes.</p>'}</div>
     ${W.autoInvest ? `<p class="keys">Your brokers invest 5% of spare cash for you (your fund holds ${fmt(W.fund || 0)} 💵). <button class="ghost" id="lgAuto">Stop auto-investing</button></p>` : ''}
+    <p class="keys">🔨 Repair crew: ${W.flags.autoRepair ? 'repairs automatically, paying from your coins' : 'waits for you (repairs are yours to pay for)'}. <button class="ghost" id="lgRepair">${W.flags.autoRepair ? 'Stop automatic repairs' : 'Let them repair for me'}</button></p>
     <button class="ghost" id="lgClose">Close</button></div>`;
   $('lgClose').onclick = () => { m.hidden = true; };
+  $('lgRepair').onclick = () => { W.flags.autoRepair = !W.flags.autoRepair; save(); openLedger(); };
   if ($('lgAuto')) $('lgAuto').onclick = () => { W.autoInvest = false; save(); openLedger(); };
 }
 $('hudR').addEventListener('click', e => { if (e.target.closest('.money')) openLedger(); });
@@ -4660,6 +4662,8 @@ function crewWork(w, dt) {
   const near = list => list.sort((a, b) => dist2(w, a.x, a.z) - dist2(w, b.x, b.z))[0];
   if (k === 0) {
     const z = near(zones.filter(q => q.kind === 'rebuild' || q.kind === 'fix')); if (!z || W.coins <= 0) return false;
+    // the crew only spends your money on repairs once you have said they may (the 💵 panel); until then they say they're ready
+    if (!W.flags.autoRepair) { if (!W.flags.repairAsked) { W.flags.repairAsked = true; note('🔨 Your repair crew is ready', 'There are buildings to repair. Tap 💵 and turn on automatic repairs to let them pay and rebuild for you.'); } return false; }
     if (goTo(w, z.x, z.z, dt) && (w.tick -= dt) <= 0) { if (z.kind === 'rebuild') payRebuild(z, w); else payFix(z, w); qnAct(w.char, 'fix', 1); }
     return true;
   }
