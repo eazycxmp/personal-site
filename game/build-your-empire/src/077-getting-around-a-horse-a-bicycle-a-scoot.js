@@ -100,6 +100,13 @@ function mountStage(n, anim) {
   if (anim) { puff(player.pos.x, player.pos.z); banner(`${M.icon} ${M.n}!`, `You get around ${Math.round((M.speed - 1)*100)}% faster.${n === 5 || M.fly ? ' And you fly over buildings.' : ''} Switch rides with 🐎 (M).`); }
   W.flags.mountSel = n; updMountBtn();
 }
+// the Sky Citadel floats high over its island: true when it is out (after the Moon landing) and right under you
+function skyCitadelBelow() {
+  const r = EMP.list.find(q => q.sky); if (!r || !BIOME.sky || !BIOME.sky.visible) return false;
+  const d = Math.hypot(wrapX(player.pos.x - r.at[0]), player.pos.z - r.at[1] - 4);
+  if (d < 70 && !W.flags.citadelTip) { W.flags.citadelTip = 1; note('🛸 The Sky Citadel is up there', heroFlies() ? 'Fly over its floating rock and you rise up to it. To take it, send the army, navy and planes from 🗺️ once you are at war.' : 'It floats high above. Get on something that flies (the jetpack, your plane or the dragon, with 🐎) and fly over it to rise up and see it. To take it, send your forces from 🗺️ once you are at war.'); }
+  return d < 31;
+}
 function updMount(dt) {
   // riding: the hero sits (or hovers, on the jetpack) instead of running along
   // the ride you chose last time, once the camp has loaded (unlocking replays every ride in order)
@@ -107,9 +114,11 @@ function updMount(dt) {
   player.char.ride = !W.mount ? null : W.mount === 5 ? 'hover' : mountG && mountG.horse ? 'horse' : 'seat';
   if (!W.mount) { player.rideY = 0; return; }
   // flying rides never come down onto water: over the river or the sea they hold their height until there is land below
-  const M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3, aloft = moving || isWater(player.pos.x, player.pos.z), up = M.fly ? (aloft ? M.fly : M.y) : W.mount === 5 && aloft ? 1.3 : M.y;
+  // over the Sky Citadel, anything that flies climbs up to the floating rock (and holds there), so you can see it close
+  const cit = skyCitadelBelow(), M = MOUNTS[W.mount], moving = Math.hypot(player.vel.x, player.vel.z) > .3, aloft = moving || isWater(player.pos.x, player.pos.z) || cit;
+  const up = cit && heroFlies() ? 25.6 : M.fly ? (aloft ? M.fly : M.y) : W.mount === 5 && aloft ? 1.3 : M.y;
   // (starts from 0: a camp loaded with a mount had no rideY yet, and undefined + n left the mount at NaN, unseen)
-  player.rideY = (player.rideY || 0) + (up - (player.rideY || 0)) * Math.min(1, dt*(M.fly ? 1.3 : 4));
+  player.rideY = (player.rideY || 0) + (up - (player.rideY || 0)) * Math.min(1, dt*(M.fly || cit ? 1.3 : 4));
   // what you ride under you stays put; things you wear or sit in (jetpack, plane, dragon) rise with you
   if (mountG) mountG.position.y = W.mount === 5 || M.fly ? -M.y : -player.rideY;
   if (mountG && M.fly) {

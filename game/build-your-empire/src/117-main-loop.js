@@ -240,7 +240,7 @@ function render(dt) {
   const watching = war;
   const wf = watching ? warFocus() : null;
   const fx = wf ? wf[0] : (follow || player).pos.x, fz = wf ? wf[1] : (follow || player).pos.z;
-  const fy = wf && wf[2] ? wf[2] : TRIP.on ? TRIP.g.position.y*.85 : !wf && heroFlies() ? (player.rideY || 0)*.8 : 0;
+  const fy = wf && wf[2] ? wf[2] : TRIP.on ? TRIP.g.position.y*.85 : !wf && heroFlies() ? (player.rideY || 0)*.8 + Math.max(0, (player.rideY || 0) - 4)*.2 : 0;
   camWant.set(fx + ox + .6, H + fy, fz + oz + .6);
   camera.position.lerp(camWant, Math.min(1, dt*(watching ? 2.5 : 6)));
   camera.lookAt(camera.position.x - ox, camera.position.y - H, camera.position.z - oz);

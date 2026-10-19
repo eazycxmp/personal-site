@@ -10,6 +10,8 @@ const SPEND_WHY = {
   sendSpy:'🕵️ Spies', payLandMarket:'🧺 Building a land\'s market', ok:'📜 Paying an envoy', updEvents:'🔥 Raiders carried it off', endSiege:'🔥 Looted in a siege',
 };
 const LEDGER_SKIP = new Set(['set', 'coins', 'whySpent', 'ledgerSpend', 'ledgerIncome', 'spend', 'addCash', 'Error']);
+// coins per second from one source over the last `sec` seconds
+const ledgerRate = (why, sec = 60) => { let n = 0; for (const g of LEDGER.gain) if (g.why === why && W.playT - g.t <= sec) n += g.amt; return n/sec; };
 // and where the money comes in from (cash piles count when they are earned, not again when they are picked up)
 const INCOME_WHY = {
   update:'🍽️ Customers paying for meals', payOut:'🍽️ Customers paying for meals', zoneAct:'💰 Selling at the market', sellRun:'💰 Workers selling surplus',

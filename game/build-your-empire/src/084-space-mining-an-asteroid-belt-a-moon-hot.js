@@ -12,7 +12,8 @@ function updSpaceMining(dt) {
   if (!started) return;
   if ((SPACE.mineT = (SPACE.mineT ?? 20) - dt) <= 0) {
     SPACE.mineT = 20;
-    const pay = (W.unlocked.has('asteroid') ? 30000 : 0) + (W.unlocked.has('moonHotel') ? 20000 : 0) + (W.unlocked.has('spaceElevator') ? 45000 : 0);
+    // (the asteroid belt is the richest of all: always more than space)
+    const own = (W.unlocked.has('asteroid') ? 30000 : 0) + (W.unlocked.has('moonHotel') ? 20000 : 0) + (W.unlocked.has('spaceElevator') ? 45000 : 0), pay = own ? Math.max(own, Math.round((EV.lastSat || 0)*1.6), Math.round(ledgerRate('🚀 Space')*20*1.3)) : 0;
     if (pay) { W.coins += pay; W.earned += pay; popText(`☄️ +${pay} from space`, new THREE.Vector3(-36, 5, 6), '#ffe06b'); }
   }
 }

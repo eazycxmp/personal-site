@@ -53,7 +53,7 @@ addEventListener('keydown', e => {
   if (k === 'm' && started && !paused) { cycleMount(); return; }
   if (k === 'f' && started && !paused) { setWatch(!WATCH.on); return; }
   if (k === 'g' && started && !paused) { if ($('modal').hidden) openWorldMap(); else if ($('modal').dataset.panel === 'map') $('modal').hidden = true; return; }
-  if (k === 'm' && started && !paused) { const own = [1, 2, 3, 4, 5, 6].filter(i => W.unlocked.has('mount' + i)); if (own.length > 1) mountStage(own[(own.indexOf(W.mount) + 1) % own.length], true); }
+  if (k === 'm' && started && !paused) cycleMount();   // the same as the 🐎 button: every ride you own (plane and dragon too), then walking
   if (k === 't' && started && !paused) openTravel();
   if (k === 'e' && started && !paused) openEmpire();
   if (k === 'p' || (k === 'escape' && !BUILD.on && (paused || $('overlay').hidden))) setPause(!paused);

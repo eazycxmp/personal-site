@@ -151,7 +151,7 @@ function updInterstate(dt) {
       const f = v.fuel;
       if (f.wait > 0) { f.wait -= dt; if (f.wait <= 0) { f.i++; } continue; }
       const [tx, tz] = f.path[f.i], dx = tx - v.g.position.x, dz = tz - v.g.position.z, d = Math.hypot(dx, dz);
-      if (d < .2) { if (f.i === f.pump) { f.wait = 3.5 + R()*2; const pay = Math.round((60 + 15*W.era) * [1, 1.6, 2.4, 3.4, 5][GAS2.lv - 1]); W.coins += pay; W.earned += pay; if (R() < .3) popText(`⛽ +${pay}`, v.g.position.clone().setY(2), '#ffe06b'); continue; }
+      if (d < .2) { if (f.i === f.pump) { f.wait = 3.5 + R()*2; const pay = Math.round((60 + 15*W.era) * [1, 1.6, 2.4, 3.4, 5][GAS2.lv - 1]); LEDGER.collecting = true; W.coins += pay; LEDGER.collecting = false; ledgerIncome(pay, '⛽ Oil and fuel'); W.earned += pay; if (R() < .3) popText(`⛽ +${pay}`, v.g.position.clone().setY(2), '#ffe06b'); continue; }
         f.i++; if (f.i >= f.path.length) { v.fuel = null; v.z = v.g.position.z; GAS2.q = GAS2.q.filter(q => q !== v); } continue; }
       const st = Math.min(d, 4*dt); v.g.position.x += dx/d*st; v.g.position.z += dz/d*st; v.g.position.y = 0; v.g.rotation.set(0, Math.atan2(dx, dz), 0); continue;
     }

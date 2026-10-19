@@ -86,7 +86,8 @@ function updOil(dt) {
   if (!started) return;
   // crude sells as it is pumped; refined fuel sells for far more
   if (W.unlocked.has('oilField') && (OIL.t.well -= dt) <= 0) {
-    OIL.t.well = 20; const pay = (W.unlocked.has('refinery') ? 2500 : 600) + 120*W.era; W.coins += pay; W.earned += pay;
+    // (fuel always out-earns your rents: the order of the big earners is asteroids, space, fuel, then rent and the rest)
+    OIL.t.well = 20; const pay = Math.max((W.unlocked.has('refinery') ? 2500 : 600) + 120*W.era, Math.round((RENT.last || 0)*1.35), Math.round(ledgerRate('🏠 Rent')*20*1.3)); OIL.lastPay = pay; W.coins += pay; W.earned += pay;
     popText(W.unlocked.has('refinery') ? `⛽ +${pay} fuel` : `🛢️ +${pay} crude`, new THREE.Vector3(-3, 4, -39), '#ffe06b');
   }
   // cars come down off the highway to fill up

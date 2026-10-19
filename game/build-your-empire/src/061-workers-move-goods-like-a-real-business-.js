@@ -23,6 +23,8 @@ function equip(w) {
   if (w.kind === 'broker' || w.kind === 'oilman') return;
   const mode = carryMode(w), C = CARRY[mode];
   w.speed = WORKER.speed * (mode === 'truck' || mode === 'dozer' ? C.speed + .4*fleetLvl() : C.speed);
+  // anything on wheels with a load bed (truck, van, bulldozer) carries up to 20 of whatever it hauls
+  if (mode === 'truck' || mode === 'van' || mode === 'dozer') w.cap = Math.max(w.cap, 20);
   if (w.carry === mode && w.carryG && w.carryG.parent === w.char.g) return;
   if (w.carryG && w.carryG.parent) w.carryG.parent.remove(w.carryG);
   w.carry = mode; const g = w.carryG = new THREE.Group(); w.char.g.add(g);

@@ -538,8 +538,9 @@ function collide(p, prev, fly) {
   }
   // stay on open ground: slide along the edge, or stop. You can roam the whole map, anywhere but the water (bridges
   // and piers are open ground); everyone else keeps to the paths and plazas
+  // (in the air you go anywhere: over water, walls and ruins alike)
   const you = p === player.pos, ok = (x, z) => inArea(x, z) || (you && !isWater(x, z));
-  if (!ok(p.x, p.z)) {
+  if (!(fly && you) && !ok(p.x, p.z)) {
     if (ok(p.x, prev.z)) p.z = prev.z;
     else if (ok(prev.x, p.z)) p.x = prev.x;
     else { p.x = prev.x; p.z = prev.z; }

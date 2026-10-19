@@ -31,7 +31,7 @@ function updSpace(dt) {
   // cutscenes and short tours run with the game clock, then bring you home
   if (SPACE.cut) updCut(dt);
   else if (SPACE.tour > 0 && (SPACE.tour -= dt) <= 0) { SPACE.view = null; stage.classList.remove('space'); }
-  if (W.unlocked.has('satellite') && (EV.satT = (EV.satT ?? 20) - dt) <= 0) { EV.satT = 20; addCash(CASH.space || cash, 1500 + (W.unlocked.has('moonBase') ? 6000 : 0) + (W.flags.mars ? 15000 : 0), {x:-36, z:4}); }
+  if (W.unlocked.has('satellite') && (EV.satT = (EV.satT ?? 20) - dt) <= 0) { EV.satT = 20; const pay = Math.max(1500 + (W.unlocked.has('moonBase') ? 6000 : 0) + (W.flags.mars ? 15000 : 0), Math.round((OIL.lastPay || 0)*1.45)); EV.lastSat = pay; addCash(CASH.space || cash, pay, {x:-36, z:4}); }   // (space always out-earns fuel)
   $('bSpace').hidden = !W.flags.moon;
   if (!rocket || rocket.t < 0) return;
   const r = rocket; r.t += dt;

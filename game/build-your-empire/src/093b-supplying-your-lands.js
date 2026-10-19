@@ -85,7 +85,7 @@ function shipFood() {
   for (const [k, L] of lands) {
     const T = LAND_TIERS[L.tier], per = T.need / T.wants.length, goods = {}; let n = 0;
     for (const t of T.wants) {
-      const want = Math.max(0, Math.ceil(per*2 - (L.stock[t] || 0))), take = Math.min(want, d[t] || 0, 12 - n); if (take > 0) { goods[t] = take; d[t] -= take; n += take; }
+      const want = Math.max(0, Math.ceil(Math.max(per*2, 20/T.wants.length) - (L.stock[t] || 0))), take = Math.min(want, d[t] || 0, 20 - n);   // a caravan carries up to 20 if (take > 0) { goods[t] = take; d[t] -= take; n += take; }
     }
     if (!n) continue;
     const [tx, tz] = landAt(k), dist = Math.hypot(tx - DEPOT_AT[0], tz - DEPOT_AT[1]);

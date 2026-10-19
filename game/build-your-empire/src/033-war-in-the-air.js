@@ -180,6 +180,22 @@ function airbaseFx() {
   AREAS.push({x0:r.x0, x1:rw.x - 2, z0:r.z0, z1:r.z1}, {x0:13, x1:r.x0 + .5, z0:84.5, z1:95});
 }
 function startAir(c) { fortress(c.target, false); }
+// the jets' guns: on the way down each dive they strafe the ground ahead with cannon fire, tracers and all
+const TRACER = new THREE.MeshBasicMaterial({color:0xffe27a, toneMapped:false});
+function gunRun(p, a, b, tx, tz, dt) {
+  if (a[1] > 13 || a[1] < 2.2 || b[1] >= a[1] || (p.gunT = (p.gunT || 0) - dt) > 0) return;
+  p.gunT = .06;
+  // where the nose points, on the ground: ahead along the flight path, pulled toward the target
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], k = a[1]/Math.max(.05, -dy)*.7;
+  const gx = (a[0] + dx*k)*.5 + tx*.5 + (R() - .5)*3, gz = (a[2] + dz*k)*.5 + tz*.5 + (R() - .5)*3, to = new THREE.Vector3(gx, .1, gz);
+  const t = new THREE.Mesh(G.sph, TRACER); t.scale.set(.06, .06, .06); t.position.set(a[0], a[1] - .1, a[2]); scene.add(t);
+  flyers.push({m:t, from:t.position.clone(), to, t:0, dur:.22, arc:0, done:() => {
+    particle(0xb8a888, to.clone().setY(.2), new THREE.Vector3((R() - .5)*1.5, 1.4, (R() - .5)*1.5), .5, .18, {grow:.5, op:.7});
+    for (const f of [...(typeof SIEGE !== 'undefined' ? SIEGE.foes : []), ...enemies]) if (f.alive && Math.hypot(f.pos.x - gx, f.pos.z - gz) < 1.3) { f.hp -= 1.5; f.hit = .12; if (f.hp <= 0) knockOut(f); }
+    if (typeof MASS !== 'undefined' && MASS.them) for (const u of MASS.them) if (u.down < 0 && Math.hypot(u.x - gx, u.z - gz) < 1.1 && R() < .35) { u.down = 0; u.fallDir = R() < .5 ? 1 : -1; }
+  }});
+  if ((watchingWar() || Math.hypot(a[0] - player.pos.x, a[2] - player.pos.z) < 40) && R() < .5) snd(160 + R()*40, .03, 'square', .025);
+}
 function planeVsBoss(p, i, B, dt) {
   // out: taxi, take off, fly to it, then circle with dives for as long as it fights; home: fly back and land
   let e, tx, tz;
@@ -188,6 +204,7 @@ function planeVsBoss(p, i, B, dt) {
   const a = e >= 0 ? airPos(e, p, tx, tz) : [p.park[0], 0, p.park[1]], b = e >= 0 ? airPos(e + .08, p, tx, tz) : a;
   p.alt = a[1]; flyPose(p, a, b, dt);
   p.prop.rotation.z += dt*(e > 0 && e < 42 ? 40 : 0);
+  if (B && e > 15 && e < 29) gunRun(p, a, b, tx, tz, dt);
   // over an enemy army: bombs at the bottom of each dive
   if (B && B.foes && e > 17 && e < 29 && a[1] < 6.2 && (p.bombT = (p.bombT || 0) - dt) <= 0) {
     p.bombT = .45; const f = B.foes[R()*B.foes.length|0]; if (!f) return;
@@ -235,6 +252,7 @@ function updAir(dt) {
     const S = p.style || {dir:1};
     p.alt = a[1]; flyPose(p, a, b, dt, flying && S.roll && e > 11 && e < 12.6 ? (e - 11)/1.6*Math.PI*2 : 0);
     p.prop.rotation.z += dt * (flying && e > 0 && e < 42 ? 40 : 0);
+    if (flying && e > 15 && e < 28.5 + (p.hold || 0)) gunRun(p, a, b, tx, tz, dt);
     // bombs go only at the bottom of each dive
     if (flying && e > 17 && e < 28.5 + (p.hold || 0) && a[1] < 6.2 && (p.bombT -= dt) <= 0) {
       p.bombT = .22;
