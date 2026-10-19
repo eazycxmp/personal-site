@@ -233,7 +233,7 @@ function render(dt) {
   const wtype = W.camp ? W.camp.type : 'land';
   // watching a battle: the camera drifts round the field, and dips in close for the big moments
   const cine = war && !PHOTO.on ? cineCam(dt) : null, yawC = CAM_YAW + (cine ? cine.yaw : 0);
-  const D = (war && wtype === 'land' ? 8.5 : war ? 13 : V.d)*k*(cine ? cine.d : 1), H = (war ? 16 : V.h)*k*(cine ? cine.h : 1), ox = Math.sin(yawC)*D, oz = Math.cos(yawC)*D;
+  const D = (war && wtype === 'land' ? 11.5 : war ? 13 : V.d)*k*(cine ? cine.d : 1), H = (war ? (wtype === 'land' ? 19 : 16) : V.h)*k*(cine ? cine.h : 1), ox = Math.sin(yawC)*D, oz = Math.cos(yawC)*D;
   // standing on the war table during a campaign (or pressing 🎥) shows the battlefield
   if (WATCH.on && !LEAD.on && Math.hypot(player.vel.x, player.vel.z) > .5) setWatch(false);
   updWatchBtn();

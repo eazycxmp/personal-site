@@ -15,7 +15,8 @@ const CINE = {a:0, d:1, h:1};
 function cineCam(dt) {
   CINE.a += dt*.09;
   const low = SLOW.t > 0 || SLOW.k < .8;
-  CINE.d += ((low ? .62 : 1) - CINE.d)*Math.min(1, dt*2.5); CINE.h += ((low ? .5 : 1) - CINE.h)*Math.min(1, dt*2.5);
+  // (a gentle dip: the field is hundreds strong now, and too low the camera ends up in the smoke)
+  CINE.d += ((low ? .8 : 1) - CINE.d)*Math.min(1, dt*2.5); CINE.h += ((low ? .72 : 1) - CINE.h)*Math.min(1, dt*2.5);
   return {yaw:Math.sin(CINE.a)*.75, d:CINE.d, h:CINE.h};
 }
 // ------------------------------------------------------------------ leading the charge

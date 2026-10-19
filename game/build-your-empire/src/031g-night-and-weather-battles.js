@@ -19,7 +19,8 @@ function updNightWar(dt) {
   // a word on the weather as a land battle begins
   if (land && C !== NW.id) { NW.id = C; if (W.weather !== 'clear') note(W.weather === 'rain' ? '🌧️ Rain on the battlefield' : '❄️ Snow on the battlefield', W.weather === 'rain' ? 'Mud slows both armies.' : 'Snowdrifts slow every step.'); }
   // torches by night, for everyone still on their feet in the battle
-  const units = land && n > .15 ? [...soldiers.filter(s => s.char.g.visible && !s.down && atBattle(s)), ...enemies.filter(e => e.alive)] : [];
+  const units = land && n > .62 ?   // (only once it is properly dark: the game never gets very dark, and at dusk torches looked out of place)
+     [...soldiers.filter(s => s.char.g.visible && !s.down && atBattle(s)), ...enemies.filter(e => e.alive)] : [];
   const keep = new Set(units);
   for (const [e, t] of NW.torches) if (!keep.has(e)) { if (t.parent) t.parent.remove(t); NW.torches.delete(e); }
   for (const e of units) { const t = torchFor(e), fl = 1 + Math.sin(time*18 + e.pos.x*3)*.15 + Math.sin(time*31 + e.pos.z)*.08; t.flame.scale.set(.09*fl, .2*fl, .09*fl); t.glow.scale.setScalar(.16*fl*(.6 + n*.6)); }

@@ -139,7 +139,7 @@ function airPos(e, p, tx, tz) {
   const legL = 2*Rr, arc = Math.PI*rho, lap = 2*legL + 2*arc, speed = 8.5*S.sp;
   const oval = k => {
     let d = (k*speed) % lap;
-    if (d < legL) { const bell = Math.pow(Math.sin(d/legL*Math.PI), 2); return [tx - ux*Rr + ux*d, S.alt - (S.alt - 3.2)*bell, tz - uz*Rr + uz*d]; }
+    if (d < legL) { const bell = Math.pow(Math.sin(d/legL*Math.PI), 2); return [tx - ux*Rr + ux*d, S.alt - (S.alt - 5.2)*bell, tz - uz*Rr + uz*d]; }   // pulling out of the dive well above the fighting
     if ((d -= legL) < arc) { const a = d/rho, cx = tx + ux*Rr + vx*rho, cz = tz + uz*Rr + vz*rho; return [cx - vx*rho*Math.cos(a) + ux*rho*Math.sin(a), S.alt, cz - vz*rho*Math.cos(a) + uz*rho*Math.sin(a)]; }
     if ((d -= arc) < legL) return [tx + ux*Rr + 2*rho*vx - ux*d, S.alt, tz + uz*Rr + 2*rho*vz - uz*d];
     d -= legL; const a = d/rho, cx = tx - ux*Rr + vx*rho, cz = tz - uz*Rr + vz*rho;

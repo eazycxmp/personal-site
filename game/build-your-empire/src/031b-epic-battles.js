@@ -33,7 +33,7 @@ function volley(fromList, toList, n, hitEnemies) {
   for (let i = 0; i < n; i++) {
     const a = fromList[i % fromList.length], t = toList[(i*7) % toList.length];
     const from = new THREE.Vector3(a.pos.x + (R() - .5)*.6, 1.4, a.pos.z), to = new THREE.Vector3(t.pos.x + (R() - .5)*2.4, .1, t.pos.z + (R() - .5)*2.4);
-    if (guns) { particle(0xe8e8e8, from, new THREE.Vector3((R() - .5)*.4, .5, .6), 1.6, .45, {grow:1.1, op:.55}); particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .1, .18); }
+    if (guns) { particle(0xe8e8e8, from, new THREE.Vector3((R() - .5)*.4, .5, .6), .9, .26, {grow:.6, op:.3}); particle(0xffd070, from, new THREE.Vector3(0, .2, 0), .1, .18); }
     const m = new THREE.Mesh(G.cyl, mat(0x3a2a1a)); m.scale.set(.03, .5, .03); m.rotation.x = Math.PI/2; m.position.copy(from); scene.add(m);
     flyers.push({m, from, to, t:0, dur:guns ? .3 + R()*.15 : 1 + R()*.5, arc:guns ? .2 : 3.2, done:() => {
       particle(0xc8b48a, to, new THREE.Vector3(0, .8, 0), .5, .18, {grow:.6, op:.6});
@@ -66,7 +66,7 @@ function updEpic(dt) {
     // drums through the fight, and haze over the field
     if ((EPIC.drumT -= dt) <= 0) { EPIC.drumT = .5; snd(58, .14, 'sine', .07, -.3); }
     // (the haze is unlit, so it thins away after dark instead of glowing)
-    if (near && nightK() < .5 && (EPIC.hazeT -= dt) <= 0) { EPIC.hazeT = .18; particle(0xd8c8a0, new THREE.Vector3(BF.x + (R() - .5)*14, .5, BF.z + (R() - .5)*8), new THREE.Vector3((R() - .5)*.4, .25, 0), 3, .9, {grow:1.4, op:.18}); }
+    if (near && nightK() < .5 && (EPIC.hazeT -= dt) <= 0) { EPIC.hazeT = .45; particle(0xd8c8a0, new THREE.Vector3(BF.x + (R() - .5)*14, .5, BF.z + (R() - .5)*8), new THREE.Vector3((R() - .5)*.4, .25, 0), 3, .7, {grow:1, op:.1}); }
     // dust kicked up by anyone running
     if (near) for (const u of [...ours, ...foes]) {
       const p = EPIC.dust.get(u) || u.pos.clone(), moved = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
@@ -77,7 +77,7 @@ function updEpic(dt) {
     for (const a of EPIC.guns) if ((a.cd -= dt) <= 0 && foes.length) {
       a.cd = 1.6 + R()*.8;
       const t = foes[R()*foes.length|0], from = a.position.clone().setY(1.1), to = new THREE.Vector3(t.pos.x + (R() - .5)*1.6, .1, t.pos.z + (R() - .5)*1.6), gun = wepLvl() >= 2;
-      if (gun) { particle(0xffb040, from.clone().setZ(from.z + .8), new THREE.Vector3(0, .4, 1), .12, .35); particle(0xdddddd, from, new THREE.Vector3(0, .8, .4), 1.6, .5, {grow:1, op:.6}); snd(70, .35, 'sawtooth', .06, .5); }
+      if (gun) { particle(0xffb040, from.clone().setZ(from.z + .8), new THREE.Vector3(0, .4, 1), .12, .35); particle(0xdddddd, from, new THREE.Vector3(0, .8, .4), 1, .3, {grow:.6, op:.35}); snd(70, .35, 'sawtooth', .06, .5); }
       else if (a.arm) { a.arm.rotation.x = -1.4; setTimeout(() => { if (a.arm) a.arm.rotation.x = 0; }, 400); snd(240, .1, 'triangle', .04); }
       const ball = new THREE.Mesh(G.sph, mat(gun ? 0x2a2a2a : 0x8a8478)); ball.scale.setScalar(gun ? .12 : .2); ball.position.copy(from); scene.add(ball);
       flyers.push({m:ball, from, to, t:0, dur:gun ? .8 : 1.3, arc:gun ? 3 : 5, done:() => {
