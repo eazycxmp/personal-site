@@ -28,3 +28,16 @@ function payRebuild(zn, e) {
   } else if (Math.random() < .2) { drawTile(zn.tc.g, '🏗️', {alpha:1, size:84, label:`Rebuild ${st.ruin}`, fill:'rgba(120,60,20,.65)'}); zn.tc.t.needsUpdate = true; }
 }
 
+
+// While a building burns or lies in ruins its own counter tiles step aside, so the 🔥 Put out or 🏗️ Rebuild tile on
+// that spot is the one you see and stand on (the counter tile used to be drawn over it, hiding how to fix it)
+let ruinTileT = 0;
+function syncRuinTiles(dt) {
+  if ((ruinTileT -= dt) > 0) return; ruinTileT = .4;
+  for (const z of zones) {
+    if ((z.kind !== 'in' && z.kind !== 'out') || !z.st || !ST[z.st]) continue;
+    const st = ST[z.st], off = !!(st.broken || st.ruin);
+    if (off && !z.ruinHid && z.active) { z.ruinHid = true; z.active = false; z.mesh.visible = false; }
+    else if (!off && z.ruinHid) { z.ruinHid = false; z.active = true; z.mesh.visible = true; }
+  }
+}

@@ -53,6 +53,7 @@ function qnHat(o, top) {
     case 'tophat': add(G.cyl, 0x1a1a1e, [.17, .015, .17], [0, y - .02, 0]); add(G.cyl, 0x1a1a1e, [.11, .2, .11], [0, y + .08, 0]); break;
     case 'feather': add(G.cyl, hc || 0x1e2a5a, [.18, .015, .18], [0, y - .02, 0]); add(G.cyl, hc || 0x1e2a5a, [.11, .08, .11], [0, y + .02, 0]); add(G.sph, 0xf4f0e8, [.02, .09, .02], [.06, y + .09, -.03]); break;
     case 'hood': add(G.sph, hc || top, [.14, .14, .15], [0, y - .06, -.02]); break;
+    case 'turban': add(G.sph, hc || 0xf0e8d8, [.15, .11, .155], [0, y - .02, 0]); add(G.sph, hc || 0xf0e8d8, [.12, .07, .13], [0, y + .05, -.01]); add(G.sph, 0xd9443a, [.025, .025, .015], [0, y, .15], {metalness:.6}); break;
   }
   if (o.acc === 'cap') { add(G.sph, o.body2 ?? 0x2a5aa8, [.12, .065, .13], [0, y - .015, 0]); add(G.box, o.body2 ?? 0x2a5aa8, [.12, .01, .08], [0, y - .04, .12]); }
   if (o.acc === 'bucket') { add(G2.flare, o.body2 ?? 0xd8c8a0, [.13, .07, .13], [0, y, 0]); add(G2.cyl, o.body2 ?? 0xd8c8a0, [.17, .01, .17], [0, y - .04, 0]); }

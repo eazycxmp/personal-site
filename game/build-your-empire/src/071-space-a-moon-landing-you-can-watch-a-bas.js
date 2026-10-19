@@ -103,7 +103,8 @@ function astronaut() {
   return c;
 }
 function startCut(planet) {
-  const S = spaceScene(planet); buildBase(S);
+  // (the landing is the first time there: the base that will stand there, its lander and flag, waits until it has landed)
+  const S = spaceScene(planet); buildBase(S); S.base.visible = false;
   const l = new THREE.Group(); lander(l); S.sc.add(l);
   const flame = new THREE.Mesh(G.cone, new THREE.MeshBasicMaterial({color:0xffb040, toneMapped:false})); flame.scale.set(.5, 1.6, .5); flame.rotation.x = Math.PI; flame.position.y = .2; l.add(flame);
   SPACE.cut = {planet, t:0, l, flame, astros:[], dust:[]}; SPACE.view = planet; stage.classList.add('space');
@@ -139,6 +140,7 @@ function updCut(dt) {
 function endCut() {
   const C = SPACE.cut, S = spaceScene(C.planet);
   for (const o of [C.l, C.flag, ...C.astros.map(a => a.g), ...C.dust.map(d => d.m)]) if (o) S.sc.remove(o);
+  S.base.visible = true;
   S.built = -1; buildBase(S);
   SPACE.cut = null; SPACE.view = null; stage.classList.remove('space');
 }

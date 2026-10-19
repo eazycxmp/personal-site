@@ -112,7 +112,7 @@ const RIVAL_WAR = {
   nile:{col:0xd8c08a, hat:0x2a4a8a, gap:.78, fire:'arrow', chariots:3},
   aztlan:{col:0x2a7a3a, hat:0xe8b830, gap:1.05, rowGap:1, jitter:.45, fire:'arrow', rush:1.8},
   hellas:{col:0xe8e4dc, hat:0x2a5aa8, gap:.52, rowGap:.6, fire:null, shields:true},
-  rajpur:{col:0xe08a1a, hat:0x8a1a5a, gap:.75, fire:'arrow'},
+  rajpur:{col:0xe08a1a, hat:0x8a1a5a, gap:.75, fire:'arrow', elephants:3, monkeys:14},
   nordheim:{col:0x6ad0ff, hat:0x1a2a3a, gap:.8, fire:'laser'},
   tribe:{col:0x7a5a3a, hat:0x3a2a1a, gap:.95, rowGap:.95, jitter:.35, fire:'arrow', rush:1.3}};
 const warStyle = C => C.rival != null && EMP.list[C.rival] ? RIVAL_WAR[EMP.list[C.rival].id] || RIVAL_WAR.tribe : RIVAL_WAR.tribe;
@@ -216,6 +216,24 @@ function massSpecials(C, st, at) {
     g.position.set(ox + lx*(i - 1)*2.4 + fx*1.5, 0, oz + lz*(i - 1)*2.4 + fz*1.5); g.rotation.y = Math.atan2(fx, fz); scene.add(g);
     WARSPEC.list.push({g, H, x0:g.position.x, z0:g.position.z, sp:0});
   }
+  // war elephants: a saffron cloth over the back, a howdah with a canopy on top and an archer riding in it
+  for (let i = 0; i < (st.elephants || 0); i++) {
+    const b = beast('elephant', 2.7); if (!b) break;
+    const g = new THREE.Group(); g.add(b); scene.add(g);
+    mesh(G.box, 0xe08a1a, [1.25, .55, 1.6], [0, 1.95, 0], g); mesh(G.box, 0x8a1a5a, [1.28, .1, 1.62], [0, 2.2, 0], g);
+    mesh(G.box, 0xc8a24a, [.9, .45, .9], [0, 2.5, -.05], g, {metalness:.5}); for (const [px, pz] of [[-.4, -.45], [.4, -.45], [-.4, .35], [.4, .35]]) mesh(G.cyl, 0x8a5a2b, [.03, .8, .03], [px, 3, pz], g);
+    const can = mesh(G.cone4, 0x8a1a5a, [.75, .4, .75], [0, 3.55, -.05], g); can.rotation.y = Math.PI/4;
+    const archer = makeChar({body:st.col, trim:st.hat, hat:'turban', hatCol:st.hat, pants:0xf0e8d8, bow:true}); archer.ride = 'stand'; archer.g.position.set(0, 2.7, -.05); archer.g.scale.setScalar(.8); g.add(archer.g);
+    g.traverse(o => { if (o.isMesh) o.userData.noBake = true; });
+    g.position.set(ox + lx*(i - 1)*3.4 - fx*1, 0, oz + lz*(i - 1)*3.4 - fz*1); g.rotation.y = Math.atan2(fx, fz);
+    WARSPEC.list.push({g, beast:b, ph:R()*6, x0:g.position.x, z0:g.position.z, sp:0, slow:.55});
+  }
+  // a troop of monkeys that bounds across the field at your front ranks in great leaps
+  for (let i = 0; i < (st.monkeys || 0); i++) {
+    const g = monkeyModel(); scene.add(g);
+    const x = ox + lx*((i % 7) - 3)*1.3 + fx*1.5, z = oz + lz*((i % 7) - 3)*1.3 + fz*1.5; g.position.set(x, 0, z);
+    WARSPEC.list.push({g, monkey:true, x0:x, z0:z, ph:R()*6, hop:0, tgt:null, wait:R()*1.5});
+  }
   // a phalanx's shields: a bronze disc on the front two ranks
   if (st.shields) {
     const front = MASS.them.filter((u, k) => k < 40 && u.down < 0), im = new THREE.InstancedMesh(G.cyl, mat(0xc8a24a, {metalness:.7, roughness:.35}), Math.max(1, front.length)), O = new THREE.Object3D();
@@ -230,12 +248,39 @@ function updSpecials(dt, C, close, rout, lose) {
       for (const s of u.shields) { if (s.down >= 0) continue; O.position.set(s.x + s.fx*.32, 1 + (s.bob || 0), s.z + s.fz*.32); O.rotation.set(Math.PI/2, Math.atan2(s.fx, s.fz), 0, 'YXZ'); O.scale.set(.32, .05, .32); O.updateMatrix(); u.g.setMatrixAt(n++, O.matrix); }
       u.g.count = n; u.g.instanceMatrix.needsUpdate = true; continue;
     }
+    if (u.monkey) { updMonkey(u, dt, close, rout, lose); continue; }
     // chariots and knights charge across the field at your lines as the fighting starts, then wheel back
     const [fx, fz] = WARSPEC.f, go = close > .2 && !rout, d = go ? Math.min(10, close*11) : rout && !lose ? -14*Math.min(1, (10.5 - C.t)*.4) : 0;
     const tx = u.x0 + fx*d, tz = u.z0 + fz*d, p = u.g.position, dd = Math.hypot(tx - p.x, tz - p.z);
-    const want = dd > .2 ? Math.min(8, dd*2) : 0; u.sp += (want - u.sp)*Math.min(1, dt*3);
+    const want = dd > .2 ? Math.min(8*(u.slow || 1), dd*2) : 0; u.sp += (want - u.sp)*Math.min(1, dt*3);
     if (dd > .05) { p.x += (tx - p.x)/dd*Math.min(dd, u.sp*dt); p.z += (tz - p.z)/dd*Math.min(dd, u.sp*dt); u.g.rotation.y = Math.atan2(d >= 0 ? fx : -fx, d >= 0 ? fz : -fz); }
     if (u.ch) chariotRoll(u.ch, dt, u.sp); if (u.H) horseGait(u.H, dt, u.sp);
+    if (u.beast) { u.ph += u.sp*dt*2.2; stride(u.beast, u.ph, Math.min(.45, u.sp*.12)); u.g.position.y = Math.abs(Math.sin(u.ph))*.05*Math.min(1, u.sp); }
   }
   if (C.t <= 7) { for (const u of WARSPEC.list) scene.remove(u.g); WARSPEC.list = []; WARSPEC.c = null; }
+}
+
+// a monkey: brown fur, a pale face, long arms and a curled tail
+function monkeyModel() {
+  const g = new THREE.Group(), fur = 0x6a4228, face = 0xd8b088;
+  mesh(G.sph, fur, [.22, .26, .2], [0, .48, 0], g); mesh(G.sph, fur, [.16, .15, .15], [0, .82, .06], g); mesh(G.sph, face, [.1, .09, .06], [0, .8, .18], g);
+  for (const sx of [-1, 1]) { mesh(G.sph, face, [.05, .05, .03], [sx*.13, .88, .05], g); const a = mesh(G.cyl, fur, [.045, .42, .045], [sx*.2, .45, .04], g); a.rotation.z = sx*.5; const l = mesh(G.cyl, fur, [.05, .3, .05], [sx*.1, .16, 0], g); l.rotation.z = sx*.2; }
+  const tail = new THREE.Group(); tail.position.set(0, .4, -.18); g.add(tail);
+  for (let k = 0; k < 5; k++) { const t = mesh(G.sph, fur, [.035, .035, .1], [0, k*.07 + Math.sin(k*.7)*.04, -k*.09], tail); t.rotation.x = -k*.25; }
+  g.userData.tail = tail; g.scale.setScalar(.9 + R()*.25);
+  g.traverse(o => { if (o.isMesh) { o.userData.noBake = true; o.castShadow = true; } });
+  return g;
+}
+function updMonkey(u, dt, close, rout, lose) {
+  const p = u.g.position; u.ph += dt*8; if (u.g.userData.tail) u.g.userData.tail.rotation.y = Math.sin(u.ph*.6)*.5;
+  if ((u.wait -= dt) > 0 && !u.tgt) { p.y = Math.abs(Math.sin(u.ph))*.08; return; }
+  if (!u.tgt) {
+    // the next leap: at your front ranks while they fight, scattering home when the battle turns
+    const fx = WARSPEC.f[0], fz = WARSPEC.f[1], d = rout ? (lose ? 0 : -9) : close > .2 ? 7 + R()*4 : 1 + R()*2;
+    u.tgt = [u.x0 + fx*d + (R() - .5)*4, u.z0 + fz*d + (R() - .5)*4]; u.from = [p.x, p.z]; u.hop = 0; u.len = .55 + R()*.3;
+  }
+  u.hop = Math.min(1, u.hop + dt/u.len);
+  p.x = u.from[0] + (u.tgt[0] - u.from[0])*u.hop; p.z = u.from[1] + (u.tgt[1] - u.from[1])*u.hop; p.y = Math.sin(u.hop*Math.PI)*(1 + Math.hypot(u.tgt[0] - u.from[0], u.tgt[1] - u.from[1])*.12);
+  u.g.rotation.y = Math.atan2(u.tgt[0] - u.from[0], u.tgt[1] - u.from[1]);
+  if (u.hop >= 1) { u.tgt = null; u.wait = .2 + R()*.9; if (R() < .08) snd(900 + R()*500, .06, 'square', .02, .4); }
 }
