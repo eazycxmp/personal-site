@@ -10704,12 +10704,13 @@ function startInvasion(r, o = {}) {
   const pts = waveRoute(r), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))], n = o.n || 12;
   Object.assign(INV, {on:true, r, pts, t:0, units:[], total:n, atk:o.atk ?? null, wave:o.wave || null});
   for (let i = 0; i < n; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; e.hp = 3 + .3*(o.wave || 0) + .2*W.era; INV.units.push(e); }
+  if (o.wave) spawnBig(o.wave); else { INV.big = []; INV.bigW = 0; }
   if (!o.wave) banner(`⚔️ ${r.icon} ${r.n} marches on you!`, `Their army is on its road to the junction, then the road in to your gate. Tap 🎥 to watch them come. Ready the walls!`);
   snd(110, .5, 'sawtooth', .05, .6);
 }
 function updInvasion(dt) {
   if (!INV.on) return;
-  if (!INV.units.length) {
+  if (!INV.units.length && !(INV.big || []).length) {
     INV.on = false; const s = es(INV.r); s.pow = Math.max(10, s.pow*.85); W.flags.invasionsBroken = (W.flags.invasionsBroken || 0) + 1;
     banner(`🏆 ${INV.r.icon} ${INV.r.n}'s army is destroyed on the road!`, 'Not one reached your walls.');
     waveBegun(); if (INV.wave) waveOver(true);
@@ -10722,9 +10723,13 @@ function updInvasion(dt) {
     if (e.pi < INV.pts.length) { const [x, z] = INV.pts[e.pi]; if (march(e, x + ox, z + oz, dt, sp)) e.pi++; } else arrived++;
     animEntity(e, dt); e.char.g.rotation.y = e.yaw;
   }
-  if (INV.units.length) reveal(INV.units[0].pos.x, INV.units[0].pos.z, 10);
-  if (INV.units.length && (arrived >= INV.units.length*.7 || INV.t > 90)) {
-    const left = INV.units.length/INV.total;
+  arrived += updBig(dt);
+  const lead = INV.units[0] || (INV.big || [])[0]; if (lead) reveal(lead.pos.x, lead.pos.z, 10);
+  const alive = INV.units.length + (INV.big || []).length;
+  if (alive && (arrived >= alive*.7 || INV.t > 90)) {
+    // what is left of them, counting each heavy unit as several soldiers
+    const left = (INV.units.length + (INV.big || []).reduce((a, u) => a + u.B.w, 0))/(INV.total + (INV.bigW || 0));
+    clearBig();
     for (const e of INV.units) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); const k = ENTS.indexOf(e); if (k >= 0) ENTS.splice(k, 1); }
     // only those who made it attack: their strength shrinks with every one lost on the road
     SIEGE.scale = left; SIEGE.atkOverride = (INV.atk ?? es(INV.r).pow)*left; SIEGE.wave = INV.wave; SIEGE.spawnAt = ROAD_IN[ROAD_IN.length - 1];
@@ -11183,7 +11188,7 @@ function startWave() {
   S.n++; S.heat = (S.heat || 0)*.75;
   // they march down their road and up the road in; what reaches the gate is what attacks the walls
   startInvasion(r, {atk, n:Math.min(24, 10 + Math.floor(S.n/2)), wave:S.n});
-  banner(`⚔️ Wave ${S.n}: ${r.icon} ${r.n} marches on you!`, `⚔️${Math.round(atk)} against your 🛡️${Math.round(defPower())}. They come up the road in: every one your towers and barricade stop is one fewer at the walls.`);
+  banner(`⚔️ Wave ${S.n}: ${r.icon} ${r.n} marches on you!`, `${waveTier(S.n)[0].toUpperCase() + waveTier(S.n).slice(1)} this time. ⚔️${Math.round(atk)} against your 🛡️${Math.round(defPower())}. They come up the road in: every one your towers and barricade stop is one fewer at the walls.`);
 }
 // any siege on your town counts as a wave: the clock to the next starts again
 function waveBegun() {
@@ -11327,17 +11332,18 @@ function towerFire(dt) {
     if (S.kind !== 'tower') continue; const lv = lvOf(S.id), Q = QUARTER.sites[S.id]; if (!lv || !Q || !Q.head) continue;
     if ((Q.cd = (Q.cd ?? R()) - dt) > 0) continue;
     const [x, z] = Q.sp.at; let f = null, bd = 20;
-    for (const q of [...marching, ...foes]) { const d = Math.hypot(q.pos.x - x, q.pos.z - z); if (d < bd) { bd = d; f = q; } }
+    for (const q of [...marching, ...(INV.on ? (INV.big || []).filter(u => u.kind !== 'jet' || lv >= 4) : []), ...foes]) { const d = Math.hypot(q.pos.x - x, q.pos.z - z); if (d < bd) { bd = d; f = q; } }
     if (!f) { Q.cd = .5; continue; }
     Q.cd = [0, 1.6, 1.3, 1.5, .2, 1.2, .6][lv] * (.8 + R()*.4);
     Q.head.rotation.y = Math.atan2(f.pos.x - x, f.pos.z - z) - Q.g.rotation.y;
     const col = lv >= 6 ? 0x8af0ff : lv === 5 ? 0xf4f4f4 : lv === 4 ? 0xffe27a : lv === 3 ? 0x2a2a2e : 0x8a6a42;
     const m = SHOT_MAT[col] ||= new THREE.MeshBasicMaterial({color:col, toneMapped:false});
-    const from = new THREE.Vector3(x, Q.g.position.y + Q.h + .4, z), to = f.pos.clone().setY(.9), b = new THREE.Mesh(G.sph, m); b.scale.setScalar(lv === 3 || lv === 5 ? .14 : .07); b.position.copy(from); scene.add(b);
+    const from = new THREE.Vector3(x, Q.g.position.y + Q.h + .4, z), to = f.pos.clone().setY(f.B ? Math.max(1, f.pos.y + 1) : .9), b = new THREE.Mesh(G.sph, m); b.scale.setScalar(lv === 3 || lv === 5 ? .14 : .07); b.position.copy(from); scene.add(b);
     const dmg = [0, 1.2, 1.6, 3, .8, 4, 4][lv], blast = lv === 3 || lv === 5 ? 1.8 : .8;
     flyers.push({m:b, from, to, t:0, dur:lv === 4 || lv === 6 ? .18 : .45, arc:lv <= 2 ? .5 : lv === 5 ? .3 : 0, done:() => {
       if (blast > 1) for (let k = 0; k < 8; k++) particle([0xffd040, 0x555555][k % 2], to.clone(), new THREE.Vector3((R() - .5)*4, 2 + R()*2, (R() - .5)*4), .7, .22, {grow:.5, op:.8});
       for (const q of [...INV.units]) if (Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < blast) { q.hp = (q.hp ?? 3) - dmg; if (q.hp <= 0) invKill(q); }
+      for (const u of [...(INV.big || [])]) if (Math.hypot(u.pos.x - to.x, u.pos.z - to.z) < blast + 1.2 && Math.abs(u.pos.y - to.y) < 4) { u.hp -= dmg; if (u.hp <= 0) bigKill(u); }
       for (const q of SIEGE.foes) if (q.alive && Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < blast) { q.hp -= dmg; q.hit = .12; if (q.hp <= 0) knockOut(q); }
     }});
     if (Math.hypot(x - player.pos.x, z - player.pos.z) < 30 || watchingWar()) snd(lv === 4 ? 170 : lv === 3 || lv === 5 ? 70 : 600, lv === 4 ? .03 : .12, lv === 3 || lv === 5 ? 'sawtooth' : 'square', .03);
@@ -11348,7 +11354,7 @@ function barricadeAt(e) {
   const lv = lvOf('bar'); if (!lv) return 1;
   const Q = QUARTER.sites.bar; if (!Q || !Q.sp) return 1;
   const [x, z] = Q.sp.at; if (Math.hypot(e.pos.x - x, e.pos.z - z) > 7) return 1;
-  if (lv >= 4 && !e.mined) { e.mined = true; if (R() < [0, 0, 0, 0, .12, .18, .25][lv]) { for (let k = 0; k < 12; k++) particle([0xffd040, 0xff7a2a, 0x555555][k % 3], e.pos.clone().setY(.3), new THREE.Vector3((R() - .5)*5, 2 + R()*3, (R() - .5)*5), .8, .28, {grow:.6, op:.85}); snd(60, .4, 'sawtooth', .05, .3); invKill(e); return 0; } }
+  if (lv >= 4 && !e.mined) { e.mined = true; if (R() < [0, 0, 0, 0, .12, .18, .25][lv]) { for (let k = 0; k < 12; k++) particle([0xffd040, 0xff7a2a, 0x555555][k % 3], e.pos.clone().setY(.3), new THREE.Vector3((R() - .5)*5, 2 + R()*3, (R() - .5)*5), .8, .28, {grow:.6, op:.85}); snd(60, .4, 'sawtooth', .05, .3); if (e.B) { e.hp -= 12; if (e.hp <= 0) bigKill(e); return 1; } invKill(e); return 0; } }
   return 1 - .09*lv;
 }
 // ------------------------------------------------------------------ a growing town draws bigger armies
@@ -11380,7 +11386,7 @@ function openDefense() {
   const rows = DEFSITES.map(D => { const lv = lvOf(D.id); return `<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #0001;text-align:left"><span>${D.icon} <b>${D.name}</b></span><span>${lv ? LV_NAME[D.kind][lv] : '<i>not built</i>'} · ${lv}/${DEF_MAX}</span></div>`; }).join('');
   const quarters = openQuarters().map(id => `${lostQuarters()[id] ? '🔥' : '🏠'} ${QUARTER_NAME[id]}`).join(' · ');
   m.innerHTML = `<div class="card"><h1 style="font-size:24px">🏰 Castle defense</h1>
-    <p>Wave ${S.n + 1} comes in ${Math.floor(S.t/60)}:${String(Math.floor(S.t % 60)).padStart(2, '0')}, about <b>⚔️${fmt(next)}</b> strong${S.heat > .01 ? ` (${Math.round(S.heat*100)}% more: your growth draws them)` : ''}. Your defense: <b style="color:${def >= next ? '#2f9e44' : '#b83a2a'}">🛡️${fmt(def)}</b>.</p>
+    <p>Wave ${S.n + 1} comes in ${Math.floor(S.t/60)}:${String(Math.floor(S.t % 60)).padStart(2, '0')}, about <b>⚔️${fmt(next)}</b> strong, bringing ${waveTier(S.n + 1)}${S.heat > .01 ? ` (${Math.round(S.heat*100)}% more: your growth draws them)` : ''}. Your defense: <b style="color:${def >= next ? '#2f9e44' : '#b83a2a'}">🛡️${fmt(def)}</b>.</p>
     <p class="keys">Held ${S.held} · lost ${S.lost}. Every rival comes down its own road to the junction, then up the one road in to your gate. Build and level up the defenses on that road (walk onto their tiles).</p>
     <div style="max-height:34vh;overflow:auto">${rows}</div>
     <p style="text-align:left"><b>Districts</b>: ${quarters || 'none yet'}. A lost wave burns one, the newest first; lose them all and the keep falls.</p>
@@ -11404,6 +11410,54 @@ function updWaves(dt) {
   const t0 = S.t; S.t -= dt;
   if (t0 > 30 && S.t <= 30) banner(`⚔️ Wave ${S.n + 1} in 30 seconds`, `About ⚔️${Math.round(waveStrength())} strong, against your 🛡️${Math.round(defPower())}.`);
   if (S.t <= 0) startWave();
+}
+// ------------------------------------------------------------------ what each wave brings: soldiers, then bigger soldiers, elephants, dragons, tanks, jets, a kaiju
+// Each heavy unit counts as several soldiers (w); kill it on the road and that much less reaches your walls.
+const BIG = {
+  elephant:{w:4, hp:18, sp:5, y:0, from:5, every:2, cap:4, make:() => beast('elephant', 2.7)},
+  dragon:{w:6, hp:26, sp:8, y:8, fly:true, from:8, every:2, cap:3, make:() => dragonModel(.55)},
+  tank:{w:6, hp:32, sp:5, y:0, from:11, every:2, cap:4, make:() => model('tank', 2.4, 'z')},
+  jet:{w:5, hp:14, sp:15, y:12, fly:true, from:14, every:2, cap:4, make:() => model('fighter', 4.2, 'x')},
+  kaiju:{w:24, hp:140, sp:2.6, y:0, from:20, boss:true, make:() => kaijuModel()}};
+const waveTier = n => n >= 20 ? 'kaiju' : n >= 14 ? 'jets' : n >= 11 ? 'tanks' : n >= 8 ? 'dragons' : n >= 5 ? 'elephants' : n >= 3 ? 'heavy soldiers' : 'soldiers';
+function spawnBig(n) {
+  INV.big = []; INV.bigW = 0;
+  // from wave 3 their soldiers are bigger and tougher
+  if (n >= 3) for (const e of INV.units) { e.char.g.scale.setScalar(1.25); e.hp *= 1.8; e.heavy = true; }
+  for (const [kind, B] of Object.entries(BIG)) {
+    if (n < B.from) continue;
+    const count = B.boss ? (n % 5 === 0 ? 1 : 0) : Math.min(B.cap, 1 + Math.floor((n - B.from)/B.every));
+    for (let i = 0; i < count; i++) {
+      const m = B.make(); if (!m) break;
+      const g = new THREE.Group(); g.add(m); g.traverse(o => { if (o.isMesh) o.userData.noBake = true; }); scene.add(g);
+      const [x, z] = INV.pts[0]; g.position.set(x + (i - count/2)*3, B.y, z - 4 - i*2);
+      // in a column of their own, two abreast, so they do not walk inside each other
+      const k = INV.big.length; INV.big.push({kind, B, g, pos:g.position, hp:B.hp*(1 + .04*n), pi:0, ph:R()*6, ox:(k % 2 ? 1.8 : -1.8), oz:Math.floor(k/2)*3.4 + 4}); INV.bigW += B.w;
+    }
+  }
+}
+function bigKill(u) {
+  const k = INV.big.indexOf(u); if (k < 0) return;
+  for (let i = 0; i < 24; i++) particle([0xffd040, 0xff7a2a, 0x444444][i % 3], u.pos.clone().setY(Math.max(.5, u.pos.y)), new THREE.Vector3((R() - .5)*8, 2 + R()*5, (R() - .5)*8), 1.1, .45, {grow:.8, op:.85});
+  snd(55, .6, 'sawtooth', .07, .4); shakeCam(.25);
+  scene.remove(u.g); INV.big.splice(k, 1);
+}
+function clearBig() { for (const u of INV.big || []) scene.remove(u.g); INV.big = []; }
+// they come up the same road; the fliers high over it, jets fast
+function updBig(dt) {
+  let arrived = 0;
+  for (const u of INV.big || []) {
+    const B = u.B;
+    if (u.pi < INV.pts.length) {
+      const last = u.pi === INV.pts.length - 1, x = INV.pts[u.pi][0] + (last ? 0 : u.ox), z = INV.pts[u.pi][1] + (last ? 0 : u.oz), dx = x - u.pos.x, dz = z - u.pos.z, d = Math.hypot(dx, dz), sp = B.sp*(B.fly ? 1 : barricadeAt(u) || 1);
+      if (d < 1.5) u.pi++; else { const v = Math.min(sp*dt, d); u.pos.x += dx/d*v; u.pos.z += dz/d*v; u.g.rotation.y = Math.atan2(dx, dz); }
+    } else arrived++;
+    u.ph += dt;
+    if (u.kind === 'dragon') { flapDragon(u.g.children[0], time, 6); u.pos.y = B.y + Math.sin(u.ph*1.4)*.6; }
+    else if (u.kind === 'jet') u.g.rotation.z = Math.sin(u.ph*.8)*.15;
+    else { u.pos.y = elevAt(u.pos.x, u.pos.z) + (u.kind === 'kaiju' ? Math.abs(Math.sin(u.ph*2))*.2 : 0); const L = u.g.children[0].userData.legs; if (L) L.forEach((l, i) => { l.rotation.x = Math.sin(u.ph*6 + i*1.6)*.4; }); }
+  }
+  return arrived;
 }
 // ------------------------------------------------------------------ ruins: a burned building has to be paid for again, from scratch
 function rebuildCost(st) {

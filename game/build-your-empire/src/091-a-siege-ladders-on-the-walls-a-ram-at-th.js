@@ -7,12 +7,13 @@ function startInvasion(r, o = {}) {
   const pts = waveRoute(r), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))], n = o.n || 12;
   Object.assign(INV, {on:true, r, pts, t:0, units:[], total:n, atk:o.atk ?? null, wave:o.wave || null});
   for (let i = 0; i < n; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; e.hp = 3 + .3*(o.wave || 0) + .2*W.era; INV.units.push(e); }
+  if (o.wave) spawnBig(o.wave); else { INV.big = []; INV.bigW = 0; }
   if (!o.wave) banner(`⚔️ ${r.icon} ${r.n} marches on you!`, `Their army is on its road to the junction, then the road in to your gate. Tap 🎥 to watch them come. Ready the walls!`);
   snd(110, .5, 'sawtooth', .05, .6);
 }
 function updInvasion(dt) {
   if (!INV.on) return;
-  if (!INV.units.length) {
+  if (!INV.units.length && !(INV.big || []).length) {
     INV.on = false; const s = es(INV.r); s.pow = Math.max(10, s.pow*.85); W.flags.invasionsBroken = (W.flags.invasionsBroken || 0) + 1;
     banner(`🏆 ${INV.r.icon} ${INV.r.n}'s army is destroyed on the road!`, 'Not one reached your walls.');
     waveBegun(); if (INV.wave) waveOver(true);
@@ -25,9 +26,13 @@ function updInvasion(dt) {
     if (e.pi < INV.pts.length) { const [x, z] = INV.pts[e.pi]; if (march(e, x + ox, z + oz, dt, sp)) e.pi++; } else arrived++;
     animEntity(e, dt); e.char.g.rotation.y = e.yaw;
   }
-  if (INV.units.length) reveal(INV.units[0].pos.x, INV.units[0].pos.z, 10);
-  if (INV.units.length && (arrived >= INV.units.length*.7 || INV.t > 90)) {
-    const left = INV.units.length/INV.total;
+  arrived += updBig(dt);
+  const lead = INV.units[0] || (INV.big || [])[0]; if (lead) reveal(lead.pos.x, lead.pos.z, 10);
+  const alive = INV.units.length + (INV.big || []).length;
+  if (alive && (arrived >= alive*.7 || INV.t > 90)) {
+    // what is left of them, counting each heavy unit as several soldiers
+    const left = (INV.units.length + (INV.big || []).reduce((a, u) => a + u.B.w, 0))/(INV.total + (INV.bigW || 0));
+    clearBig();
     for (const e of INV.units) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); const k = ENTS.indexOf(e); if (k >= 0) ENTS.splice(k, 1); }
     // only those who made it attack: their strength shrinks with every one lost on the road
     SIEGE.scale = left; SIEGE.atkOverride = (INV.atk ?? es(INV.r).pow)*left; SIEGE.wave = INV.wave; SIEGE.spawnAt = ROAD_IN[ROAD_IN.length - 1];
