@@ -26,13 +26,14 @@ function updInvasion(dt) {
   }
 }
 function startSiege(r) {
-  const s = es(r), atk = s.pow, def = defPower(), win = def >= atk, cb = castleBox();
+  const s = es(r), atk = SIEGE.atkOverride ?? s.pow, def = defPower(), win = def >= atk, cb = castleBox();
+  waveBegun();
   W.raid = {t:50, dur:50, type:'siege', siege:true, rival:EMP.list.indexOf(r)};
-  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8, arrowT:0, gunT:0, shipT:0});
+  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8 + defLv().ramparts*6, arrowT:0, gunT:0, shipT:0});
   BT.id = (BT.id || 0) + 1; BT.noCap = !win;
   W.flags.sieges = (W.flags.sieges || 0) + 1;
   const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
-  const n = Math.max(2, Math.round(Math.min(16, 6 + Math.round(atk/12))*(SIEGE.scale ?? 1))), H = [0, 2, 2.6, 2.8, 2.2][W.castle || 0];
+  const n = Math.max(2, Math.round(Math.min(16 + Math.min(14, Math.floor((SIEGE.wave || 0)/2)), 6 + Math.round(atk/12))*(SIEGE.scale ?? 1))), H = [0, 2, 2.6, 2.8, 2.2][W.castle || 0];
   let li = 0, gi = 0;
   for (let i = 0; i < n; i++) {
     const x0 = r.land ? -6 + (i % 8)*2 : -9.6 + (i % 3)*.6, z0 = r.land ? 107 + Math.floor(i / 8)*1.4 : 94 + Math.floor(i / 3)*1.1;
@@ -177,17 +178,16 @@ function endSiege() {
     const loot = Math.round(atk*40); addCash(CASH.spoils || cash, loot, {x:12.3, z:72.8});
     s.pow *= .7; s.rel += 10; W.flags.siegesWon = (W.flags.siegesWon || 0) + 1;
     banner(`🛡️ The siege is broken!`, `${r.n} retreats. Your army takes ${loot} 💵 from their camp.`);
+    waveOver(true);
     [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => snd(f, .2, 'triangle', .05), i*110));
   } else {
-    // overrun: they burn buildings, carry off gold and take a province
-    const n = Math.min(3, 1 + Math.floor(SIEGE.breach/2) + (atk > SIEGE.def*1.4 ? 1 : 0));
-    const pool = Object.values(ST).filter(st => st.inZ && !st.broken && st.id !== 'grill'), burned = [];
-    for (let k = 0; k < n && pool.length; k++) { const st = pool.splice(R()*pool.length|0, 1)[0]; ruinStation(st, rebuildCost(st)); burned.push(st.name); }
+    // overrun: a district falls (see 091c), they carry off gold and take a province
     const loot = Math.min(Math.floor(W.coins*.2), Math.round(atk*150)); spend(loot);
     const k = landKeys().filter(k => !land(k).lost).sort((a, b) => land(a).loy - land(b).loy)[0];
     if (k) { const L = land(k); L.lost = true; L.by = r.id; }
-    s.pow *= .85; W.flags.ruinsMade = (W.flags.ruinsMade || 0) + burned.length;
-    banner(`🔥 ${r.icon} ${r.n} overran your defences`, `They burned the ${burned.join(', ') || 'outskirts'}, took ${loot} 💵${k ? ` and seized ${landName(k)}` : ''}. Rebuild, then grow your army, walls and science.`);
+    s.pow *= .85;
+    note(`🔥 ${r.icon} ${r.n} overran your defences`, `They took ${loot} 💵${k ? ` and seized ${landName(k)}` : ''}.`);
+    waveOver(false);
   }
   save();
 }

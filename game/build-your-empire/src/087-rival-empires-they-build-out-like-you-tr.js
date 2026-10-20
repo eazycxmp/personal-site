@@ -25,7 +25,7 @@ function powerParts() {
 }
 const myPower = () => Object.values(powerParts()).reduce((a, b) => a + b, 0);
 // walls count twice when you are the one defending them
-const defPower = () => myPower() + [0, 6, 14, 24, 36][W.castle || 0];
+const defPower = () => (myPower() + [0, 6, 14, 24, 36][W.castle || 0])*(typeof defenseMult === 'function' ? defenseMult() : 1);
 const giftCost = () => 500 + 400*W.era;
 const peaceCost = r => Math.round(es(r).pow * 60);
 function spend(c) { W.coins -= c; W.upSpent += c; }

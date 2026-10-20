@@ -84,6 +84,7 @@ function zoneAct(e, zn, dt) {
     case 'gasup': if (e.isPlayer) payGas(zn, e); break;
     case 'fix': if (e.isPlayer) payFix(zn, e); break;
     case 'landMarket': if (e.isPlayer) payLandMarket(zn, e); break;
+    case 'rebuildQuarter': if (e.isPlayer) payQuarter(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;
