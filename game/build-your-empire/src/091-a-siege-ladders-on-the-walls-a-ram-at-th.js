@@ -2,41 +2,51 @@
 const SIEGE = {foes:[], ships:[], ladders:[], archers:[], win:true, r:null, breach:0, gateHp:0, arrowT:0, gunT:0, shipT:0};
 function castleBox() { return boxes.find(b => b.castle && W.castle); }
 const INV = {on:false, units:[], r:null, t:0};
-function startInvasion(r) {
-  const pts = [...armyPath(r)].reverse().concat([[3, 92]]), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
-  Object.assign(INV, {on:true, r, pts, t:0, units:[]});
-  for (let i = 0; i < 12; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; INV.units.push(e); }
-  const from = r.via === 'east' ? 'east' : 'west';
-  banner(`⚔️ ${r.icon} ${r.n} marches on you from the ${from}!`, `Their army is on the ${from} road. Tap 🎥 to watch them come. Ready the walls!`);
+function startInvasion(r, o = {}) {
+  // every army comes down its own road to the junction, then up the one road in to your gate (091c)
+  const pts = waveRoute(r), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))], n = o.n || 12;
+  Object.assign(INV, {on:true, r, pts, t:0, units:[], total:n, atk:o.atk ?? null, wave:o.wave || null});
+  for (let i = 0; i < n; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; e.hp = 3 + .3*(o.wave || 0) + .2*W.era; INV.units.push(e); }
+  if (!o.wave) banner(`⚔️ ${r.icon} ${r.n} marches on you!`, `Their army is on its road to the junction, then the road in to your gate. Tap 🎥 to watch them come. Ready the walls!`);
   snd(110, .5, 'sawtooth', .05, .6);
 }
 function updInvasion(dt) {
   if (!INV.on) return;
-  if (!INV.units.length) { INV.on = false; const s = es(INV.r); s.pow = Math.max(10, s.pow*.85); W.flags.invasionsBroken = (W.flags.invasionsBroken || 0) + 1; banner(`🏆 ${INV.r.icon} ${INV.r.n}'s army is destroyed on the road!`, 'Your forces met them in the field. Not one reached your walls.'); return; }
+  if (!INV.units.length) {
+    INV.on = false; const s = es(INV.r); s.pow = Math.max(10, s.pow*.85); W.flags.invasionsBroken = (W.flags.invasionsBroken || 0) + 1;
+    banner(`🏆 ${INV.r.icon} ${INV.r.n}'s army is destroyed on the road!`, 'Not one reached your walls.');
+    waveBegun(); if (INV.wave) waveOver(true);
+    return;
+  }
   INV.t += dt; let arrived = 0;
-  INV.units.forEach((e, i) => {
-    const ox = ((i % 4) - 1.5)*.8, oz = Math.floor(i / 4)*.8;
-    if (e.pi < INV.pts.length) { const [x, z] = INV.pts[e.pi]; if (march(e, x + ox, z + oz, dt, 7)) e.pi++; } else arrived++;
+  for (const [i, e] of [...INV.units.entries()]) {
+    const ox = ((i % 4) - 1.5)*.8, oz = Math.floor(i / 4)*.8, sp = 7*barricadeAt(e);
+    if (!sp) continue;   // a mine took them
+    if (e.pi < INV.pts.length) { const [x, z] = INV.pts[e.pi]; if (march(e, x + ox, z + oz, dt, sp)) e.pi++; } else arrived++;
     animEntity(e, dt); e.char.g.rotation.y = e.yaw;
-  });
-  reveal(INV.units[0].pos.x, INV.units[0].pos.z, 10);
-  if (arrived >= INV.units.length*.7 || INV.t > 70) {
+  }
+  if (INV.units.length) reveal(INV.units[0].pos.x, INV.units[0].pos.z, 10);
+  if (INV.units.length && (arrived >= INV.units.length*.7 || INV.t > 90)) {
+    const left = INV.units.length/INV.total;
     for (const e of INV.units) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); const k = ENTS.indexOf(e); if (k >= 0) ENTS.splice(k, 1); }
-    SIEGE.scale = INV.units.length/12; INV.units.length = 0; INV.on = false; startSiege(INV.r); SIEGE.scale = null;
+    // only those who made it attack: their strength shrinks with every one lost on the road
+    SIEGE.scale = left; SIEGE.atkOverride = (INV.atk ?? es(INV.r).pow)*left; SIEGE.wave = INV.wave; SIEGE.spawnAt = ROAD_IN[ROAD_IN.length - 1];
+    INV.units.length = 0; INV.on = false; startSiege(INV.r);
+    SIEGE.scale = null; SIEGE.atkOverride = null; SIEGE.spawnAt = null;
   }
 }
 function startSiege(r) {
   const s = es(r), atk = SIEGE.atkOverride ?? s.pow, def = defPower(), win = def >= atk, cb = castleBox();
   waveBegun();
   W.raid = {t:50, dur:50, type:'siege', siege:true, rival:EMP.list.indexOf(r)};
-  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8 + defLv().ramparts*6, arrowT:0, gunT:0, shipT:0});
+  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8 + lvOf('gate')*6, arrowT:0, gunT:0, shipT:0});
   BT.id = (BT.id || 0) + 1; BT.noCap = !win;
   W.flags.sieges = (W.flags.sieges || 0) + 1;
   const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
   const n = Math.max(2, Math.round(Math.min(16 + Math.min(14, Math.floor((SIEGE.wave || 0)/2)), 6 + Math.round(atk/12))*(SIEGE.scale ?? 1))), H = [0, 2, 2.6, 2.8, 2.2][W.castle || 0];
   let li = 0, gi = 0;
   for (let i = 0; i < n; i++) {
-    const x0 = r.land ? -6 + (i % 8)*2 : -9.6 + (i % 3)*.6, z0 = r.land ? 107 + Math.floor(i / 8)*1.4 : 94 + Math.floor(i / 3)*1.1;
+    const sa = SIEGE.spawnAt, x0 = sa ? sa[0] - 3.5 + (i % 8) : r.land ? -6 + (i % 8)*2 : -9.6 + (i % 3)*.6, z0 = sa ? sa[1] + Math.floor(i / 8)*1.2 : r.land ? 107 + Math.floor(i / 8)*1.4 : 94 + Math.floor(i / 3)*1.1;
     const f = entity(look, x0, z0, 2.6, 0);
     Object.assign(f, {yaw:Math.PI, alive:true, fall:0, hp:(win ? 4 : 9) + W.era*.5, gun:!!look.gun, cd:R(), role:'fight'});
     f.maxHp = f.hp;
