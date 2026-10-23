@@ -5,7 +5,7 @@ const INV = {on:false, units:[], r:null, t:0};
 function startInvasion(r, o = {}) {
   // every army comes down its own road to the junction, then up the one road in to your gate (091c)
   const pts = waveRoute(r), look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))], n = o.n || 12;
-  Object.assign(INV, {on:true, r, pts, t:0, units:[], total:n, atk:o.atk ?? null, wave:o.wave || null});
+  Object.assign(INV, {on:true, r, pts, t:0, units:[], target:null, total:n, atk:o.atk ?? null, wave:o.wave || null});
   for (let i = 0; i < n; i++) { const e = entity(look, pts[0][0] + ((i % 4) - 1.5)*.8, pts[0][1] + Math.floor(i / 4)*.8, 7, 0); e.pi = 0; e.hp = 3 + .3*(o.wave || 0) + .2*W.era; INV.units.push(e); }
   if (o.wave) spawnBig(o.wave); else { INV.big = []; INV.bigW = 0; }
   if (!o.wave) banner(`⚔️ ${r.icon} ${r.n} marches on you!`, `Their army is on its road to the junction, then the road in to your gate. Tap 🎥 to watch them come. Ready the walls!`);
@@ -29,22 +29,26 @@ function updInvasion(dt) {
   arrived += updBig(dt);
   const lead = INV.units[0] || (INV.big || [])[0]; if (lead) reveal(lead.pos.x, lead.pos.z, 10);
   const alive = INV.units.length + (INV.big || []).length;
-  if (alive && (arrived >= alive*.7 || INV.t > 90)) {
+  // at the end of the road they turn and walk round to your weakest wall section first
+  if (alive && (arrived >= alive*.7 || INV.t > 90) && headForWeakSpot()) return;
+  if (alive && (arrived >= alive*.7 || INV.t > 120)) {
     // what is left of them, counting each heavy unit as several soldiers
     const left = (INV.units.length + (INV.big || []).reduce((a, u) => a + u.B.w, 0))/(INV.total + (INV.bigW || 0));
     clearBig();
     for (const e of INV.units) { scene.remove(e.char.g); stacks.delete(e.stack); if (e.bar) scene.remove(e.bar); const k = ENTS.indexOf(e); if (k >= 0) ENTS.splice(k, 1); }
     // only those who made it attack: their strength shrinks with every one lost on the road
-    SIEGE.scale = left; SIEGE.atkOverride = (INV.atk ?? es(INV.r).pow)*left; SIEGE.wave = INV.wave; SIEGE.spawnAt = ROAD_IN[ROAD_IN.length - 1];
+    SIEGE.scale = left; SIEGE.atkOverride = (INV.atk ?? es(INV.r).pow)*left; SIEGE.wave = INV.wave; SIEGE.spawnAt = INV.pts[INV.pts.length - 1];
+    // the section they reached holds with its own share of your defense
+    const T = INV.target; INV.target = null; SIEGE.target = T; SIEGE.defOverride = T ? secHold(T) : null;
     INV.units.length = 0; INV.on = false; startSiege(INV.r);
-    SIEGE.scale = null; SIEGE.atkOverride = null; SIEGE.spawnAt = null;
+    SIEGE.scale = null; SIEGE.atkOverride = null; SIEGE.spawnAt = null; SIEGE.defOverride = null;
   }
 }
 function startSiege(r) {
-  const s = es(r), atk = SIEGE.atkOverride ?? s.pow, def = defPower(), win = def >= atk, cb = castleBox();
+  const s = es(r), atk = SIEGE.atkOverride ?? s.pow, def = SIEGE.defOverride ?? defPower(), win = def >= atk, cb = castleBox();
   waveBegun();
   W.raid = {t:50, dur:50, type:'siege', siege:true, rival:EMP.list.indexOf(r)};
-  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8 + lvOf('gate')*6, arrowT:0, gunT:0, shipT:0});
+  Object.assign(SIEGE, {r, win, atk, def, breach:0, gateHp:10 + (W.castle || 0)*8, arrowT:0, gunT:0, shipT:0});
   BT.id = (BT.id || 0) + 1; BT.noCap = !win;
   W.flags.sieges = (W.flags.sieges || 0) + 1;
   const look = ENEMY_LOOKS[Math.min(ENEMY_LOOKS.length - 1, Math.max(r.look, W.troop || 0))];
@@ -55,13 +59,13 @@ function startSiege(r) {
     const f = entity(look, x0, z0, 2.6, 0);
     Object.assign(f, {yaw:Math.PI, alive:true, fall:0, hp:(win ? 4 : 9) + W.era*.5, gun:!!look.gun, cd:R(), role:'fight'});
     f.maxHp = f.hp;
-    if (cb && i % 5 < 2 && li < 5) {
+    if (cb && !SIEGE.target && i % 5 < 2 && li < 5) {
       f.role = 'ladder'; f.wx = cb.x0 + .9 + li*((cb.x1 - cb.x0 - 1.8)/4); f.wz = cb.z1 + .35; f.topZ = cb.z1 - .75; f.H = H; li++;
       const L = new THREE.Group(); scene.add(L); f.ladder = L; SIEGE.ladders.push(L);
       const len = Math.hypot(H + .3, 1.1);
       for (const x of [-.22, .22]) mesh(G.box, 0x8a5a2b, [.06, len, .06], [x, len/2, 0], L);
       for (let y = .3; y < len; y += .35) mesh(G.box, 0x6b4526, [.44, .04, .04], [0, y, 0], L);
-    } else if (cb && i % 5 === 2 && gi < 3) { f.role = 'gate'; f.wx = cb.x1 + .7 + (gi % 2)*.5; f.wz = 87.4 + gi*.45; gi++; }
+    } else if (cb && !SIEGE.target && i % 5 === 2 && gi < 3) { f.role = 'gate'; f.wx = cb.x1 + .7 + (gi % 2)*.5; f.wz = 87.4 + gi*.45; gi++; }
     SIEGE.foes.push(f);
   }
   if (r.sea) for (const [x, z] of [[-14.4, 74], [-12.8, 78]]) { const p = makePirate(x, r.id === 'azul' ? -108 : 138); Object.assign(p, {tz:z, hp:win ? 4 : 9, sink:0}); SIEGE.ships.push(p); }

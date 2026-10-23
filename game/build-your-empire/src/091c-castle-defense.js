@@ -15,7 +15,7 @@ const QUARTER_NAME = {farm:'the Farmlands', south:'the Military Grounds', east:'
 const waveState = () => W.flags.wave ||= {n:0, t:240, track:0, held:0, lost:0, heat:0};
 // ------------------------------------------------------------------ the roads
 const ROAD_JUNCTION = [64, 150];
-const ROAD_IN = [[64, 150], [44, 122], [26, 104], [14, 93]];
+const ROAD_IN = [[64, 150], [44, 122], [26, 104], [14, 90]];
 // each rival's own road to the junction: east and west along the old trade roads, Ostberg from beyond its city,
 // and anyone who comes by sea from a landing on the south beach
 function rivalRoad(r) {
@@ -67,8 +67,7 @@ const DEFSITES = [
   {id:'bar', kind:'bar', t:.05, side:0, name:'Barricade', icon:'🚧'},
   {id:'t1', kind:'tower', t:.3, side:1, name:'Outer tower', icon:'🗼'},
   {id:'t2', kind:'tower', t:.55, side:-1, name:'Middle tower', icon:'🗼'},
-  {id:'t3', kind:'tower', t:.8, side:1, name:'Inner tower', icon:'🗼'},
-  {id:'gate', kind:'gate', t:.97, side:0, name:'Gatehouse', icon:'🏰'}];
+  {id:'t3', kind:'tower', t:.8, side:1, name:'Inner tower', icon:'🗼'}];
 const DEF_MAX = 6;
 const LV_NAME = {
   tower:['', 'wooden watchtower', 'stone tower', 'cannon tower', 'machine-gun post', 'missile tower', 'laser tower'],
@@ -78,7 +77,7 @@ const siteLv = () => { const S = W.flags.sites ||= {}; if (W.flags.def) { const 
 const lvOf = id => siteLv()[id] || 0;
 const towerLvs = () => ['t1', 't2', 't3'].reduce((a, k) => a + lvOf(k), 0);
 // the gatehouse adds 5% a level to your defense, each tower 2%, the barricade 3%
-const defenseMult = () => 1 + .05*lvOf('gate') + .02*towerLvs() + .03*lvOf('bar');
+const defenseMult = () => 1 + .02*towerLvs() + .03*lvOf('bar');
 const siteCost = (S, lv) => Math.round(({gate:4000, tower:3000, bar:2500}[S.kind]) * Math.pow(2.3, lv) * (1 + .2*W.era));
 const defLv = () => ({ramparts:lvOf('gate'), towers:Math.round(towerLvs()/3)});
 const lostQuarters = () => W.flags.lostQ ||= {};
@@ -87,7 +86,10 @@ const quarterPads = id => PADS.filter(p => p.region === id && W.unlocked.has(p.i
 // which district a station stands in: its own pad's, else the nearest pad's
 function stationQuarter(st) {
   const own = PADS.find(p => p.id === st.id); if (own) return own.region || 'camp';
-  const [x, z] = st.inZ || st.outZ || [0, 0]; let best = null, bd = 9;
+  const [x, z] = st.inZ || st.outZ || [0, 0];
+  // no pad of its own (the camp's first stations): the plot it stands in
+  if (typeof CELLS !== 'undefined') for (const id of Object.keys(CELLS)) { const R0 = cellRect(id); if (x >= R0.x0 && x < R0.x1 && z >= R0.z0 && z < R0.z1) return id; }
+  let best = null, bd = 9;
   for (const p of PADS) { const d = Math.hypot(p.x - x, p.z - z); if (d < bd && W.unlocked.has(p.id)) { bd = d; best = p; } }
   return best ? best.region || 'camp' : 'camp';
 }
@@ -123,8 +125,10 @@ function waveOver(win) {
   const S = waveState(); SIEGE.wave = null;
   if (win) { S.held++; return; }
   S.lost++;
+  // they broke in at a wall section: the plot behind it burns, and on from there
+  const T = SIEGE.target; SIEGE.target = null;
+  if (T) { breachSpread(T.cell, Math.max(0, (SIEGE.atk || 0)/Math.max(1, SIEGE.def || 1) - 1)); return; }
   const ord = W.flags.qOrder || [], open = openQuarters().filter(id => !lostQuarters()[id]);
-  // the newest district first (out on the edge), then the outer ones
   const left = [...ord.filter(id => open.includes(id)).reverse(), ...open.filter(id => !ord.includes(id))];
   if (!left.length) { keepFalls(); return; }
   loseQuarter(left[0]);
@@ -310,8 +314,8 @@ function openDefense() {
   const quarters = openQuarters().map(id => `${lostQuarters()[id] ? '🔥' : '🏠'} ${QUARTER_NAME[id]}`).join(' · ');
   m.innerHTML = `<div class="card"><h1 style="font-size:24px">🏰 Castle defense</h1>
     <p>Wave ${S.n + 1} comes in ${Math.floor(S.t/60)}:${String(Math.floor(S.t % 60)).padStart(2, '0')}, about <b>⚔️${fmt(next)}</b> strong, bringing ${waveTier(S.n + 1)}${S.heat > .01 ? ` (${Math.round(S.heat*100)}% more: your growth draws them)` : ''}. Your defense: <b style="color:${def >= next ? '#2f9e44' : '#b83a2a'}">🛡️${fmt(def)}</b>.</p>
-    <p class="keys">Held ${S.held} · lost ${S.lost}. Every rival comes down its own road to the junction, then up the one road in to your gate. Build and level up the defenses on that road (walk onto their tiles).</p>
-    <div style="max-height:34vh;overflow:auto">${rows}</div>
+    <p class="keys">Held ${S.held} · lost ${S.lost}. Every rival comes down its own road to the junction, then up the one road in to your gate. Build up the towers and barricade on that road, and every section of your wall on its 🧱 tile: an army that reaches your gate walks round to your weakest section.</p>
+    <div style="max-height:34vh;overflow:auto">${rows}<h3 style="margin:10px 0 2px;font-size:15px;text-align:left">🧱 Wall sections (weakest first: that is where they attack)</h3>${wallSections().sort((p, q) => secHold(p) - secHold(q)).map((s, i) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #0001;text-align:left;${i ? '' : 'color:#b83a2a;font-weight:600'}"><span>${secName(s)}</span><span>${WALL_NAME[secLv(s)]} · holds 🛡️${fmt(secHold(s))}</span></div>`).join('')}</div>
     <p style="text-align:left"><b>Districts</b>: ${quarters || 'none yet'}. A lost wave burns one, the newest first; lose them all and the keep falls.</p>
     <button id="dfGo">🧭 Take me to the road in</button> <button class="ghost" id="dfClose">Close</button></div>`;
   $('dfGo').onclick = () => { m.hidden = true; const [x, z] = ROAD_IN[1]; player.pos.set(x + 4, 0, z); prevPos.copy(player.pos); };
@@ -324,7 +328,7 @@ function updWaves(dt) {
   if (!QUARTER.restored && EMP.loaded) { QUARTER.restored = true; for (const id of Object.keys(lostQuarters())) quarterDown(id, true); }
   waveHud();
   if (!W.castle) return;
-  if (EMP.loaded) { buildRoads(); for (const S of DEFSITES) buildSite(S); }
+  if (EMP.loaded) { buildRoads(); for (const S of DEFSITES) buildSite(S); updWalls(dt); }
   towerFire(dt);
   if ((QUARTER.chk -= dt) <= 0) { QUARTER.chk = 2; growthHeat(); }
   const S = waveState();
@@ -381,4 +385,148 @@ function updBig(dt) {
     else { u.pos.y = elevAt(u.pos.x, u.pos.z) + (u.kind === 'kaiju' ? Math.abs(Math.sin(u.ph*2))*.2 : 0); const L = u.g.children[0].userData.legs; if (L) L.forEach((l, i) => { l.rotation.x = Math.sin(u.ph*6 + i*1.6)*.4; }); }
   }
   return arrived;
+}
+// ------------------------------------------------------------------ the town wall: one wall round every plot you own
+// The districts sit in a grid of plots round the camp (the keep). The wall runs along every plot edge that faces
+// land you do not own, so opening a plot pushes the wall out round it. Each section of wall has its own level and
+// its own tile to build it up. An army that reaches the end of the road walks round to the weakest section and
+// attacks there: hold it, or they break in, burn the plot behind it and spread on, further the more they beat it by.
+const CELL_X = [-45, -16.5, 23, 57], CELL_Z = [-54, -22, 24, 85];
+const CELLS = {ranch:[0, 0], north:[1, 0], downtown:[2, 0], airfield:[0, 1], camp:[1, 1], east:[2, 1], south:[1, 2], farm:[2, 2]};
+const cellAt = (c, r) => Object.keys(CELLS).find(k => CELLS[k][0] === c && CELLS[k][1] === r) || null;
+const cellOpen = id => !!id && (id === 'camp' || regionOpen(id));
+const cellRect = id => { const [c, r] = CELLS[id]; return {x0:CELL_X[c], x1:CELL_X[c + 1], z0:CELL_Z[r], z1:CELL_Z[r + 1]}; };
+const TWALL = {g:{}, chk:0, keys:''};
+const WALL_NAME = ['a fence', 'a palisade', 'a stone wall', 'a castle wall with towers', 'a star fort', 'a concrete wall', 'a shield wall'];
+// how much of your defense holds at a section of each level
+const WALL_HOLD = [.5, .7, .85, 1, 1.12, 1.25, 1.4];
+const wallLv = () => W.flags.walls ||= {};
+const secLv = s => wallLv()[s.key] || 0;
+function wallSections() {
+  const out = [];
+  for (const id of Object.keys(CELLS)) {
+    if (!cellOpen(id)) continue;
+    const [c, r] = CELLS[id], R0 = cellRect(id);
+    for (const [side, nc, nr, a, b, n] of [['n', c, r - 1, [R0.x0, R0.z0], [R0.x1, R0.z0], [0, -1]], ['s', c, r + 1, [R0.x0, R0.z1], [R0.x1, R0.z1], [0, 1]], ['w', c - 1, r, [R0.x0, R0.z0], [R0.x0, R0.z1], [-1, 0]], ['e', c + 1, r, [R0.x1, R0.z0], [R0.x1, R0.z1], [1, 0]]]) {
+      if (cellOpen(cellAt(nc, nr))) continue;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      // a side that runs down the river or the sea is walled by the water itself: nobody attacks there
+      let wet = 0; for (let t = 0; t <= len; t += 2) if (isWater(a[0] + (b[0] - a[0])*t/len, a[1] + (b[1] - a[1])*t/len)) wet++;
+      if (wet/(Math.floor(len/2) + 1) > .6) continue;
+      out.push({key:id + ':' + side, cell:id, side, a, b, n, len, mid:[(a[0] + b[0])/2, (a[1] + b[1])/2]});
+    }
+  }
+  return out;
+}
+const secHold = s => defPower()*WALL_HOLD[secLv(s)];
+const weakestSection = () => wallSections().sort((p, q) => secHold(p) - secHold(q) || q.len - p.len)[0];
+const secCost = (s, lv) => Math.round(s.len*45*Math.pow(2.1, lv)*(1 + .2*W.era));
+const SIDE_NAME = {n:'north', s:'south', w:'west', e:'east'};
+const secName = s => `${QUARTER_NAME[s.cell].replace(/^the /, 'The ')}'s ${SIDE_NAME[s.side]} wall`;
+// lay one section of wall, in short runs that skip water and buildings
+function buildSection(s) {
+  const lv = secLv(s), G0 = TWALL.g[s.key]; if (G0 && G0.lv === lv) return;
+  if (G0) { scene.remove(G0.g); if (G0.zone) removeZone(G0.zone); }
+  const g = new THREE.Group(); scene.add(g); const rec = TWALL.g[s.key] = {g, lv};
+  const h = [.7, 1.5, 2.2, 2.8, 3.1, 3.3, 3.5][lv], th = [.15, .3, .6, .8, 1, .7, .4][lv];
+  const col = [0x8a6a42, 0x6b4526, 0xa8a090, 0x9a9284, 0x8a8478, 0xb8bcc0, 0x9af4ff][lv], opt = lv === 6 ? {emissive:0x3ab0e8, emissiveIntensity:.7, transparent:true, opacity:.55} : {};
+  const [ax, az] = s.a, [bx, bz] = s.b, along = az === bz, L = s.len;
+  let run = null;
+  const flush = () => {
+    if (!run) return; const len = run[1] - run[0]; run = null; if (len < .8) return;
+    const m = (run0 + len/2), x = along ? ax + m : ax, z = along ? az : az + m, y = elevAt(x, z);
+    mesh(G.box, col, along ? [len, h, th] : [th, h, len], [x, y + h/2, z], g, opt);
+    if (lv >= 2 && lv < 6) for (let t = .5; t < len; t += 1.2) mesh(G.box, col, along ? [.5, .4, th + .06] : [th + .06, .4, .5], [along ? ax + run0 + t : ax, y + h + .2, along ? az : az + run0 + t], g, opt);
+    if (lv === 1) for (let t = .2; t < len; t += .5) mesh(G.cone, 0x5e3f22, [.2, .5, .2], [along ? ax + run0 + t : ax, y + h + .2, along ? az : az + run0 + t], g);
+  };
+  let run0 = 0;
+  for (let t = 0; t <= L; t += 1) {
+    const x = along ? ax + t : ax, z = along ? az : az + t;
+    const ok = !isWater(x, z) && !boxes.some(b => !b.wall && x > b.x0 - .2 && x < b.x1 + .2 && z > b.z0 - .2 && z < b.z1 + .2);
+    if (ok) { if (!run) { run = [t, t]; run0 = t; } run[1] = t; } else flush();
+  }
+  flush();
+  // towers at the corners from the castle wall up
+  if (lv >= 3) for (const [x, z] of [s.a, s.b]) if (!isWater(x, z)) { const y = elevAt(x, z); mesh(lv >= 5 ? G.box : G.cyl, col, [1.6, h + 1.4, 1.6], [x, y + (h + 1.4)/2, z], g, opt); }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  // the tile to build it up: just inside the wall, near its middle
+  if (lv < DEF_MAX) {
+    const [mx, mz] = s.mid, [nx, nz] = s.n; let spot = null;
+    for (const d of [3.5, 5, 6.5, 8]) for (const o of [0, 4, -4, 8, -8, 12, -12]) { if (spot) break; const x = mx - nx*d + (along ? o : 0), z = mz - nz*d + (along ? 0 : o); if (freeSpot(x, z, 1) && !isWater(x, z)) spot = [x, z]; }
+    spot ||= [mx - nx*4, mz - nz*4];
+    rec.zone = addZone({kind:'wallSec', sec:s.key, x:spot[0], z:spot[1], w:1.6, d:1.6, icon:'🧱', tile:secTile(s)});
+  }
+}
+function secTile(s) { const lv = secLv(s), c = secCost(s, lv), paid = (W.flags.wallPaid || {})[s.key] || 0; return {cost:c - paid, cur:'💵', prog:paid/c, title:lv ? 'Wall up' : 'Wall'}; }
+function payWall(zn, e) {
+  const s = wallSections().find(q => q.key === zn.sec); if (!s) { removeZone(zn); return; }
+  const lv = secLv(s); if (lv >= DEF_MAX) return;
+  const c = secCost(s, lv), fp = (W.flags.wallPaid ||= {}), paid = fp[s.key] || 0;
+  if (W.coins <= 0) { e.tick = .3; return; }
+  const amt = Math.min(c - paid, W.coins, Math.max(1, Math.ceil(c/20))); spend(amt); fp[s.key] = paid + amt; e.tick = .05; snd(440 + paid/c*400, .03, 'square', .025);
+  if (fp[s.key] >= c) {
+    delete fp[s.key]; wallLv()[s.key] = lv + 1; buildSection(s); shakeCam(.2);
+    const w = weakestSection();
+    banner(`🧱 ${secName(s)}: ${WALL_NAME[lv + 1]}!`, w && w.key !== s.key ? `Their next army will go for your weakest section: ${secName(w)} (${WALL_NAME[secLv(w)]}).` : 'This is still your weakest section: armies will come here.');
+    save(); return;
+  }
+  drawTile(zn.tc.g, '🧱', secTile(s)); zn.tc.t.needsUpdate = true;
+}
+function updWalls(dt) {
+  if ((TWALL.chk -= dt) > 0) return; TWALL.chk = 1;
+  const secs = wallSections(), keys = secs.map(s => s.key).join();
+  // a save from before the walls: the plots you already have start with walls as strong as your castle
+  if (!W.flags.wallsSeeded) { W.flags.wallsSeeded = 1; const L = wallLv(), base = Math.min(4, W.castle || 0); for (const s of secs) L[s.key] = Math.max(L[s.key] || 0, base); if (siteLv().gate) L['south:s'] = Math.max(L['south:s'] || 0, siteLv().gate); }
+  if (keys !== TWALL.keys) {
+    // a new plot: its old inner walls come down, new ones go up round it
+    for (const k of Object.keys(TWALL.g)) if (!secs.some(s => s.key === k)) { scene.remove(TWALL.g[k].g); if (TWALL.g[k].zone) removeZone(TWALL.g[k].zone); delete TWALL.g[k]; }
+    if (TWALL.keys) note('🧱 Your wall grows', 'A new plot is inside the wall now, but its new sections start weak. Build them up on their 🧱 tiles: armies go for the weakest.');
+    TWALL.keys = keys;
+  }
+  for (const s of secs) buildSection(s);
+}
+// ------------------------------------------------------------------ going round to the weak spot
+// a path outside the wall from where the road ends to just outside a section, round the corners of what you own
+function roundPath(from, s) {
+  const open = Object.keys(CELLS).filter(cellOpen).map(cellRect), pad = 4;
+  const bb = {x0:Math.min(...open.map(r => r.x0)) - pad, x1:Math.max(...open.map(r => r.x1)) + pad, z0:Math.min(...open.map(r => r.z0)) - pad, z1:Math.max(...open.map(r => r.z1)) + pad};
+  const to = [s.mid[0] + s.n[0]*3, s.mid[1] + s.n[1]*3];
+  const inside = (x, z) => open.some(r => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
+  const clear = (p, q) => { for (let t = .05; t < 1; t += .05) if (inside(p[0] + (q[0] - p[0])*t, p[1] + (q[1] - p[1])*t)) return false; return true; };
+  if (clear(from, to)) return [to];
+  // round the outside: the corners of the box round the town, whichever way is shorter
+  const C = [[bb.x0, bb.z0], [bb.x1, bb.z0], [bb.x1, bb.z1], [bb.x0, bb.z1]];
+  const near = p => C.map((c, i) => [i, Math.hypot(c[0] - p[0], c[1] - p[1])]).sort((a, b) => a[1] - b[1])[0][0];
+  const i0 = near(from), i1 = near(to), lenOf = pts => pts.reduce((a, p, k) => a + Math.hypot(p[0] - (k ? pts[k - 1] : from)[0], p[1] - (k ? pts[k - 1] : from)[1]), 0);
+  const walk = dir => { const pts = []; let i = i0; pts.push(C[i]); while (i !== i1) { i = (i + dir + 4) % 4; pts.push(C[i]); } pts.push(to); return pts; };
+  const a = walk(1), b = walk(-1); return lenOf(a) < lenOf(b) ? a : b;
+}
+// once they are at the end of the road: pick the weakest section and go round to it (true while they are on their way)
+function headForWeakSpot() {
+  if (INV.target) return false;
+  const s = weakestSection(); if (!s) return false;
+  INV.target = s; const end = INV.pts[INV.pts.length - 1], extra = roundPath(end, s);
+  INV.pts.push(...extra); INV.t = Math.min(INV.t, 40);
+  banner(`⚔️ They go for your weakest wall`, `${secName(s)}: ${WALL_NAME[secLv(s)]}. It holds 🛡️${Math.round(secHold(s))} against their ⚔️${Math.round(INV.atk ?? 0)} (less whoever falls on the way).`);
+  return true;
+}
+// a breach: the plot behind it burns, then they spread on to the plots next to it, one more for every half again
+// they beat the wall by. The keep (the camp) only falls to a big breach; a small one burns some of its buildings
+function breachSpread(cell, over) {
+  let n = 1 + Math.floor(over/.5), left = over;
+  const seen = new Set([cell]), order = [cell];
+  for (let i = 0; i < order.length; i++) { const [c, r] = CELLS[order[i]]; for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) { const k = cellAt(c + dc, r + dr); if (k && cellOpen(k) && !seen.has(k)) { seen.add(k); order.push(k); } } }
+  // the keep last of all (unless they broke straight into it)
+  if (cell !== 'camp') order.sort((a, b) => (a === 'camp') - (b === 'camp'));
+  for (const id of order) {
+    if (n <= 0) break;
+    if (id === 'camp') {
+      if (left >= .5) { keepFalls(); return; }
+      const pool = Object.values(ST).filter(st => st.inZ && !st.broken && st.id !== 'grill' && stationQuarter(st) === 'camp');
+      const burned = []; for (let k = 0; k < Math.min(3, 1 + Math.floor(left*4)) && pool.length; k++) { const st = pool.splice(R()*pool.length|0, 1)[0]; ruinStation(st, rebuildCost(st)); burned.push(st.name); }
+      if (burned.length) banner(`🔥 They are inside the keep!`, `They burned the ${burned.join(', ')}. A bigger breach and the keep falls.`, true);
+      return;
+    }
+    if (!lostQuarters()[id]) { loseQuarter(id); n--; left -= .5; }
+  }
 }
