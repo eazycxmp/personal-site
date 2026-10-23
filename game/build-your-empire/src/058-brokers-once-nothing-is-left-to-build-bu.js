@@ -69,7 +69,7 @@ function updMarket(dt) {
   // brokers need somewhere to work: the stock exchange
   if (W.unlocked.has('exchange') && workers.some(w => w.kind === 'builder') && buildingDone()) for (const w of workers) if (w.kind === 'builder') becomeBroker(w);
   // with every war won and the rival at peace, some soldiers hang up their gear and trade instead
-  if (W.unlocked.has('exchange') && W.conquests >= CAMPAIGNS.length && (W.rivalAlly || W.conquests >= CAMPAIGNS.length && !W.rival) && !W.flags.traders && !W.camp && !W.raid && W.army >= 6) {
+  if (W.unlocked.has('exchange') && victories() >= CAMPAIGNS.length && (W.rivalAlly || victories() >= CAMPAIGNS.length && !W.rival) && !W.flags.traders && !W.camp && !W.raid && W.army >= 6) {
     const n = Math.min(6, Math.floor(W.army / 2));
     W.army -= n; W.flags.traders = n;
     while (soldiers.length > Math.min(W.army, 24)) { const s = soldiers.pop(); scene.remove(s.char.g); stacks.delete(s.stack); if (s.bar) scene.remove(s.bar); puff(s.pos.x, s.pos.z); }

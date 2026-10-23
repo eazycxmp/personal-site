@@ -131,8 +131,8 @@ function objective() {
   if (!W.unlocked.has('tut0')) { unlock('tut0', false); save(); }
   const broken = Object.values(ST).find(s => s.broken && (!s.ruin || W.coins >= Math.min(s.ruin, 500)));
   if (broken) return {txt:broken.ruin ? `🏗️ Rebuild the ${broken.name} (${broken.ruin} 💵)` : `🔥 Angry guests set the ${broken.name} on fire. Repair it!`, z:broken.repairZone};
-  const eo = empireObjective(); if (eo) return eo;
-  const camp = CAMPAIGNS[W.conquests];
+  const eo = FORTRESS ? null : empireObjective(); if (eo) return eo;
+  const camp = FORTRESS ? null : CAMPAIGNS[W.conquests];
   if (W.camp && warZone && zdist(warZone) < 14) return {txt:`${W.camp.type === 'air' ? '✈️ Air strike' : W.camp.type === 'sea' ? '⚓ Sea battle' : '⚔️ Battle'} against ${W.camp.side ? sideName() : 'the ' + camp.name}! Stand on the war table to watch`, z:warZone};
   if (warZone && camp && !W.camp && !W.raid && W.army >= campNeed(camp) && (!camp.ships || W.unlocked.has('warship')) && (!camp.planes || planesBuilt() >= camp.planes))
     return {txt:`⚔️ Lead your army against the ${camp.name}`, z:warZone};

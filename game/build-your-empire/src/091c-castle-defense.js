@@ -13,6 +13,8 @@ const QUARTER = {chk:0, flames:{}, dark:new Map(), restored:false, hud:null, sit
 const QUARTER_ORDER = ['farm', 'south', 'east', 'airfield', 'ranch', 'north', 'downtown'];
 const QUARTER_NAME = {farm:'the Farmlands', south:'the Military Grounds', east:'the Market Quarter', airfield:'the Airfield', ranch:'the Ranch', north:'the Northern Quarry', downtown:'Downtown', camp:'the Keep',
   sw:'Riverside', fwN:'Westwood', fwM:'West Meadow', fwS:'West Hollow', feN:'Eastwood', feM:'East Meadow', feS:'East Hollow'};
+for (const d of ['w', 'e']) for (let n = 1; n <= 5; n++) [['n', 'Heights'], ['m', 'Fields'], ['s', 'Vale']].forEach(([k, t]) => { QUARTER_NAME[d + n + k] = `the ${d === 'w' ? 'West' : 'East'} ${t} ${['', 'I', 'II', 'III', 'IV', 'V'][n]}`; });
+const victories = () => Math.max(W.conquests || 0, Math.floor(((W.flags.wave || {}).held || 0)/2));
 const waveState = () => W.flags.wave ||= {n:0, t:240, track:0, held:0, lost:0, heat:0};
 // ------------------------------------------------------------------ the roads
 const ROAD_JUNCTION = [64, 150];
@@ -21,6 +23,7 @@ const ROAD_IN = [[64, 150], [44, 122], [26, 104], [14, 90]];
 // and anyone who comes by sea from a landing on the south beach
 function rivalRoad(r) {
   const J = ROAD_JUNCTION;
+  if (FORTRESS) { const k = EMP.list.indexOf(r), a = k/Math.max(1, EMP.list.length - 1)*Math.PI*.5; return [[J[0] + Math.cos(a)*120, J[1] + Math.sin(a)*55], J]; }
   if (r.via === 'east') return [r.bf, [150, 40], [118, 110], J];
   if (r.via === 'west') return [r.bf, [-62, 70], [-46, 100], [-40, 168], [30, 170], J];
   if (r.via === 'south') return [[2.5, 150], [30, 160], J];
@@ -105,7 +108,8 @@ function waveStrength() {
 }
 // who comes: a rival at war with you first, then whoever you have met; the Sky Citadel only after the Moon
 function waveRival() {
-  const ok = EMP.list.filter(r => { const s = es(r); return !s.owned && s.stance !== 'ally' && s.stance !== 'occupied' && !(r.sky && !W.unlocked.has('moonLanding')); });
+  const ok = EMP.list.filter(r => { const s = es(r); if (FORTRESS) return !(r.sky && !W.unlocked.has('moonLanding')); return !s.owned && s.stance !== 'ally' && s.stance !== 'occupied' && !(r.sky && !W.unlocked.has('moonLanding')); });
+  if (FORTRESS) return ok.length ? ok[waveState().n % ok.length] : null;   // each wave a different rival, in turn
   return ok.find(r => es(r).stance === 'war') || ok.filter(r => es(r).met).sort((a, b) => es(b).pow - es(a).pow)[0] || ok[0] || null;
 }
 function startWave() {
@@ -394,11 +398,16 @@ function updBig(dt) {
 // land you do not own, so opening a plot pushes the wall out round it. Each section of wall has its own level and
 // its own tile to build it up. An army that reaches the end of the road walks round to the weakest section and
 // attacks there: hold it, or they break in, burn the plot behind it and spread on, further the more they beat it by.
-const CELL_X = [-80, -45, -16.5, 23, 57, 92], CELL_Z = [-54, -22, 24, 85];
-// the districts, and new plots out to the west and east (round the road, never on it)
-const CELLS = {ranch:[1, 0], north:[2, 0], downtown:[3, 0], airfield:[1, 1], camp:[2, 1], east:[3, 1], south:[2, 2], farm:[3, 2],
-  fwN:[0, 0], fwM:[0, 1], fwS:[0, 2], sw:[1, 2], feN:[4, 0], feM:[4, 1], feS:[4, 2]};
+// the town's columns, and more marching out west and east to the coasts (round the road, never on it)
+const CELL_X = [-255, -220, -185, -150, -115, -80, -45, -16.5, 23, 57, 92, 127, 162, 197, 232], CELL_Z = [-54, -22, 24, 85];
+const CELLS = {ranch:[6, 0], north:[7, 0], downtown:[8, 0], airfield:[6, 1], camp:[7, 1], east:[8, 1], south:[7, 2], farm:[8, 2],
+  fwN:[5, 0], fwM:[5, 1], fwS:[5, 2], sw:[6, 2], feN:[9, 0], feM:[9, 1], feS:[9, 2]};
 const NEW_PLOTS = ['sw', 'fwM', 'feM', 'fwN', 'feN', 'fwS', 'feS'];
+for (let c = 0; c < CELL_X.length - 1; c++) for (let r = 0; r < 3; r++) {
+  if (c >= 5 && c <= 9) continue;
+  const w = c < 5, n = w ? 5 - c : c - 9, id = (w ? 'w' : 'e') + n + 'nms'[r];
+  CELLS[id] = [c, r]; NEW_PLOTS.push(id);
+}
 const cellAt = (c, r) => Object.keys(CELLS).find(k => CELLS[k][0] === c && CELLS[k][1] === r) || null;
 const cellOpen = id => !!id && (id === 'camp' || !!(W.flags.plots || {})[id] || (!NEW_PLOTS.includes(id) && regionOpen(id)));
 const cellRect = id => { const [c, r] = CELLS[id]; return {x0:CELL_X[c], x1:CELL_X[c + 1], z0:CELL_Z[r], z1:CELL_Z[r + 1]}; };
@@ -545,11 +554,11 @@ const PLOT_KIND = {
   market:{icon:'🏪', n:'Market', cost:9000, what:'Traders pay more than homes.'},
   barracks:{icon:'🛡️', n:'Barracks', cost:12000, what:'+4% defense everywhere.'},
   range:{icon:'🏹', n:'Archery range', cost:10000, what:'Every tower hits 15% harder.'}};
-const PLOTS = {g:{}, zones:{}, open:{}, payT:15, chk:0};
+const PLOTS = {g:{}, zones:{}, open:{}, payT:15, chk:0, wet:{}};
 const plotData = () => W.flags.plotB ||= {};
 const plotBuilt = id => Object.entries(plotData()[id] || {}).map(([slot, kind]) => ({slot:+slot, kind}));
 const plotCount = kind => Object.entries(plotData()).reduce((a, [id, sl]) => a + (lostQuarters()[id] ? 0 : Object.values(sl).filter(k => k === kind).length), 0);
-const plotCost = () => Math.round(25000*Math.pow(1.7, Object.keys(W.flags.plots || {}).length)*(1 + .2*W.era));
+const plotCost = () => Math.round(25000*Math.pow(1.35, Object.keys(W.flags.plots || {}).length)*(1 + .2*W.era));
 const plotKindCost = k => Math.round(PLOT_KIND[k].cost*(1 + .25*W.era));
 function slotSpots(id) {
   const R0 = cellRect(id), cx = (R0.x0 + R0.x1)/2, cz = (R0.z0 + R0.z1)/2, dx = (R0.x1 - R0.x0)/4, dz = (R0.z1 - R0.z0)/4;
@@ -572,6 +581,8 @@ function updPlots(dt) {
     PLOTS.chk = 1;
     const P = W.flags.plots ||= {};
     for (const id of NEW_PLOTS) {
+      if (PLOTS.wet[id] == null) { const R0 = cellRect(id); let n = 0, w = 0; for (let x = R0.x0 + 2; x < R0.x1; x += 4) for (let z = R0.z0 + 2; z < R0.z1; z += 4) { n++; if (isWater(x, z)) w++; } PLOTS.wet[id] = w/n > .4; }
+      if (PLOTS.wet[id]) continue;
       // opening tiles, on the inside of the wall next to each plot you could open
       const want = !P[id] && (() => { const [c, r] = CELLS[id]; for (const [dc, dr, side] of [[1, 0, 'w'], [-1, 0, 'e'], [0, 1, 'n'], [0, -1, 's']]) { const nb = cellAt(c + dc, r + dr); if (cellOpen(nb)) return [nb, side]; } return null; })();
       if (want && !PLOTS.zones['open' + id]) {

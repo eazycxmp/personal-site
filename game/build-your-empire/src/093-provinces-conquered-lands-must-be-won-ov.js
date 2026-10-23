@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------ provinces: conquered lands must be won over, or they revolt
-const landKeys = () => [...CAMPAIGNS.slice(0, W.conquests).map((c, i) => 'c' + i), ...EMP.list.filter(r => W.flags.emp?.[r.id]?.owned).map(r => 'r:' + r.id)];
+const landKeys = () => FORTRESS ? [] : [...CAMPAIGNS.slice(0, W.conquests).map((c, i) => 'c' + i), ...EMP.list.filter(r => W.flags.emp?.[r.id]?.owned).map(r => 'r:' + r.id)];
 const landName = k => k[0] === 'c' ? CAMPAIGNS[+k.slice(1)].icon + ' ' + CAMPAIGNS[+k.slice(1)].name : (r => r.icon + ' ' + r.n)(EMP.list.find(r => 'r:' + r.id === k));
 const land = k => (W.flags.lands ||= {})[k] ||= {loy:k[0] === 'r' ? 25 : 40, gov:false, lost:false};
 const govCost = () => 1500 + 600*W.era;

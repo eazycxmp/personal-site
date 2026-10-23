@@ -126,7 +126,7 @@ function updEmpires(dt) {
     } else if (s.stance === 'peace' && s.rel <= -50) {
       s.stance = 'war'; s.atkT = 100 + R()*80;
       banner(`⚔️ ${r.icon} ${r.n} declares war!`, `Their ⚔️${Math.round(s.pow)} vs your ${Math.round(mine)}. Grow your army, walls and science, or make peace in 🗺️.`);
-    } else if (s.stance === 'war' && !W.camp && !W.raid && !BOSS.on && !INV.on && (s.atkT -= t) <= 0) { s.atkT = 300 + R()*240; startInvasion(r); }   // every attack comes up the road in (091c)
+    } else if (s.stance === 'war' && !W.camp && !W.raid && !BOSS.on && !INV.on && (s.atkT -= t) <= 0) { s.atkT = 300 + R()*240; if (!FORTRESS) startInvasion(r); }   // every attack comes up the road in (091c); with no lands, only the waves attack
   }
   updLands(t);
 }

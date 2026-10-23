@@ -22,7 +22,7 @@ const PADS = [
   {id:'hut3', x:12, z:9, cost:30, cur:'log', icon:'🛖', label:'Hut', after:['village']},
   {id:'baker', x:-.6, z:9.7, cost:120, cur:'coin', icon:'👩‍🍳', label:'Baker', after:['field', 'oven']},
   {id:'townhall', x:9, z:11, cost:300, cur:'coin', icon:'🏛️', label:'Town hall', after:['baker', 'hut3']},
-  {id:'senate', x:9, z:13.3, cost:20000, cur:'coin', icon:'🏛️', label:'Senate', after:['townhall', 'warTable'], need:() => W.conquests >= 1},
+  {id:'senate', x:9, z:13.3, cost:20000, cur:'coin', icon:'🏛️', label:'Senate', after:['townhall', 'warTable'], need:() => victories() >= 1},
   {id:'treasurer', x:.4, z:7.4, cost:300, cur:'coin', icon:'🧾', label:'Treasurer', after:['townhall']},
   {id:'treasurer2', x:2.8, z:7.4, cost:4000, cur:'coin', icon:'🧾', label:'2nd treasurer', after:['treasurer', 'hall']},
   // the quarry, north
@@ -219,7 +219,7 @@ const PADS = [
   {id:'sushichef', x:-26.5, z:-41.1, cost:2000, cur:'coin', icon:'👨‍🍳', label:'Sushi chef', after:['sushi'], region:'ranch'},
   {id:'aquarium', x:80, z:9, cost:40000, cur:'coin', icon:'🐠', label:'Aquarium', after:['steamTrain']},
   {id:'zoo', x:80, z:14.5, cost:60000, cur:'coin', icon:'🦁', label:'Zoo', after:['aquarium', 'castle']},
-  {id:'launchPad', x:-36, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => W.conquests >= CAMPAIGNS.length, region:'airfield'},
+  {id:'launchPad', x:-36, z:3.6, cost:50, cur:'tools', icon:'🛸', label:'Launch pad', after:['plane2'], need:() => victories() >= CAMPAIGNS.length, region:'airfield'},
   {id:'satellite', x:-36, z:3.6, cost:200000, cur:'coin', icon:'🛰️', label:'Satellite launch', after:['launchPad'], region:'airfield'},
   {id:'moonLanding', x:-36, z:3.6, cost:500000, cur:'coin', icon:'🚀', label:'Moon landing', after:['satellite'], region:'airfield'},
   {id:'moonBase', x:-36, z:3.6, cost:1000000, cur:'coin', icon:'🧑‍🚀', label:'Moon base', after:['moonLanding'], region:'airfield'},
@@ -389,7 +389,7 @@ const UNLOCK = {
   plane5(a) { const pl = makePlane(86.4, 95.8); if (a) popIn(pl.g); },
   warTable(a) {
     warTableFx(a); makeCash('spoils', 12.3, 72.8);
-    warZone = addZone({kind:'war', x:12.3, z:70.6, w:2.1, d:2.1, icon:'⚔️', tile:{alpha:1, size:84, label:'War table'}});
+    if (!FORTRESS) warZone = addZone({kind:'war', x:12.3, z:70.6, w:2.1, d:2.1, icon:'⚔️', tile:{alpha:1, size:84, label:'War table'}});
   },
   sciNets() { BOOST.fishRate = .6; BOOST.bigFish = .3; },
   sciFarming() { BOOST.farm *= 2; },
@@ -521,8 +521,8 @@ const skyscrapers = () => lotStage.filter(s => s >= 4).length;
 const AGE_NEED = [null,
   [() => W.unlocked.has('palisade'), 'Build the palisade'], [() => W.unlocked.has('village'), 'Found the village'], [() => W.unlocked.has('townhall'), 'Build the town hall'],
   [() => W.unlocked.has('library'), 'Build the library'], [() => W.unlocked.has('barracks'), 'Build the barracks'], [() => W.unlocked.has('castle'), 'Build the castle'],
-  [() => W.conquests >= 5, 'Win 5 campaigns'], [() => skyscrapers() >= 1, 'Raise your first skyscraper'], [() => W.unlocked.has('highway') && skyscrapers() >= 3, 'Build the highway and 3 skyscrapers'],
-  [() => W.conquests >= CAMPAIGNS.length, `Win all ${CAMPAIGNS.length} campaigns`], [() => W.unlocked.has('moonLanding'), 'Land on the Moon'], [() => !!W.flags.mars, 'Settle Mars']];
+  [() => victories() >= 5, FORTRESS ? 'Hold 10 waves' : 'Win 5 campaigns'], [() => skyscrapers() >= 1, 'Raise your first skyscraper'], [() => W.unlocked.has('highway') && skyscrapers() >= 3, 'Build the highway and 3 skyscrapers'],
+  [() => victories() >= CAMPAIGNS.length, FORTRESS ? `Hold ${CAMPAIGNS.length*2} waves` : `Win all ${CAMPAIGNS.length} campaigns`], [() => W.unlocked.has('moonLanding'), 'Land on the Moon'], [() => !!W.flags.mars, 'Settle Mars']];
 function setEra(e, anim) {
   // climb as far toward e as the milestones allow, one age at a time
   let k = W.era; while (k < e && k < AGE_NEED.length - 1 && AGE_NEED[k + 1][0]()) k++;

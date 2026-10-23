@@ -76,6 +76,7 @@ function updDistricts(dt) {
   if (!AIRBASE.built && started && (W.unlocked.has('hangar') || W.unlocked.has('airfieldGate')) && regionOpen('south')) airbaseFx();   // ready for the fighters' hangar
   updFog(dt); updStrip(dt); updRegiments(dt); updMassBattle(dt); updLedger(dt); syncRuinTiles(dt); updCrossings(dt); updSkyDragon(dt); updSiegeEngines(dt); updLand(); updAwayWar(dt); updInvasion(dt);
   if (W.unlocked.has('speedboat') && !BOAT.docked) boatDocks();
+  if (FORTRESS) return;   // no provinces to build
   updAirstrips();
   updMarkets(dt);
   if ((DISTRICT.t = (DISTRICT.t || 0) - dt) > 0) return; DISTRICT.t = .3;

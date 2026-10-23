@@ -99,7 +99,7 @@ function travelSpots() {
       const at = (LMK.at[k] && LMK.at[k][0]) || landAt(k), p = spot(at[0], at[1] + 2); if (!p) continue;
       out.push([`${byWater(...landAt(k)) ? '⛵' : '🐎'} ${landName(k)}${byWater(...landAt(k)) ? ' (by boat)' : ''}`, p[0], p[1]]);
     }
-    for (const r of EMP.list) { const s = es(r); if (s.owned || s.stance !== 'war' || !r.at || (r.sky && !W.unlocked.has('moonLanding'))) continue; const p = spot(r.at[0], r.at[1] + 16); if (p) out.push([`⚔️ ${r.icon} ${r.n} (at war${byWater(...r.at) ? ', by boat' : ''})`, p[0], p[1]]); }
+    if (!FORTRESS) for (const r of EMP.list) { const s = es(r); if (s.owned || s.stance !== 'war' || !r.at || (r.sky && !W.unlocked.has('moonLanding'))) continue; const p = spot(r.at[0], r.at[1] + 16); if (p) out.push([`⚔️ ${r.icon} ${r.n} (at war${byWater(...r.at) ? ', by boat' : ''})`, p[0], p[1]]); }
   }
   return out;
 }

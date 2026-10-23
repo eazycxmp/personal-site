@@ -105,10 +105,10 @@ function load() {
     for (const d of W.decor) circles.push({x:d.x, z:d.z, r:DECOR[d.k].r, decor:decorMesh(d.k, d.x, d.z, d.ry)});
     if (W.rival || W.rivalAlly) rivalCity();
     for (let i = 0; i < W.army; i++) { const sl = yardSlot(i); makeSoldier(sl[0], sl[1]); }
-    for (let i = 0; i < W.conquests; i++) outpost(i, false);
+    if (!FORTRESS) for (let i = 0; i < W.conquests; i++) outpost(i, false);
     if (W.conquests >= 5) setEra(7, false);
     if (W.conquests >= CAMPAIGNS.length) setEra(10, false);
-    for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
+    if (!FORTRESS) for (let i = 5; i < W.conquests; i++) fortress(CAMPAIGNS[i].target, true);
     if (player.speed < 7 && W.flags.roads) player.speed = 7;
     // workers and soldiers were made while the save loaded, before its age was known: dress them for it
     if (W.era >= 7) restyleForAge();

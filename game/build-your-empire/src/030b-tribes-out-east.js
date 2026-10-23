@@ -24,7 +24,7 @@ function tribeVillage(ci) {
 function tribeWon(ci) { const g = TRIBE['g' + ci]; if (g) scene.remove(g); TRIBE.built[ci] = false; tribeVillage(ci); }
 // a war band from the next tribe: it marches the east road in and fights you on the battlefield south of the base
 function updTribes(dt) {
-  if (!started) return;
+  if (!started || FORTRESS) return;
   for (const ci of Object.keys(TRIBE_SITES)) if (regionOpen('east') || W.conquests > ci) tribeVillage(+ci);
   const B = TRIBE.band;
   if (B) {
