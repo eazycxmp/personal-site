@@ -87,6 +87,8 @@ function zoneAct(e, zn, dt) {
     case 'rebuildQuarter': if (e.isPlayer) payQuarter(zn, e); break;
     case 'defSite': if (e.isPlayer) paySite(zn, e); break;
     case 'wallSec': if (e.isPlayer) payWall(zn, e); break;
+    case 'plotOpen': if (e.isPlayer) payPlotOpen(zn, e); break;
+    case 'plotSlot': plotSlotPick(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;

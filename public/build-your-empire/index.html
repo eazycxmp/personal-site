@@ -3553,6 +3553,8 @@ function zoneAct(e, zn, dt) {
     case 'rebuildQuarter': if (e.isPlayer) payQuarter(zn, e); break;
     case 'defSite': if (e.isPlayer) paySite(zn, e); break;
     case 'wallSec': if (e.isPlayer) payWall(zn, e); break;
+    case 'plotOpen': if (e.isPlayer) payPlotOpen(zn, e); break;
+    case 'plotSlot': plotSlotPick(zn, e); break;
     case 'bin': {
       const keep = e.isPlayer && zn.keep;
       const junk = keep ? Object.keys(ITEM).filter(k => k !== keep) : null;
@@ -11093,7 +11095,8 @@ function armyJoins(r) {
 const QUARTER = {chk:0, flames:{}, dark:new Map(), restored:false, hud:null, sites:{}, roads:null};
 // the order districts fall in: the newest first (it is out on the edge); the camp (the keep) is last
 const QUARTER_ORDER = ['farm', 'south', 'east', 'airfield', 'ranch', 'north', 'downtown'];
-const QUARTER_NAME = {farm:'the Farmlands', south:'the Military Grounds', east:'the Market Quarter', airfield:'the Airfield', ranch:'the Ranch', north:'the Northern Quarry', downtown:'Downtown', camp:'the Keep'};
+const QUARTER_NAME = {farm:'the Farmlands', south:'the Military Grounds', east:'the Market Quarter', airfield:'the Airfield', ranch:'the Ranch', north:'the Northern Quarry', downtown:'Downtown', camp:'the Keep',
+  sw:'Riverside', fwN:'Westwood', fwM:'West Meadow', fwS:'West Hollow', feN:'Eastwood', feM:'East Meadow', feS:'East Hollow'};
 const waveState = () => W.flags.wave ||= {n:0, t:240, track:0, held:0, lost:0, heat:0};
 // ------------------------------------------------------------------ the roads
 const ROAD_JUNCTION = [64, 150];
@@ -11159,11 +11162,11 @@ const siteLv = () => { const S = W.flags.sites ||= {}; if (W.flags.def) { const 
 const lvOf = id => siteLv()[id] || 0;
 const towerLvs = () => ['t1', 't2', 't3'].reduce((a, k) => a + lvOf(k), 0);
 // the gatehouse adds 5% a level to your defense, each tower 2%, the barricade 3%
-const defenseMult = () => 1 + .02*towerLvs() + .03*lvOf('bar');
+const defenseMult = () => 1 + .02*towerLvs() + .03*lvOf('bar') + .04*plotCount('barracks');
 const siteCost = (S, lv) => Math.round(({gate:4000, tower:3000, bar:2500}[S.kind]) * Math.pow(2.3, lv) * (1 + .2*W.era));
 const defLv = () => ({ramparts:lvOf('gate'), towers:Math.round(towerLvs()/3)});
 const lostQuarters = () => W.flags.lostQ ||= {};
-const openQuarters = () => QUARTER_ORDER.filter(id => regionOpen(id) && PADS.some(p => p.region === id && W.unlocked.has(p.id)));
+const openQuarters = () => [...QUARTER_ORDER.filter(id => regionOpen(id) && PADS.some(p => p.region === id && W.unlocked.has(p.id))), ...Object.keys(W.flags.plots || {})];
 const quarterPads = id => PADS.filter(p => p.region === id && W.unlocked.has(p.id));
 // which district a station stands in: its own pad's, else the nearest pad's
 function stationQuarter(st) {
@@ -11175,8 +11178,8 @@ function stationQuarter(st) {
   for (const p of PADS) { const d = Math.hypot(p.x - x, p.z - z); if (d < bd && W.unlocked.has(p.id)) { bd = d; best = p; } }
   return best ? best.region || 'camp' : 'camp';
 }
-const quarterAt = id => { const ps = quarterPads(id); if (!ps.length) return null; return [ps.reduce((a, p) => a + p.x, 0)/ps.length, ps.reduce((a, p) => a + p.z, 0)/ps.length]; };
-const quarterCost = id => Math.max(3000, Math.round(quarterPads(id).reduce((a, p) => a + (p.cur === 'coin' || !p.cur ? p.cost || 0 : 0), 0)*.3*(1 + .1*W.era)));
+const quarterAt = id => { if (NEW_PLOTS.includes(id)) { const R0 = cellRect(id); return [(R0.x0 + R0.x1)/2, (R0.z0 + R0.z1)/2]; } const ps = quarterPads(id); if (!ps.length) return null; return [ps.reduce((a, p) => a + p.x, 0)/ps.length, ps.reduce((a, p) => a + p.z, 0)/ps.length]; };
+const quarterCost = id => NEW_PLOTS.includes(id) ? Math.round((8000 + plotBuilt(id).reduce((a, b) => a + PLOT_KIND[b.kind].cost, 0)*.35)*(1 + .1*W.era)) : Math.max(3000, Math.round(quarterPads(id).reduce((a, p) => a + (p.cur === 'coin' || !p.cur ? p.cost || 0 : 0), 0)*.3*(1 + .1*W.era)));
 // how strong the next wave will be (before its ±10% roll)
 function waveStrength() {
   const S = waveState(), n = S.n, abs = 8*Math.pow(1.09, n);
@@ -11224,6 +11227,7 @@ function loseQuarter(id) {
 }
 const darkMat = m => { if (m.userData.qDark) return m; let c = QUARTER.dark.get(m); if (!c) { c = m.clone(); if (c.color) c.color.multiplyScalar(.32); if (c.emissive) c.emissive.setHex(0); c.userData.qDark = true; c.userData.qOrig = m; QUARTER.dark.set(m, c); } return c; };
 function quarterDown(id, on) {
+  for (const b of plotBuilt(id)) { const g = PLOTS.g[id + b.slot]; if (g) g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material = on ? darkMat(o.material) : o.material.userData.qOrig || o.material; }); }
   for (const p of quarterPads(id)) for (const g of PADOBJ[p.id] || []) g.traverse(o => {
     if (!o.isMesh || !o.material || Array.isArray(o.material) || CHARS.has(o)) return;
     o.material = on ? darkMat(o.material) : o.material.userData.qOrig || o.material;
@@ -11343,12 +11347,12 @@ function towerFire(dt) {
     const [x, z] = Q.sp.at; let f = null, bd = 20;
     for (const q of [...marching, ...(INV.on ? (INV.big || []).filter(u => u.kind !== 'jet' || lv >= 4) : []), ...foes]) { const d = Math.hypot(q.pos.x - x, q.pos.z - z); if (d < bd) { bd = d; f = q; } }
     if (!f) { Q.cd = .5; continue; }
-    Q.cd = [0, 1.6, 1.3, 1.5, .2, 1.2, .6][lv] * (.8 + R()*.4);
+    Q.cd = [0, 1.6, 1.3, 1.5, .2, 1.2, .6][lv] * (.8 + R()*.4) * (manned(S.id) ? 1 : 2);
     Q.head.rotation.y = Math.atan2(f.pos.x - x, f.pos.z - z) - Q.g.rotation.y;
     const col = lv >= 6 ? 0x8af0ff : lv === 5 ? 0xf4f4f4 : lv === 4 ? 0xffe27a : lv === 3 ? 0x2a2a2e : 0x8a6a42;
     const m = SHOT_MAT[col] ||= new THREE.MeshBasicMaterial({color:col, toneMapped:false});
     const from = new THREE.Vector3(x, Q.g.position.y + Q.h + .4, z), to = f.pos.clone().setY(f.B ? Math.max(1, f.pos.y + 1) : .9), b = new THREE.Mesh(G.sph, m); b.scale.setScalar(lv === 3 || lv === 5 ? .14 : .07); b.position.copy(from); scene.add(b);
-    const dmg = [0, 1.2, 1.6, 3, .8, 4, 4][lv], blast = lv === 3 || lv === 5 ? 1.8 : .8;
+    const dmg = [0, 1.2, 1.6, 3, .8, 4, 4][lv]*(1 + .15*plotCount('range')), blast = lv === 3 || lv === 5 ? 1.8 : .8;
     flyers.push({m:b, from, to, t:0, dur:lv === 4 || lv === 6 ? .18 : .45, arc:lv <= 2 ? .5 : lv === 5 ? .3 : 0, done:() => {
       if (blast > 1) for (let k = 0; k < 8; k++) particle([0xffd040, 0x555555][k % 2], to.clone(), new THREE.Vector3((R() - .5)*4, 2 + R()*2, (R() - .5)*4), .7, .22, {grow:.5, op:.8});
       for (const q of [...INV.units]) if (Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < blast) { q.hp = (q.hp ?? 3) - dmg; if (q.hp <= 0) invKill(q); }
@@ -11398,6 +11402,7 @@ function openDefense() {
     <p>Wave ${S.n + 1} comes in ${Math.floor(S.t/60)}:${String(Math.floor(S.t % 60)).padStart(2, '0')}, about <b>⚔️${fmt(next)}</b> strong, bringing ${waveTier(S.n + 1)}${S.heat > .01 ? ` (${Math.round(S.heat*100)}% more: your growth draws them)` : ''}. Your defense: <b style="color:${def >= next ? '#2f9e44' : '#b83a2a'}">🛡️${fmt(def)}</b>.</p>
     <p class="keys">Held ${S.held} · lost ${S.lost}. Every rival comes down its own road to the junction, then up the one road in to your gate. Build up the towers and barricade on that road, and every section of your wall on its 🧱 tile: an army that reaches your gate walks round to your weakest section.</p>
     <div style="max-height:34vh;overflow:auto">${rows}<h3 style="margin:10px 0 2px;font-size:15px;text-align:left">🧱 Wall sections (weakest first: that is where they attack)</h3>${wallSections().sort((p, q) => secHold(p) - secHold(q)).map((s, i) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #0001;text-align:left;${i ? '' : 'color:#b83a2a;font-weight:600'}"><span>${secName(s)}</span><span>${WALL_NAME[secLv(s)]} · holds 🛡️${fmt(secHold(s))}</span></div>`).join('')}</div>
+    <p style="text-align:left">🪖 <b>Garrison</b>: ${GARRISON.have || 0} of ${GARRISON.need || 0} posts on the towers and walls manned${(GARRISON.have || 0) < (GARRISON.need || 0) ? ' (train more soldiers: unmanned towers shoot slower and unmanned walls hold less)' : ''}.</p>
     <p style="text-align:left"><b>Districts</b>: ${quarters || 'none yet'}. A lost wave burns one, the newest first; lose them all and the keep falls.</p>
     <button id="dfGo">🧭 Take me to the road in</button> <button class="ghost" id="dfClose">Close</button></div>`;
   $('dfGo').onclick = () => { m.hidden = true; const [x, z] = ROAD_IN[1]; player.pos.set(x + 4, 0, z); prevPos.copy(player.pos); };
@@ -11410,7 +11415,7 @@ function updWaves(dt) {
   if (!QUARTER.restored && EMP.loaded) { QUARTER.restored = true; for (const id of Object.keys(lostQuarters())) quarterDown(id, true); }
   waveHud();
   if (!W.castle) return;
-  if (EMP.loaded) { buildRoads(); for (const S of DEFSITES) buildSite(S); updWalls(dt); }
+  if (EMP.loaded) { buildRoads(); for (const S of DEFSITES) buildSite(S); updWalls(dt); updPlots(dt); updGarrison(dt); }
   towerFire(dt);
   if ((QUARTER.chk -= dt) <= 0) { QUARTER.chk = 2; growthHeat(); }
   const S = waveState();
@@ -11473,10 +11478,13 @@ function updBig(dt) {
 // land you do not own, so opening a plot pushes the wall out round it. Each section of wall has its own level and
 // its own tile to build it up. An army that reaches the end of the road walks round to the weakest section and
 // attacks there: hold it, or they break in, burn the plot behind it and spread on, further the more they beat it by.
-const CELL_X = [-45, -16.5, 23, 57], CELL_Z = [-54, -22, 24, 85];
-const CELLS = {ranch:[0, 0], north:[1, 0], downtown:[2, 0], airfield:[0, 1], camp:[1, 1], east:[2, 1], south:[1, 2], farm:[2, 2]};
+const CELL_X = [-80, -45, -16.5, 23, 57, 92], CELL_Z = [-54, -22, 24, 85];
+// the districts, and new plots out to the west and east (round the road, never on it)
+const CELLS = {ranch:[1, 0], north:[2, 0], downtown:[3, 0], airfield:[1, 1], camp:[2, 1], east:[3, 1], south:[2, 2], farm:[3, 2],
+  fwN:[0, 0], fwM:[0, 1], fwS:[0, 2], sw:[1, 2], feN:[4, 0], feM:[4, 1], feS:[4, 2]};
+const NEW_PLOTS = ['sw', 'fwM', 'feM', 'fwN', 'feN', 'fwS', 'feS'];
 const cellAt = (c, r) => Object.keys(CELLS).find(k => CELLS[k][0] === c && CELLS[k][1] === r) || null;
-const cellOpen = id => !!id && (id === 'camp' || regionOpen(id));
+const cellOpen = id => !!id && (id === 'camp' || !!(W.flags.plots || {})[id] || (!NEW_PLOTS.includes(id) && regionOpen(id)));
 const cellRect = id => { const [c, r] = CELLS[id]; return {x0:CELL_X[c], x1:CELL_X[c + 1], z0:CELL_Z[r], z1:CELL_Z[r + 1]}; };
 const TWALL = {g:{}, chk:0, keys:''};
 const WALL_NAME = ['a fence', 'a palisade', 'a stone wall', 'a castle wall with towers', 'a star fort', 'a concrete wall', 'a shield wall'];
@@ -11500,7 +11508,7 @@ function wallSections() {
   }
   return out;
 }
-const secHold = s => defPower()*WALL_HOLD[secLv(s)];
+const secHold = s => defPower()*WALL_HOLD[secLv(s)]*(manned(s.key) ? 1 : .85);
 const weakestSection = () => wallSections().sort((p, q) => secHold(p) - secHold(q) || q.len - p.len)[0];
 const secCost = (s, lv) => Math.round(s.len*45*Math.pow(2.1, lv)*(1 + .2*W.era));
 const SIDE_NAME = {n:'north', s:'south', w:'west', e:'east'};
@@ -11611,6 +11619,128 @@ function breachSpread(cell, over) {
     }
     if (!lostQuarters()[id]) { loseQuarter(id); n--; left -= .5; }
   }
+}
+// ------------------------------------------------------------------ new plots: open land to the west and east, and choose what to build on it
+// Each new plot is opened from a tile just inside the wall next to it. Once it is yours the wall moves out round it
+// (its new sections start weak) and it has four building slots: homes and markets pay, barracks add to your defense,
+// an archery range makes every tower hit harder. A burnt plot pays nothing until it is rebuilt.
+const PLOT_KIND = {
+  homes:{icon:'🏘️', n:'Homes', cost:6000, what:'Families move in and pay rent.'},
+  market:{icon:'🏪', n:'Market', cost:9000, what:'Traders pay more than homes.'},
+  barracks:{icon:'🛡️', n:'Barracks', cost:12000, what:'+4% defense everywhere.'},
+  range:{icon:'🏹', n:'Archery range', cost:10000, what:'Every tower hits 15% harder.'}};
+const PLOTS = {g:{}, zones:{}, open:{}, payT:15, chk:0};
+const plotData = () => W.flags.plotB ||= {};
+const plotBuilt = id => Object.entries(plotData()[id] || {}).map(([slot, kind]) => ({slot:+slot, kind}));
+const plotCount = kind => Object.entries(plotData()).reduce((a, [id, sl]) => a + (lostQuarters()[id] ? 0 : Object.values(sl).filter(k => k === kind).length), 0);
+const plotCost = () => Math.round(25000*Math.pow(1.7, Object.keys(W.flags.plots || {}).length)*(1 + .2*W.era));
+const plotKindCost = k => Math.round(PLOT_KIND[k].cost*(1 + .25*W.era));
+function slotSpots(id) {
+  const R0 = cellRect(id), cx = (R0.x0 + R0.x1)/2, cz = (R0.z0 + R0.z1)/2, dx = (R0.x1 - R0.x0)/4, dz = (R0.z1 - R0.z0)/4;
+  return [[cx - dx, cz - dz], [cx + dx, cz - dz], [cx - dx, cz + dz], [cx + dx, cz + dz]].map(([x, z]) => { for (let r = 0; r < 10; r += 1.5) for (let k = 0; k < 8; k++) { const a = k/8*Math.PI*2, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r; if (freeSpot(px, pz, 2.6) && !isWater(px, pz)) return [px, pz]; } return [x, z]; });
+}
+function plotBuildingFx(id, slot, kind, anim) {
+  const [x, z] = (PLOTS.spots[id] ||= slotSpots(id))[slot], g = new THREE.Group(); g.position.set(x, elevAt(x, z), z); scene.add(g); PLOTS.g[id + slot] = g;
+  if (kind === 'homes') for (const [px, pz, c] of [[-1.3, -1, 0xd8c8a8], [1.3, -1, 0xc8a878], [0, 1.3, 0xe8dcc8]]) { mesh(G.box, c, [1.8, 1.4, 1.6], [px, .7, pz], g); const rf = mesh(G.cone4, 0x8a3a2a, [1.5, .9, 1.4], [px, 1.85, pz], g); rf.rotation.y = Math.PI/4; }
+  if (kind === 'market') { mesh(G.box, 0xa88a62, [4, .2, 3], [0, .1, 0], g); [0xd9443a, 0x3f9a5a, 0xf2a21a].forEach((c, i) => { mesh(G.box, 0x8a6a42, [1.1, .7, .7], [-1.3 + i*1.3, .45, .4], g); mesh(G.box, c, [1.2, .08, 1.4], [-1.3 + i*1.3, 1.9, .2], g); for (const sx of [-.5, .5]) mesh(G.cyl, 0x6b4526, [.05, 1.8, .05], [-1.3 + i*1.3 + sx, .9, .8], g); }); }
+  if (kind === 'barracks') { mesh(G.box, 0x9a9284, [4.4, 1.8, 2.2], [0, .9, 0], g); mesh(G.box, 0x5a5f66, [4.6, .25, 2.4], [0, 1.9, 0], g); mesh(G.cyl, 0x5e3f22, [.05, 2.6, .05], [2.6, 1.3, 1.2], g); mesh(G.box, 0xb8322a, [.8, .5, .03], [3, 2.3, 1.2], g); }
+  if (kind === 'range') { mesh(G.box, 0x7a5232, [2.4, 1.2, 1.4], [-1.4, .6, -.8], g); const rf = mesh(G.cone4, 0x6a3a22, [2, .7, 1.2], [-1.4, 1.5, -.8], g); rf.rotation.y = Math.PI/4; for (let k = 0; k < 3; k++) { const t = mesh(G.cyl, 0xf4efe4, [.45, .06, .45], [-.6 + k*1.1, .7, 1.8], g); t.rotation.x = Math.PI/2; mesh(G.cyl, 0xd0302a, [.25, .07, .25], [-.6 + k*1.1, .7, 1.81], g).rotation.x = Math.PI/2; } }
+  boxes.push({x0:x - 2.4, x1:x + 2.4, z0:z - 2, z1:z + 2});
+  if (lostQuarters()[id]) g.traverse(o => { if (o.isMesh && !Array.isArray(o.material)) o.material = darkMat(o.material); });
+  if (anim) popIn(g);
+}
+PLOTS.spots = {};
+function updPlots(dt) {
+  if (PLOTS.picking && player.zone !== PLOTS.picking) PLOTS.picking = null;   // stepped off: the choice opens again next time
+  if ((PLOTS.chk -= dt) <= 0) {
+    PLOTS.chk = 1;
+    const P = W.flags.plots ||= {};
+    for (const id of NEW_PLOTS) {
+      // opening tiles, on the inside of the wall next to each plot you could open
+      const want = !P[id] && (() => { const [c, r] = CELLS[id]; for (const [dc, dr, side] of [[1, 0, 'w'], [-1, 0, 'e'], [0, 1, 'n'], [0, -1, 's']]) { const nb = cellAt(c + dc, r + dr); if (cellOpen(nb)) return [nb, side]; } return null; })();
+      if (want && !PLOTS.zones['open' + id]) {
+        const [nb] = want, R0 = cellRect(id), N = cellRect(nb), [c] = CELLS[id], [nc] = CELLS[nb];
+        // just inside the neighbour, by the middle of the edge they share
+        let x = nc !== c ? (nc > c ? N.x0 + 4 : N.x1 - 4) : (R0.x0 + R0.x1)/2, z = nc !== c ? (Math.max(R0.z0, N.z0) + Math.min(R0.z1, N.z1))/2 : (CELLS[nb][1] > CELLS[id][1] ? N.z0 + 4 : N.z1 - 4);
+        for (let k = 0; k < 20 && !freeSpot(x, z, 1.1); k++) { if (nc !== c) z += (k % 2 ? -1 : 1)*k*1.2; else x += (k % 2 ? -1 : 1)*k*1.2; }
+        PLOTS.zones['open' + id] = addZone({kind:'plotOpen', plot:id, x, z, w:1.8, d:1.8, icon:'🗺️', tile:plotOpenTile(id)});
+      }
+      if (!want && PLOTS.zones['open' + id]) { removeZone(PLOTS.zones['open' + id]); PLOTS.zones['open' + id] = null; }
+      // building slots on plots you own
+      if (P[id]) {
+        const spots = PLOTS.spots[id] ||= slotSpots(id), built = plotData()[id] || {};
+        spots.forEach(([x, z], slot) => {
+          const k = id + slot;
+          if (built[slot] && !PLOTS.g[k]) plotBuildingFx(id, slot, built[slot], false);
+          if (!built[slot] && !PLOTS.zones[k]) PLOTS.zones[k] = addZone({kind:'plotSlot', plot:id, slot, x, z, w:1.8, d:1.8, icon:'🏗️', tile:{alpha:1, size:84, label:'Build here', fill:'rgba(60,110,60,.6)'}});
+          if (built[slot] && PLOTS.zones[k]) { removeZone(PLOTS.zones[k]); PLOTS.zones[k] = null; }
+        });
+      }
+    }
+  }
+  // homes and markets pay every 15 seconds (not while their plot is burnt)
+  if ((PLOTS.payT -= dt) <= 0) {
+    PLOTS.payT = 15; const pay = Math.round((plotCount('homes')*140 + plotCount('market')*260)*(1 + .4*W.era));
+    if (pay > 0) { LEDGER.collecting = true; W.coins += pay; W.earned += pay; LEDGER.collecting = false; ledgerIncome(pay, '🏘️ New plots'); }
+  }
+}
+function plotOpenTile(id) { const c = plotCost(), paid = (W.flags.plotPaid || {})[id] || 0; return {cost:c - paid, cur:'💵', prog:paid/c, title:QUARTER_NAME[id]}; }
+function payPlotOpen(zn, e) {
+  const id = zn.plot, c = plotCost(), fp = (W.flags.plotPaid ||= {}), paid = fp[id] || 0;
+  if (W.coins <= 0) { e.tick = .3; return; }
+  const amt = Math.min(c - paid, W.coins, Math.max(1, Math.ceil(c/20))); spend(amt); fp[id] = paid + amt; e.tick = .05; snd(420 + paid/c*400, .03, 'square', .025);
+  if (fp[id] >= c) {
+    delete fp[id]; (W.flags.plots ||= {})[id] = true; removeZone(zn); PLOTS.zones['open' + id] = null; PLOTS.chk = 0; shakeCam(.3);
+    banner(`🗺️ ${QUARTER_NAME[id]} is yours!`, 'Choose what to build on its four 🏗️ tiles. The wall has moved out round it: its new sections start as a fence, so build them up before the next army.');
+    save(); return;
+  }
+  drawTile(zn.tc.g, '🗺️', plotOpenTile(id)); zn.tc.t.needsUpdate = true;
+}
+// standing on an empty slot: choose what goes there
+function plotSlotPick(zn, e) {
+  if (!e.isPlayer || PLOTS.picking === zn) return; PLOTS.picking = zn;
+  const m = $('modal'); m.hidden = false; m.dataset.panel = 'plotPick';
+  m.innerHTML = `<div class="card"><h1 style="font-size:22px">🏗️ Build on ${QUARTER_NAME[zn.plot]}</h1>${Object.entries(PLOT_KIND).map(([k, P]) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #0001;text-align:left"><span>${P.icon} <b>${P.n}</b><br><small>${P.what}</small></span><button data-k="${k}" ${W.coins < plotKindCost(k) ? 'disabled' : ''}>${plotKindCost(k).toLocaleString()} 💵</button></div>`).join('')}<button class="ghost" id="ppClose">Not now</button></div>`;
+  for (const b of m.querySelectorAll('[data-k]')) b.onclick = () => {
+    const k = b.dataset.k, c = plotKindCost(k); if (W.coins < c) return; spend(c);
+    ((plotData()[zn.plot] ||= {}))[zn.slot] = k; removeZone(zn); PLOTS.zones[zn.plot + zn.slot] = null; plotBuildingFx(zn.plot, zn.slot, k, true);
+    m.hidden = true; banner(`${PLOT_KIND[k].icon} ${PLOT_KIND[k].n} on ${QUARTER_NAME[zn.plot]}!`, PLOT_KIND[k].what); save();
+  };
+  $('ppClose').onclick = () => { m.hidden = true; };
+}
+// ------------------------------------------------------------------ the garrison: soldiers from your army on the towers and walls
+// Every built tower wants two soldiers and every wall section from the palisade up wants two. They come from the
+// army you have trained, towers first, then the weakest walls. An unmanned tower shoots at half speed and an
+// unmanned section holds 15% less, so a big army matters on the walls too.
+const GARRISON = {posts:[], men:new Map(), chk:0, assigned:new Set()};
+function garrisonPosts() {
+  const posts = [];
+  for (const S of DEFSITES) if (S.kind === 'tower' && lvOf(S.id)) { const Q = QUARTER.sites[S.id]; if (!Q || !Q.sp) continue; const [x, z] = Q.sp.at; for (const o of [-.35, .35]) posts.push({key:S.id, id:S.id + o, x:x + o, z, y:elevAt(x, z) + (Q.h || 3) + .1}); }
+  for (const s of wallSections().sort((p, q) => secHold(p) - secHold(q))) {
+    const lv = secLv(s); if (!lv) continue; const h = [.7, 1.5, 2.2, 2.8, 3.1, 3.3, 3.5][lv];
+    for (const f of [.33, .67]) { const x = s.a[0] + (s.b[0] - s.a[0])*f - s.n[0]*.1, z = s.a[1] + (s.b[1] - s.a[1])*f - s.n[1]*.1; if (isWater(x, z)) continue; posts.push({key:s.key, id:s.key + f, x, z, y:elevAt(x, z) + h, face:Math.atan2(s.n[0], s.n[1])}); }
+  }
+  return posts;
+}
+const manned = key => GARRISON.assigned.has(key);
+function updGarrison(dt) {
+  if ((GARRISON.chk -= dt) <= 0) {
+    GARRISON.chk = 2;
+    const posts = garrisonPosts(), have = Math.max(0, W.army || 0), on = posts.slice(0, have), ids = new Set(on.map(p => p.id));
+    // a post counts as manned when both its soldiers are there
+    const per = {}; for (const p of posts) per[p.key] = (per[p.key] || 0) + 1; const got = {}; for (const p of on) got[p.key] = (got[p.key] || 0) + 1;
+    GARRISON.assigned = new Set(Object.keys(per).filter(k => got[k] === per[k]));
+    GARRISON.need = posts.length; GARRISON.have = on.length;
+    for (const [id, c] of GARRISON.men) if (!ids.has(id)) { scene.remove(c.g); GARRISON.men.delete(id); }
+    for (const p of on) {
+      let c = GARRISON.men.get(p.id);
+      if (!c) { c = makeChar(ARMS()); scene.add(c.g); GARRISON.men.set(p.id, c); }
+      c.g.position.set(p.x, p.y, p.z); c.g.rotation.y = p.face ?? 0;
+    }
+  }
+  // when an army is near they raise their weapons
+  const alert = INV.on || (W.raid && W.raid.siege);
+  for (const c of GARRISON.men.values()) c.armR.rotation.x = alert ? -1.5 + Math.sin(time*6 + c.g.position.x)*.15 : -.2;
 }
 // ------------------------------------------------------------------ ruins: a burned building has to be paid for again, from scratch
 function rebuildCost(st) {
@@ -15588,7 +15718,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {wallSections, weakestSection, secHold, wallLv, payWall, breachSpread, TWALL, cellOpen, DEFSITES, siteLv, lvOf, paySite, INV, ROAD_IN, waveRoute, growthHeat, QUARTER, waveState, defLv, startWave, waveStrength, lostQuarters, openQuarters, loseQuarter, quarterDown, openDefense, SIEGE, defPower, payQuarter, keepFalls, WARSPEC, OBJ, steadyObjective, objEdge, landAt, LMK, payLandMarket, landMarketCost, AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {PLOTS, GARRISON, plotData, payPlotOpen, plotSlotPick, plotCount, garrisonPosts, wallSections, weakestSection, secHold, wallLv, payWall, breachSpread, TWALL, cellOpen, DEFSITES, siteLv, lvOf, paySite, INV, ROAD_IN, waveRoute, growthHeat, QUARTER, waveState, defLv, startWave, waveStrength, lostQuarters, openQuarters, loseQuarter, quarterDown, openDefense, SIEGE, defPower, payQuarter, keepFalls, WARSPEC, OBJ, steadyObjective, objEdge, landAt, LMK, payLandMarket, landMarketCost, AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 
