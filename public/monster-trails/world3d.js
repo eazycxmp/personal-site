@@ -540,6 +540,11 @@ window.World3D = (function () {
     occult:      { p: 0x4a2a6a, s: 0x2a2030, a: 0x8a1a3a, d: 0x1a1520 },
     miner:       { p: 0xa86a30, s: 0xe0b050, a: 0xc84a20, d: 0x4a3020 },
     royal:       { p: 0xe8e0d0, s: 0xd4a830, a: 0x7a1a2a, d: 0x3a3040 },
+    // player / rival colour themes
+    red:         { p: 0xd83a30, s: 0xf2e8d8, a: 0x2a2a30, d: 0x34343f },
+    blue:        { p: 0x3060d8, s: 0xf2f2f2, a: 0xf0c020, d: 0x2a3048 },
+    green:       { p: 0x2f9a48, s: 0xf2f2e0, a: 0x8a5a2b, d: 0x2a3a2a },
+    gold:        { p: 0xe0a020, s: 0x2a2a30, a: 0xc84a20, d: 0x3a3030 },
   };
   // [x, y, w, h, slot] regions of the 512x512 atlas that hold clothing colours
   const CLOTH = [[0, 128, 64, 128, "a"], [64, 256, 64, 128, "p"], [128, 256, 64, 128, "s"], [192, 256, 64, 128, "a"],
@@ -573,8 +578,8 @@ window.World3D = (function () {
     return m2;
   }
 
-  function makeActor(key, sprite, outfit) {
-    const base = CHAR_FOR[sprite] || CHAR_FOR[(sprite || "").split("_")[0]] || "character-male-a";
+  function makeActor(key, sprite, outfit, model) {
+    const base = model || CHAR_FOR[sprite] || CHAR_FOR[(sprite || "").split("_")[0]] || "character-male-a";
     const src = models["characters/" + base];
     const root = new THREE.Group();
     const body = window.SkeletonUtils.clone(src.scene);
@@ -604,8 +609,8 @@ window.World3D = (function () {
     a.state = n;
   }
   const lerpAngle = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return a + d * k; };
-  function updateActor(key, sprite, x, zz, yaw, anim, dt, timeScale = 1, outfit) {
-    const a = actors.get(key) || makeActor(key, sprite, outfit);
+  function updateActor(key, sprite, x, zz, yaw, anim, dt, timeScale = 1, outfit, model) {
+    const a = actors.get(key) || makeActor(key, sprite, outfit, model);
     a.seen = true;
     a.root.position.set(x, 0, zz);
     a.yaw = a.yaw === null ? yaw : lerpAngle(a.yaw, yaw, Math.min(1, dt * 14));
@@ -619,8 +624,9 @@ window.World3D = (function () {
   // A mount is the monster's real Tuxemon back sprite extruded into voxels: every opaque pixel
   // becomes a block, thicker toward the middle of the body so it reads as a solid creature.
   const mounts = {};
-  function mountModel(slug) {
-    if (mounts[slug]) return mounts[slug];
+  function mountModel(slug, upright) {
+    const ck = slug + (upright ? ":up" : "");
+    if (mounts[ck]) return mounts[ck];
     const img = IMG["mon_" + slug];
     const S = 64, c = document.createElement("canvas"); c.width = S; c.height = S;
     const x = c.getContext("2d"); x.drawImage(img, 64, 0, 64, 64, 0, 0, S, S); // back view
@@ -638,7 +644,7 @@ window.World3D = (function () {
     let minI = S, maxI = 0, minJ = S, maxJ = 0, count = 0;
     for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (solid(i, j)) { count++; minI = Math.min(minI, i); maxI = Math.max(maxI, i); minJ = Math.min(minJ, j); maxJ = Math.max(maxJ, j); }
     const wPx = maxI - minI + 1, hPx = maxJ - minJ + 1;
-    const vs = 2.4 / Math.max(wPx, hPx * 0.85); // ~2.4 tiles across
+    const vs = (upright ? 1.0 : 2.4) / Math.max(wPx, hPx * 0.85); // ~2.4 tiles across (1 tile when riding the board)
     const cx = (minI + maxI + 1) / 2, cy = (minJ + maxJ + 1) / 2;
     const geo = new THREE.BoxGeometry(vs, vs, vs);
     const mat = new THREE.MeshLambertMaterial();
@@ -660,11 +666,83 @@ window.World3D = (function () {
     im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
     // lay the sprite flat: its back faces up and its head points forward, like a creature swimming/flying
     const inner = new THREE.Group(); inner.rotation.x = -Math.PI / 2; inner.add(im);
+    if (upright) { inner.rotation.x = 0; im.position.y = (hPx / 2) * vs; }
     const g = new THREE.Group(); g.add(inner);
-    mounts[slug] = { g, seat: seat + 0.02 };
-    return mounts[slug];
+    mounts[ck] = { g, seat: seat + 0.02, upright };
+    return mounts[ck];
   }
   let activeMount = null;
+
+  // Surfing: you stand on a surfboard (striped in your outfit colour) with your monster riding up front,
+  // throwing white spray off the tail and leaving ripples when you stop.
+  const BOARD_STRIPE = { red: 0xd83a30, blue: 0x3060d8, green: 0x2f9a48, gold: 0xe0a020 };
+  const surfRigs = {};
+  function surfRig(slug, color) {
+    const ck = slug + ":" + color;
+    if (surfRigs[ck]) return surfRigs[ck];
+    const L = 2.5, W = 0.8;
+    const sh = new THREE.Shape();
+    sh.moveTo(0, -L / 2);
+    sh.bezierCurveTo(W * 0.6, -L / 2, W / 2, -L * 0.15, W / 2, L * 0.1);
+    sh.bezierCurveTo(W / 2, L * 0.38, W * 0.15, L / 2, 0, L / 2 + 0.05);
+    sh.bezierCurveTo(-W * 0.15, L / 2, -W / 2, L * 0.38, -W / 2, L * 0.1);
+    sh.bezierCurveTo(-W / 2, -L * 0.15, -W * 0.6, -L / 2, 0, -L / 2);
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.04, bevelSegments: 3, curveSegments: 18 });
+    geo.rotateX(Math.PI / 2); // lie flat; shape +y becomes forward (-z)
+    const board = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xf6f1e6, roughness: 0.35 }));
+    board.castShadow = true; board.receiveShadow = true;
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(0.16, L * 0.86), new THREE.MeshStandardMaterial({ color: BOARD_STRIPE[color] || 0xd83a30, roughness: 0.4 }));
+    stripe.rotation.x = -Math.PI / 2; stripe.position.y = 0.035;
+    const g = new THREE.Group(); g.rotation.order = "YXZ"; g.add(board, stripe);
+    const mon = mountModel(slug, true);
+    mon.g.position.set(0, 0.04, -0.8); // monster rides the nose of the board
+    g.add(mon.g);
+    surfRigs[ck] = { g, deck: 0.06 };
+    return surfRigs[ck];
+  }
+  let spray = null;
+  const drops = [];
+  function sprayPool() {
+    if (spray) return spray;
+    spray = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.11, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }), 160);
+    spray.frustumCulled = false;
+    for (let i = 0; i < 160; i++) drops.push({ life: 0 });
+    scene.add(spray);
+    return spray;
+  }
+  function updateSpray(dt, p, emit, now) {
+    const sp = sprayPool();
+    if (!sp.parent) scene.add(sp);
+    const f = [-Math.sin(p.angle), -Math.cos(p.angle)], r = [-f[1], f[0]];
+    const rate = emit ? Math.min(9, 3 + Math.abs(p.speed) * 2) : 0;
+    for (let k = 0; k < rate; k++) {
+      const d = drops.find((x) => x.life <= 0); if (!d) break;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      d.x = p.px - f[0] * 1.0 + r[0] * side * 0.35; d.z = p.pz - f[1] * 1.0 + r[1] * side * 0.35; d.y = 0;
+      d.vx = r[0] * side * (1 + Math.random()) - f[0] * 0.6; d.vz = r[1] * side * (1 + Math.random()) - f[1] * 0.6; d.vy = 1.2 + Math.random() * 1.6;
+      d.life = d.max = 0.5 + Math.random() * 0.4; d.s = 0.6 + Math.random() * 1.2;
+    }
+    // idle ripples: a ring of droplets puffs out every so often
+    if (!emit && Math.floor(now * 1.2) !== Math.floor((now - dt) * 1.2)) {
+      for (let k = 0; k < 14; k++) {
+        const d = drops.find((x) => x.life <= 0); if (!d) break;
+        const a = (k / 14) * Math.PI * 2;
+        d.x = p.px + Math.cos(a) * 0.9; d.z = p.pz + Math.sin(a) * 1.3; d.y = 0;
+        d.vx = Math.cos(a) * 0.8; d.vz = Math.sin(a) * 0.8; d.vy = 0.15; d.life = d.max = 0.9; d.s = 0.7;
+      }
+    }
+    for (let i = 0; i < drops.length; i++) {
+      const d = drops[i];
+      if (d.life > 0) {
+        d.life -= dt; d.vy -= 6 * dt;
+        d.x += d.vx * dt; d.y = Math.max(-0.05, d.y + d.vy * dt); d.z += d.vz * dt;
+        const k = Math.max(0, d.life / d.max) * d.s;
+        tmpM.makeScale(k, k, k); tmpM.setPosition(d.x, d.y, d.z);
+      } else tmpM.makeScale(0, 0, 0);
+      sp.setMatrixAt(i, tmpM);
+    }
+    sp.instanceMatrix.needsUpdate = true;
+  }
 
   // ------------------------------------------------------------ per-frame
   const ANG = { up: 0, left: Math.PI / 2, down: Math.PI, right: -Math.PI / 2 };
@@ -703,12 +781,23 @@ window.World3D = (function () {
     for (const r of markers) { const k = (now * 1.2) % 1; r.scale.setScalar(0.8 + k * 0.7); r.material.opacity = 0.85 * (1 - k); }
 
     for (const a of actors.values()) a.seen = false;
-    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, ANG[n.dir], n.walking ? "walk" : "idle", dt, 1, n.outfit);
+    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, ANG[n.dir], n.walking ? "walk" : "idle", dt, 1, n.outfit, n.model);
     const spd = Math.abs(p.speed), moving = spd > 0.15;
     const anim = !moving ? "idle" : spd > 4 ? "sprint" : "walk";
     // riding: show the mount under the player and seat them on it
     let seatY = 0;
-    if (p.mount) {
+    const look0 = state.look || { outfit: "red" };
+    if (p.mount && p.surfing) {
+      const rig = surfRig(p.mount, look0.outfit);
+      if (activeMount !== rig.g) { if (activeMount) scene.remove(activeMount); activeMount = rig.g; scene.add(rig.g); }
+      const moving2 = Math.abs(p.speed) > 0.3;
+      const bob = Math.sin(now * 2.6) * 0.05;
+      rig.g.position.set(p.px, -0.06 + bob, p.pz);
+      // nose lifts with speed, rolls gently with the swell
+      rig.g.rotation.set(Math.min(0.12, Math.abs(p.speed) * 0.025), p.angle, Math.sin(now * 1.9) * 0.05);
+      seatY = -0.06 + bob + rig.deck;
+      updateSpray(dt, p, moving2, now);
+    } else if (p.mount) {
       const mm = mountModel(p.mount);
       if (activeMount !== mm.g) { if (activeMount) scene.remove(activeMount); activeMount = mm.g; scene.add(mm.g); }
       const bob = p.surfing ? Math.sin(now * 2.6) * 0.07 : Math.sin(now * 4) * 0.12 * Math.min(1, p.alt || 0);
@@ -718,8 +807,15 @@ window.World3D = (function () {
       mm.g.children[0].rotation.set(-Math.PI / 2 + (p.alt > 0.2 ? 0.15 : 0), 0, Math.sin(now * 1.7) * (p.surfing ? 0.04 : 0.1));
       seatY = base + (p.alt || 0) + bob + mm.seat;
     } else if (activeMount) { scene.remove(activeMount); activeMount = null; }
-    updateActor("player", "adventurer", p.px, p.pz, p.angle, p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1);
-    actors.get("player").root.position.y = seatY;
+    if (!(p.mount && p.surfing) && spray) updateSpray(dt, p, false, -1);
+    const look = state.look || { model: "character-male-e", outfit: "red" };
+    const pkey = "player:" + look.model + ":" + look.outfit;
+    const surfing = p.mount && p.surfing;
+    updateActor(pkey, null, p.px, p.pz, p.angle + (surfing ? 1.1 : 0), surfing ? "idle" : p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1, look.outfit, look.model);
+    const pa = actors.get(pkey);
+    pa.root.position.y = seatY;
+    if (surfing) { const f2 = [-Math.sin(p.angle), -Math.cos(p.angle)]; pa.root.position.x = p.px - f2[0] * 0.25; pa.root.position.z = p.pz - f2[1] * 0.25; }
+    pa.root.scale.set(1, surfing ? 0.92 : 1, 1);
     for (const [k, a] of actors) if (!a.seen) { scene.remove(a.root); actors.delete(k); }
     renderer.render(scene, camera);
   }

@@ -301,6 +301,43 @@ function calcDamage(att, def, moveId, roll = true) {
 }
 function partyAlive() { return S.party.filter((m) => m.hp > 0); }
 
+// ---------------------------------------------------------------- player & rival looks
+// You pick boy/girl and red/blue/green; your rival is always the opposite gender in a contrasting colour.
+const RIVAL_COLOR = { red: "green", green: "red", blue: "gold" };
+const MODEL_FOR = { player: { boy: "character-male-e", girl: "character-female-f" }, rival: { boy: "character-male-f", girl: "character-female-b" } };
+const myLook = () => S.look || { gender: "boy", color: "red" };
+function rivalLook() { const l = myLook(); return { gender: l.gender === "boy" ? "girl" : "boy", color: RIVAL_COLOR[l.color] }; }
+const rivalName = () => (rivalLook().gender === "boy" ? "Rival Kai" : "Rival Mia");
+// Battle portraits: recolour the clothing palette of Tuxemon's boy/girl player sprites, keeping shading.
+const SPRITE_RECOLOR = { // groups of palette colours -> theme colour, shading kept relative to `ref`
+  adventurer: [{ colors: [[231, 120, 95], [195, 81, 54], [114, 25, 5], [136, 39, 16]], ref: [195, 81, 54] }],
+  heroine: [
+    { colors: [[145, 220, 222], [205, 253, 255], [61, 154, 171], [9, 134, 157]], ref: [145, 220, 222] }, // back view top + hat
+    { colors: [[0, 148, 255], [6, 129, 218], [128, 174, 208]], ref: [6, 129, 218] },                     // front view top + hat
+  ],
+};
+const THEME_2D = { red: [216, 58, 48], blue: [48, 96, 216], green: [47, 154, 72], gold: [224, 160, 32] };
+const portraitCache = {};
+function lookPortrait(look) {
+  const sheet = look.gender === "boy" ? "adventurer" : "heroine", key = sheet + look.color;
+  if (portraitCache[key]) return portraitCache[key];
+  const img = IMG["portrait_" + sheet], groups = SPRITE_RECOLOR[sheet], to = THEME_2D[look.color];
+  const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+  const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height), px = d.data;
+  const lum = (r, g, b) => r * 0.3 + g * 0.59 + b * 0.11;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 10) continue;
+    const r = px[i], g = px[i + 1], b = px[i + 2];
+    const grp = groups.find((gr) => gr.colors.some(([a, b2, c2]) => Math.abs(a - r) + Math.abs(b2 - g) + Math.abs(c2 - b) < 12));
+    if (!grp) continue;
+    const k = Math.min(1.5, lum(r, g, b) / lum(...grp.ref));
+    px[i] = Math.min(255, to[0] * k); px[i + 1] = Math.min(255, to[1] * k); px[i + 2] = Math.min(255, to[2] * k);
+  }
+  x.putImageData(d, 0, 0);
+  return (portraitCache[key] = c);
+}
+
 // ---------------------------------------------------------------- game state
 let S = null; // save state
 function newState() {
@@ -390,7 +427,11 @@ function loadMap(id, x, y, dir) {
   S.map = id;
   const p = world.player;
   placePlayer(x, y, dir || p.dir);
-  world.npcs = (m.npcs || []).map((n, i) => ({ ...n, def: n, key: id + "_" + i, fx: n.x * T, fy: n.y * T, defeated: !!(n.id && S.flags[n.id]) }));
+  world.npcs = (m.npcs || []).filter((n) => !(n.rival && S.flags[n.id])).map((n, i) => {
+    const o = { ...n, def: n, key: id + "_" + i, fx: n.x * T, fy: n.y * T, defeated: !!(n.id && S.flags[n.id]) };
+    if (n.rival) { const rl = rivalLook(); o.name = rivalName(); o.model = MODEL_FOR.rival[rl.gender]; o.outfit = rl.color; }
+    return o;
+  });
   // solid footprint of buildings
   world.solid = new Set();
   world.doors = [];
@@ -620,7 +661,7 @@ function runScript(fn) {
 function topLevel() { return Math.max(0, ...partyAlive().map((m) => m.level)); }
 function trainerLevel(n) { return Math.max(...n.team.map((t) => t[1])); }
 const READY_MARGIN = 3; // levels above a trainer's strongest before they will ambush you
-function readyFor(n) { return world.map.interior || topLevel() >= trainerLevel(n) + READY_MARGIN; }
+function readyFor(n) { return n.rival || world.map.interior || topLevel() >= trainerLevel(n) + READY_MARGIN; }
 function trainerSees(n) {
   if (n.kind !== "trainer" || n.defeated || !n.sight || !partyAlive().length || !readyFor(n)) return false;
   const [dx, dy] = DIRS[n.dir];
@@ -653,8 +694,17 @@ async function trainerEncounter(n, spotted) {
     await faceDir(OPP[n.dir]);
   }
   await say(`${n.name}: ${n.intro}`);
-  const team = n.team.map(([slug, lv]) => makeMon(evolvedFor(slug === "$rival" ? rivalSlug() : slug, lv), lv));
-  const res = await runBattle({ trainer: n, party: team, bg: world.map.interior ? "interior" : world.map.bg });
+  const team = n.team.map(([slug, lv]) => makeMon(evolvedFor(slug === "$rival" ? rivalSlug() : slug === "$rivalstarter" ? rivalStarter() : slug, lv), lv));
+  const res = await runBattle({ trainer: n, party: team, bg: world.map.interior ? "interior" : world.map.bg, practice: n.practice });
+  if (res === "lose" && n.practice) {
+    // the first rival battle is practice: no blackout, your team is patched up either way
+    n.defeated = true; S.flags[n.id] = true;
+    await say(`${n.name}: ${n.win}`);
+    S.party.forEach(healMon);
+    await say("Prof. Oakley healed your monsters.");
+    save();
+    return;
+  }
   if (res === "win") {
     n.defeated = true;
     S.flags[n.id] = true;
@@ -676,6 +726,8 @@ function evolvedFor(slug, lv) {
   while (D.monsters[slug].evo && lv >= D.monsters[slug].evo[0]) slug = D.monsters[slug].evo[1];
   return slug;
 }
+// the starter that beats yours; the rival always picks it
+function rivalStarter() { return { agnite: "kroki", kroki: "anoleaf", anoleaf: "agnite" }[S.starter] || "kroki"; }
 function rivalSlug() {
   return { agnite: "leviadile", kroki: "velocitile", anoleaf: "agnigon" }[S.starter] || "agnigon";
 }
@@ -781,6 +833,12 @@ async function professor(n) {
     await say(`You received ${monName(m)}!`);
     await say("Prof. Oakley: Take these too!\nTuxeballs catch wild monsters,\nand Potions heal them.");
     await say("Prof. Oakley: Your mom can heal\nyour team at home. Go north to\nRoute 1, and beat all 4 gyms!");
+    const rival = world.npcs.find((x) => x.id === "rival_lab");
+    if (rival) {
+      await say(`${rival.name}: Hey, that's my pick... no wait, I'll take ${D.monsters[rivalStarter()].name}! It beats yours anyway!`);
+      await trainerEncounter(rival, false);
+      world.npcs = world.npcs.filter((x) => x !== rival);
+    }
     save();
     return;
   }
@@ -788,6 +846,46 @@ async function professor(n) {
   await say(`Prof. Oakley: You've caught ${c} kinds of monsters! Let me heal your team.`);
   S.party.forEach(healMon);
   await say("Your monsters are fully healed!");
+}
+
+// New-game (or first-load) character creator: boy/girl, then outfit colour.
+function characterCreator() {
+  return new Promise((res) => {
+    const look = { gender: "boy", color: "red" };
+    const sc = push({
+      opaque: true, step: 0, update() {},
+      draw() {
+        ctx.drawImage(IMG.bg_grass_background, 8, 0, 240, 108, 0, 0, 240, 108);
+        ctx.fillStyle = "#58a048"; ctx.fillRect(0, 108, 240, 52);
+        text(this.step === 0 ? "ARE YOU A BOY OR A GIRL?" : "PICK YOUR OUTFIT COLOR", 22, 6, "#fff", "#204020");
+        const shows = this.step === 0 ? [{ gender: "boy", color: look.color }, { gender: "girl", color: look.color }]
+          : ["red", "blue", "green"].map((c) => ({ gender: look.gender, color: c }));
+        shows.forEach((l, k) => {
+          const w = 240 / shows.length, x = w * k + w / 2 - 32;
+          const sel = this.step === 0 ? l.gender === look.gender : l.color === look.color;
+          if (sel) { ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(x - 4, 20, 72, 84); }
+          ctx.drawImage(lookPortrait(l), 64, 0, 64, 64, x, 30 + (sel ? Math.sin(NOW * 8) * 2 : 0), 64, 64);
+        });
+      },
+    });
+    const ask = async () => {
+      for (;;) {
+        sc.step = 0;
+        const g = await choose(["BOY", "GIRL"], { prompt: "Are you a boy or a girl?", start: look.gender === "girl" ? 1 : 0, cancel: false,
+          onMove: (i) => { look.gender = i ? "girl" : "boy"; } });
+        look.gender = g ? "girl" : "boy";
+        sc.step = 1;
+        const c = await choose(["RED", "BLUE", "GREEN"], { prompt: "Pick your outfit color.", cancel: false,
+          onMove: (i) => { look.color = ["red", "blue", "green"][i]; } });
+        look.color = ["red", "blue", "green"][c];
+        S.look = { ...look };
+        const rl = rivalLook();
+        if (await yesNo(`A ${look.color.toUpperCase()} ${look.gender.toUpperCase()}. Your rival will be a ${rl.color.toUpperCase()} ${rl.gender.toUpperCase()}. Is this you?`)) break;
+      }
+      pop(sc); res();
+    };
+    ask();
+  });
 }
 
 function starterSelect() {
@@ -968,7 +1066,7 @@ function trainerCard() {
         ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
         box(6, 6, 228, 148, "#f0e8d0");
         text("TRAINER CARD", 70, 14);
-        if (IMG.portrait_player) ctx.drawImage(IMG.portrait_player, 64, 0, 64, 64, 160, 30, 64, 64);
+        ctx.drawImage(lookPortrait(myLook()), 64, 0, 64, 64, 160, 30, 64, 64);
         const t = Math.floor(S.time);
         const rows = [["MONEY", "$" + S.money], ["CAUGHT", `${Object.keys(S.caught).length}/${Object.keys(D.monsters).length}`],
           ["SEEN", Object.keys(S.seen).length], ["TIME", `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`]];
@@ -1003,6 +1101,7 @@ async function runBattle(opts) {
   push(B);
   let res;
   try { res = await B.run(); } finally { pop(B); }
+  if (res === "lose" && opts.practice) { music(world.map.music || "town"); return res; }
   if (res === "lose") { await blackout(); return res; }
   await evolveCheck();
   music(world.map.music || "town");
@@ -1091,8 +1190,9 @@ class Battle {
     ctx.fillStyle = "rgba(40,60,30,0.25)";
     ctx.beginPath(); ctx.ellipse(180, 68, 40, 8, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(54, 106, 48, 8, 0, 0, Math.PI * 2); ctx.fill();
-    if (this.trainer && IMG["portrait_" + this.trainer.sprite]) ctx.drawImage(IMG["portrait_" + this.trainer.sprite], 64, 0, 64, 64, this.trX, 4, 64, 64);
-    if (IMG.portrait_player) ctx.drawImage(IMG.portrait_player, 0, 0, 64, 128, this.plX, -12, 64, 128);
+    const tp = this.trainer && (this.trainer.rival ? lookPortrait(rivalLook()) : IMG["portrait_" + this.trainer.sprite]);
+    if (tp) ctx.drawImage(tp, 64, 0, 64, 64, this.trX, 4, 64, 64);
+    ctx.drawImage(lookPortrait(myLook()), 0, 0, 64, 128, this.plX, -12, 64, 128);
     if (this.eVis) drawMon(this.e.slug, "front", this.eX, this.eY, this.eAlpha, this.eScale);
     if (this.pVis && this.p) drawMon(this.p.slug, "back", this.pX, this.pY, this.pAlpha, this.pScale);
     if (this.ball) {
@@ -1529,7 +1629,8 @@ const worldScene = {
       if (x < 0 || y < 0 || x >= m.w || y >= m.h) return !!m.interior;
       return m.grid[y][x] === "W" || m.grid[y][x] === "T" || world.solid.has(x + "," + y) || world.doors.some((b) => b.door.x === x && b.door.y === y);
     };
-    World3D.render({ player: world.player, npcs: world.npcs, interior: !!m.interior, solid }, dt, NOW);
+    const look = myLook();
+    World3D.render({ player: world.player, npcs: world.npcs, interior: !!m.interior, solid, look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
   },
 };
 
@@ -1605,6 +1706,7 @@ async function boot() {
   const saved = loadSave();
   const choice = await titleScene(!!saved);
   S = choice === "continue" ? migrateSave(saved) : newState();
+  if (!S.look) { await characterCreator(); }
   push(worldScene);
   loadMap(S.map, S.x, S.y, S.dir);
   if (tileAt(S.x, S.y) === "~") {

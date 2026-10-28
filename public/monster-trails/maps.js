@@ -116,6 +116,9 @@
     exits: [{ edge: "w", at: 8, w: 2, to: "ember" }, { edge: "e", at: 8, w: 2, to: "tide" }],
     signs: [{ x: 4, y: 7, text: "ROUTE 2\nEast: Tide Harbor" }],
     npcs: [
+      trainer({ id: "rival_r2", rival: true, sprite: "adventurer", x: 6, y: 7, dir: "down", sight: 2, name: "$rival",
+        team: [["$rivalstarter", 12], ["seirein", 11]],
+        intro: "There you are! I beat the Ember Gym too. Time for a rematch!", lose: "Argh! Fine, I'm heading to Tide Harbor. Don't fall behind!" }),
       trainer({ id: "r2_fish", outfit: "ranger", sprite: "rogue_green", x: 19, y: 11, dir: "up", sight: 3, name: "Ranger Gil",
         team: [["fordin", 9], ["lambert", 10]], intro: "Shh, you'll spook the wildlife. Battle quietly!", lose: "Nature favors you today." }),
       trainer({ id: "r2_ten", outfit: "ranger", sprite: "monk_green", x: 28, y: 6, dir: "down", sight: 3, name: "Ranger Tia",
@@ -172,6 +175,9 @@
     ],
     exits: [{ edge: "s", at: 10, w: 2, to: "tide" }, { edge: "n", at: 10, w: 2, to: "volt" }],
     npcs: [
+      trainer({ id: "rival_r3", rival: true, sprite: "adventurer", x: 12, y: 3, dir: "left", sight: 3, name: "$rival",
+        team: [["$rivalstarter", 20], ["spirain", 19], ["banling", 19]],
+        intro: "Volt City is just ahead. Let's see who's ready for the Volt Gym!", lose: "You're getting really strong... I'll see you at the top!" }),
       trainer({ id: "r3_ninja", outfit: "ranger", sprite: "dragonrider_green", x: 6, y: 32, dir: "right", sight: 5, name: "Mountain Ranger Kaz",
         team: [["katapill", 15], ["foxfire", 16]], intro: "Mountain rangers move unseen. Surprise!", lose: "You spotted me after all." }),
       trainer({ id: "r3_sci", outfit: "ranger", sprite: "miner_green", x: 15, y: 20, dir: "left", sight: 5, name: "Mountain Ranger Ohm",
@@ -304,7 +310,10 @@
   W.lab = interior({
     name: "Professor's Lab", w: 12, h: 10, music: "chill", wall: "blue", floor: "tile",
     ops: [["C", 1, 3, 3, 1], ["C", 8, 3, 3, 1]], decor: [[3, 1, "board"], [8, 1, "poster"]],
-    npcs: [{ sprite: "professor", x: 5, y: 4, dir: "down", name: "Prof. Oakley", role: "prof" }],
+    npcs: [{ sprite: "professor", x: 5, y: 4, dir: "down", name: "Prof. Oakley", role: "prof" },
+      trainer({ id: "rival_lab", rival: true, practice: true, sprite: "adventurer", x: 7, y: 5, dir: "left", sight: 0, name: "$rival",
+        team: [["$rivalstarter", 4]], intro: "Wait! I picked my partner too. Let's see whose is stronger!",
+        lose: "Not bad... but I'll get stronger. See you out there!", win: "Ha! I win! Better train up before we meet again!" })],
   });
 
   W.ember_center = center("Ember"); W.ember_mart = mart("Ember");

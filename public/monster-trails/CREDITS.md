@@ -22,8 +22,13 @@ samples can load.)
 | F | fly (after the Volt Badge, with a Sky monster) |
 | M | mute music |
 
+**Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit (older
+saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
+blue → gold). The rival picks the starter that beats yours, challenges you in the lab (a practice
+battle with no blackout), again on Route 2 and Route 3, and their ace ends up in the Champion's team.
+
 **Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
-SURF on its back (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
+SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
 your monster's real sprite turned into a 3D voxel model.
 
