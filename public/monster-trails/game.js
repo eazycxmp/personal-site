@@ -1,6 +1,8 @@
 "use strict";
 // Monster Trails: a monster-catching RPG built on Tuxemon's open art.
 const D = window.GAME_DATA;
+// Krokivip is the Water starter (the fiercer form of Kroki); give it starter-level stats so the three are even.
+D.monsters.krokivip.stage = 0;
 const MAPS = window.WORLD.maps;
 const BUILDINGS = window.WORLD.BUILDINGS;
 const T = 16, VW = 240, VH = 160;
@@ -727,9 +729,9 @@ function evolvedFor(slug, lv) {
   return slug;
 }
 // the starter that beats yours; the rival always picks it
-function rivalStarter() { return { agnite: "kroki", kroki: "anoleaf", anoleaf: "agnite" }[S.starter] || "kroki"; }
+function rivalStarter() { return { agnite: "krokivip", krokivip: "anoleaf", kroki: "anoleaf", anoleaf: "agnite" }[S.starter] || "krokivip"; }
 function rivalSlug() {
-  return { agnite: "leviadile", kroki: "velocitile", anoleaf: "agnigon" }[S.starter] || "agnigon";
+  return { agnite: "leviadile", krokivip: "velocitile", kroki: "velocitile", anoleaf: "agnigon" }[S.starter] || "agnigon";
 }
 
 async function championEnding() {
@@ -889,7 +891,7 @@ function characterCreator() {
 }
 
 function starterSelect() {
-  const opts = ["agnite", "kroki", "anoleaf"];
+  const opts = ["agnite", "krokivip", "anoleaf"]; // Krokivip: the fiercer form of Kroki
   return new Promise((res) => {
     push({
       opaque: true, i: 0, confirming: false,
@@ -1637,7 +1639,7 @@ const worldScene = {
 // ---------------------------------------------------------------- title
 function titleScene(hasSave) {
   return new Promise((res) => {
-    const showcase = ["agnite", "kroki", "anoleaf", "rockitten", "fluoresfin", "eaglace"];
+    const showcase = ["agnite", "krokivip", "anoleaf", "rockitten", "fluoresfin", "eaglace"];
     const sc = push({
       opaque: true,
       update() {},
@@ -1722,5 +1724,5 @@ async function boot() {
     });
   }
 }
-window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
+window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, starterSelect, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
 boot();
