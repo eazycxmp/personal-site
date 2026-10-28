@@ -8,6 +8,13 @@ export const metadata = shareMetadata(SHARES["play"], "Play — Espen Campbell")
 /* Newest first. Release dates are when each game first shipped to /play (git history). */
 const GAMES = [
   {
+    slug: "monster-trails",
+    title: "Monster Trails",
+    tag: "3D · Monster Catching",
+    body: "Walk into the tall grass to battle and catch over 200 strange creatures, from djinns and ghost flames to ice devils and cosmic dragons. Train a team, beat four gyms, then take on the Champion, all to a live drum & bass soundtrack.",
+    released: "Oct 2026",
+  },
+  {
     slug: "skyward",
     title: "Skyward",
     tag: "3D · Flight Sim",
