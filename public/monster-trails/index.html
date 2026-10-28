@@ -16,7 +16,7 @@
 </head>
 <body>
 <div id="screen"><canvas id="game" width="720" height="480"></canvas></div>
-<div id="help">UP walk · DOWN back up · LEFT/RIGHT steer · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · M mute</div>
+<div id="help">UP walk · DOWN back up · LEFT/RIGHT steer · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · F fly · M mute</div>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
 <script type="module">
   import * as THREE from "three";
@@ -25,7 +25,7 @@
   window.THREE = THREE; window.GLTFLoader = GLTFLoader; window.SkeletonUtils = SkeletonUtils;
   // classic game scripts expect the globals above, so load them in order afterwards
   for (const src of ["data.js", "maps.js", "music.js", "world3d.js", "game.js"]) {
-    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + Date.now(); s.onload = res; s.onerror = rej; document.body.appendChild(s); });
   }
 </script>
 </body>

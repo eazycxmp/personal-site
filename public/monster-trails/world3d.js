@@ -154,8 +154,10 @@ window.World3D = (function () {
     }
     for (const a of actors.values()) scene.remove(a.root);
     actors.clear();
+    if (activeMount) { scene.remove(activeMount); activeMount = null; }
     water = null;
     markers.length = 0;
+    blockers.length = 0;
   }
 
   function build(m, BUILDINGS) {
@@ -166,11 +168,25 @@ window.World3D = (function () {
     if (m.interior) buildInterior(m); else buildOutdoor(m, BUILDINGS);
   }
 
+  // Tile lookup that extends past the map edge: forest everywhere, except an open corridor
+  // continuing each exit's path outward so leaving never looks like walking into a wall.
+  function tileOf(m, x, y) {
+    if (x >= 0 && y >= 0 && x < m.w && y < m.h) return m.grid[y][x];
+    for (const e of m.exits || []) {
+      const vert = e.edge === "n" || e.edge === "s";
+      const beyond = e.edge === "n" ? y < 0 : e.edge === "s" ? y >= m.h : e.edge === "w" ? x < 0 : x >= m.w;
+      if (!beyond) continue;
+      const along = vert ? x - e.at : y - e.at;
+      if (along >= 0 && along < e.w) return "=";
+      if (along >= -2 && along < e.w + 2) return ".";
+    }
+    return "T";
+  }
   // per-tile vertex-coloured ground with a little colour noise; water tiles sink with sandy banks
   function groundMesh(m, th, R, pad) {
     const pos = [], col = [], idx = [];
     const c = new THREE.Color();
-    const tile = (x, y) => (x >= 0 && y >= 0 && x < m.w && y < m.h ? m.grid[y][x] : "T");
+    const tile = (x, y) => tileOf(m, x, y);
     const quad = (pts, hex, jitter) => {
       const n = pos.length / 3;
       for (const p of pts) pos.push(...p);
@@ -221,7 +237,7 @@ window.World3D = (function () {
     const waterTiles = [];
     for (let y = -PAD; y < m.h + PAD; y++) for (let x = -PAD; x < m.w + PAD; x++) {
       const inside = x >= 0 && y >= 0 && x < m.w && y < m.h;
-      const ch = inside ? m.grid[y][x] : "T";
+      const ch = tileOf(m, x, y);
       const cx = x + 0.5, cz = y + 0.5;
       if (ch === "T") {
         const far = Math.max(x < 0 ? -x : x - m.w + 1, y < 0 ? -y : y - m.h + 1, 0);
@@ -263,7 +279,13 @@ window.World3D = (function () {
       mapRoot.add(signpost(lines, s.x + 0.5, s.y + 0.6, 0, { width: 1.7, twoSided: true }));
     }
     exitSigns(m);
-    for (const b of m.buildings || []) mapRoot.add(buildingModel(b, BUILDINGS[b.type]));
+    for (const b of m.buildings || []) {
+      const g = buildingModel(b, BUILDINGS[b.type]);
+      // footprint used to hide the building when it blocks the view of the player
+      g.userData.box = [b.x - 0.3, b.y - 0.3, b.x + BUILDINGS[b.type].tw + 0.3, b.y + BUILDINGS[b.type].th + 1.0];
+      blockers.push(g);
+      mapRoot.add(g);
+    }
   }
 
   // Signposts beside every map exit, saying where it leads; lanterns flank the opening.
@@ -374,6 +396,7 @@ window.World3D = (function () {
     return g;
   }
   const markers = []; // pulsing door/exit rings
+  const blockers = []; // buildings that hide when between camera and player
   function marker(x, zz, color) {
     const ring = own(new THREE.Mesh(new THREE.RingGeometry(0.28, 0.42, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false })));
     ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.03, zz);
@@ -505,20 +528,69 @@ window.World3D = (function () {
     florist: "character-female-b", tennisplayer: "character-female-c", ninja: "character-male-c", goth: "character-female-f",
     witch: "character-female-e", monk: "character-male-e", rogue: "character-male-a", beachcomber: "character-male-d",
     knight: "character-male-f", dragonrider: "character-female-d", catgirl: "character-female-c", fashionista: "character-female-f",
+    woodnymph: "character-female-b", disciple: "character-male-b", riverboatcaptain: "character-male-d", firefighter: "character-male-c",
   };
-  function makeActor(key, sprite) {
-    const src = models["characters/" + (CHAR_FOR[sprite] || "character-male-a")];
+  // Themed outfits: recolour only the clothing swatches of the shared character colour atlas
+  // (skin, hair and eye swatches are left alone), keeping each swatch's shading gradient.
+  const OUTFITS = {
+    ranger:      { p: 0x5f7f3a, s: 0xc8b47c, a: 0x8a5a2b, d: 0x4a3a28 },
+    nightranger: { p: 0x2f4a32, s: 0x6f6a4a, a: 0x4a3020, d: 0x23201a },
+    sailor:      { p: 0x1f3f7a, s: 0xf2f2f2, a: 0xc83030, d: 0x1a2a4a },
+    engineer:    { p: 0xf0b020, s: 0xf07a20, a: 0x3a3a40, d: 0x2a2a30 },
+    occult:      { p: 0x4a2a6a, s: 0x2a2030, a: 0x8a1a3a, d: 0x1a1520 },
+    miner:       { p: 0xa86a30, s: 0xe0b050, a: 0xc84a20, d: 0x4a3020 },
+    royal:       { p: 0xe8e0d0, s: 0xd4a830, a: 0x7a1a2a, d: 0x3a3040 },
+  };
+  // [x, y, w, h, slot] regions of the 512x512 atlas that hold clothing colours
+  const CLOTH = [[0, 128, 64, 128, "a"], [64, 256, 64, 128, "p"], [128, 256, 64, 128, "s"], [192, 256, 64, 128, "a"],
+    [256, 256, 64, 128, "a"], [320, 256, 64, 128, "p"], [384, 256, 64, 128, "s"], [448, 256, 64, 128, "p"],
+    [0, 384, 64, 128, "d"], [64, 384, 64, 128, "d"], [128, 384, 64, 128, "d"], [192, 384, 64, 128, "s"]];
+  const outfitCache = {};
+  function outfitMaterial(mat, theme) {
+    const key = mat.uuid + theme;
+    if (outfitCache[key]) return outfitCache[key];
+    const pal = OUTFITS[theme], img = mat.map && mat.map.image;
+    if (!pal || !img) return mat;
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+    const sx = img.width / 512, sy = img.height / 512;
+    for (const [rx, ry, rw, rh, slot] of CLOTH) {
+      const X = Math.round(rx * sx), Y = Math.round(ry * sy), W = Math.round(rw * sx), H = Math.round(rh * sy);
+      const d = x.getImageData(X, Y, W, H), px = d.data;
+      let sum = 0; for (let i = 0; i < px.length; i += 4) sum += px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+      const mean = sum / (px.length / 4) || 1;
+      const col = new THREE.Color(pal[slot]);
+      for (let i = 0; i < px.length; i += 4) {
+        const k = Math.min(1.6, (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / mean);
+        px[i] = Math.min(255, col.r * 255 * k); px[i + 1] = Math.min(255, col.g * 255 * k); px[i + 2] = Math.min(255, col.b * 255 * k);
+      }
+      x.putImageData(d, X, Y);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.flipY = mat.map.flipY; t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
+    const m2 = mat.clone(); m2.map = t;
+    outfitCache[key] = m2;
+    return m2;
+  }
+
+  function makeActor(key, sprite, outfit) {
+    const base = CHAR_FOR[sprite] || CHAR_FOR[(sprite || "").split("_")[0]] || "character-male-a";
+    const src = models["characters/" + base];
     const root = new THREE.Group();
     const body = window.SkeletonUtils.clone(src.scene);
     const h = src.box.max.y - src.box.min.y;
     body.scale.setScalar(1.05 / (h || 1));
     body.position.y = -src.box.min.y * (1.05 / (h || 1));
-    body.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    body.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true; o.frustumCulled = false;
+      if (outfit) o.material = Array.isArray(o.material) ? o.material.map((mt) => outfitMaterial(mt, outfit)) : outfitMaterial(o.material, outfit);
+    });
     root.add(body);
     scene.add(root);
     const mixer = new THREE.AnimationMixer(body);
     const acts = {};
-    for (const n of ["idle", "walk", "sprint"]) { const c = src.animations.find((a) => a.name === n); if (c) acts[n] = mixer.clipAction(c); }
+    for (const n of ["idle", "walk", "sprint", "sit"]) { const c = src.animations.find((a) => a.name === n); if (c) acts[n] = mixer.clipAction(c); }
     const a = { root, mixer, acts, state: null, yaw: null };
     setAnim(a, "idle");
     actors.set(key, a);
@@ -532,8 +604,8 @@ window.World3D = (function () {
     a.state = n;
   }
   const lerpAngle = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return a + d * k; };
-  function updateActor(key, sprite, x, zz, yaw, anim, dt, timeScale = 1) {
-    const a = actors.get(key) || makeActor(key, sprite);
+  function updateActor(key, sprite, x, zz, yaw, anim, dt, timeScale = 1, outfit) {
+    const a = actors.get(key) || makeActor(key, sprite, outfit);
     a.seen = true;
     a.root.position.set(x, 0, zz);
     a.yaw = a.yaw === null ? yaw : lerpAngle(a.yaw, yaw, Math.min(1, dt * 14));
@@ -542,6 +614,57 @@ window.World3D = (function () {
     if (a.acts[anim]) a.acts[anim].timeScale = timeScale;
     a.mixer.update(dt);
   }
+
+  // ------------------------------------------------------------ rideable monsters
+  // A mount is the monster's real Tuxemon back sprite extruded into voxels: every opaque pixel
+  // becomes a block, thicker toward the middle of the body so it reads as a solid creature.
+  const mounts = {};
+  function mountModel(slug) {
+    if (mounts[slug]) return mounts[slug];
+    const img = IMG["mon_" + slug];
+    const S = 64, c = document.createElement("canvas"); c.width = S; c.height = S;
+    const x = c.getContext("2d"); x.drawImage(img, 64, 0, 64, 64, 0, 0, S, S); // back view
+    const px = x.getImageData(0, 0, S, S).data;
+    const solid = (i, j) => i >= 0 && j >= 0 && i < S && j < S && px[(j * S + i) * 4 + 3] > 120;
+    // distance to the silhouette edge (capped) for body thickness
+    const dist = new Array(S * S).fill(0);
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (solid(i, j)) dist[j * S + i] = 1;
+    for (let pass = 1; pass < 5; pass++) {
+      for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+        const k = j * S + i;
+        if (dist[k] === pass && [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([a, b]) => solid(i + a, j + b) && dist[(j + b) * S + i + a] >= pass)) dist[k] = pass + 1;
+      }
+    }
+    let minI = S, maxI = 0, minJ = S, maxJ = 0, count = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (solid(i, j)) { count++; minI = Math.min(minI, i); maxI = Math.max(maxI, i); minJ = Math.min(minJ, j); maxJ = Math.max(maxJ, j); }
+    const wPx = maxI - minI + 1, hPx = maxJ - minJ + 1;
+    const vs = 2.4 / Math.max(wPx, hPx * 0.85); // ~2.4 tiles across
+    const cx = (minI + maxI + 1) / 2, cy = (minJ + maxJ + 1) / 2;
+    const geo = new THREE.BoxGeometry(vs, vs, vs);
+    const mat = new THREE.MeshLambertMaterial();
+    const im = new THREE.InstancedMesh(geo, mat, count);
+    const col = new THREE.Color();
+    let n = 0, seat = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+      if (!solid(i, j)) continue;
+      const k = (j * S + i) * 4, d = dist[j * S + i];
+      const thick = 1 + (d - 1) * 1.6;
+      tmpM.makeScale(1, 1, thick);
+      tmpM.setPosition((i + 0.5 - cx) * vs, (cy - j - 0.5) * vs, 0);
+      im.setMatrixAt(n, tmpM);
+      col.setRGB(px[k] / 255, px[k + 1] / 255, px[k + 2] / 255).convertSRGBToLinear();
+      im.setColorAt(n, col);
+      n++;
+      seat = Math.max(seat, thick * vs / 2);
+    }
+    im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
+    // lay the sprite flat: its back faces up and its head points forward, like a creature swimming/flying
+    const inner = new THREE.Group(); inner.rotation.x = -Math.PI / 2; inner.add(im);
+    const g = new THREE.Group(); g.add(inner);
+    mounts[slug] = { g, seat: seat + 0.02 };
+    return mounts[slug];
+  }
+  let activeMount = null;
 
   // ------------------------------------------------------------ per-frame
   const ANG = { up: 0, left: Math.PI / 2, down: Math.PI, right: -Math.PI / 2 };
@@ -552,15 +675,27 @@ window.World3D = (function () {
     const inside = state.interior;
     // fixed over-the-shoulder POV: constant distance and height (no bobbing when turning).
     // Anything between the camera and the player is cut away by pushing the near plane out.
-    const back = inside ? 3.4 : 4.6, up = inside ? 3.2 : 3.6;
-    const want = new THREE.Vector3(p.px - f[0] * back, up, p.pz - f[1] * back);
+    // steady, fairly high chase view looking down over the player's shoulder
+    const back = inside ? 3.2 : 4.4, up = inside ? 3.6 : 5.0;
+    const lift = (p.alt || 0) + (p.mount ? 0.9 : 0);
+    const want = new THREE.Vector3(p.px - f[0] * back, up + lift, p.pz - f[1] * back);
     const near = Math.max(0.1, Math.hypot(back, up - 0.8) - 1.6);
     if (Math.abs(camera.near - near) > 0.01) { camera.near = near; camera.updateProjectionMatrix(); }
-    const wantLook = new THREE.Vector3(p.px + f[0] * 2.2, 0.7, p.pz + f[1] * 2.2);
+    const wantLook = new THREE.Vector3(p.px + f[0] * 2.2, 0.7 + lift, p.pz + f[1] * 2.2);
     if (!camPos) { camPos = want.clone(); lookAt = wantLook.clone(); }
     camPos.lerp(want, Math.min(1, dt * 12));
     lookAt.lerp(wantLook, Math.min(1, dt * 10));
     camera.position.copy(camPos);
+    // hide any building whose footprint the camera->player sightline passes through
+    for (const g of blockers) {
+      const [x0, z0, x1, z1] = g.userData.box;
+      let hit = false;
+      for (let k = 0; k <= 1.0001 && !hit; k += 0.1) {
+        const x = camPos.x + (p.px - camPos.x) * k, zz = camPos.z + (p.pz - camPos.z) * k;
+        if (x > x0 && x < x1 && zz > z0 && zz < z1 && k < 0.92) hit = true;
+      }
+      g.visible = !hit;
+    }
     camera.lookAt(lookAt);
     sun.position.set(p.px + 8, 14, p.pz + 5);
     sun.target.position.set(p.px, 0, p.pz);
@@ -568,10 +703,23 @@ window.World3D = (function () {
     for (const r of markers) { const k = (now * 1.2) % 1; r.scale.setScalar(0.8 + k * 0.7); r.material.opacity = 0.85 * (1 - k); }
 
     for (const a of actors.values()) a.seen = false;
-    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, ANG[n.dir], n.walking ? "walk" : "idle", dt);
+    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, ANG[n.dir], n.walking ? "walk" : "idle", dt, 1, n.outfit);
     const spd = Math.abs(p.speed), moving = spd > 0.15;
     const anim = !moving ? "idle" : spd > 4 ? "sprint" : "walk";
-    updateActor("player", "adventurer", p.px, p.pz, p.angle, anim, dt, moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1);
+    // riding: show the mount under the player and seat them on it
+    let seatY = 0;
+    if (p.mount) {
+      const mm = mountModel(p.mount);
+      if (activeMount !== mm.g) { if (activeMount) scene.remove(activeMount); activeMount = mm.g; scene.add(mm.g); }
+      const bob = p.surfing ? Math.sin(now * 2.6) * 0.07 : Math.sin(now * 4) * 0.12 * Math.min(1, p.alt || 0);
+      const base = p.surfing ? -0.12 : 0.1;
+      mm.g.position.set(p.px, base + (p.alt || 0) + bob, p.pz);
+      mm.g.rotation.set(0, p.angle, 0);
+      mm.g.children[0].rotation.set(-Math.PI / 2 + (p.alt > 0.2 ? 0.15 : 0), 0, Math.sin(now * 1.7) * (p.surfing ? 0.04 : 0.1));
+      seatY = base + (p.alt || 0) + bob + mm.seat;
+    } else if (activeMount) { scene.remove(activeMount); activeMount = null; }
+    updateActor("player", "adventurer", p.px, p.pz, p.angle, p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1);
+    actors.get("player").root.position.y = seatY;
     for (const [k, a] of actors) if (!a.seen) { scene.remove(a.root); actors.delete(k); }
     renderer.render(scene, camera);
   }
@@ -582,5 +730,5 @@ window.World3D = (function () {
     return { x: (v.x + 1) / 2 * 240, y: (1 - v.y) / 2 * 160 };
   }
 
-  return { load, init, resize, build, render, project, snapYaw(a) { camYaw = a; camPos = null; }, _models: models };
+  return { load, init, resize, build, render, project, snapYaw(a) { camYaw = a; camPos = null; }, _models: models, _dbg: () => ({ scene, camera, blockers }) };
 })();

@@ -84,7 +84,7 @@ const KEYMAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right",
   KeyZ: "a", Enter: "a", Space: "a", KeyX: "b", Escape: "b", Backspace: "b",
-  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute",
+  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly",
 };
 addEventListener("keydown", (e) => {
   const k = KEYMAP[e.code];
@@ -343,7 +343,7 @@ function addMon(m) {
 const world = {
   map: null, id: null, npcs: [], doors: [], solid: null, busy: false,
   // x,y = current tile; px,pz = continuous position (tile units, tile centre = +0.5); angle 0 faces north
-  player: { x: 0, y: 0, px: 0.5, pz: 0.5, angle: 0, speed: 0, dir: "down" },
+  player: { x: 0, y: 0, px: 0.5, pz: 0.5, angle: 0, speed: 0, dir: "down", mount: null, surfing: false, alt: 0 },
   bubble: null,
 };
 
@@ -364,6 +364,15 @@ function prepWorld() {
       for (let i = 0; i < e.w; i++) {
         const [x, y] = exitTile(m, e, i);
         m.grid[y][x] = m.grid[y][x] === "T" ? "=" : m.grid[y][x];
+      }
+      // open up the tree border beside the exit (2 tiles each side, 3 deep) so it reads as a clear way out
+      const vert = e.edge === "n" || e.edge === "s";
+      for (let i = -2; i < e.w + 2; i++) for (let d = 0; d < 3; d++) {
+        const x = vert ? e.at + i : (e.edge === "w" ? d : m.w - 1 - d);
+        const y = vert ? (e.edge === "n" ? d : m.h - 1 - d) : e.at + i;
+        if (x < 0 || y < 0 || x >= m.w || y >= m.h) continue;
+        const onExitLine = i >= 0 && i < e.w;
+        if (m.grid[y][x] === "T") m.grid[y][x] = onExitLine ? "=" : ".";
       }
     }
   }
@@ -435,6 +444,52 @@ function placePlayer(x, y, dir) {
   const p = world.player;
   p.x = x; p.y = y; p.px = x + 0.5; p.pz = y + 0.5;
   p.dir = dir; p.angle = ANGLE[dir]; p.speed = 0;
+  p.mount = null; p.surfing = false; p.alt = 0;
+}
+
+// ---------------------------------------------------------------- riding: Surf and Fly
+// Surf (Tide Badge + a Water monster) carries you across water; Fly (Volt Badge + a Sky monster)
+// takes you to any town you've visited. You ride your own monster in 3D.
+const rider = (type) => S.party.find((m) => m.hp > 0 && D.monsters[m.slug].types.includes(type));
+async function trySurf(tx, ty) {
+  const p = world.player;
+  if (!S.badges.includes("Tide Badge")) { await say("The water is deep blue. A Water monster could carry you across... once you earn the TIDE BADGE."); return; }
+  const m = rider("water");
+  if (!m) { await say("None of your monsters can swim. Catch a WATER-type monster to ride across water."); return; }
+  if (!(await yesNo(`The water is calm. Ride ${monName(m)} across it?`))) return;
+  p.mount = m.slug; p.surfing = true;
+  const x0 = p.px, z0 = p.pz;
+  await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
+  p.x = tx; p.y = ty;
+}
+const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade"];
+function landingSpot(id) {
+  const m = MAPS[id];
+  const b = (m.buildings || []).find((x) => x.type === "center") || (m.buildings || []).find((x) => x.to === "home") || m.buildings[0];
+  for (const dy of [2, 1, 3]) if (!blockedAt(id, b.door.x, b.door.y + dy)) return [b.door.x, b.door.y + dy];
+  return [b.door.x, b.door.y + 1];
+}
+async function flyMenu() {
+  const p = world.player;
+  if (!S.badges.includes("Volt Badge")) { await say("Your monsters can't carry you through the sky yet. Earn the VOLT BADGE first."); return; }
+  const m = rider("sky");
+  if (!m) { await say("You need a SKY-type monster in your party to fly."); return; }
+  if (world.map.interior) { await say("You can't fly indoors! Head outside first."); return; }
+  const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
+  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { prompt: `Fly on ${monName(m)}. Where to?`, x: 120, y: 4, w: 116 });
+  if (i < 0 || i === towns.length) return;
+  const dest = towns[i];
+  p.mount = m.slug; p.surfing = false; p.speed = 0;
+  await say(`${monName(m)} spreads its wings!`, { auto: 0.6 });
+  await tween(1.3, (k) => { p.alt = 8 * k * k; });
+  await fadeTo(1, 0.3);
+  const [lx, ly] = landingSpot(dest);
+  loadMap(dest, lx, ly, "down");
+  S.flags["visited_" + dest] = true;
+  p.mount = m.slug; p.alt = 8;
+  await fadeTo(0, 0.3);
+  await tween(1.3, (k) => { p.alt = 8 * (1 - k) * (1 - k); });
+  p.alt = 0; p.mount = null;
 }
 function exitAt(edge, x, y) {
   const m = world.map;
@@ -467,6 +522,7 @@ function freeAt(nx, nz, moveDir) {
         if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => say(g.text)); }
         return false;
       }
+      if (p.surfing && tileAt(tx, ty) === "~" && !npcAt(tx, ty)) continue;
       if (blocked(tx, ty, true)) return false;
     }
   }
@@ -497,6 +553,7 @@ function movePlayer(dx, dz) {
   const tx = Math.floor(p.px), ty = Math.floor(p.pz);
   if (tx !== p.x || ty !== p.y) {
     p.x = tx; p.y = ty;
+    if (p.surfing && tileAt(tx, ty) !== "~") { p.surfing = false; p.mount = null; }
     const ev = stepEvent();
     if (ev) { p.speed = 0; runScript(ev); }
   }
@@ -513,17 +570,28 @@ async function faceDir(dir) {
   p.dir = dir;
 }
 
+// is a tile on another map solid? (tiles, building footprints, NPCs, signs)
+function blockedAt(id, x, y) {
+  const m = MAPS[id];
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWC".includes(m.grid[y][x])) return true;
+  for (const b of m.buildings || []) { const B = BUILDINGS[b.type]; if (x >= b.x && x < b.x + B.tw && y >= b.y && y < b.y + B.th) return true; }
+  return (m.npcs || []).some((n) => n.x === x && n.y === y) || (m.signs || []).some((s2) => s2.x === x && s2.y === y);
+}
+
 function crossExit(e, i) {
   const target = MAPS[e.to];
   const back = target.exits.find((x) => x.to === world.id);
-  const [tx, ty] = exitTile(target, back, Math.min(i, back.w - 1));
-  runScript(() => warp(e.to, tx, ty, OPP[EDGE_DIR[back.edge]]));
+  let [tx, ty] = exitTile(target, back, Math.min(i, back.w - 1));
+  const inward = OPP[EDGE_DIR[back.edge]], [ix, iy] = DIRS[inward];
+  // arrive a few steps inside the map so the tree border isn't right in your face
+  for (let k = 0; k < 3 && !blockedAt(e.to, tx + ix, ty + iy); k++) { tx += ix; ty += iy; }
+  runScript(() => warp(e.to, tx, ty, inward));
 }
 
 // Returns an async event to run after a completed step, or null.
 function stepEvent() {
   const p = world.player, m = world.map;
-  if (m.interior && tileAt(p.x, p.y) === "X") return () => warp(m.out.map, m.out.x, m.out.y, "down");
+  if (m.interior && tileAt(p.x, p.y) === "X") return () => warp(m.out.map, m.out.x, m.out.y + (blockedAt(m.out.map, m.out.x, m.out.y + 1) ? 0 : 1), "down");
   const door = world.doors.find((b) => b.door.x === p.x && b.door.y === p.y);
   if (door && door.to) {
     const inn = MAPS[door.to];
@@ -531,10 +599,11 @@ function stepEvent() {
   }
   const tr = world.npcs.find(trainerSees);
   if (tr) return () => trainerEncounter(tr, true);
-  if (tileAt(p.x, p.y) === "," && m.encounters && partyAlive().length && Math.random() < (m.rate || 0.1)) {
-    const tot = m.encounters.reduce((a, e) => a + e[3], 0);
-    let r = Math.random() * tot, pick = m.encounters[0];
-    for (const e of m.encounters) { r -= e[3]; if (r <= 0) { pick = e; break; } }
+  const table = p.surfing && tileAt(p.x, p.y) === "~" ? m.water : tileAt(p.x, p.y) === "," ? m.encounters : null;
+  if (table && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1))) {
+    const tot = table.reduce((a, e) => a + e[3], 0);
+    let r = Math.random() * tot, pick = table[0];
+    for (const e of table) { r -= e[3]; if (r <= 0) { pick = e; break; } }
     const mon = makeMon(pick[0], rand(pick[1], pick[2]));
     return () => wildBattle(mon);
   }
@@ -593,6 +662,8 @@ async function trainerEncounter(n, spotted) {
     if (n.badge && !S.badges.includes(n.badge)) {
       S.badges.push(n.badge);
       await say(`You received the ${n.badge.toUpperCase()}!`);
+      if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER monster can carry you across water. Face the water and press Z to SURF!");
+      if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY monster can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
       const left = 4 - S.badges.length;
       await say(left ? `Badges: ${S.badges.length}/4. ${left} more to challenge the Champion!` : "You have all 4 badges!\nThe Champion's Hall in Shade\nHollow is now open to you!");
     }
@@ -619,6 +690,7 @@ async function interact() {
   const p = world.player;
   const [dx, dy] = DIRS[p.dir];
   let x = p.x + dx, y = p.y + dy;
+  if (tileAt(x, y) === "~" && !p.surfing) { await trySurf(x, y); return; }
   if (tileAt(x, y) === "C") { x += dx; y += dy; }
   const n = npcAt(x, y);
   if (n) {
@@ -874,7 +946,11 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const i = await choose(["PARTY", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"], { x: 150, y: 2, w: 88 });
+    const opts = ["PARTY", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    if (S.badges.includes("Volt Badge")) opts.splice(2, 0, "FLY");
+    let i = await choose(opts, { x: 150, y: 2, w: 88 });
+    if (opts[i] === "FLY") { await flyMenu(); return; }
+    if (S.badges.includes("Volt Badge") && i > 2) i--;
     if (i === 0) { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
     else if (i === 1) await useItemOutside();
     else if (i === 2) await trainerCard();
@@ -1245,7 +1321,8 @@ class Battle {
       this.eVis = false; this.showEBox = false; this.eY = 6; this.eAlpha = 1;
       await this.msg(`${this.wild ? "Wild" : "Foe"} ${monName(this.e)} fainted!`);
       const stage = D.monsters[this.e.slug].stage;
-      const gain = Math.floor((50 + stage * 50) * this.e.level / 7 * (this.trainer ? 1.5 : 1));
+      const EXP_RATE = 1.6; // faster leveling (requested)
+      const gain = Math.floor((50 + stage * 50) * this.e.level / 7 * (this.trainer ? 1.5 : 1) * EXP_RATE);
       const alive = [...this.participants].filter((m) => m.hp > 0 && S.party.includes(m));
       for (const m of alive) await this.giveExp(m, Math.max(1, Math.floor(gain / alive.length)));
       this.participants = new Set(this.p.hp > 0 ? [this.p] : []);
@@ -1416,6 +1493,7 @@ const worldScene = {
     if (world.busy) { p.speed *= Math.max(0, 1 - dt * 12); this.turnVel = 0; return; }
     if (consume("a")) { p.speed = 0; runScript(interact); return; }
     if (consume("b")) { p.speed = 0; runScript(startMenu); return; }
+    if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
     const turn = (held.left ? 1 : 0) - (held.right ? 1 : 0);
     this.turnVel += (turn * TURN_SPEED - this.turnVel) * Math.min(1, dt * 12);
@@ -1491,6 +1569,11 @@ let last = 0;
 function frame(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000 || 0);
   last = ts;
+  step(dt);
+  requestAnimationFrame(frame);
+}
+// one game frame (also driven by tests through window.__game.tick when the tab is hidden)
+function step(dt) {
   NOW += dt;
   updateTweens(dt);
   const top = scenes[scenes.length - 1];
@@ -1504,7 +1587,6 @@ function frame(ts) {
   else if (base && !base.world3d) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VW, VH); }
   for (let i = start; i < scenes.length; i++) scenes[i].draw();
   if (fade > 0) { ctx.fillStyle = `rgba(0,0,0,${fade})`; ctx.fillRect(0, 0, VW, VH); }
-  requestAnimationFrame(frame);
 }
 
 async function boot() {
@@ -1525,6 +1607,10 @@ async function boot() {
   S = choice === "continue" ? migrateSave(saved) : newState();
   push(worldScene);
   loadMap(S.map, S.x, S.y, S.dir);
+  if (tileAt(S.x, S.y) === "~") {
+    const m = rider("water");
+    if (m) { world.player.mount = m.slug; world.player.surfing = true; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
+  }
   if (!S.starter) {
     runScript(async () => {
       await wait(0.4);
@@ -1534,5 +1620,5 @@ async function boot() {
     });
   }
 }
-window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle };
+window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
 boot();

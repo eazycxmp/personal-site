@@ -19,7 +19,17 @@ samples can load.)
 | DOWN | back up |
 | Z / Enter / Space | talk, confirm |
 | X / Esc | menu, back |
+| F | fly (after the Volt Badge, with a Sky monster) |
 | M | mute music |
+
+**Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
+SURF on its back (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
+With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
+your monster's real sprite turned into a 3D voxel model.
+
+**Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
+the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's
+Hall. Route trainers only ambush once your team is 3 levels above their strongest monster.
 
 ## World
 
