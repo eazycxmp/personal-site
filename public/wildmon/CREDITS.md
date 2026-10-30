@@ -35,6 +35,14 @@ forms (Krokivip → Leviadile → Golnagi); every other family has 2 or 3 (fixed
 `tools/build_data.py`), with one-of-a-kind species paired up by type. The Monster Log (menu → LOG)
 has each species' lore.
 
+**Hollowmere, legendaries and the sleeping giant.** A side path west off Route 3 leads to Hollowmere,
+an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type monsters in the grass). A giant
+COALDIAK sleeps across that path: Kat in Volt City gives you the WAKE BELL to rouse it (then battle
+it). Three legendaries wait in the world, one each: PRIMORDIA at Hollowmere's Shrine of Origins,
+PHARAVION on the Sea Shrine island off Tide Harbor, and KERNEL in a clearing on Route 4. Walk up and
+press Z; catch or beat one and it's gone for good. You can talk to anyone you're near and roughly
+facing, from any angle, and they turn to face you.
+
 **Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
 SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is

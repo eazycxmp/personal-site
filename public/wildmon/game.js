@@ -407,7 +407,7 @@ function prepWorld() {
       }
       // open up the tree border beside the exit (2 tiles each side, 3 deep) so it reads as a clear way out
       const vert = e.edge === "n" || e.edge === "s";
-      for (let i = -2; i < e.w + 2; i++) for (let d = 0; d < 3; d++) {
+      if (!e.narrow) for (let i = -2; i < e.w + 2; i++) for (let d = 0; d < 3; d++) {
         const x = vert ? e.at + i : (e.edge === "w" ? d : m.w - 1 - d);
         const y = vert ? (e.edge === "n" ? d : m.h - 1 - d) : e.at + i;
         if (x < 0 || y < 0 || x >= m.w || y >= m.h) continue;
@@ -445,6 +445,10 @@ function loadMap(id, x, y, dir) {
     world.doors.push(b);
   }
   for (const s of m.signs || []) world.solid.add(s.x + "," + s.y);
+  world.statues = [];
+  for (const L of m.legends || []) if (!S.flags[L.id]) world.statues.push({ ...L, kind: "legend", tiles: [[L.x, L.y]] });
+  if (m.sleeper && !S.flags[m.sleeper.id]) world.statues.push({ ...m.sleeper, kind: "sleeper" });
+  for (const st of world.statues) for (const [x, y] of st.tiles) world.solid.add(x + "," + y);
   music(m.music || "town");
   World3D.build(m, BUILDINGS);
   World3D.snapYaw(p.angle);
@@ -772,8 +776,40 @@ async function championEnding() {
 }
 
 // ---------------------------------------------------------------- interactions
+// Who is the player looking at? Anyone close and roughly in front, from any angle (people behind
+// counters count too). Returns {n} for an NPC or {st} for a legendary / sleeping giant.
+function lookTarget() {
+  const p = world.player, fx = -Math.sin(p.angle), fz = -Math.cos(p.angle);
+  let best = null;
+  const consider = (cx, cz, what, reach) => {
+    const dx = cx - p.px, dz = cz - p.pz, d = Math.hypot(dx, dz);
+    if (d > reach || d < 0.01) return;
+    const dot = (dx * fx + dz * fz) / d;
+    if (dot < 0.45) return; // within ~63 degrees of where you're facing
+    const score = d - dot;
+    if (!best || score < best.score) best = { ...what, score, dx, dz };
+  };
+  const counterAhead = tileAt(Math.floor(p.px + fx * 0.9), Math.floor(p.pz + fz * 0.9)) === "C";
+  for (const n of world.npcs) consider(n.x + 0.5, n.y + 0.5, { n }, counterAhead ? 2.4 : 1.7);
+  for (const st of world.statues || []) {
+    const cx = st.tiles.reduce((a, t) => a + t[0], 0) / st.tiles.length + 0.5, cz = st.tiles.reduce((a, t) => a + t[1], 0) / st.tiles.length + 0.5;
+    consider(cx, cz, { st }, 2.4);
+  }
+  return best;
+}
 async function interact() {
   const p = world.player;
+  const look = lookTarget();
+  if (look && look.st) { await statueEncounter(look.st); return; }
+  if (look && look.n) {
+    const n = look.n;
+    // they turn to face you exactly, and you face them
+    n.faceYaw = Math.atan2(look.dx, look.dz);
+    p.angle = Math.atan2(-look.dx, -look.dz); p.dir = dirFromAngle(p.angle); p.speed = 0;
+    await talkTo(n);
+    if (n.kind !== "trainer") { n.dir = n.def.dir; n.faceYaw = null; }
+    return;
+  }
   const [dx, dy] = DIRS[p.dir];
   let x = p.x + dx, y = p.y + dy;
   if (tileAt(x, y) === "~" && !p.surfing) { await trySurf(x, y); return; }
@@ -789,6 +825,27 @@ async function interact() {
   if (sign) await say(sign.text);
 }
 
+async function statueEncounter(st) {
+  if (st.kind === "sleeper") {
+    const name = D.monsters[st.slug].name.toUpperCase();
+    if (!S.flags.wake_bell) { await say(`A giant ${name} is sound asleep across the path, snoring like thunder. It won't budge.`); return; }
+    if (!(await yesNo(`A giant ${name} is blocking the path. Ring the WAKE BELL?`))) return;
+    await say(`*CLANG CLANG*... ${name} woke up, and it's grumpy!`);
+  } else {
+    await say(`The air hums with ancient power... ${D.monsters[st.slug].name.toUpperCase()} is watching you.`);
+    if (!(await yesNo("Approach it?"))) return;
+  }
+  const mon = makeMon(st.slug, st.lv);
+  const res = await wildBattle(mon, { legendary: st.kind === "legend" });
+  if (res === "lose") return;
+  S.flags[st.id] = true;
+  world.statues = world.statues.filter((x) => x !== st);
+  for (const [x, y] of st.tiles) world.solid.delete(x + "," + y);
+  if (st.kind === "sleeper" && res !== "caught") await say(`${D.monsters[st.slug].name} lumbered off into the woods. The path is clear!`);
+  if (st.kind === "legend" && res !== "caught") await say(`${D.monsters[st.slug].name} vanished... it won't be seen here again.`);
+  save();
+}
+
 async function talkTo(n) {
   if (n.kind === "trainer") {
     if (!n.defeated && !partyAlive().length) return say(`${n.name}: Come back when you have monsters that can battle!`);
@@ -798,6 +855,13 @@ async function talkTo(n) {
     }
     if (!n.defeated) return trainerEncounter(n, false);
     return say(`${n.name}: ${n.lose}`);
+  }
+  if (n.role === "bell" && !S.flags.wake_bell) {
+    await say(`${n.name}: You're heading back down Route 3? A giant fell asleep across the side path west of there.`);
+    S.flags.wake_bell = true;
+    await say("Kat gave you the WAKE BELL! Ring it next to the sleeping giant to wake it up.");
+    save();
+    return;
   }
   if (n.role === "heal") return healAt(n);
   if (n.role === "shop") return shop();
@@ -1197,17 +1261,17 @@ function trainerCard() {
 }
 
 // ---------------------------------------------------------------- battle
-async function wildBattle(mon) {
+async function wildBattle(mon, extra = {}) {
   S.seen[mon.slug] = true;
-  const res = await runBattle({ wild: mon, party: [mon], bg: world.map.bg });
-  if (res === "lose") return;
-  save();
+  const res = await runBattle({ wild: mon, party: [mon], bg: world.map.interior ? "interior" : world.map.bg, ...extra });
+  if (res !== "lose") save();
+  return res;
 }
 
 async function runBattle(opts) {
   const B = new Battle(opts);
   const t = opts.trainer;
-  music(!t ? "wild" : (t.leader || t.champion) ? (world.map.fight || "boss") : "battle");
+  music(opts.legendary ? "boss" : !t ? "wild" : (t.leader || t.champion) ? (world.map.fight || "boss") : "battle");
   await battleIntroWipe();
   push(B);
   let res;
@@ -1281,6 +1345,7 @@ class Battle {
     this.opaque = true;
     this.trainer = o.trainer;
     this.wild = o.wild;
+    this.legendary = o.legendary;
     this.eParty = o.party;
     this.e = this.eParty[0];
     this.p = null;
@@ -1384,7 +1449,7 @@ class Battle {
       this.eVis = true;
       await tween(0.6, (k) => { this.eX = -60 + 208 * k; this.plX = -80 + 100 * k; });
       this.showEBox = true;
-      await this.msg(`A wild ${monName(this.e)} appeared!`);
+      await this.msg(this.legendary ? `The legendary ${monName(this.e).toUpperCase()} appeared!` : `A wild ${monName(this.e)} appeared!`);
     }
     const first = S.party.findIndex((m) => m.hp > 0);
     await tween(0.35, (k) => { this.plX = 20 - 110 * k; });
@@ -1783,7 +1848,7 @@ const worldScene = {
       return m.grid[y][x] === "W" || m.grid[y][x] === "T" || world.solid.has(x + "," + y) || world.doors.some((b) => b.door.x === x && b.door.y === y);
     };
     const look = myLook();
-    World3D.render({ player: world.player, npcs: world.npcs, interior: !!m.interior, solid, look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
+    World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid, look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
   },
 };
 

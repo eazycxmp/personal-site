@@ -135,11 +135,13 @@ window.World3D = (function () {
     tide: { trees: ["tree_palmTall", "tree_default", "tree_oak", "tree_fat"], grass: 0x7cbc55, grassDark: 0x5aa046, sky: 0xb4e2f6 },
     volt: { trees: ["tree_cone", "tree_pineTallA", "tree_pineRoundA", "tree_detailed"], grass: 0x68aa52, grassDark: 0x4d8c42, sky: 0xa6d2ee },
     shade: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed", "tree_pineTallA"], grass: 0x4f7f48, grassDark: 0x3a6538, sky: 0x8b9cb8 },
+    ghost: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed"], grass: 0x58654f, grassDark: 0x3e4a3a, sky: 0x5c5a72, fog: [6, 22] },
   };
   function themeFor(m) {
     const id = m.id || "";
     if (id.startsWith("tide") || id === "route2") return THEMES.tide;
     if (id.startsWith("volt") || id === "route3") return THEMES.volt;
+    if (m.ghost || id.startsWith("hollow")) return THEMES.ghost;
     if (id.startsWith("shade") || id === "route4" || id === "hall") return THEMES.shade;
     return THEMES.default;
   }
@@ -154,6 +156,8 @@ window.World3D = (function () {
     }
     for (const a of actors.values()) scene.remove(a.root);
     actors.clear();
+    for (const o of statueObjs.values()) scene.remove(o.g);
+    statueObjs.clear();
     if (activeMount) { scene.remove(activeMount); activeMount = null; }
     water = null;
     markers.length = 0;
@@ -222,8 +226,8 @@ window.World3D = (function () {
   function buildOutdoor(m, BUILDINGS) {
     const th = themeFor(m), R = rng(m.id || m.name);
     scene.background = new THREE.Color(th.sky);
-    scene.fog = new THREE.Fog(th.sky, 16, 38);
-    const dark = th === THEMES.shade;
+    scene.fog = new THREE.Fog(th.sky, th.fog ? th.fog[0] : 16, th.fog ? th.fog[1] : 38);
+    const dark = th === THEMES.shade || th === THEMES.ghost;
     hemi.intensity = dark ? 0.45 : 0.6;
     sun.intensity = dark ? 0.75 : 1.15;
     sun.color.setHex(dark ? 0xb8c4ff : 0xfff1d6);
@@ -624,8 +628,8 @@ window.World3D = (function () {
   // A mount is the monster's real Tuxemon back sprite extruded into voxels: every opaque pixel
   // becomes a block, thicker toward the middle of the body so it reads as a solid creature.
   const mounts = {};
-  function mountModel(slug, upright) {
-    const ck = slug + (upright ? ":up" : "");
+  function mountModel(slug, upright, size) {
+    const ck = slug + (upright ? ":up" : "") + (size ? ":" + size : "");
     if (mounts[ck]) return mounts[ck];
     const img = IMG["mon_" + slug];
     const S = 64, c = document.createElement("canvas"); c.width = S; c.height = S;
@@ -644,7 +648,7 @@ window.World3D = (function () {
     let minI = S, maxI = 0, minJ = S, maxJ = 0, count = 0;
     for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) if (solid(i, j)) { count++; minI = Math.min(minI, i); maxI = Math.max(maxI, i); minJ = Math.min(minJ, j); maxJ = Math.max(maxJ, j); }
     const wPx = maxI - minI + 1, hPx = maxJ - minJ + 1;
-    const vs = (upright ? 1.0 : 2.4) / Math.max(wPx, hPx * 0.85); // ~2.4 tiles across (1 tile when riding the board)
+    const vs = (size || (upright ? 1.0 : 2.4)) / Math.max(wPx, hPx * 0.85); // ~2.4 tiles across (1 tile when riding the board)
     const cx = (minI + maxI + 1) / 2, cy = (minJ + maxJ + 1) / 2;
     const geo = new THREE.BoxGeometry(vs, vs, vs);
     const mat = new THREE.MeshLambertMaterial();
@@ -672,6 +676,53 @@ window.World3D = (function () {
     return mounts[ck];
   }
   let activeMount = null;
+
+  // Legendaries and the sleeping giant: big voxel monsters standing in the world.
+  const statueObjs = new Map();
+  function zzzSprite() {
+    const c = document.createElement("canvas"); c.width = 64; c.height = 64;
+    const x = c.getContext("2d"); x.font = "40px PS"; x.fillStyle = "#ffffff"; x.strokeStyle = "#304060"; x.lineWidth = 6;
+    x.strokeText("Z", 14, 50); x.fillText("Z", 14, 50);
+    const t = new THREE.CanvasTexture(c);
+    return new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+  }
+  function updateStatues(list, p, now) {
+    const live = new Set();
+    for (const st of list || []) {
+      live.add(st.id);
+      let o = statueObjs.get(st.id);
+      if (!o) {
+        const big = mountModel(st.slug, true, st.kind === "legend" ? 3.2 : 3.4);
+        const g = new THREE.Group(); g.add(big.g.clone(true));
+        const cx = st.tiles.reduce((a, t) => a + t[0], 0) / st.tiles.length + 0.5, cz = st.tiles.reduce((a, t) => a + t[1], 0) / st.tiles.length + 0.5;
+        o = { g, cx, cz, zs: [] };
+        if (st.kind === "legend") {
+          const light = new THREE.PointLight(0xc8a0ff, 1.4, 9); light.position.y = 2.2; g.add(light);
+          const ring = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.6, 40), new THREE.MeshBasicMaterial({ color: 0xd0b0ff, transparent: true, opacity: 0.6, depthWrite: false }));
+          ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; g.add(ring); o.ring = ring;
+        } else {
+          g.children[0].rotation.z = 0.28; // slumped over, asleep
+          for (let i = 0; i < 3; i++) { const z = zzzSprite(); g.add(z); o.zs.push(z); }
+        }
+        g.rotation.y = Math.atan2(p.px - cx, p.pz - cz); // face whoever walks up
+        scene.add(g); statueObjs.set(st.id, o);
+      }
+      o.g.position.set(o.cx, 0, o.cz);
+      if (st.kind === "legend") {
+        o.g.children[0].position.y = 0.35 + Math.sin(now * 1.4) * 0.18;
+        const want = Math.atan2(p.px - o.cx, p.pz - o.cz);
+        o.g.rotation.y = lerpAngle(o.g.rotation.y, want, 0.03);
+        o.ring.scale.setScalar(1 + Math.sin(now * 2) * 0.12);
+      } else {
+        o.g.children[0].scale.y = 1 + Math.sin(now * 1.6) * 0.03; // breathing
+        o.zs.forEach((z, i) => {
+          const k = (now * 0.45 + i / 3) % 1;
+          z.position.set(0.6 + k * 0.8, 3.0 + k * 1.6, 0); z.scale.setScalar(0.5 + k * 0.6); z.material.opacity = 1 - k;
+        });
+      }
+    }
+    for (const [id, o] of statueObjs) if (!live.has(id)) { scene.remove(o.g); statueObjs.delete(id); }
+  }
 
   // Surfing: you stand on a surfboard (striped in your outfit colour) with your monster riding up front,
   // throwing white spray off the tail and leaving ripples when you stop.
@@ -780,8 +831,9 @@ window.World3D = (function () {
     if (water) water.position.y = Math.sin(now * 1.5) * 0.02;
     for (const r of markers) { const k = (now * 1.2) % 1; r.scale.setScalar(0.8 + k * 0.7); r.material.opacity = 0.85 * (1 - k); }
 
+    updateStatues(state.statues, p, now);
     for (const a of actors.values()) a.seen = false;
-    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, ANG[n.dir], n.walking ? "walk" : "idle", dt, 1, n.outfit, n.model);
+    for (const n of state.npcs) updateActor(n.key, n.sprite, n.fx / 16 + 0.5, n.fy / 16 + 0.5, n.faceYaw != null ? n.faceYaw : ANG[n.dir], n.walking ? "walk" : "idle", dt, 1, n.outfit, n.model);
     const spd = Math.abs(p.speed), moving = spd > 0.15;
     const anim = !moving ? "idle" : spd > 4 ? "sprint" : "walk";
     // riding: show the mount under the player and seat them on it

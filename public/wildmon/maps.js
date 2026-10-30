@@ -171,9 +171,12 @@
     ops: [
       ["=", 10, 0, 2, 44], [",", 2, 34, 18, 6], [",", 12, 22, 8, 8], [",", 2, 18, 7, 8],
       [",", 4, 4, 14, 6], ["T", 14, 12, 6, 6], ["T", 2, 28, 6, 4], ["~", 14, 30, 4, 2],
-      ["f", 2, 12, 4, 2],
+      ["f", 2, 12, 4, 2], ["=", 0, 20, 10, 2],
     ],
-    exits: [{ edge: "s", at: 10, w: 2, to: "tide" }, { edge: "n", at: 10, w: 2, to: "volt" }],
+    exits: [{ edge: "s", at: 10, w: 2, to: "tide" }, { edge: "n", at: 10, w: 2, to: "volt" },
+      { edge: "w", at: 20, w: 2, to: "hollow", narrow: true }],
+    // a giant sleeps across the side path; ring the WAKE BELL to rouse it
+    sleeper: { id: "sleeper_r3", slug: "coaldiak", lv: 30, tiles: [[1, 20], [1, 21], [2, 20], [2, 21]] },
     npcs: [
       trainer({ id: "rival_r3", rival: true, sprite: "adventurer", x: 12, y: 3, dir: "left", sight: 3, name: "$rival",
         team: [["$rivalstarter", 20], ["spirain", 19], ["banling", 19]],
@@ -325,9 +328,48 @@
   W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
     talk: ["Weaken a wild monster before you\nthrow a Tuxeball.", "It's much easier to catch!"] });
   W.volt_center = center("Volt"); W.volt_mart = mart("Volt");
-  W.volt_house = house("House", { sprite: "catgirl", x: 4, y: 4, dir: "down", name: "Kat",
+  W.volt_house = house("House", { sprite: "catgirl", x: 4, y: 4, dir: "down", name: "Kat", role: "bell",
     talk: ["Moves of the same type as the\nmonster using them hit harder!"] });
   W.shade_center = center("Shade"); W.shade_mart = mart("Shade");
+
+  // ---------------- Hollowmere (ghost town, side path west of Route 3) ----------------
+  W.hollow = outdoor({
+    name: "Hollowmere", w: 30, h: 24, music: "mystery", bg: "forest", ghost: true,
+    ops: [
+      ["=", 6, 20, 24, 2], ["=", 14, 6, 2, 14], ["=", 6, 12, 18, 1],
+      [",", 2, 2, 6, 7], [",", 22, 14, 6, 5], [",", 2, 14, 5, 4], [",", 18, 2, 8, 4],
+      ["F", 7, 10, 3, 1], ["F", 17, 9, 4, 1], ["F", 3, 19, 2, 1], ["T", 25, 7, 3, 4], ["~", 9, 15, 3, 2],
+    ],
+    exits: [{ edge: "e", at: 20, w: 2, to: "route3", narrow: true }],
+    buildings: [
+      { type: "house", x: 8, y: 3, to: "hollow_house" },
+      { type: "house2", x: 17, y: 14, to: "hollow_house2" },
+    ],
+    signs: [{ x: 16, y: 18, text: "HOLLOWMERE\nNobody has lived here\nfor a hundred years." },
+      { x: 16, y: 7, text: "SHRINE OF ORIGINS\nSomething ancient sleeps\nin these ruins." }],
+    legends: [{ id: "legend_primordia", slug: "primordia", lv: 40, x: 15, y: 3 }],
+    npcs: [
+      trainer({ id: "hollow_t1", outfit: "occult", sprite: "goth", x: 12, y: 13, dir: "down", sight: 3, name: "Lost Soul Mara",
+        team: [["seirein", 23], ["ghosteeth", 24]], intro: "You can see me...? Then stay. Forever.", lose: "I... remember now. I was a trainer too." }),
+      trainer({ id: "hollow_t2", outfit: "occult", sprite: "magician", x: 21, y: 11, dir: "left", sight: 4, name: "Phantom Ike",
+        team: [["uneye", 24], ["cackleen", 24], ["babysnitch", 25]], intro: "Boo-hoo-hoo! Nobody leaves Hollowmere!", lose: "Fine... go on. Mind the shrine." }),
+      { sprite: "granny", x: 20, y: 21, dir: "left", name: "Old Whisper",
+        talk: ["This town emptied the night the shrine woke...", "They say the first wildmon of all still drifts up there, north of the square."] },
+    ],
+    rate: 0.15,
+    encounters: [["ghosteeth", 21, 25, 3], ["seirein", 21, 25, 3], ["uneye", 21, 25, 2], ["cackleen", 21, 25, 2],
+      ["babysnitch", 22, 26, 2], ["potturmeist", 21, 25, 2], ["lunight", 22, 26, 1], ["yiinaang", 24, 27, 1], ["djinnbo", 24, 27, 1]],
+  });
+  W.hollow.water = [["manosting", 22, 26, 1], ["seirein", 22, 26, 1]];
+  W.hollow_house = house("Abandoned House", { sprite: "heroine", x: 3, y: 4, dir: "down", name: "Pale Girl", outfit: "occult",
+    talk: ["...have you seen my family?", "They went up to the shrine and never came down.", "...it's cold here. So cold."] });
+  W.hollow_house2 = house("Abandoned House", trainer({ id: "hollow_t3", outfit: "occult", sprite: "witch", x: 4, y: 4, dir: "down", sight: 0,
+    name: "Witch Agatha", team: [["djinnbo", 26], ["lendos", 26]], intro: "Hee hee... a visitor! My pets are hungry.", lose: "Off you go, dearie. Take the shrine's blessing." }));
+  W.hollow_house.wall = W.hollow_house2.wall = "wood";
+
+  // legendaries
+  W.tide.legends = [{ id: "legend_pharavion", slug: "pharavion", lv: 40, x: 12, y: 26 }];
+  W.route4.legends = [{ id: "legend_kernel", slug: "kernel", lv: 45, x: 41, y: 12 }];
 
   const gym = (name, wall, npcs, music, fight) => interior({
     name, w: 12, h: 14, music, fight, wall, floor: "gray", gym: true, rugs: [[4, 4], [4, 8]], npcs,
