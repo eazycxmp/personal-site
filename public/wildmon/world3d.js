@@ -294,7 +294,7 @@ window.World3D = (function () {
     for (const b of m.buildings || []) {
       const g = buildingModel(b, BUILDINGS[b.type]);
       // footprint used to hide the building when it blocks the view of the player
-      g.userData.box = [b.x - 0.3, b.y - 0.3, b.x + BUILDINGS[b.type].tw + 0.3, b.y + BUILDINGS[b.type].th + 1.0];
+      g.userData.box = [b.x - 0.3, b.y - 0.3, b.x + BUILDINGS[b.type].tw + 0.3, b.y + BUILDINGS[b.type].th + 0.3];
       blockers.push(g);
       mapRoot.add(g);
     }
@@ -968,13 +968,16 @@ window.World3D = (function () {
     camPos.lerp(want, Math.min(1, dt * 12));
     lookAt.lerp(wantLook, Math.min(1, dt * 10));
     camera.position.copy(camPos);
-    // hide any building whose footprint the camera->player sightline passes through
+    // hide any building whose footprint the camera->player sightline passes through. The test stops
+    // 1.2 tiles short of the player, so a building you're walking up to (in front of you) never vanishes;
+    // one behind you (e.g. the house you just walked out of) still hides so you can see.
+    const span = Math.hypot(p.px - camPos.x, p.pz - camPos.z), kEnd = Math.max(0, 1 - 1.2 / Math.max(span, 0.01));
     for (const g of blockers) {
       const [x0, z0, x1, z1] = g.userData.box;
       let hit = false;
-      for (let k = 0; k <= 1.0001 && !hit; k += 0.1) {
+      for (let k = 0; k <= kEnd && !hit; k += 0.05) {
         const x = camPos.x + (p.px - camPos.x) * k, zz = camPos.z + (p.pz - camPos.z) * k;
-        if (x > x0 && x < x1 && zz > z0 && zz < z1 && k < 0.92) hit = true;
+        if (x > x0 && x < x1 && zz > z0 && zz < z1) hit = true;
       }
       g.visible = !hit;
     }
