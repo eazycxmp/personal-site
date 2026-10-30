@@ -4120,7 +4120,8 @@ const CUR_ICON = {coin:'💵', log:'🪵', stone:'🪨', ingot:'🔩', tools:'�
 function refreshPads() {
   for (const p of PADS) {
     if (p.hidden) continue;
-    if (W.unlocked.has(p.id) || (p.region && !W.unlocked.has(p.region + 'Gate'))) {
+    // (in a fortress, nothing can be built out on land you have not walled in yet)
+    if (W.unlocked.has(p.id) || (p.region && !W.unlocked.has(p.region + 'Gate')) || (FORTRESS && p.x != null && typeof cellOfPoint === 'function' && cellOfPoint(p.x, p.z) && !insideWalls(p.x, p.z))) {
       if (padZones[p.id]) { removeZone(padZones[p.id]); delete padZones[p.id]; }
       continue;
     }
@@ -11099,7 +11100,8 @@ const QUARTER = {chk:0, flames:{}, dark:new Map(), restored:false, hud:null, sit
 const QUARTER_ORDER = ['farm', 'south', 'east', 'airfield', 'ranch', 'north', 'downtown'];
 const QUARTER_NAME = {farm:'the Farmlands', south:'the Military Grounds', east:'the Market Quarter', airfield:'the Airfield', ranch:'the Ranch', north:'the Northern Quarry', downtown:'Downtown', camp:'the Keep',
   sw:'Riverside', fwN:'Westwood', fwM:'West Meadow', fwS:'West Hollow', feN:'Eastwood', feM:'East Meadow', feS:'East Hollow'};
-for (const d of ['w', 'e']) for (let n = 1; n <= 5; n++) [['n', 'Heights'], ['m', 'Fields'], ['s', 'Vale']].forEach(([k, t]) => { QUARTER_NAME[d + n + k] = `the ${d === 'w' ? 'West' : 'East'} ${t} ${['', 'I', 'II', 'III', 'IV', 'V'][n]}`; });
+QUARTER_NAME.wB = 'the Boulevard'; QUARTER_NAME.fwB = 'Casino Row'; QUARTER_NAME.feB = 'the Airbase Field';
+for (const d of ['w', 'e']) for (let n = 1; n <= 5; n++) [['n', 'Heights'], ['m', 'Fields'], ['s', 'Vale'], ['b', 'Lowlands']].forEach(([k, t]) => { QUARTER_NAME[d + n + k] = `the ${d === 'w' ? 'West' : 'East'} ${t} ${['', 'I', 'II', 'III', 'IV', 'V'][n]}`; });
 const victories = () => Math.max(W.conquests || 0, Math.floor(((W.flags.wave || {}).held || 0)/2));
 const waveState = () => W.flags.wave ||= {n:0, t:240, track:0, held:0, lost:0, heat:0};
 // ------------------------------------------------------------------ the roads
@@ -11160,7 +11162,7 @@ const DEFSITES = [
   {id:'t3', kind:'tower', t:.8, side:1, name:'Inner tower', icon:'🗼'}];
 const DEF_MAX = 6;
 const LV_NAME = {
-  tower:['', 'wooden watchtower', 'stone tower', 'cannon tower', 'machine-gun post', 'missile tower', 'laser tower'],
+  tower:['', 'archers\' tower', 'longbow tower', 'cannon tower', 'twin-cannon tower', 'laser tower', 'twin-laser tower'],
   gate:['', 'timber gate', 'stone gatehouse', 'iron-bound gatehouse', 'concrete gatehouse', 'steel blast gate', 'shield gate'],
   bar:['', 'spiked logs', 'a trench', 'barbed wire', 'a minefield', 'tank traps', 'an energy fence']};
 const siteLv = () => { const S = W.flags.sites ||= {}; if (W.flags.def) { const D = W.flags.def; S.gate = Math.max(S.gate || 0, D.ramparts || 0); for (const k of ['t1', 't2', 't3']) S[k] = Math.max(S[k] || 0, D.towers || 0); delete W.flags.def; } return S; };
@@ -11218,7 +11220,11 @@ function waveOver(win) {
   S.lost++;
   // they broke in at a wall section: the plot behind it burns, and on from there
   const T = SIEGE.target; SIEGE.target = null;
-  if (T) { breachSpread(T.cell, Math.max(0, (SIEGE.atk || 0)/Math.max(1, SIEGE.def || 1) - 1)); return; }
+  if (T) {
+    // the section they broke through is knocked down a level: build it back up
+    const L = wallLv(); if (L[T.key]) { L[T.key]--; note(`🧱 ${secName(T)} is broken down`, `It is ${WALL_NAME[L[T.key]]} now. Build it back up on its 🧱 tile.`); }
+    breachSpread(T.cell, Math.max(0, (SIEGE.atk || 0)/Math.max(1, SIEGE.def || 1) - 1)); return;
+  }
   const ord = W.flags.qOrder || [], open = openQuarters().filter(id => !lostQuarters()[id]);
   const left = [...ord.filter(id => open.includes(id)).reverse(), ...open.filter(id => !ord.includes(id))];
   if (!left.length) { keepFalls(); return; }
@@ -11247,7 +11253,8 @@ function quarterDown(id, on) {
   if (on) {
     const at = quarterAt(id); if (!at) return;
     for (let k = 0; k < 4; k++) QUARTER.flames[id].push(warFlame(at[0] + (R() - .5)*14, .2, at[1] + (R() - .5)*14, 1.1 + R()*.6, 1e9));
-    let spot = at; for (let rr = 0; rr < 14 && !(freeSpot(spot[0], spot[1], 1.2) && inArea(spot[0], spot[1])); rr++) { const a = rr*2.1; spot = [at[0] + Math.cos(a)*rr, at[1] + Math.sin(a)*rr]; }
+    // the rebuild tile: somewhere you can walk to and see, not under a stand or a roof
+    const spot = tileSpot(at[0], at[1], {inside:id});
     QUARTER['z_' + id] = addZone({kind:'rebuildQuarter', q:id, x:spot[0], z:spot[1], w:1.8, d:1.8, icon:'🏗️', tile:quarterTile(id)});
   }
 }
@@ -11283,7 +11290,7 @@ function siteSpot(S) {
   const at = [a.x + px*off, a.z + pz*off];
   let tile = null;
   // towers stand on one verge, so their tile goes on the other; the gate and barricade span the road, so theirs sits well off it
-  for (const d of S.side ? [3.4, 4.6, 5.8, 7] : [6.5, 7.8, 9]) for (const sd of S.side ? [-S.side, S.side] : [1, -1]) { const x = a.x + px*d*sd, z = a.z + pz*d*sd; if (!tile && freeSpot(x, z, 1.1) && !isWater(x, z)) tile = [x, z]; }
+  { const d = S.side ? 4.6 : 7.5, sd = S.side ? -S.side : 1; tile = tileSpot(a.x + px*d*sd, a.z + pz*d*sd); }
   return {at, tile:tile || [a.x + px*6, a.z + pz*6], yaw:Math.atan2(a.dx, a.dz)};
 }
 function buildSite(S) {
@@ -11298,9 +11305,8 @@ function buildSite(S) {
     else { mesh(G.box, 0x8a8e92, [1.7, h, 1.7], [0, h/2, 0], g); mesh(G.box, 0x1a1a1a, [1.72, .16, .5], [0, h - .7, 0], g); mesh(G.box, 0x5a6048, [1.9, .25, 1.9], [0, h + .12, 0], g); }
     const head = new THREE.Group(); head.position.y = h + .3; g.add(head);
     if (lv === 3) mesh(G.cyl, 0x2a2a2e, [.14, .9, .14], [0, .1, .3], head, {metalness:.6}).rotation.x = Math.PI/2;
-    if (lv === 4) { mesh(G.box, 0x3a3e44, [.4, .3, .5], [0, 0, 0], head, {metalness:.5}); mesh(G.cyl, 0x1a1a1e, [.05, .8, .05], [0, .05, .5], head, {metalness:.7}).rotation.x = Math.PI/2; }
-    if (lv === 5) for (const s of [-.2, .2]) mesh(G.cyl, 0xd8dce2, [.1, .9, .1], [s, .3, 0], head, {metalness:.5}).rotation.x = -.6;
-    if (lv >= 6) mesh(G.cone, 0x9af4ff, [.35, 1, .35], [0, .4, 0], head, {emissive:0x3ab0e8, emissiveIntensity:1});
+    if (lv === 4) for (const s of [-.22, .22]) mesh(G.cyl, 0x2a2a2e, [.14, .9, .14], [s, .1, .3], head, {metalness:.6}).rotation.x = Math.PI/2;
+    if (lv >= 5) for (const s of lv === 6 ? [-.25, .25] : [0]) mesh(G.cone, 0x9af4ff, [.3, 1, .3], [s, .4, 0], head, {emissive:0x3ab0e8, emissiveIntensity:1});
     Q.head = head; Q.h = h; box(.9, .9);
   }
   if (lv && S.kind === 'gate') {
@@ -11351,21 +11357,21 @@ function towerFire(dt) {
     if (S.kind !== 'tower') continue; const lv = lvOf(S.id), Q = QUARTER.sites[S.id]; if (!lv || !Q || !Q.head) continue;
     if ((Q.cd = (Q.cd ?? R()) - dt) > 0) continue;
     const [x, z] = Q.sp.at; let f = null, bd = 20;
-    for (const q of [...marching, ...(INV.on ? (INV.big || []).filter(u => u.kind !== 'jet' || lv >= 4) : []), ...foes]) { const d = Math.hypot(q.pos.x - x, q.pos.z - z); if (d < bd) { bd = d; f = q; } }
+    for (const q of [...marching, ...(INV.on ? (INV.big || []).filter(u => u.kind !== 'jet' || lv >= 3) : []), ...foes]) { const d = Math.hypot(q.pos.x - x, q.pos.z - z); if (d < bd) { bd = d; f = q; } }
     if (!f) { Q.cd = .5; continue; }
-    Q.cd = [0, 1.6, 1.3, 1.5, .2, 1.2, .6][lv] * (.8 + R()*.4) * (manned(S.id) ? 1 : 2);
+    Q.cd = [0, 1.1, .75, 1.4, .8, .5, .28][lv] * (.8 + R()*.4) * (manned(S.id) ? 1 : 2);
     Q.head.rotation.y = Math.atan2(f.pos.x - x, f.pos.z - z) - Q.g.rotation.y;
-    const col = lv >= 6 ? 0x8af0ff : lv === 5 ? 0xf4f4f4 : lv === 4 ? 0xffe27a : lv === 3 ? 0x2a2a2e : 0x8a6a42;
+    const cannon = lv === 3 || lv === 4, laser = lv >= 5, col = laser ? 0x8af0ff : cannon ? 0x2a2a2e : 0x8a6a42;
     const m = SHOT_MAT[col] ||= new THREE.MeshBasicMaterial({color:col, toneMapped:false});
-    const from = new THREE.Vector3(x, Q.g.position.y + Q.h + .4, z), to = f.pos.clone().setY(f.B ? Math.max(1, f.pos.y + 1) : .9), b = new THREE.Mesh(G.sph, m); b.scale.setScalar(lv === 3 || lv === 5 ? .14 : .07); b.position.copy(from); scene.add(b);
-    const dmg = [0, 1.2, 1.6, 3, .8, 4, 4][lv]*(1 + .15*plotCount('range')), blast = lv === 3 || lv === 5 ? 1.8 : .8;
-    flyers.push({m:b, from, to, t:0, dur:lv === 4 || lv === 6 ? .18 : .45, arc:lv <= 2 ? .5 : lv === 5 ? .3 : 0, done:() => {
+    const from = new THREE.Vector3(x, Q.g.position.y + Q.h + .4, z), to = f.pos.clone().setY(f.B ? Math.max(1, f.pos.y + 1) : .9), b = new THREE.Mesh(G.sph, m); b.scale.set(cannon ? .15 : .06, cannon ? .15 : .06, laser ? 1.6 : cannon ? .15 : .5); b.lookAt(to); b.position.copy(from); scene.add(b);
+    const dmg = [0, 3.5, 4.5, 10, 10, 11, 11][lv]*(1 + .15*plotCount('range')), blast = cannon ? 2 : .9;
+    flyers.push({m:b, from, to, t:0, dur:laser ? .12 : cannon ? .5 : .4, arc:laser ? 0 : cannon ? .4 : .5, done:() => {
       if (blast > 1) for (let k = 0; k < 8; k++) particle([0xffd040, 0x555555][k % 2], to.clone(), new THREE.Vector3((R() - .5)*4, 2 + R()*2, (R() - .5)*4), .7, .22, {grow:.5, op:.8});
       for (const q of [...INV.units]) if (Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < blast) { q.hp = (q.hp ?? 3) - dmg; if (q.hp <= 0) invKill(q); }
       for (const u of [...(INV.big || [])]) if (Math.hypot(u.pos.x - to.x, u.pos.z - to.z) < blast + 1.2 && Math.abs(u.pos.y - to.y) < 4) { u.hp -= dmg; if (u.hp <= 0) bigKill(u); }
       for (const q of SIEGE.foes) if (q.alive && Math.hypot(q.pos.x - to.x, q.pos.z - to.z) < blast) { q.hp -= dmg; q.hit = .12; if (q.hp <= 0) knockOut(q); }
     }});
-    if (Math.hypot(x - player.pos.x, z - player.pos.z) < 30 || watchingWar()) snd(lv === 4 ? 170 : lv === 3 || lv === 5 ? 70 : 600, lv === 4 ? .03 : .12, lv === 3 || lv === 5 ? 'sawtooth' : 'square', .03);
+    if (Math.hypot(x - player.pos.x, z - player.pos.z) < 30 || watchingWar()) snd(laser ? 1200 : cannon ? 70 : 600, laser ? .08 : .12, cannon ? 'sawtooth' : laser ? 'sine' : 'square', .03);
   }
 }
 // how fast an army marches over the barricade, and the mines it sets off (once per soldier)
@@ -11424,6 +11430,7 @@ function updWaves(dt) {
   if (EMP.loaded) { buildRoads(); for (const S of DEFSITES) buildSite(S); updWalls(dt); updPlots(dt); updGarrison(dt); }
   towerFire(dt);
   if ((QUARTER.chk -= dt) <= 0) { QUARTER.chk = 2; growthHeat(); }
+  retile(dt);
   const S = waveState();
   if (!W.flags.waveTold) { W.flags.waveTold = 1; note('🏰 The waves are coming', 'Now you have a castle, enemy armies march on you every few minutes, each bigger than the last, all up the one road in from the south-east. Build towers, a barricade and a gatehouse on that road. Tap the red ⚔️ wave clock to see the next one.'); }
   if (W.raid || W.camp || INV.on || BOSS.on) return;
@@ -11479,25 +11486,64 @@ function updBig(dt) {
   }
   return arrived;
 }
+// tiles of ours that something has since been built over (a highway, a stand, a stall) move to open ground,
+// one checked every half second
+const MY_TILES = new Set(['wallSec', 'plotOpen', 'plotSlot', 'defSite', 'rebuildQuarter']);
+function retile(dt) {
+  if ((QUARTER.rt = (QUARTER.rt || 0) - dt) > 0) return; QUARTER.rt = .5;
+  const mine = zones.filter(q => q.active && MY_TILES.has(q.kind)); if (!mine.length) return;
+  const q = mine[(QUARTER.ri = ((QUARTER.ri || 0) + 1) % mine.length)];
+  if (q.kind === 'plotSlot' || (openSky(q.x, q.z) && freeSpot(q.x, q.z, 1))) return;
+  const inside = q.kind === 'defSite' ? null : cellOfPoint(q.x, q.z), [x, z] = tileSpot(q.x, q.z, {inside, self:q});
+  if (x === q.x && z === q.z) return;
+  q.x = x; q.z = z; q.mesh.position.set(x, .05, z);
+}
 // ------------------------------------------------------------------ the town wall: one wall round every plot you own
 // The districts sit in a grid of plots round the camp (the keep). The wall runs along every plot edge that faces
 // land you do not own, so opening a plot pushes the wall out round it. Each section of wall has its own level and
 // its own tile to build it up. An army that reaches the end of the road walks round to the weakest section and
 // attacks there: hold it, or they break in, burn the plot behind it and spread on, further the more they beat it by.
 // the town's columns, and more marching out west and east to the coasts (round the road, never on it)
-const CELL_X = [-255, -220, -185, -150, -115, -80, -45, -16.5, 23, 57, 92, 127, 162, 197, 232], CELL_Z = [-54, -22, 24, 85];
+const CELL_X = [-255, -220, -185, -150, -115, -80, -45, -16.5, 23, 57, 92, 127, 162, 197, 232], CELL_Z = [-54, -22, 24, 85, 140];
 const CELLS = {ranch:[6, 0], north:[7, 0], downtown:[8, 0], airfield:[6, 1], camp:[7, 1], east:[8, 1], south:[7, 2], farm:[8, 2],
-  fwN:[5, 0], fwM:[5, 1], fwS:[5, 2], sw:[6, 2], feN:[9, 0], feM:[9, 1], feS:[9, 2]};
-const NEW_PLOTS = ['sw', 'fwM', 'feM', 'fwN', 'feN', 'fwS', 'feS'];
-for (let c = 0; c < CELL_X.length - 1; c++) for (let r = 0; r < 3; r++) {
+  fwN:[5, 0], fwM:[5, 1], fwS:[5, 2], sw:[6, 2], feN:[9, 0], feM:[9, 1], feS:[9, 2],
+  // the southern row, either side of the road in (its own two plots stay open ground for the armies)
+  fwB:[5, 3], wB:[6, 3], feB:[9, 3]};
+const NEW_PLOTS = ['sw', 'fwM', 'feM', 'fwN', 'feN', 'fwS', 'feS', 'wB', 'fwB', 'feB'];
+for (let c = 0; c < CELL_X.length - 1; c++) for (let r = 0; r < 4; r++) {
   if (c >= 5 && c <= 9) continue;
-  const w = c < 5, n = w ? 5 - c : c - 9, id = (w ? 'w' : 'e') + n + 'nms'[r];
+  const w = c < 5, n = w ? 5 - c : c - 9, id = (w ? 'w' : 'e') + n + 'nmsb'[r];
   CELLS[id] = [c, r]; NEW_PLOTS.push(id);
 }
 const cellAt = (c, r) => Object.keys(CELLS).find(k => CELLS[k][0] === c && CELLS[k][1] === r) || null;
+// water and mountains: no wall needed there, and no army comes over them
+const blocked = (x, z) => isWater(x, z) || PEAKS.some(P => Math.hypot(x - P.x, z - P.z) < P.r*.85);
+const cellOfPoint = (x, z) => Object.keys(CELLS).find(id => { const R0 = cellRect(id); return x >= R0.x0 && x < R0.x1 && z >= R0.z0 && z < R0.z1; }) || null;
+const insideWalls = (x, z) => { const id = cellOfPoint(x, z); return !!id && cellOpen(id); };
 const cellOpen = id => !!id && (id === 'camp' || !!(W.flags.plots || {})[id] || (!NEW_PLOTS.includes(id) && regionOpen(id)));
 const cellRect = id => { const [c, r] = CELLS[id]; return {x0:CELL_X[c], x1:CELL_X[c + 1], z0:CELL_Z[r], z1:CELL_Z[r + 1]}; };
 const TWALL = {g:{}, chk:0, keys:''};
+const RAY = new THREE.Raycaster(), DOWN = new THREE.Vector3(0, -1, 0);
+// nothing overhead (a stadium stand, a roof, a tree) at this spot
+function openSky(x, z) {
+  RAY.set(new THREE.Vector3(x, 40, z), DOWN); RAY.far = 60; RAY.camera = camera;   // (sprites need a camera to be hit-tested)
+  const near = scene.children.filter(o => o === BAKE.group || (o.visible && Math.abs(o.position.x - x) < 30 && Math.abs(o.position.z - z) < 30 && !zones.some(q => q.mesh === o)));
+  const hit = RAY.intersectObjects(near, true).find(h => h.object.visible && !(h.object.material && h.object.material.transparent && h.object.material.opacity < .3));
+  return !hit || hit.point.y < .45;   // nothing but ground: no stand, roof, tree or table over it
+}
+// the nearest good spot for a tile, spiralling out from where it would like to be
+function tileSpot(x, z, o = {}) {
+  // (far enough to get out from under a highway or a stadium, with more tries the further out it looks)
+  for (let r = 0; r <= 30; r += 1.2) for (let k = 0, K = r ? Math.max(12, Math.round(r*2.5)) : 1; k < K; k++) {
+    const a = k/K*Math.PI*2 + r, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r;
+    if (blocked(px, pz) || !freeSpot(px, pz, 1.2)) continue;
+    if (o.inside && cellOfPoint(px, pz) !== o.inside) continue;
+    if (zones.some(q => q !== o.self && q.active && Math.hypot(q.x - px, q.z - pz) < 3.4)) continue;
+    if (!openSky(px, pz)) continue;
+    return [px, pz];
+  }
+  return [x, z];
+}
 const WALL_NAME = ['a fence', 'a palisade', 'a stone wall', 'a castle wall with towers', 'a star fort', 'a concrete wall', 'a shield wall'];
 // how much of your defense holds at a section of each level
 const WALL_HOLD = [.5, .7, .85, 1, 1.12, 1.25, 1.4];
@@ -11512,7 +11558,7 @@ function wallSections() {
       if (cellOpen(cellAt(nc, nr))) continue;
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
       // a side that runs down the river or the sea is walled by the water itself: nobody attacks there
-      let wet = 0; for (let t = 0; t <= len; t += 2) if (isWater(a[0] + (b[0] - a[0])*t/len, a[1] + (b[1] - a[1])*t/len)) wet++;
+      let wet = 0; for (let t = 0; t <= len; t += 2) if (blocked(a[0] + (b[0] - a[0])*t/len, a[1] + (b[1] - a[1])*t/len)) wet++;
       if (wet/(Math.floor(len/2) + 1) > .6) continue;
       out.push({key:id + ':' + side, cell:id, side, a, b, n, len, mid:[(a[0] + b[0])/2, (a[1] + b[1])/2]});
     }
@@ -11543,7 +11589,7 @@ function buildSection(s) {
   let run0 = 0;
   for (let t = 0; t <= L; t += 1) {
     const x = along ? ax + t : ax, z = along ? az : az + t;
-    const ok = !isWater(x, z) && !boxes.some(b => !b.wall && x > b.x0 - .2 && x < b.x1 + .2 && z > b.z0 - .2 && z < b.z1 + .2);
+    const ok = !blocked(x, z) && !boxes.some(b => !b.wall && x > b.x0 - .2 && x < b.x1 + .2 && z > b.z0 - .2 && z < b.z1 + .2);
     if (ok) { if (!run) { run = [t, t]; run0 = t; } run[1] = t; } else flush();
   }
   flush();
@@ -11552,9 +11598,7 @@ function buildSection(s) {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   // the tile to build it up: just inside the wall, near its middle
   if (lv < DEF_MAX) {
-    const [mx, mz] = s.mid, [nx, nz] = s.n; let spot = null;
-    for (const d of [3.5, 5, 6.5, 8]) for (const o of [0, 4, -4, 8, -8, 12, -12]) { if (spot) break; const x = mx - nx*d + (along ? o : 0), z = mz - nz*d + (along ? 0 : o); if (freeSpot(x, z, 1) && !isWater(x, z)) spot = [x, z]; }
-    spot ||= [mx - nx*4, mz - nz*4];
+    const [mx, mz] = s.mid, [nx, nz] = s.n, spot = tileSpot(mx - nx*5, mz - nz*5, {inside:s.cell});
     rec.zone = addZone({kind:'wallSec', sec:s.key, x:spot[0], z:spot[1], w:1.6, d:1.6, icon:'🧱', tile:secTile(s)});
   }
 }
@@ -11577,6 +11621,7 @@ function updWalls(dt) {
   if ((TWALL.chk -= dt) > 0) return; TWALL.chk = 1;
   const secs = wallSections(), keys = secs.map(s => s.key).join();
   // a save from before the walls: the plots you already have start with walls as strong as your castle
+  if (W.flags.seedCells && W.flags.wallsSeeded) { const L = wallLv(), base = Math.min(4, W.castle || 0); for (const s of secs) if (W.flags.seedCells.includes(s.cell)) L[s.key] = Math.max(L[s.key] || 0, base); delete W.flags.seedCells; }
   if (!W.flags.wallsSeeded) { W.flags.wallsSeeded = 1; const L = wallLv(), base = Math.min(4, W.castle || 0); for (const s of secs) L[s.key] = Math.max(L[s.key] || 0, base); if (siteLv().gate) L['south:s'] = Math.max(L['south:s'] || 0, siteLv().gate); }
   if (keys !== TWALL.keys) {
     // a new plot: its old inner walls come down, new ones go up round it
@@ -11648,7 +11693,7 @@ const plotCost = () => Math.round(25000*Math.pow(1.35, Object.keys(W.flags.plots
 const plotKindCost = k => Math.round(PLOT_KIND[k].cost*(1 + .25*W.era));
 function slotSpots(id) {
   const R0 = cellRect(id), cx = (R0.x0 + R0.x1)/2, cz = (R0.z0 + R0.z1)/2, dx = (R0.x1 - R0.x0)/4, dz = (R0.z1 - R0.z0)/4;
-  return [[cx - dx, cz - dz], [cx + dx, cz - dz], [cx - dx, cz + dz], [cx + dx, cz + dz]].map(([x, z]) => { for (let r = 0; r < 10; r += 1.5) for (let k = 0; k < 8; k++) { const a = k/8*Math.PI*2, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r; if (freeSpot(px, pz, 2.6) && !isWater(px, pz)) return [px, pz]; } return [x, z]; });
+  return [[cx - dx, cz - dz], [cx + dx, cz - dz], [cx - dx, cz + dz], [cx + dx, cz + dz]].map(([x, z]) => { for (let r = 0; r < 10; r += 1.5) for (let k = 0; k < 8; k++) { const a = k/8*Math.PI*2, px = x + Math.cos(a)*r, pz = z + Math.sin(a)*r; if (freeSpot(px, pz, 2.6) && !blocked(px, pz) && !zones.some(q => q.active && Math.hypot(q.x - px, q.z - pz) < 3.4) && openSky(px, pz)) return [px, pz]; } return [x, z]; });
 }
 function plotBuildingFx(id, slot, kind, anim) {
   const [x, z] = (PLOTS.spots[id] ||= slotSpots(id))[slot], g = new THREE.Group(); g.position.set(x, elevAt(x, z), z); scene.add(g); PLOTS.g[id + slot] = g;
@@ -11667,7 +11712,7 @@ function updPlots(dt) {
     PLOTS.chk = 1;
     const P = W.flags.plots ||= {};
     for (const id of NEW_PLOTS) {
-      if (PLOTS.wet[id] == null) { const R0 = cellRect(id); let n = 0, w = 0; for (let x = R0.x0 + 2; x < R0.x1; x += 4) for (let z = R0.z0 + 2; z < R0.z1; z += 4) { n++; if (isWater(x, z)) w++; } PLOTS.wet[id] = w/n > .4; }
+      if (PLOTS.wet[id] == null) { const R0 = cellRect(id); let n = 0, w = 0; for (let x = R0.x0 + 2; x < R0.x1; x += 4) for (let z = R0.z0 + 2; z < R0.z1; z += 4) { n++; if (blocked(x, z)) w++; } PLOTS.wet[id] = w/n > .4; }
       if (PLOTS.wet[id]) continue;
       // opening tiles, on the inside of the wall next to each plot you could open
       const want = !P[id] && (() => { const [c, r] = CELLS[id]; for (const [dc, dr, side] of [[1, 0, 'w'], [-1, 0, 'e'], [0, 1, 'n'], [0, -1, 's']]) { const nb = cellAt(c + dc, r + dr); if (cellOpen(nb)) return [nb, side]; } return null; })();
@@ -11675,7 +11720,7 @@ function updPlots(dt) {
         const [nb] = want, R0 = cellRect(id), N = cellRect(nb), [c] = CELLS[id], [nc] = CELLS[nb];
         // just inside the neighbour, by the middle of the edge they share
         let x = nc !== c ? (nc > c ? N.x0 + 4 : N.x1 - 4) : (R0.x0 + R0.x1)/2, z = nc !== c ? (Math.max(R0.z0, N.z0) + Math.min(R0.z1, N.z1))/2 : (CELLS[nb][1] > CELLS[id][1] ? N.z0 + 4 : N.z1 - 4);
-        for (let k = 0; k < 20 && !freeSpot(x, z, 1.1); k++) { if (nc !== c) z += (k % 2 ? -1 : 1)*k*1.2; else x += (k % 2 ? -1 : 1)*k*1.2; }
+        [x, z] = tileSpot(x, z, {inside:nb});
         PLOTS.zones['open' + id] = addZone({kind:'plotOpen', plot:id, x, z, w:1.8, d:1.8, icon:'🗺️', tile:plotOpenTile(id)});
       }
       if (!want && PLOTS.zones['open' + id]) { removeZone(PLOTS.zones['open' + id]); PLOTS.zones['open' + id] = null; }
@@ -11690,6 +11735,11 @@ function updPlots(dt) {
         });
       }
     }
+  }
+  if (!W.flags.plotsFromPads) {
+    W.flags.plotsFromPads = 1; const P = W.flags.plots ||= {}, seed = [];
+    for (const pd of PADS) { if (pd.x == null || !W.unlocked.has(pd.id)) continue; const id = cellOfPoint(pd.x, pd.z); if (id && NEW_PLOTS.includes(id) && !P[id]) { P[id] = true; seed.push(id); } }
+    if (seed.length) W.flags.seedCells = seed;
   }
   // homes and markets pay every 15 seconds (not while their plot is burnt)
   if ((PLOTS.payT -= dt) <= 0) {
@@ -11722,36 +11772,66 @@ function plotSlotPick(zn, e) {
   $('ppClose').onclick = () => { m.hidden = true; };
 }
 // ------------------------------------------------------------------ the garrison: soldiers from your army on the towers and walls
-// Every built tower wants two soldiers and every wall section from the palisade up wants two. They come from the
-// army you have trained, towers first, then the weakest walls. An unmanned tower shoots at half speed and an
-// unmanned section holds 15% less, so a big army matters on the walls too.
-const GARRISON = {posts:[], men:new Map(), chk:0, assigned:new Set()};
-function garrisonPosts() {
+// Every built tower takes two archers (with bows, whatever the tower fires), and every wall section from the palisade
+// up wants a soldier every two strides along it. They come from the army you have trained: towers first, then the
+// weakest walls. An unmanned tower shoots at half speed and an unmanned section holds 15% less, so a big army
+// matters on the walls. The soldiers on the walls are drawn as one instanced crowd (the regiment's soldier).
+const GARRISON = {men:new Map(), chk:0, assigned:new Set(), ims:null, cap:900, n:-1, key:''};
+const WALL_H = [.7, 1.5, 2.2, 2.8, 3.1, 3.3, 3.5];
+function towerPosts() {
   const posts = [];
   for (const S of DEFSITES) if (S.kind === 'tower' && lvOf(S.id)) { const Q = QUARTER.sites[S.id]; if (!Q || !Q.sp) continue; const [x, z] = Q.sp.at; for (const o of [-.35, .35]) posts.push({key:S.id, id:S.id + o, x:x + o, z, y:elevAt(x, z) + (Q.h || 3) + .1}); }
-  for (const s of wallSections().sort((p, q) => secHold(p) - secHold(q))) {
-    const lv = secLv(s); if (!lv) continue; const h = [.7, 1.5, 2.2, 2.8, 3.1, 3.3, 3.5][lv];
-    for (const f of [.33, .67]) { const x = s.a[0] + (s.b[0] - s.a[0])*f - s.n[0]*.1, z = s.a[1] + (s.b[1] - s.a[1])*f - s.n[1]*.1; if (isWater(x, z)) continue; posts.push({key:s.key, id:s.key + f, x, z, y:elevAt(x, z) + h, face:Math.atan2(s.n[0], s.n[1])}); }
+  return posts;
+}
+function wallPosts() {
+  const posts = [];
+  for (const s of wallSections().sort((p, q) => WALL_HOLD[secLv(p)] - WALL_HOLD[secLv(q)])) {
+    const lv = secLv(s); if (!lv) continue;
+    const n = Math.max(2, Math.floor(s.len/2)), face = Math.atan2(s.n[0], s.n[1]);
+    for (let k = 0; k < n; k++) {
+      const f = (k + .5)/n, x = s.a[0] + (s.b[0] - s.a[0])*f - s.n[0]*.15, z = s.a[1] + (s.b[1] - s.a[1])*f - s.n[1]*.15;
+      if (blocked(x, z) || boxes.some(b => !b.wall && x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1)) continue;
+      posts.push({key:s.key, x, z, y:elevAt(x, z) + WALL_H[lv], face});
+    }
   }
   return posts;
 }
+const garrisonPosts = () => [...towerPosts(), ...wallPosts()];
 const manned = key => GARRISON.assigned.has(key);
+// the instanced crowd on the walls: the regiment's realistic soldier if it loaded, else little block figures
+function garrisonIms() {
+  if (GARRISON.ims) return GARRISON.ims;
+  const RS = MODELS.regt, ru = RS && RS.getObjectByName('regt_uniform'), rr = RS && RS.getObjectByName('regt_rest');
+  let defs;
+  if (ru && rr) { RS.updateMatrixWorld(true); const bake = m => m.geometry.clone().applyMatrix4(m.matrixWorld).scale(QN.S, QN.S, QN.S); defs = [[bake(ru), new THREE.MeshStandardMaterial({color:0x4a5a7a, roughness:.85})], [bake(rr), new THREE.MeshStandardMaterial({vertexColors:true, roughness:.75})]]; }
+  else defs = [[new THREE.BoxGeometry(.36, .9, .22).translate(0, .45, 0), new THREE.MeshStandardMaterial({color:0x4a5a7a})], [new THREE.SphereGeometry(.13, 8, 4).translate(0, 1.05, 0), new THREE.MeshStandardMaterial({color:0xe0b08a})]];
+  defs.push([new THREE.BoxGeometry(.05, 2, .05).translate(.36, 1.1, .12), new THREE.MeshStandardMaterial({color:0x5a4a3a})]);
+  return GARRISON.ims = defs.map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m, GARRISON.cap); im.count = 0; im.frustumCulled = false; im.receiveShadow = true; scene.add(im); return im; });
+}
 function updGarrison(dt) {
   if ((GARRISON.chk -= dt) <= 0) {
     GARRISON.chk = 2;
-    const posts = garrisonPosts(), have = Math.max(0, W.army || 0), on = posts.slice(0, have), ids = new Set(on.map(p => p.id));
-    // a post counts as manned when both its soldiers are there
-    const per = {}; for (const p of posts) per[p.key] = (per[p.key] || 0) + 1; const got = {}; for (const p of on) got[p.key] = (got[p.key] || 0) + 1;
+    const tp = towerPosts(), wp = wallPosts(), army = Math.max(0, W.army || 0);
+    const tOn = tp.slice(0, army), wOn = wp.slice(0, Math.min(GARRISON.cap, Math.max(0, army - tOn.length)));
+    // a tower or section is manned when every post on it is filled
+    const per = {}, got = {};
+    for (const q of [...tp, ...wp]) per[q.key] = (per[q.key] || 0) + 1;
+    for (const q of [...tOn, ...wOn]) got[q.key] = (got[q.key] || 0) + 1;
     GARRISON.assigned = new Set(Object.keys(per).filter(k => got[k] === per[k]));
-    GARRISON.need = posts.length; GARRISON.have = on.length;
+    GARRISON.need = tp.length + wp.length; GARRISON.have = tOn.length + wOn.length;
+    // archers on the towers
+    const ids = new Set(tOn.map(q => q.id));
     for (const [id, c] of GARRISON.men) if (!ids.has(id)) { scene.remove(c.g); GARRISON.men.delete(id); }
-    for (const p of on) {
-      let c = GARRISON.men.get(p.id);
-      if (!c) { c = makeChar(ARMS()); scene.add(c.g); GARRISON.men.set(p.id, c); }
-      c.g.position.set(p.x, p.y, p.z); c.g.rotation.y = p.face ?? 0;
+    for (const q of tOn) { let c = GARRISON.men.get(q.id); if (!c) { c = makeChar({...ARMS(), bow:true, gun:false, sword:false}); scene.add(c.g); GARRISON.men.set(q.id, c); } c.g.position.set(q.x, q.y, q.z); }
+    // the crowd on the walls (rebuilt only when it changes)
+    const key = wOn.length + ':' + wOn.map(q => q.key).join();
+    if (key !== GARRISON.key) {
+      GARRISON.key = key; const ims = garrisonIms(), m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0);
+      wOn.forEach((q, i) => { qt.setFromAxisAngle(up, q.face); m4.compose(new THREE.Vector3(q.x, q.y, q.z), qt, one); for (const im of ims) im.setMatrixAt(i, m4); });
+      for (const im of ims) { im.count = wOn.length; im.instanceMatrix.needsUpdate = true; }
     }
   }
-  // when an army is near they raise their weapons
+  // the archers draw and loose when an army is near
   const alert = INV.on || (W.raid && W.raid.siege);
   for (const c of GARRISON.men.values()) c.armR.rotation.x = alert ? -1.5 + Math.sin(time*6 + c.g.position.x)*.15 : -.2;
 }
@@ -15754,7 +15834,7 @@ camera.position.set(player.pos.x + 11.8, 19, player.pos.z + 11.8);
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rf = {PLOTS, GARRISON, plotData, payPlotOpen, plotSlotPick, plotCount, garrisonPosts, wallSections, weakestSection, secHold, wallLv, payWall, breachSpread, TWALL, cellOpen, DEFSITES, siteLv, lvOf, paySite, INV, ROAD_IN, waveRoute, growthHeat, QUARTER, waveState, defLv, startWave, waveStrength, lostQuarters, openQuarters, loseQuarter, quarterDown, openDefense, SIEGE, defPower, payQuarter, keepFalls, WARSPEC, OBJ, steadyObjective, objEdge, landAt, LMK, payLandMarket, landMarketCost, AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
+window.__rf = {waveOver, openSky, tileSpot, unlock, setEra, refreshPads, insideWalls, cellOfPoint, CELLS, cellRect, CELL_X, CELL_Z, NEW_PLOTS, zones, PEAKS, PLOTS, GARRISON, plotData, payPlotOpen, plotSlotPick, plotCount, garrisonPosts, wallSections, weakestSection, secHold, wallLv, payWall, breachSpread, TWALL, cellOpen, DEFSITES, siteLv, lvOf, paySite, INV, ROAD_IN, waveRoute, growthHeat, QUARTER, waveState, defLv, startWave, waveStrength, lostQuarters, openQuarters, loseQuarter, quarterDown, openDefense, SIEGE, defPower, payQuarter, keepFalls, WARSPEC, OBJ, steadyObjective, objEdge, landAt, LMK, payLandMarket, landMarketCost, AIRS, itemMesh, dismount, qnRaise, LEDGER, openLedger, navyShot, CIVIC, MASS, PEAKS, SENG, bigWalls, updSiegeEngines, launchCamp, FX, get clock() { return time; }, set clock(v) { time = v; }, NW, nightK, weatherSlow, MUSIC, MUSEUM, MEDALS, openMuseum, medal, ENVOY, answerEnvoy, envoyOffer, sendSpy, spies, sabotaged, spyOdds, GEN, generals, genVictory, PARADE, queueParade, LEAD, startLead, SLOW, slowmo, DEF, startAssault, buildDefences, gatesOf, conquer, POLES, flagOwner, updRivalWars, FLAG_MATS, wepLvl, makeSoldier, EPIC, NAVAL, navalRoute, seaOK, CHARGE, armyGoes, cavGoes, powerParts, FRONTS, planAttack, launchFront, frontWhy, branchPow, cavStage, cavPower, PADDOCK, navLvl, NAVY, navyStage, empireChips, CHARS, SUP, landSup, growLand, LAND_TIERS, shipFood, landKeys, land, shopRate, landTribute, depotAct, ITEMI, drawItems, FOREST, itemCache, TRIBE, TRIBE_SITES, startBattle, BT, addons, THEME, zones, clearOfTiles, restyleForAge, SET, openSettings, slotInfo, COACH, startTutorial, applyGfx, parts, pops, flyers, fires, TRAFFIC, refreshPads, SAVE_VERSION, migrate, backups, backupSave, restoreBackup, exportSave, importSave, skClone, QN, qnInit, makeQN, updQN, buildBodyReal, remapKit, BURGER, lettuceGarden, butcherCut, GREENPAD, propItem, MILFIRE, milFireFx, HWY, hwyHeld, hwyBuild, hwyPave, WARFIRE, warFlame, foesNow, sortieTarget, warHit, setAblaze, updWarArms, SPEC, spec, CITY, CITY_LAND, BIOME, cityPlan, cityBuild, biomeFx, CITYLIFE, AGE_NEED, skyscrapers, AIRBASE, airbaseFx, planeVsBoss, STRIP, STRIP_LOTS, stripLot, stripFx, stripTake, playSlots, RENT, rentFor, REGT, regtSlot, recruitCost, XING, xingBusy, xingLimit, SKYD, dragonModel, flameJet, SENG, armyEngines, LAND, decorFits, ZOO, ZOOPARK, PENS, makeHero, SOUND, BASE, baseTier, motorPool, BASE_SLOTS, fleetLvl, INV, startInvasion, armyPath, BF, SAILS, empAct, layoutOf, kitModel, TOWN_PLANS, STYLE_SPOTS, BOAT, DOCKS, boatOn, boatOff, isWater, boatIn, FOG, reveal, seen, openWorldMap, WORLD, wrapX, onIsland, TEX, phDress, ENVK, RTOWN, rivalTown, WATCH, setWatch, watchingWar, TRIP, startTrip, openFlights, AIRSTRIPS, flightTo, renderFinal, render, AOX, DPARTS, LAYOUT2, payFix, fixZones, buildLot, isHotel, IHW, ihwH, GAS2, gasStationLook, payGas, gasLvl, kit2, HANGAR, hangarLook, beast, FLOCKS, openEmpire, sendGovernor, US_FLAG, ourFlag, forceOptions, launchCamp, forcePower, planesBuilt, GAP_ROADS, gapRoads, travelSpots, openTravel, NAV, OPEN_LAND, THREE, decorMesh, CAMV, renderer, POST, BAKE, sun, banner, note, FEED, popText, BOSS_UNITS, bossForces, DISTRICT, buildDistrict, STYLE_SPOTS, takeFerry, updMoonWalk, spaceScene, buildBase, HERO, HERO_STAGES, swapHero, setEra, BSTAT, ARENA, arenaStage, MODELS, PART, investZone:() => investZone, tierBuild, addons, MAXLV, padZones, EMP, es, empAct, startSiege, SIEGE, myPower, defPower, landKeys, land, loyRate, COAST, SEP, ENTS, PADOBJ, retake, startRevolt, ruinStation, landTribute, senateFx, get senateZone() { return senateZone; }, BT, BOSS, startBoss, TRADE, openTrade, ship, startVote, JETS, unlock, get robber() { return robber; }, get lastRobCaught() { return lastRobCaught; }, SPACE, startCut, terrainH, airPos, AIR_TARGETS, castleStage, makeChar, strollers, walkers, get railTrain() { return railTrain; }, get mineTrain() { return mineTrain; }, planes, pirates, forts, campType, hutStage, badges, lotStage, LOTS, upZones, UPG, upCost, lvl, refreshUpgrades, enemies, get offline() { return offline; }, set offline(v) { offline = v; }, showOffline, newGoal, CAMPAIGNS, revolt, get warZone() { return warZone; }, camera, scene, testIn, boxes, circles, AREAS, BOUNDS, REGIONS, W, ST, TB, CASH, LINES, BOOST, WORKER, player, table, zones, trees, rocks, nodes, workers, soldiers, boats,
   PADS, padZones, stacks, unlock, update, render, zoneAt, objective, supplyStep, obtain, regionOf, route,
   get started() { return started; }, set started(v) { started = v; }};
 

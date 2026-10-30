@@ -544,7 +544,8 @@ const CUR_ICON = {coin:'💵', log:'🪵', stone:'🪨', ingot:'🔩', tools:'�
 function refreshPads() {
   for (const p of PADS) {
     if (p.hidden) continue;
-    if (W.unlocked.has(p.id) || (p.region && !W.unlocked.has(p.region + 'Gate'))) {
+    // (in a fortress, nothing can be built out on land you have not walled in yet)
+    if (W.unlocked.has(p.id) || (p.region && !W.unlocked.has(p.region + 'Gate')) || (FORTRESS && p.x != null && typeof cellOfPoint === 'function' && cellOfPoint(p.x, p.z) && !insideWalls(p.x, p.z))) {
       if (padZones[p.id]) { removeZone(padZones[p.id]); delete padZones[p.id]; }
       continue;
     }
