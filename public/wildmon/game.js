@@ -1310,6 +1310,11 @@ function trainerCard() {
 }
 
 // ---------------------------------------------------------------- battle
+// Your monsters miss a quarter as often as a move's listed accuracy says (an 80% move hits 95%);
+// foes use the listed accuracy.
+const PLAYER_MISS_SCALE = 0.25;
+function hitChance(acc, mine) { return mine ? 1 - (1 - acc) * PLAYER_MISS_SCALE : acc; }
+
 async function wildBattle(mon, extra = {}) {
   const res = await runBattle({ wild: mon, party: [mon], bg: world.map.interior ? "interior" : world.map.bg, ...extra });
   if (res !== "lose") save();
@@ -1630,7 +1635,7 @@ class Battle {
     if (slot) slot.pp--;
     const who = mine ? monName(att) : `Foe ${monName(att)}`;
     await this.msg(`${who} used ${M.name}!`);
-    if (Math.random() > M.acc) { await this.msg(`${who}'s attack missed!`); return; }
+    if (Math.random() > hitChance(M.acc, mine)) { await this.msg(`${who}'s attack missed!`); return; }
     // lunge
     await tween(0.12, (k) => { if (mine) this.pX = 20 + 14 * k; else this.eX = 148 - 14 * k; });
     await tween(0.12, (k) => { if (mine) this.pX = 34 - 14 * k; else this.eX = 134 + 14 * k; });

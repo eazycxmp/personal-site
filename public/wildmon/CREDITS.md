@@ -58,6 +58,9 @@ SURF: you stand on a surfboard with your monster riding up front (water has its 
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
 your monster's real sprite turned into a 3D voxel model.
 
+**Your attacks rarely miss:** your monsters miss a quarter as often as a move's listed accuracy
+(an 80% move hits 95% of the time); foes use the listed accuracy (`PLAYER_MISS_SCALE` in game.js).
+
 **Everyone is a realistic person** (Quaternius base characters): trainers wear their area's uniform,
 nurses, professors, clerks and guards have fixed looks, and townsfolk get varied hair, skin and
 clothes, seeded by who they are so they look the same every visit.
