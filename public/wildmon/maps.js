@@ -13,6 +13,7 @@
     house2: { src: [194, 310, 76, 90], tw: 5, th: 6, door: 3 },
     lab:    { src: [579, 448, 107, 190], tw: 7, th: 12, door: 3 },
     hall:   { src: [579, 255, 138, 177], tw: 9, th: 12, door: 4 },
+    tower:  { src: [320, 80, 80, 64], tw: 5, th: 4, door: 2 },
   };
 
   function outdoor(def) {
@@ -44,6 +45,9 @@
       ["T", 8, 2, 2, 2],
     ],
     exits: [{ edge: "n", at: 11, w: 2, to: "route1" }],
+    // after getting your starter, Mom wants to see you before you leave town
+    gates: [{ x: 11, y: 0, w: 2, h: 1, block: "n", needFlag: "go_see_mom", flag: "met_mom",
+      text: "Wait! Mom wanted to see you before you leave.\nYour house is the one on the left." }],
     buildings: [
       { type: "house", x: 3, y: 3, to: "home" },
       { type: "house2", x: 3, y: 12, to: "sprout_house" },
@@ -147,6 +151,7 @@
     npcs: [
       { sprite: "soldier", x: 25, y: 3, dir: "right", name: "Guard",
         talk: ["Two badges, then you may pass\nnorth to Route 3."] },
+      { sprite: "fisher", x: 3, y: 18, dir: "down", name: "Old Angler", role: "rod" },
       { sprite: "beachcomber", x: 10, y: 15, dir: "down", name: "Beachcomber",
         talk: ["Marina's WATER monsters hate\nWOOD and LIGHTNING attacks!",
           "See that island out at sea? With the TIDE BADGE, a Water monster can carry you there."] },
@@ -214,8 +219,9 @@
     ops: [
       ["=", 0, 8, 44, 2], [",", 4, 2, 10, 14], [",", 18, 10, 10, 6], [",", 30, 2, 8, 6],
       [",", 32, 10, 8, 6], ["T", 18, 2, 6, 4], ["~", 26, 3, 3, 3], ["f", 40, 3, 2, 3],
+      ["=", 24, 0, 2, 8], // side path north to Glimmer Cave
     ],
-    exits: [{ edge: "e", at: 8, w: 2, to: "volt" }, { edge: "w", at: 8, w: 2, to: "shade" }],
+    exits: [{ edge: "e", at: 8, w: 2, to: "volt" }, { edge: "w", at: 8, w: 2, to: "shade" }, { edge: "n", at: 24, w: 2, to: "cave" }],
     npcs: [
       trainer({ id: "r4_knight", outfit: "nightranger", sprite: "adventurer_green", x: 35, y: 6, dir: "down", sight: 3, name: "Night Ranger Gareth",
         team: [["furnursus", 24], ["metesaur", 25]], intro: "Nobody crosses the dark woods without a ranger's say-so!", lose: "Go on, but watch the shadows." }),
@@ -241,9 +247,11 @@
       { type: "center", x: 4, y: 11, to: "shade_center" },
       { type: "mart", x: 4, y: 19, to: "shade_mart" },
       { type: "gym", x: 20, y: 6, to: "shade_gym" },
+      { type: "tower", x: 15, y: 19, to: "tower" },
     ],
-    gates: [{ x: 14, y: 14, w: 1, h: 1, badges: 4, block: "n", text: "GUARD: Only holders of all 4 badges\nmay challenge the Champion!" }],
-    signs: [{ x: 16, y: 19, text: "SHADE HOLLOW\nGym Leader: MORROW\nNorth: CHAMPION'S HALL" }],
+    gates: [{ x: 14, y: 14, w: 1, h: 1, badges: 4, block: "n", text: "GUARD: Only holders of all 4 badges\nmay challenge the Champion!" },
+      { x: 17, y: 22, w: 1, h: 1, requires: "champion", block: "n", text: "BATTLE TOWER: Open to Champions only.\nBeat the Champion, then come back!" }],
+    signs: [{ x: 13, y: 18, text: "SHADE HOLLOW\nGym Leader: MORROW\nNorth: CHAMPION'S HALL" }],
     npcs: [
       { sprite: "soldier", x: 15, y: 14, dir: "down", name: "Guard",
         talk: ["Beyond here is the Champion.\nYou need all 4 badges."] },
@@ -410,35 +418,87 @@
     ],
   });
 
+  // ---------------- Glimmer Cave (north off Route 4) ----------------
+  // Pitch dark: a Lightning or Fire monster plus the Volt Badge lights it with FLASH. Wild monsters lurk on
+  // every floor tile. The deepest chamber holds ASUDOPT, but only for a Champion who caught the other 3 legends.
+  W.cave = outdoor({
+    name: "Glimmer Cave", w: 24, h: 32, music: "mystery", bg: "cave", cave: true, rate: 0.08,
+    ops: [
+      ["T", 0, 0, 24, 32],
+      [".", 11, 22, 2, 10], [".", 4, 18, 16, 6], [".", 4, 8, 3, 10], [".", 4, 4, 9, 5],
+      [".", 11, 6, 9, 2], [".", 14, 2, 8, 6],
+      ["T", 9, 20, 2, 2], ["~", 15, 19, 3, 2], ["T", 6, 5, 1, 1],
+    ],
+    exits: [{ edge: "s", at: 11, w: 2, to: "route4" }],
+    signs: [{ x: 13, y: 24, text: "GLIMMER CAVE\nToo dark to see without FLASH." }],
+    legends: [{ id: "legend_asudopt", slug: "asudopt", lv: 55, x: 18, y: 3, needs: ["primordia", "pharavion", "kernel"] }],
+    items: [{ id: "item_cave_mega", x: 5, y: 9, item: "mega_potion", n: 2 }],
+    npcs: [
+      { kind: "trainer", sight: 3, id: "cave_hiker", outfit: "miner", sprite: "miner_green", x: 7, y: 20, dir: "right", name: "Spelunker Rhea",
+        team: [["imbrickcile", 30], ["grimachin", 31], ["runesquito", 31]], intro: "You found the cave! Few make it this deep.", lose: "Watch your step in the dark!" },
+    ],
+    encounters: [],
+  });
+
+  // ---------------- Battle Tower (Shade Hollow, after the Champion) ----------------
+  W.tower = interior({
+    name: "Battle Tower", w: 12, h: 10, music: "funky", fight: "boss", wall: "blue", floor: "gray",
+    rugs: [[4, 6]], ops: [["C", 2, 4, 3, 1], ["C", 7, 4, 3, 1]],
+    npcs: [
+      { sprite: "scientist", x: 3, y: 3, dir: "down", name: "Tower Host", role: "tower" },
+      { sprite: "shopkeeper", x: 8, y: 3, dir: "down", name: "Prize Clerk", role: "towershop" },
+    ],
+  });
+
+  // ---------------- Side quests ----------------
+  // quest: { id, ...} drives talk in game.js (questTalk); items appear once the quest is started.
+  W.ember.npcs.push({ sprite: "picnicker", x: 14, y: 12, dir: "down", name: "Little Pia", quest: "teddy" });
+  W.route2.items = [{ id: "item_teddy", x: 40, y: 6, item: "toy_bear", needFlag: "q_teddy_started" }];
+  W.volt.npcs.push({ sprite: "scientist", x: 23, y: 17, dir: "left", name: "Dr. Fenn", quest: "egg" });
+  W.hollow.npcs.find((n) => n.name === "Old Whisper").quest = "flute";
+  W.hollow_house.items = [{ id: "item_flute", x: 5, y: 3, item: "flute", needFlag: "q_flute_started" }];
+
   // ---------------- Wild areas ----------------
   // Each route has its own theme and its own species (no repeats between routes), and each one is
   // tougher than the last, in step with its trainers. Species are listed as base forms; wild ones high
   // enough above their evolution level show up already evolved (see wildForm in game.js).
   // [slug, minLv, maxLv, weight]  weight 3 common, 2 uncommon, 1 rare.
-  const area = (id, theme, land, water) => { W[id].theme = theme; if (land) W[id].encounters = land; if (water) W[id].water = water; };
+  // night: species that only come out after dark (mixed into the land table from 8pm to 5am)
+  const area = (id, theme, land, water, night) => {
+    W[id].theme = theme; if (land) W[id].encounters = land; if (water) W[id].water = water; if (night) W[id].night = night;
+  };
   const lv = (lo, hi, list) => list.map(([s, w]) => [s, lo, hi, w]);
   area("route1", "Greenwood Trail", lv(2, 5, [ // first steps: bugs, birds and burrowers
     ["dandicub", 3], ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
-    ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1], ["memnomnom", 1]]));
+    ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1]]), null,
+    lv(3, 5, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
   area("route2", "Duskwood", lv(8, 13, [ // deep forest at dusk: plants, moths, bats, poisons
-    ["banling", 3], ["turnipper", 3], ["noctula", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2], ["fluttaflap", 2],
-    ["vamporm", 2], ["tumbleworm", 2], ["poinchin", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1], ["trapsnap", 1], ["hatchling", 1]]),
-    lv(8, 12, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]));
+    ["banling", 3], ["turnipper", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2],
+    ["tumbleworm", 2], ["poinchin", 2], ["trapsnap", 1], ["hatchling", 1]]),
+    lv(8, 12, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
+    lv(9, 13, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark
   area("route3", "Frostridge Pass", lv(15, 20, [ // cold mountain: rock, ice and fire
     ["rockitten", 3], ["waysprite", 3], ["pawsand", 2], ["grintot", 2], ["eskipup", 2], ["tweesher", 2], ["chillimp", 2],
     ["hissiorite", 2], ["furnursus", 2], ["cardiling", 2], ["imbrickcile", 2], ["flacono", 2], ["devidin", 1],
-    ["selket", 1], ["lesmagu", 1], ["demosnow", 1], ["foxfire", 1]]),
-    lv(15, 19, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]));
+    ["lesmagu", 1]]),
+    lv(15, 19, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]),
+    lv(16, 20, [["demosnow", 3], ["foxfire", 2], ["selket", 2], ["ignibus", 1]])); // snow demons and will-o'-wisps
   area("route4", "Starfall Woods", lv(22, 28, [ // meteor-struck forest: metal, cosmic, storm and dragons
-    ["chromeye", 3], ["boltnu", 3], ["virware", 2], ["sprorm", 2], ["grimachin", 2], ["metesaur", 2], ["tetrchimp", 2],
+    ["boltnu", 3], ["virware", 2], ["sprorm", 2], ["grimachin", 2],
     ["joulraton", 2], ["fancair", 2], ["pythwire", 2], ["bugnin", 2], ["stomic", 2], ["komodraw", 1], ["cardinale", 1],
-    ["wrougon", 1], ["bursa", 1], ["chloragon", 1], ["pythonova", 1]]),
-    lv(21, 26, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]));
+    ["wrougon", 1], ["chloragon", 1], ["pythonova", 1]]),
+    lv(21, 26, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]),
+    lv(23, 28, [["chromeye", 3], ["metesaur", 3], ["tetrchimp", 2], ["bursa", 1]])); // stargazers under falling stars
   area("hollow", "Ghost Town", lv(24, 29, [ // what haunts the empty town
     ["ghosteeth", 3], ["cackleen", 3], ["babysnitch", 3], ["potturmeist", 3], ["seirein", 2], ["uneye", 2],
-    ["hoarse", 2], ["runesquito", 2], ["djinnbo", 1], ["yiinaang", 1]]),
-    lv(24, 28, [["manosting", 1], ["seirein", 1]]));
+    ["hoarse", 2], ["runesquito", 2]]),
+    lv(24, 28, [["manosting", 1], ["seirein", 1]]),
+    lv(26, 30, [["djinnbo", 2], ["yiinaang", 2]])); // the town's true residents wake at night
   W.sprout.water = [["tadcool", 3, 5, 2], ["dollfin", 3, 5, 1]];
+  area("cave", "Glimmer Cave", lv(26, 32, [ // rock, metal and shadow dwellers, already evolved this deep
+    ["rockitten", 3], ["imbrickcile", 3], ["potturmeist", 2], ["pawsand", 2], ["nut", 2], ["boltnu", 2],
+    ["grintot", 2], ["babysnitch", 1], ["noctula", 2]]),
+    lv(26, 30, [["squink", 2], ["jelillow", 1]]));
   W.tide.water = lv(16, 21, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
   W.shade.water = [["manosting", 28, 32, 1], ["nebufin", 28, 32, 1]];
 

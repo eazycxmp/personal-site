@@ -144,9 +144,12 @@ window.World3D = (function () {
     volt: { trees: ["tree_cone", "tree_pineTallA", "tree_pineRoundA", "tree_detailed"], grass: 0x68aa52, grassDark: 0x4d8c42, sky: 0xa6d2ee },
     shade: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed", "tree_pineTallA"], grass: 0x4f7f48, grassDark: 0x3a6538, sky: 0x8b9cb8 },
     ghost: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed"], grass: 0x58654f, grassDark: 0x3e4a3a, sky: 0x5c5a72, fog: [6, 22] },
+    // Glimmer Cave: rock walls, stone floor, near-total darkness until FLASH
+    cave: { trees: ["rock_tallA", "rock_largeA"], grass: 0x5a554e, grassDark: 0x48443e, sky: 0x06070a, fog: [1.5, 6], rocks: true },
   };
   function themeFor(m) {
     const id = m.id || "";
+    if (m.cave) return THEMES.cave;
     if (id.startsWith("tide") || id === "route2") return THEMES.tide;
     if (id.startsWith("volt") || id === "route3") return THEMES.volt;
     if (m.ghost || id.startsWith("hollow")) return THEMES.ghost;
@@ -239,11 +242,18 @@ window.World3D = (function () {
     hemi.intensity = dark ? 0.45 : 0.6;
     sun.intensity = dark ? 0.75 : 1.15;
     sun.color.setHex(dark ? 0xb8c4ff : 0xfff1d6);
+    if (th.rocks) { hemi.intensity = 0.5; sun.intensity = 0.55; sun.color.setHex(0xc8d0ff); }
+    dayBase = { sky: new THREE.Color(th.sky), hemi: hemi.intensity, sun: sun.intensity, sunCol: sun.color.clone(), cave: !!th.rocks };
     const PAD = 9;
     mapRoot.add(groundMesh(m, th, R, PAD));
     const sc = Scatter();
     const treeAt = (x, zz) => {
       const key = "nature/" + th.trees[Math.floor(R() * th.trees.length)];
+      if (th.rocks) { // cave walls: one boulder per tile, never wider than the tile
+        const sz = size(key), rot = Math.floor(R() * 4) * Math.PI / 2;
+        sc.add(key, x, zz, { rot, scale: Math.min(1.2 / sz.x, 1.2 / sz.z, (1.8 + R() * 1.2) / sz.y) });
+        return;
+      }
       sc.add(key, x, zz, { rot: R() * 6.28, scale: (2.6 + R() * 1.3) / size(key).y });
     };
     const waterTiles = [];
@@ -254,8 +264,8 @@ window.World3D = (function () {
       if (ch === "T") {
         const far = Math.max(x < 0 ? -x : x - m.w + 1, y < 0 ? -y : y - m.h + 1, 0);
         if (inside || R() < (far > 5 ? 0.35 : 0.8)) {
-          treeAt(cx + (R() - 0.5) * 0.5, cz + (R() - 0.5) * 0.5);
-          if (inside && R() < 0.3) sc.add("nature/plant_bushLarge", cx + (R() - 0.5), cz + (R() - 0.5), { rot: R() * 6, scale: 1.4 });
+          treeAt(cx + (th.rocks ? 0 : (R() - 0.5) * 0.5), cz + (th.rocks ? 0 : (R() - 0.5) * 0.5));
+          if (inside && !th.rocks && R() < 0.3) sc.add("nature/plant_bushLarge", cx + (R() - 0.5), cz + (R() - 0.5), { rot: R() * 6, scale: 1.4 });
         }
       } else if (ch === ",") {
         for (let k = 0; k < 4; k++) sc.add(k === 3 ? "nature/grass_leafsLarge" : "nature/grass_large", x + 0.15 + R() * 0.7, y + 0.15 + R() * 0.7, { rot: R() * 6.28, scale: 2.4 + R() * 0.8 });
@@ -270,7 +280,7 @@ window.World3D = (function () {
         waterTiles.push([x, y]);
         if (R() < 0.12) sc.add("nature/" + (R() < 0.5 ? "lily_large" : "lily_small"), cx + (R() - 0.5) * 0.5, cz + (R() - 0.5) * 0.5, { rot: R() * 6, scale: 1.3, y: -0.08 });
       } else if (ch === "." && inside && R() < 0.035) {
-        const deco = ["plant_bush", "rock_smallA", "mushroom_red", "grass", "stump_round", "grass"];
+        const deco = th.rocks ? ["rock_smallA", "rock_smallA", "mushroom_red"] : ["plant_bush", "rock_smallA", "mushroom_red", "grass", "stump_round", "grass"];
         sc.add("nature/" + deco[Math.floor(R() * deco.length)], x + 0.2 + R() * 0.6, y + 0.2 + R() * 0.6, { rot: R() * 6, scale: 1.2 });
       } else if (ch === "=" && R() < 0.06) {
         sc.add("nature/path_stone", cx, cz, { rot: R() * 6, scale: 0.9, y: 0.005 });
@@ -409,6 +419,64 @@ window.World3D = (function () {
   }
   const markers = []; // pulsing door/exit rings
   const blockers = []; // buildings that hide when between camera and player
+  // day/night: the outdoor map's daytime lighting, blended toward dusk orange and night blue each frame
+  let dayBase = null, stars = null, lastState = {};
+  // items lying on the ground: the real item icon floating and spinning over a gold ring
+  const pickupObjs = new Map();
+  function updatePickups(list, now) {
+    const want = new Set(list.map((it) => it.id));
+    for (const [id, o] of pickupObjs) {
+      if (want.has(id) && o.userData.root === mapRoot) continue;
+      const ring = o.userData.ring;
+      if (o.parent) o.parent.remove(o);
+      if (ring) { if (ring.parent) ring.parent.remove(ring); const i = markers.indexOf(ring); if (i >= 0) markers.splice(i, 1); }
+      pickupObjs.delete(id);
+    }
+    for (const it of list) {
+      let o = pickupObjs.get(it.id);
+      if (!o && it.img && mapRoot) {
+        const tex = new THREE.Texture(it.img); tex.needsUpdate = true; tex.magFilter = THREE.NearestFilter; tex.encoding = THREE.sRGBEncoding;
+        o = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+        o.scale.set(0.75, 0.75, 1);
+        o.userData.root = mapRoot; o.userData.ring = marker(it.x + 0.5, it.y + 0.5, 0xffd030);
+        mapRoot.add(o, o.userData.ring); pickupObjs.set(it.id, o);
+      }
+      if (o) o.position.set(it.x + 0.5, 0.6 + Math.sin(now * 3 + it.x) * 0.08, it.y + 0.5);
+    }
+  }
+  const NIGHT_SKY = new THREE.Color(0x0c1430), DUSK_SKY = new THREE.Color(0xe8865a), MOON = new THREE.Color(0x8aa0ff);
+  function starField() {
+    const n = 500, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, e = 0.12 + Math.random() * 1.3, r = 34;
+      pos[i * 3] = Math.cos(a) * Math.cos(e) * r; pos[i * 3 + 1] = Math.sin(e) * r; pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.18, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+    pts.frustumCulled = false; scene.add(pts); return pts;
+  }
+  function applyDaylight(k, hour, p) {
+    if (!stars) stars = starField();
+    stars.visible = !!dayBase && k < 0.6;
+    if (!dayBase) return;
+    if (dayBase.cave) {
+      stars.visible = false;
+      const lit = !!lastState.flash;
+      // fog is measured from the camera (about 6 units behind the player): dark = you see yourself and a step ahead
+      scene.fog.near = lit ? 9 : 5.2; scene.fog.far = lit ? 24 : 8.5;
+      hemi.intensity = dayBase.hemi * (lit ? 1 : 0.45); sun.intensity = dayBase.sun * (lit ? 1 : 0.4);
+      return;
+    }
+    const dusk = Math.max(0, 1 - Math.abs(k - 0.5) * 2.2) * (hour > 3 && hour < 21 ? 1 : 0); // orange glow mid-transition
+    const sky = dayBase.sky.clone().lerp(NIGHT_SKY, 1 - k).lerp(DUSK_SKY, dusk * 0.45);
+    scene.background.copy(sky);
+    if (scene.fog) scene.fog.color.copy(sky);
+    hemi.intensity = dayBase.hemi * (0.28 + 0.72 * k);
+    sun.intensity = dayBase.sun * (0.22 + 0.78 * k);
+    sun.color.copy(dayBase.sunCol).lerp(MOON, 1 - k).lerp(DUSK_SKY, dusk * 0.5);
+    stars.position.set(p.px, 0, p.pz);
+    stars.material.opacity = Math.max(0, (0.6 - k) / 0.6);
+  }
   function marker(x, zz, color) {
     const ring = own(new THREE.Mesh(new THREE.RingGeometry(0.28, 0.42, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false })));
     ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.03, zz);
@@ -474,6 +542,7 @@ window.World3D = (function () {
     home: [["suburban/planter", 1, 3.6], ["nature/plant_bush", 7, 3.6]],
   };
   function buildInterior(m) {
+    dayBase = null;
     scene.background = new THREE.Color(0x1a1f26);
     scene.fog = null;
     hemi.intensity = 0.65; sun.intensity = 0.9; sun.color.setHex(0xfff0dc);
@@ -982,6 +1051,9 @@ window.World3D = (function () {
       g.visible = !hit;
     }
     camera.lookAt(lookAt);
+    lastState = state;
+    applyDaylight(state.daylight ?? 1, state.hour ?? 12, p);
+    updatePickups(state.pickups || [], now);
     sun.position.set(p.px + 8, 14, p.pz + 5);
     sun.target.position.set(p.px, 0, p.pz);
     if (water) water.position.y = Math.sin(now * 1.5) * 0.02;

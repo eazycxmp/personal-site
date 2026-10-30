@@ -15,6 +15,18 @@ const ITEMS = {
   super_potion: { name: "Super Potion", price: 600, heal: 80, icon: "super_potion", desc: "Restores 80 HP." },
   revive: { name: "Revive", price: 1000, revive: true, icon: "revive", desc: "Revives a fainted monster." },
   tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild monsters." },
+  great_ball: { name: "Great Ball", price: 600, ball: 1.8, icon: "great_ball", desc: "A better chance to catch." },
+  mega_potion: { name: "Mega Potion", price: 1500, heal: 200, icon: "mega_potion", desc: "Restores 200 HP." },
+  // prizes and rewards (not sold)
+  master_ball: { name: "Master Ball", ball: 255, icon: "master_ball", desc: "Catches any monster, every time." },
+  sweet_sand: { name: "Sweet Sand", lure: 150, icon: "sweet_sand", desc: "For 150 steps: more monsters, rarer ones and shinies." },
+  level_treat: { name: "Level Treat", treat: true, icon: "level_treat", desc: "A monster that eats it gains a level." },
+  // key items: kept forever, used from the bag or automatically
+  fishing_rod: { name: "Fishing Rod", key: true, icon: "fishing_rod", desc: "Face water and press Z to fish." },
+  lucky_bamboo: { name: "Lucky Bamboo", key: true, icon: "lucky_bamboo", desc: "Shiny monsters appear 3x as often." },
+  toy_bear: { name: "Toy Bear", key: true, icon: "toy_bear", desc: "A well-loved teddy. Someone misses it." },
+  ancient_egg: { name: "Ancient Egg", key: true, icon: "ancient_egg", desc: "Warm to the touch. Bring it to Prof. Oakley." },
+  flute: { name: "Old Flute", key: true, icon: "flute", desc: "A wooden flute from Hollowmere." },
 };
 const TYPE_COLOR = {
   fire: "#e0502c", water: "#3a7be0", wood: "#3fa34d", earth: "#a8763e", steel: "#8c96a3", frost: "#7fd4e8",
@@ -28,13 +40,18 @@ const cv = document.getElementById("game");
 const ctx = cv.getContext("2d");
 let SCALE = 3;
 function resize() {
-  SCALE = Math.max(1, Math.floor(Math.min((innerWidth - 16) / VW, (innerHeight - 48) / VH)));
+  // Desktop: whole-pixel scale. Phone: fill the width (or the height in landscape) and leave room for the
+  // on-screen controls; the canvas renders at a crisp whole scale and is sized down to fit.
+  const touch = document.body.classList.contains("touch"), land = document.body.classList.contains("landscape");
+  const fit = touch ? Math.min((innerWidth - (land ? 330 : 8)) / VW, (innerHeight - (land ? 12 : 230)) / VH)
+    : Math.max(1, Math.floor(Math.min((innerWidth - 16) / VW, (innerHeight - 48) / VH)));
+  SCALE = Math.max(1, Math.ceil(fit));
   cv.width = VW * SCALE; cv.height = VH * SCALE;
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  const scr = document.getElementById("screen");
-  scr.style.width = VW * SCALE + "px"; scr.style.height = VH * SCALE + "px";
-  if (window.World3D) World3D.resize(VW * SCALE, VH * SCALE);
+  const scr = document.getElementById("screen"), w = Math.round(VW * fit), h = Math.round(VH * fit);
+  scr.style.width = w + "px"; scr.style.height = h + "px";
+  if (window.World3D) World3D.resize(w, h);
 }
 addEventListener("resize", resize);
 resize();
@@ -197,8 +214,41 @@ function wrap(str, maxW) {
   }
   return out;
 }
-function drawMon(slug, which, x, y, alpha = 1, scale = 1) {
-  const im = IMG["mon_" + slug];
+// Shiny monsters: the same Tuxemon sprite with its colours swung round the colour wheel.
+const SHINY_ODDS = 200; // 1 in 200 wild monsters (Lucky Bamboo x3, Sweet Sand x2)
+function shinyImg(slug) {
+  const key = "shiny_" + slug;
+  if (IMG[key]) return IMG[key];
+  const src = IMG["mon_" + slug];
+  if (!src) return null;
+  const c = document.createElement("canvas"); c.width = src.width; c.height = src.height;
+  const g = c.getContext("2d"); g.drawImage(src, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), px = d.data;
+  for (let i = 0; i < px.length; i += 4) {
+    if (!px[i + 3]) continue;
+    let r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2, dd = mx - mn;
+    if (dd < 0.04) continue; // greys, black outlines and whites stay put
+    let h = mx === r ? ((gg - b) / dd) % 6 : mx === gg ? (b - r) / dd + 2 : (r - gg) / dd + 4;
+    const sat = dd / (1 - Math.abs(2 * l - 1));
+    h = (h * 60 + 150) % 360;
+    const C = (1 - Math.abs(2 * l - 1)) * Math.min(1, sat * 1.15), X = C * (1 - Math.abs(((h / 60) % 2) - 1)), m0 = l - C / 2;
+    const [r1, g1, b1] = h < 60 ? [C, X, 0] : h < 120 ? [X, C, 0] : h < 180 ? [0, C, X] : h < 240 ? [0, X, C] : h < 300 ? [X, 0, C] : [C, 0, X];
+    px[i] = (r1 + m0) * 255; px[i + 1] = (g1 + m0) * 255; px[i + 2] = (b1 + m0) * 255;
+  }
+  g.putImageData(d, 0, 0);
+  return (IMG[key] = c);
+}
+function rollShiny() {
+  const odds = SHINY_ODDS / ((S.bag.lucky_bamboo ? 3 : 1) * (S.lure > 0 ? 2 : 1));
+  return Math.random() < 1 / odds;
+}
+function wildMon(slug, lv) { const m = makeMon(slug, lv); if (rollShiny()) m.shiny = true; return m; }
+function drawStar(x, y, col = "#ffd030") {
+  ctx.fillStyle = col; ctx.fillRect(x + 2, y, 1, 5); ctx.fillRect(x, y + 2, 5, 1); ctx.fillRect(x + 1, y + 1, 3, 3);
+}
+function drawMon(slug, which, x, y, alpha = 1, scale = 1, shiny = false) {
+  const im = shiny ? shinyImg(slug) : IMG["mon_" + slug];
   if (!im) return;
   ctx.globalAlpha = alpha;
   const sx = which === "back" ? 64 : 0;
@@ -206,8 +256,8 @@ function drawMon(slug, which, x, y, alpha = 1, scale = 1) {
   ctx.drawImage(im, sx, 0, 64, 64, Math.round(x + (64 - s) / 2), Math.round(y + (64 - s)), s, s);
   ctx.globalAlpha = 1;
 }
-function drawMonIcon(slug, x, y) {
-  const im = IMG["mon_" + slug];
+function drawMonIcon(slug, x, y, shiny = false) {
+  const im = shiny ? shinyImg(slug) : IMG["mon_" + slug];
   if (im) ctx.drawImage(im, (Math.floor(NOW * 3) % 2) * 24, 64, 24, 24, x, y, 24, 24);
 }
 
@@ -469,13 +519,19 @@ function loadMap(id, x, y, dir) {
   }
   for (const s of m.signs || []) world.solid.add(s.x + "," + s.y);
   world.statues = [];
-  for (const L of m.legends || []) if (!S.flags[L.id]) world.statues.push({ ...L, kind: "legend", tiles: [[L.x, L.y]] });
+  for (const L of m.legends || []) {
+    if (S.flags[L.id]) continue;
+    if (L.needs && !(S.flags.champion && L.needs.every((sl) => S.caught[sl]))) continue; // Asudopt: Champions who caught the other 3
+    world.statues.push({ ...L, kind: "legend", tiles: [[L.x, L.y]] });
+  }
+  world.pickups = (m.items || []).filter((it) => !S.flags[it.id] && (!it.needFlag || S.flags[it.needFlag]));
+  world.flash = m.cave ? flashMon() : null;
   if (m.sleeper && !S.flags[m.sleeper.id]) world.statues.push({ ...m.sleeper, kind: "sleeper" });
   for (const st of world.statues) for (const [x, y] of st.tiles) world.solid.add(x + "," + y);
-  music(m.music || "town");
+  music(areaMusic(m));
   World3D.build(m, BUILDINGS);
   World3D.snapYaw(p.angle);
-  if (prevId !== id) worldScene.banner = { name: m.theme ? `${m.name}: ${m.theme}` : m.name, t: NOW };
+  if (prevId !== id) worldScene.banner = { name: m.cave ? (world.flash ? `${monName(world.flash)} used FLASH!` : "It's pitch black...") : m.theme ? `${m.name}: ${m.theme}` : m.name, t: NOW };
 }
 
 function tileAt(x, y) {
@@ -522,6 +578,47 @@ function placePlayer(x, y, dir) {
 // Surf (Tide Badge + a Water monster) carries you across water; Fly (Volt Badge + a Sky monster)
 // takes you to any town you've visited. You ride your own monster in 3D.
 const rider = (type) => S.party.find((m) => m.hp > 0 && D.monsters[m.slug].types.includes(type));
+// FLASH: with the Volt Badge, a Lightning or Fire monster lights up dark caves
+const flashMon = () => (S.badges.includes("Volt Badge") ? rider("lightning") || rider("fire") : null);
+
+// Fishing: face water with the rod. Bites pull from the area's water monsters.
+async function waterAction(x, y) {
+  const canSurf = S.badges.includes("Tide Badge") && rider("water");
+  if (S.bag.fishing_rod && !world.player.surfing) {
+    const c = canSurf ? await choose(["FISH", "SURF", "CANCEL"], { prompt: "The water is calm." }) : 0;
+    if (c === 1) return trySurf(x, y);
+    if (c !== 0) return;
+    return fish();
+  }
+  return trySurf(x, y);
+}
+async function fish() {
+  const table = world.map.water;
+  await say("You cast your line...");
+  await wait(0.8 + Math.random() * 1.4);
+  if (!table || !table.length) { await say("Nothing seems to live in this water."); return; }
+  if (Math.random() > 0.72) { await say("Not even a nibble..."); return; }
+  await say("Oh! A bite!");
+  const pick = pickWild(table), lv = Math.max(2, rand(pick[1], pick[2]) - 1);
+  await wildBattle(wildMon(wildForm(pick[0], lv), lv));
+}
+function pickupNear() {
+  const p = world.player;
+  let best = null;
+  for (const it of world.pickups || []) {
+    const d = Math.hypot(it.x + 0.5 - p.px, it.y + 0.5 - p.pz);
+    if (d < 1.45 && (!best || d < best.d)) best = { it, d };
+  }
+  return best && best.it;
+}
+async function collect(it) {
+  S.flags[it.id] = true;
+  world.pickups = world.pickups.filter((x) => x !== it);
+  const n = it.n || 1;
+  S.bag[it.item] = (S.bag[it.item] || 0) + n;
+  await say(`You found ${n > 1 ? n + " " : ""}${ITEMS[it.item].name.toUpperCase()}${n > 1 ? "S" : ""}!`);
+  save();
+}
 async function trySurf(tx, ty) {
   const p = world.player;
   if (!S.badges.includes("Tide Badge")) { await say("The water is deep blue. A Water monster could carry you across... once you earn the TIDE BADGE."); return; }
@@ -603,7 +700,8 @@ function exitAt(edge, x, y) {
 }
 function gateAt(x, y, moveDir) {
   for (const g of world.map.gates || []) {
-    if (moveDir === g.block && x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h && S.badges.length < g.badges) return g;
+    const shut = g.requires ? !S.flags[g.requires] : g.flag ? !!S.flags[g.needFlag] && !S.flags[g.flag] : S.badges.length < g.badges;
+    if (moveDir === g.block && x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h && shut) return g;
   }
   return null;
 }
@@ -701,10 +799,14 @@ function stepEvent() {
   }
   const tr = world.npcs.find(trainerSees);
   if (tr) return () => trainerEncounter(tr, true);
-  const table = p.surfing && tileAt(p.x, p.y) === "~" ? m.water : tileAt(p.x, p.y) === "," ? m.encounters : null;
-  if (table && table.length && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1))) {
+  const here = tileAt(p.x, p.y), land = here === "," || (m.cave && (here === "." || here === "="));
+  const table = p.surfing && here === "~" ? m.water
+    : land ? (isNight() && m.night ? m.encounters.concat(m.night) : m.encounters) : null;
+  if (table && S.lure > 0 && !m.interior) S.lure--;
+  const lured = S.lure > 0 ? 1.6 : 1;
+  if (table && table.length && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1)) * lured) {
     const pick = pickWild(table), lv = rand(pick[1], pick[2]);
-    return () => wildBattle(makeMon(wildForm(pick[0], lv), lv));
+    return () => wildBattle(wildMon(wildForm(pick[0], lv), lv));
   }
   return null;
 }
@@ -715,7 +817,7 @@ const recentWild = [];
 function pickWild(table) {
   const fresh = table.filter((e) => !recentWild.includes(e[0]));
   const pool = fresh.length >= 2 ? fresh : table;
-  const w = (e) => e[3] * (S.seen[e[0]] ? 1 : 2);
+  const w = (e) => e[3] * (S.seen[e[0]] ? 1 : 2) * (S.lure > 0 && e[3] === 1 ? 3 : 1); // Sweet Sand draws out the rare ones
   let r = Math.random() * pool.reduce((a, e) => a + w(e), 0), pick = pool[0];
   for (const e of pool) { r -= w(e); if (r <= 0) { pick = e; break; } }
   recentWild.push(pick[0]);
@@ -840,6 +942,8 @@ async function interact() {
   const p = world.player;
   const look = lookTarget();
   if (look && look.st) { await statueEncounter(look.st); return; }
+  const it = pickupNear();
+  if (it && !(look && look.n)) { await collect(it); return; }
   if (look && look.n) {
     const n = look.n;
     // they turn to face you exactly, and you face them
@@ -851,7 +955,7 @@ async function interact() {
   }
   const [dx, dy] = DIRS[p.dir];
   let x = p.x + dx, y = p.y + dy;
-  if (tileAt(x, y) === "~" && !p.surfing) { await trySurf(x, y); return; }
+  if (tileAt(x, y) === "~" && !p.surfing) { await waterAction(x, y); return; }
   if (tileAt(x, y) === "C") { x += dx; y += dy; }
   const n = npcAt(x, y);
   if (n) {
@@ -902,7 +1006,12 @@ async function talkTo(n) {
     save();
     return;
   }
+  if (n.role === "heal" && n.name === "Mom" && S.flags.go_see_mom && !S.flags.met_mom) return momTalk(n);
   if (n.role === "heal") return healAt(n);
+  if (n.quest) return questTalk(n);
+  if (n.role === "rod") return angler(n);
+  if (n.role === "tower") return towerHost(n);
+  if (n.role === "towershop") return towerShop(n);
   if (n.role === "shop") return shop();
   if (n.role === "box") return boxMenu();
   if (n.role === "prof") return professor(n);
@@ -923,7 +1032,7 @@ async function healAt(n) {
 
 async function shop() {
   await say("Clerk: Welcome! What can I get\nfor you?");
-  const keys = Object.keys(ITEMS);
+  const keys = Object.keys(ITEMS).filter((k) => ITEMS[k].price);
   for (;;) {
     const i = await choose(keys.map((k) => `${ITEMS[k].name.padEnd(13)}$${ITEMS[k].price}`).concat(["DONE"]), {
       x: 60, y: 4, w: 176,
@@ -959,6 +1068,163 @@ async function boxMenu() {
   }
 }
 
+// Wildmon-Dex prizes from Prof. Oakley: [kinds caught, item, count, how he says it]
+const DEX_REWARDS = [
+  [10, "great_ball", 5, "5 GREAT BALLS"], [25, "sweet_sand", 3, "3 SWEET SAND"], [50, "lucky_bamboo", 1, "the LUCKY BAMBOO"],
+  [75, "level_treat", 5, "5 LEVEL TREATS"], [100, "master_ball", 1, "a MASTER BALL"],
+];
+
+// ---------------------------------------------------------------- side quests
+const QUESTS = {
+  teddy: { name: "Pia's lost teddy", where: "Little Pia, Ember City" },
+  egg: { name: "The ancient egg", where: "Dr. Fenn, Volt City" },
+  flute: { name: "Old Whisper's flute", where: "Old Whisper, Hollowmere" },
+};
+const questState = (q) => (S.flags["q_" + q + "_done"] ? "done" : S.flags["q_" + q + "_started"] ? "active" : "new");
+async function questTalk(n) {
+  const q = n.quest, st = questState(q), who = n.name;
+  if (q === "teddy") {
+    if (st === "done") return say(`${who}: Teddy and me go everywhere now! Thank you!`);
+    if (S.bag.toy_bear) {
+      delete S.bag.toy_bear; S.flags.q_teddy_done = true;
+      S.bag.great_ball = (S.bag.great_ball || 0) + 5;
+      await say(`${who}: My TEDDY! You found him! Here, Daddy said I could give these to whoever found him.`);
+      await say("You received 5 GREAT BALLS!"); return save();
+    }
+    S.flags.q_teddy_started = true;
+    await say(`${who}: *sniff* I lost my TOY BEAR on Route 2... I was playing way out by the east end of the woods.`);
+    return say(`${who}: Can you find him? Please?`);
+  }
+  if (q === "egg") {
+    if (st === "done") return say(`${who}: A shiny hatchling! The professor sent me pictures. Remarkable!`);
+    if (st === "active") return say(`${who}: Please hurry the ANCIENT EGG to Prof. Oakley in Sprout Town. It's getting warmer!`);
+    S.flags.q_egg_started = true; S.bag.ancient_egg = 1;
+    await say(`${who}: You're from Sprout Town? Wonderful! We dug up this EGG in the old mine and it's starting to move.`);
+    await say("You received the ANCIENT EGG!");
+    return say(`${who}: Prof. Oakley will know what to do. Take it to his lab!`);
+  }
+  if (q === "flute") {
+    if (st === "done") return say(`${who}: When I play his flute at night, the shrine glows. Thank you, child.`);
+    if (S.bag.flute) {
+      delete S.bag.flute; S.flags.q_flute_done = true;
+      S.bag.level_treat = (S.bag.level_treat || 0) + 3;
+      await say(`${who}: His flute... I never thought I'd hold it again.`);
+      await say(`${who}: Take these. He baked them for his monsters every winter.`);
+      await say("You received 3 LEVEL TREATS!"); return save();
+    }
+    S.flags.q_flute_started = true;
+    await say(`${who}: My husband played a wooden flute every night, before the town emptied.`);
+    return say(`${who}: It must still be in our old house, the one in the middle of town. Would you look for it?`);
+  }
+}
+async function hatchEgg() {
+  delete S.bag.ancient_egg; S.flags.q_egg_done = true;
+  await say("Prof. Oakley: An ANCIENT EGG from Dr. Fenn? Look, it's hatching right now!");
+  const m = makeMon("devidin", 10); m.shiny = true;
+  const where = addMon(m);
+  S.caught.devidin = true; S.seen.devidin = true;
+  S.shinyCaught = S.shinyCaught || {}; S.shinyCaught.devidin = true;
+  await say(`It hatched into a SHINY ${monName(m).toUpperCase()}! It's yours now.${where === "box" ? " (Sent to the box.)" : ""}`);
+}
+async function questLog() {
+  const rows = Object.entries(QUESTS).map(([q, d]) => {
+    const st = questState(q);
+    return `${st === "done" ? "DONE" : st === "active" ? "...." : " ?? "}  ${st === "new" ? "???" : d.name}`;
+  });
+  await choose(rows.concat(["CLOSE"]), { x: 8, y: 4, w: 224, prompt: "Side quests. Talk to townspeople to find more!" });
+}
+async function angler(n) {
+  if (!S.bag.fishing_rod) {
+    await say(`${n.name}: You've got that trainer look. Ever tried fishing? Some monsters only live under the water.`);
+    S.bag.fishing_rod = 1;
+    await say("You received the FISHING ROD!");
+    await say(`${n.name}: Face any water and press Z to cast. Different waters, different catches!`);
+    return save();
+  }
+  await say(`${n.name}: Patience is half of fishing. The other half is luck. Try at night, too!`);
+}
+
+// ---------------------------------------------------------------- Battle Tower (after the Champion)
+const TOWER_TRAINERS = [
+  ["Ace Trainer Sol", "dragonrider_green"], ["Veteran Ivy", "woodnymph"], ["Captain Moe", "riverboatcaptain"],
+  ["Engineer Zia", "scientist_black"], ["Seer Ren", "magician_fiery"], ["Hexer Nyx", "goth_rose"], ["Knight Vance", "soldier"],
+  ["Ranger Lia", "catgirl_green"], ["Firefighter Ash", "firefighter"], ["Witch Agatha", "witch"],
+];
+const TOWER_PRIZES = [["master_ball", 12], ["level_treat", 3], ["mega_potion", 2], ["sweet_sand", 2], ["great_ball", 1]];
+function towerTeam(streak) {
+  const pool = Object.keys(D.monsters).filter((sl) => !D.monsters[sl].legendary && D.monsters[sl].stage >= 1);
+  const lv = clamp(topLevel(), 40, 70) + Math.floor(streak / 3);
+  const team = [];
+  while (team.length < 3) { const sl = pool[rand(0, pool.length - 1)]; if (!team.some((m) => m.slug === sl)) team.push(makeMon(sl, lv)); }
+  return team;
+}
+async function towerHost(n) {
+  if (!S.flags.champion) return say(`${n.name}: Only Champions may climb the Battle Tower.`);
+  S.towerBest = S.towerBest || 0; S.tp = S.tp || 0;
+  await say(`${n.name}: Welcome to the BATTLE TOWER! Win in a row to earn TOWER POINTS (TP). Best streak: ${S.towerBest}. Your TP: ${S.tp}.`);
+  if (!(await yesNo("Take the challenge? Your team is healed before every battle."))) return;
+  let streak = 0;
+  for (;;) {
+    S.party.forEach(healMon);
+    const [name, sprite] = TOWER_TRAINERS[rand(0, TOWER_TRAINERS.length - 1)];
+    const t = { name, sprite, intro: `Battle ${streak + 1}! Let's go!`, lose: "You're on a roll!", kind: "trainer" };
+    await say(`${name}: ${t.intro}`);
+    const res = await runBattle({ trainer: t, party: towerTeam(streak), bg: "interior", practice: true });
+    if (res !== "win") {
+      await say(`${n.name}: Your streak ends at ${streak}. Well fought!`);
+      break;
+    }
+    streak++;
+    const gain = 1 + Math.floor(streak / 5);
+    S.tp += gain; S.towerBest = Math.max(S.towerBest, streak);
+    await say(`${n.name}: ${streak} in a row! You earned ${gain} TP (total ${S.tp}).`);
+    if (!(await yesNo("Keep going?"))) { await say(`${n.name}: Retiring at a ${streak}-win streak. Come back anytime!`); break; }
+  }
+  S.party.forEach(healMon);
+  save();
+}
+async function towerShop(n) {
+  S.tp = S.tp || 0;
+  for (;;) {
+    const i = await choose(TOWER_PRIZES.map(([k, c]) => `${ITEMS[k].name.padEnd(13)}${c} TP`).concat(["DONE"]), {
+      x: 60, y: 4, w: 176, extra: () => { box(4, 4, 52, 22); text(S.tp + "TP", 10, 11); },
+    });
+    if (i < 0 || i === TOWER_PRIZES.length) break;
+    const [k, c] = TOWER_PRIZES[i];
+    if (S.tp < c) { await say(`${n.name}: You need ${c} TP for that.`); continue; }
+    S.tp -= c; S.bag[k] = (S.bag[k] || 0) + 1;
+    await say(`You got a ${ITEMS[k].name.toUpperCase()}!`);
+  }
+  save();
+}
+
+// Mom's send-off: what the journey looks like and how to survive it.
+async function momTalk(n) {
+  const me = myLook().gender === "girl" ? "sweetheart" : "kiddo", partner = S.party[0] ? monName(S.party[0]) : "your partner";
+  const lines = [
+    `Oh, ${me}! The professor called. So ${partner} is your partner now? It's adorable!`,
+    "Listen, before you go, here's what's ahead of you. Sit down for a second.",
+    "There are 4 GYMS: Ember City (Rock), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow). Beat their leaders to earn 4 badges.",
+    "With all 4 badges you can climb to the Champion's Hall. Guards won't let you through some roads until you have enough badges.",
+    "Tall grass is full of wild monsters. Every route has its own kinds, and they get tougher the farther you go.",
+    "Some monsters only come out at NIGHT. Watch the clock in the corner and go back to the grass after dark.",
+    "Trainers on the routes will wait until you're a bit stronger, so train in the grass before you take them on.",
+    "Use type matchups! Water beats Fire, Fire beats Wood, Wood beats Water and Earth... the little icons next to each name show their types.",
+    "When your team is hurt, any Healing Center will patch them up for free. Or come home and I'll take care of them.",
+    "Fill your Wildmon-Dex! Professor Oakley gives out prizes as you catch more kinds.",
+    "And people say there's a ghost town west of Route 3, and a pitch-dark cave north of Route 4. Be careful, OK?",
+    "Oh, and your rival left in a hurry. I'm sure you'll run into them on the road!",
+  ];
+  for (const l of lines) await say(`Mom: ${l}`);
+  S.bag.potion = (S.bag.potion || 0) + 5;
+  S.money += 1000;
+  await say("Mom gave you 5 POTIONS and $1000 for the road!");
+  S.party.forEach(healMon);
+  await say("Mom: Now go make me proud. Route 1 is just north of town!");
+  S.flags.met_mom = true;
+  save();
+}
+
 async function professor(n) {
   if (!S.starter) {
     await say("Prof. Oakley: Ah, there you are!\nToday you begin your journey as a\nmonster trainer!");
@@ -969,7 +1235,8 @@ async function professor(n) {
     addMon(m);
     await say(`You received ${monName(m)}!`);
     await say("Prof. Oakley: Take these too!\nTuxeballs catch wild monsters,\nand Potions heal them.");
-    await say("Prof. Oakley: Your mom can heal\nyour team at home. Go north to\nRoute 1, and beat all 4 gyms!");
+    await say("Prof. Oakley: Before you set off, go home and see your mom. She has a lot to tell you about the road ahead!");
+    S.flags.go_see_mom = true;
     const rival = world.npcs.find((x) => x.id === "rival_lab");
     if (rival) {
       await say(`${rival.name}: Hey, that's my pick... no wait, I'll take ${D.monsters[rivalStarter()].name}! It beats yours anyway!`);
@@ -979,10 +1246,22 @@ async function professor(n) {
     save();
     return;
   }
+  if (S.bag.ancient_egg) await hatchEgg();
   const c = Object.keys(S.caught).length;
-  await say(`Prof. Oakley: You've caught ${c} kinds of monsters! Let me heal your team.`);
+  await say(`Prof. Oakley: You've caught ${c} kinds of monsters!`);
+  for (const [need, item, n, label] of DEX_REWARDS) {
+    if (c < need || S.flags["dex_" + need]) continue;
+    S.flags["dex_" + need] = true;
+    S.bag[item] = (S.bag[item] || 0) + n;
+    await say(`Prof. Oakley: ${need} kinds! That deserves a prize. Here, take ${label}!`);
+    await say(`You received ${label}!${ITEMS[item].key ? " " + ITEMS[item].desc : ""}`);
+  }
+  const next = DEX_REWARDS.find(([need]) => !S.flags["dex_" + need]);
+  if (next) await say(`Prof. Oakley: Catch ${next[0]} kinds and I'll give you ${next[3]}. That's ${next[0] - c} more!`);
+  else await say("Prof. Oakley: You've earned every prize I have. Truly a master trainer!");
   S.party.forEach(healMon);
-  await say("Your monsters are fully healed!");
+  await say("Prof. Oakley: Let me heal your team, too. All better!");
+  save();
 }
 
 // New-game (or first-load) character creator: boy/girl, then outfit colour.
@@ -1091,7 +1370,8 @@ function partyScreen(mode, prompt) {
         S.party.forEach((m, k) => {
           const y = 2 + k * 22, sel = k === this.i;
           box(4, y, 232, 22, sel ? "#fff8c0" : m.hp > 0 ? "#f8f8f0" : "#e8c8c0");
-          drawMonIcon(m.slug, 8, y - 2);
+          drawMonIcon(m.slug, 8, y - 2, m.shiny);
+          if (m.shiny) drawStar(28, y + 2);
           text(monName(m), 34, y + 2);
           text("Lv" + m.level, 34, y + 11, "#606060", null);
           typeIcons(m.slug, 134, y + 5);
@@ -1113,7 +1393,7 @@ function whereFound() {
   WHERE = {};
   for (const [id, m] of Object.entries(MAPS)) {
     const label = m.theme || m.name;
-    for (const [tbl, tag] of [[m.encounters, ""], [m.water, " (SURF)"]]) for (const [slug, lo, hi] of tbl || []) {
+    for (const [tbl, tag] of [[m.encounters, ""], [m.water, " (SURF)"], [m.night, " (NIGHT)"]]) for (const [slug, lo, hi] of tbl || []) {
       if (!D.monsters[slug]) continue;
       for (let lv = lo; lv <= hi; lv++) {
         const f = wildForm(slug, lv), list = (WHERE[f] = WHERE[f] || { areas: [], maps: [] });
@@ -1131,11 +1411,11 @@ function whereFound() {
 function hereList() { const W = whereFound(); return Object.keys(D.monsters).filter((s) => W[s] && W[s].maps.includes(world.id)); }
 
 // Lore page shared by the summary screen and the Wildmon-Dex.
-function drawLore(slug, known = true, banner = null) {
+function drawLore(slug, known = true, banner = null, shiny = false) {
   const d = D.monsters[slug];
   ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
   box(2, 2, 92, 104, "#c8e0f0");
-  if (known) drawMon(slug, "front", 16, 22);
+  if (known) drawMon(slug, "front", 16, 22, 1, 1, shiny);
   else { ctx.globalAlpha = 1; ctx.filter = "brightness(0)"; drawMon(slug, "front", 16, 22, 0.55); ctx.filter = "none"; }
   text(known ? d.name : "???", 8, 8);
   if (known) nameIcons(slug, d.name, 8, 8, 91);
@@ -1175,7 +1455,8 @@ function summary(m) {
         const d = D.monsters[m.slug];
         ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
         box(2, 2, 92, 104, "#c8e0f0");
-        drawMon(m.slug, "front", 16, 22);
+        drawMon(m.slug, "front", 16, 22, 1, 1, m.shiny);
+        if (m.shiny) { drawStar(8, 96); text("SHINY", 15, 95, "#a07000", null); }
         text(d.name, 8, 8);
         nameIcons(m.slug, d.name, 8, 8, 91);
         let tx = 8;
@@ -1207,7 +1488,7 @@ function caughtInfo(m, first) {
       opaque: true,
       update() { if (NOW - t0 > 0.6 && (consume("a") || consume("b"))) { pop(this); res(); } },
       draw() {
-        drawLore(m.slug, true, `${first ? "NEW! " : ""}${D.monsters[m.slug].name.toUpperCase()} CAUGHT!  LV${m.level}`);
+        drawLore(m.slug, true, `${first ? "NEW! " : ""}${m.shiny ? "SHINY " : ""}${D.monsters[m.slug].name.toUpperCase()} CAUGHT!  LV${m.level}`, m.shiny);
         if (Math.floor(NOW * 2) % 2) text("Z", 222, 113, "#a05000", null);
       },
     });
@@ -1245,6 +1526,7 @@ function monsterLog() {
           else text(String(k + 1).padStart(3, "0"), 7, y + 4, "#808080", null);
           text(seen ? D.monsters[s2].name : "-----", 36, y + 4);
           if (S.caught[s2]) { ctx.fillStyle = "#e04030"; ctx.fillRect(143, y + 5, 5, 5); }
+          if (S.shinyCaught && S.shinyCaught[s2]) drawStar(126, y + 5);
           if (here.includes(s2)) { ctx.fillStyle = "#30a050"; ctx.fillRect(135, y + 5, 5, 5); }
         }
         box(154, 22, 84, 136, "#c8e0f0");
@@ -1267,10 +1549,10 @@ function monsterLog() {
 
 function bagScreen(inBattle) {
   return new Promise((res) => {
-    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0);
+    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat)));
     const ks = keys();
     if (!ks.length) { say("Your bag is empty.").then(() => res(null)); return; }
-    choose(ks.map((k) => `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
+    choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
       x: 50, y: 4, w: 186, extra: (i) => {
         box(0, 112, VW, 48);
         const it = ITEMS[ks[i]];
@@ -1287,10 +1569,33 @@ async function useItemOutside() {
   if (!key) return;
   const it = ITEMS[key];
   if (it.ball) { await say("You can only throw that in battle at a wild monster!"); return; }
+  if (key === "fishing_rod") { await say("Stand facing the water and press Z to fish."); return; }
+  if (it.key) { await say(it.desc); return; }
+  if (it.lure) {
+    if (S.lure > 0) { await say(`The Sweet Sand is still working (${S.lure} steps left).`); return; }
+    S.bag[key]--; S.lure = it.lure;
+    await say("You scattered the SWEET SAND. Wild monsters will be drawn out for a while!");
+    return;
+  }
   const i = await partyScreen("pick", `Use ${it.name} on which monster?`);
   if (i < 0) return;
+  if (it.treat) { await levelTreat(S.party[i]); return; }
   const msg = applyItem(key, S.party[i]);
   await say(msg);
+}
+async function levelTreat(m) {
+  if (m.level >= 100) { await say("It won't have any effect."); return; }
+  S.bag.level_treat--;
+  m.level++; m.exp = expFor(m.level);
+  const hpGap = m.maxhp - m.hp; calcStats(m); m.hp = Math.max(1, m.maxhp - hpGap);
+  await say(`${monName(m)} ate the LEVEL TREAT and grew to Lv ${m.level}!`);
+  for (const [lv, id] of D.monsters[m.slug].moves) {
+    if (lv !== m.level || m.moves.some((x) => x.id === id)) continue;
+    if (m.moves.length < 4) { m.moves.push({ id, pp: D.moves[id].pp }); await say(`${monName(m)} learned ${D.moves[id].name}!`); }
+    else await say(`${monName(m)} wants to learn ${D.moves[id].name}, but already knows 4 moves.`);
+  }
+  await evolveCheck();
+  save();
 }
 function applyItem(key, m) {
   const it = ITEMS[key];
@@ -1310,7 +1615,7 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "DEX", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    const opts = ["PARTY", "DEX", "BAG", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
     if (rider("psychic")) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
@@ -1319,6 +1624,7 @@ async function startMenu() {
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
     else if (pick === "DEX") await monsterLog();
     else if (pick === "BAG") await useItemOutside();
+    else if (pick === "QUESTS") await questLog();
     else if (pick === "TRAINER") await trainerCard();
     else if (pick === "SAVE") { await say(save() ? "Game saved!" : "Couldn't save (storage blocked)."); }
     else if (pick && pick.startsWith("MUSIC")) toggleMute();
@@ -1373,10 +1679,10 @@ async function runBattle(opts) {
   push(B);
   let res;
   try { res = await B.run(); } finally { pop(B); }
-  if (res === "lose" && opts.practice) { music(world.map.music || "town"); return res; }
+  if (res === "lose" && opts.practice) { music(areaMusic()); return res; }
   if (res === "lose") { await blackout(); return res; }
   await evolveCheck();
-  music(world.map.music || "town");
+  music(areaMusic());
   return res;
 }
 
@@ -1474,8 +1780,15 @@ class Battle {
     const tp = this.trainer && (this.trainer.rival ? lookPortrait(rivalLook()) : IMG["portrait_" + this.trainer.sprite]);
     if (tp) ctx.drawImage(tp, 64, 0, 64, 64, this.trX, 4, 64, 64);
     ctx.drawImage(lookPortrait(myLook()), 0, 0, 64, 128, this.plX, -12, 64, 128);
-    if (this.eVis) drawMon(this.e.slug, "front", this.eX, this.eY, this.eAlpha, this.eScale);
-    if (this.pVis && this.p) drawMon(this.p.slug, "back", this.pX, this.pY, this.pAlpha, this.pScale);
+    if (this.eVis) drawMon(this.e.slug, "front", this.eX, this.eY, this.eAlpha, this.eScale, this.e.shiny);
+    if (this.pVis && this.p) drawMon(this.p.slug, "back", this.pX, this.pY, this.pAlpha, this.pScale, this.p.shiny);
+    if (this.sparkle && NOW - this.sparkle.t < 1.6) { // shiny sparkle burst
+      const t = NOW - this.sparkle.t, cx = this.sparkle.x, cy = this.sparkle.y;
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4 + t * 2, r = 10 + t * 26;
+        if ((k + Math.floor(t * 10)) % 3) drawStar(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.7), k % 2 ? "#fff" : "#ffd030");
+      }
+    }
     if (this.fx) {
       // Tuxemon technique animation: a strip/grid of frames
       const f = this.fx, cols = Math.max(1, Math.floor(f.img.width / f.w)), fr = Math.min(f.frame, f.count - 1);
@@ -1486,12 +1799,14 @@ class Battle {
       ctx.restore();
     }
     if (this.ball) {
-      const im = IMG.item_tuxeball;
+      const im = IMG["item_" + (this.ballKey || "tuxeball")] || IMG.item_tuxeball;
       ctx.save(); ctx.translate(this.ball.x, this.ball.y); ctx.rotate(this.ball.r || 0);
       if (im) ctx.drawImage(im, -8, -8, 16, 16);
       ctx.restore();
     }
     if (this.showEBox) this.drawBox(this.e, 4, 4, false);
+    if (this.showEBox && this.e.shiny) drawStar(6, 6);
+    if (this.showPBox && this.p && this.p.shiny) drawStar(126, 68);
     if (this.showPBox && this.p) this.drawBox(this.p, 124, 66, true);
   }
   // Play a move's animation: ranged moves fly from the attacker, then the effect plays on the target.
@@ -1548,7 +1863,9 @@ class Battle {
       await tween(0.6, (k) => { this.eX = -60 + 208 * k; this.plX = -80 + 100 * k; });
       this.showEBox = true;
       const isNew = !S.seen[this.e.slug];
+      if (this.e.shiny) { this.sparkle = { t: NOW, x: this.eX + 32, y: this.eY + 36 }; S.shinySeen = S.shinySeen || {}; S.shinySeen[this.e.slug] = true; }
       await this.msg(this.legendary ? `The legendary ${monName(this.e).toUpperCase()} appeared!` : `A wild ${monName(this.e)} appeared!`);
+      if (this.e.shiny) await this.msg("Whoa! Its colors are different... it's a SHINY!");
       if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Wildmon-Dex.`); }
     }
     const first = S.party.findIndex((m) => m.hp > 0);
@@ -1569,7 +1886,7 @@ class Battle {
         await this.enemyTurn();
       } else if (act.type === "item") {
         if (ITEMS[act.key].ball) {
-          const r = await this.throwBall();
+          const r = await this.throwBall(act.key);
           if (r === "caught") return "caught";
         } else {
           const target = S.party[act.target];
@@ -1809,9 +2126,10 @@ class Battle {
     }
   }
 
-  async throwBall() {
-    S.bag.tuxeball--;
-    await this.msg("You threw a Tuxeball!");
+  async throwBall(key = "tuxeball") {
+    S.bag[key]--;
+    this.ballKey = key;
+    await this.msg(`You threw a ${ITEMS[key].name}!`);
     this.ball = { x: 40, y: 100, r: 0 };
     await tween(0.6, (k) => {
       this.ball.x = 40 + 140 * k;
@@ -1824,7 +2142,7 @@ class Battle {
     await tween(0.25, (k) => { this.ball.y = 60 + k * 2; });
     const e = this.e, d = D.monsters[e.slug];
     const a = ((3 * e.maxhp - 2 * e.hp) * d.catch) / (3 * e.maxhp) * (e.status ? 1.5 : 1);
-    const p = clamp(a / 255 * 1.6, 0.03, 1);
+    const p = clamp(a / 255 * 1.6 * (ITEMS[this.ballKey || "tuxeball"].ball || 1), 0.03, 1);
     const shakeP = Math.pow(p, 1 / 3);
     let shakes = 0;
     while (shakes < 3 && Math.random() < shakeP) shakes++;
@@ -1835,6 +2153,7 @@ class Battle {
     await wait(0.3);
     if (shakes === 3) {
       const first = !S.caught[e.slug];
+      if (e.shiny) { S.shinyCaught = S.shinyCaught || {}; S.shinyCaught[e.slug] = true; }
       music("caught");
       await this.msg(`Gotcha! ${monName(e)} was caught!`);
       const where = addMon(e);
@@ -1876,6 +2195,16 @@ function drawMinimap() {
   const x0 = VW - w - 4, y0 = 4;
   ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
   ctx.drawImage(minimapCanvas().c, x0, y0, w, h);
+  if (!m.interior && !m.cave) {
+    const ct = clockText(), cw = textW(ct) + 8;
+    ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - cw, y0 - 2, cw, 12);
+    text(ct, x0 - 2 - cw, y0, isNight() ? "#b8c8ff" : "#fff0a0", null);
+  }
+  if (S.lure > 0) {
+    const lt = `LURE ${S.lure}`, lw = textW(lt) + 8;
+    ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - lw, y0 + 12, lw, 12);
+    text(lt, x0 - 2 - lw, y0 + 14, "#ffb0e0", null);
+  }
   // exit labels: short arrow toward each edge
   // player arrow
   ctx.save();
@@ -1898,6 +2227,27 @@ function drawMinimap() {
   }
 }
 
+// ---------------------------------------------------------------- day and night
+// One real minute is one hour; a new game starts at 8am. Night is 8pm-5am.
+const MINUTES_PER_HOUR = 1;
+function hourNow() { return (8 + S.time / (60 * MINUTES_PER_HOUR)) % 24; }
+function isNight(h = hourNow()) { return h >= 20 || h < 5; }
+// 1 = full day, 0 = deep night, eased through dawn (5-7) and dusk (18-20)
+function daylight(h = hourNow()) {
+  const ss = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  return h < 12 ? ss(5, 7, h) : 1 - ss(18, 20, h);
+}
+function clockText(h = hourNow()) {
+  const hh = Math.floor(h), mm = Math.floor((h % 1) * 6) * 10;
+  return `${isNight(h) ? "NIGHT" : h < 7 ? "DAWN" : h >= 18 ? "DUSK" : "DAY"} ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+// routes turn mysterious after dark and towns wind down; gyms, buildings and the ghost town keep their own track
+function areaMusic(m = world.map) {
+  const base = m.music || "town";
+  if (!isNight() || m.interior || m.ghost) return base;
+  return base === "route" ? "mystery" : ["town", "funky", "wild"].includes(base) ? "chill" : base;
+}
+
 // ---------------------------------------------------------------- world scene
 // UP walks forward, DOWN backs up, LEFT/RIGHT steer, SHIFT sprints. Speed and turning ease
 // in and out so movement feels smooth.
@@ -1905,8 +2255,13 @@ const WALK_SPEED = 3.2, RUN_SPEED = 5.6, TURN_SPEED = 2.9;
 const worldScene = {
   opaque: true, world3d: true, turnVel: 0,
   update(dt) {
+    const wasNight = isNight();
     S.time += dt;
     gateCooldown -= dt;
+    if (wasNight !== isNight() && !world.busy) {
+      music(areaMusic());
+      if (!world.map.interior) this.banner = { name: isNight() ? "Night has fallen..." : "The sun is rising!", t: NOW };
+    }
     const p = world.player;
     for (const n of world.npcs) if (!n.walking) { n.fx = n.x * T; n.fy = n.y * T; }
     if (world.busy) { p.speed *= Math.max(0, 1 - dt * 12); this.turnVel = 0; return; }
@@ -1950,7 +2305,9 @@ const worldScene = {
       return m.grid[y][x] === "W" || m.grid[y][x] === "T" || world.solid.has(x + "," + y) || world.doors.some((b) => b.door.x === x && b.door.y === y);
     };
     const look = myLook();
-    World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid, look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
+    World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid,
+      daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash,
+      pickups: (world.pickups || []).map((it) => ({ id: it.id, x: it.x, y: it.y, img: IMG["item_" + ITEMS[it.item].icon] })), look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
   },
 };
 
