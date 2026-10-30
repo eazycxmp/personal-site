@@ -317,6 +317,37 @@ window.HouseDJ = (function () {
       },
     },
 
+    caught: { // congrats fanfare: 4-bar triumphant melody once, then a soft celebratory loop
+      bpm: 132,
+      mel: [[0, 67, 2], [2, 72, 2], [4, 76, 2], [6, 79, 2], [8, 84, 6], [14, 83, 2],
+        [16, 81, 2], [18, 79, 2], [20, 76, 2], [22, 77, 2], [24, 79, 8],
+        [32, 77, 2], [34, 76, 2], [36, 74, 2], [38, 76, 2], [40, 72, 4], [44, 74, 2], [46, 76, 2],
+        [48, 79, 4], [52, 84, 12]],
+      chords: [[60, 64, 67, 72, 36], [53, 57, 60, 65, 41], [55, 59, 62, 65, 43], [60, 64, 67, 72, 36]],
+      play(dk, s, t) {
+        const p = pos(s), b = bar(s);
+        if (s < 64) {
+          const ch = this.chords[b];
+          if (p === 0) { smp(dk, "crash", t, { gain: 0.35 }); rhodes(dk, t, ch.slice(0, 4), dk.stepDur * 15, 0.03); sub(dk, ch[4] + 12, t, dk.stepDur * 14, { gain: 0.6 }); }
+          if (p % 4 === 0) kick(dk, t, 0.8);
+          if (p === 4 || p === 12) smp(dk, "clap", t, { gain: 0.35 });
+          for (const [st, n, len] of this.mel) if (st === s) {
+            synth(dk, t, n, dk.stepDur * len, { wave: "square", cutoff: 3500, peak: 0.045, a: 0.004, envAmt: 1.5, toDelay: 0.3 });
+            synth(dk, t, n - 12, dk.stepDur * len, { wave: "triangle", cutoff: 4000, peak: 0.035, envAmt: 1 });
+          }
+          return;
+        }
+        // afterglow: gentle chords and a light groove while you read about your new monster
+        const ch = this.chords[[0, 1, 0, 2][(b >> 1) % 4]];
+        if (p === 0 && b % 2 === 0) rhodes(dk, t, ch.slice(0, 4), dk.stepDur * 28, 0.02);
+        if (p === 0 || p === 10) kick(dk, t, 0.5);
+        if (p === 8) smp(dk, "rim", t, { gain: 0.15 });
+        if (p % 4 === 2) smp(dk, "hat808", t, { gain: 0.06 });
+        if (p === 0) sub(dk, ch[4] + 12, t, dk.stepDur * 8, { gain: 0.45 });
+        if ([0, 3, 6].includes(p) && b % 2 === 1) synth(dk, t, ch[p / 3 | 0] + 12, dk.stepDur * 2, { wave: "triangle", cutoff: 3000, peak: 0.025, envAmt: 1, toDelay: 0.35 });
+      },
+    },
+
     chill: { // lo-fi: lazy swung drums, dusty snare, Rhodes 9ths, soft 808
       bpm: 82,
       prog: [{ c: [57, 60, 64, 67, 71], r: 33 }, { c: [50, 57, 60, 64, 65], r: 38 }, { c: [52, 55, 59, 62, 66], r: 40 }, { c: [53, 57, 60, 64, 67], r: 41 }],

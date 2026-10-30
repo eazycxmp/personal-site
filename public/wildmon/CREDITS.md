@@ -58,6 +58,11 @@ SURF: you stand on a surfboard with your monster riding up front (water has its 
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
 your monster's real sprite turned into a 3D voxel model.
 
+**Catching:** after a catch a congrats fanfare plays (the `caught` track in music.js) and the
+monster's Dex page opens with a "CAUGHT!" banner; Z returns you to the exact spot you were standing.
+Type icons sit beside monster names in battle, the party, the Dex and info pages. Every monster has
+1 or 2 types.
+
 **Your attacks rarely miss:** your monsters miss a quarter as often as a move's listed accuracy
 (an 80% move hits 95% of the time); foes use the listed accuracy (`PLAYER_MISS_SCALE` in game.js).
 
@@ -104,7 +109,8 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
 - **Monster, character, tile, building, battle-background art and the font** come from the
   [Tuxemon](https://github.com/Tuxemon/Tuxemon) project (art mostly CC BY-SA; code GPLv3; font
   Press Start 2P under the SIL OFL, see `game/assets/fonts/OFL.txt`). Monster stats, moves and type
-  chart are adapted from Tuxemon's database.
+  chart are adapted from Tuxemon's database. Type icons are Tuxemon's element icons
+  (`game/assets/types`; Dragon uses the Aether icon on a purple chip, since Tuxemon has no Dragon).
 - **Drum samples:** Roland TR-909 and TR-808 recordings from
   [fluid-music/open-drums](https://github.com/fluid-music/open-drums) (originally machines.hyperreal.org).
   The 909 set is free to copy and distribute unmodified and **not for profit**; see

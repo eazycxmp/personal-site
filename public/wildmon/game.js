@@ -74,6 +74,7 @@ async function loadAssets(progress) {
   }
   for (const m of Object.keys(D.monsters)) jobs.push(["mon_" + m, `assets/battle/${m}.png`]);
   for (const a of Object.keys(D.fx || {})) jobs.push(["fx_" + a, `assets/fx/${a}.png`]);
+  for (const [t, f] of Object.entries(TYPE_ICON)) jobs.push(["type_" + t, `assets/types/${f}_small.png`]);
   let done = 0;
   await Promise.all(jobs.map(([k, s]) => loadImg(k, s).then(() => progress(++done / jobs.length / 2))));
   await HouseDJ.load("assets/drums/");
@@ -156,6 +157,27 @@ function hpBar(x, y, w, frac) {
   ctx.fillStyle = "#e8e8e8"; ctx.fillRect(x + 1, y + 1, w, 2);
   ctx.fillStyle = frac > 0.5 ? "#40c048" : frac > 0.2 ? "#e8c020" : "#e04030";
   ctx.fillRect(x + 1, y + 1, Math.round(w * clamp(frac, 0, 1)), 2);
+}
+// Tuxemon element icons (12x12); Dragon has no Tuxemon icon, so it uses the Aether symbol on a dragon-purple chip.
+const TYPE_ICON = { fire: "fire", water: "water", wood: "wood", earth: "earth", lightning: "lightning", frost: "frost",
+  sky: "sky", venom: "venom", normal: "normal", heroic: "heroic", steel: "metal", dark: "shadow", psychic: "cosmic", dragon: "aether" };
+function typeIcon(type, x, y) {
+  const im = IMG["type_" + type];
+  if (type === "dragon" || !im) { ctx.fillStyle = TYPE_COLOR[type] || "#888"; ctx.fillRect(x, y, 12, 12); }
+  if (im) ctx.drawImage(im, x, y, 12, 12);
+  return 12;
+}
+// icons right after a name, or tucked under it at the panel's right edge when the name is long
+function nameIcons(slug, name, x, y, right) {
+  const w = D.monsters[slug].types.length * 13 - 1;
+  if (x + textW(name) + 2 + w <= right) typeIcons(slug, x + textW(name) + 2, y - 2);
+  else typeIcons(slug, right - w, y + 10);
+}
+// a monster's type icons in a row (every monster has 1 or 2 types); returns the width used
+function typeIcons(slug, x, y) {
+  const ts = D.monsters[slug].types;
+  ts.forEach((t, i) => typeIcon(t, x + i * 13, y));
+  return ts.length * 13 - 1;
 }
 function typeTag(type, x, y) {
   const w = textW(type.toUpperCase()) + 4;
@@ -1030,7 +1052,7 @@ function starterSelect() {
           if (k === this.i) { ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(x - 2, 20, 72, 92); }
           drawMon(s, "front", x + 2, 30 + bob);
           text(D.monsters[s].name, x + 4, 98, "#fff", "#204020");
-          typeTag(D.monsters[s].types[0], x + 4, 110 - 0);
+          typeTag(D.monsters[s].types[0], x + 4 + typeIcons(s, x + 4, 109) + 2, 110);
         });
         if (!this.confirming) {
           box(0, 128, VW, 32);
@@ -1070,11 +1092,12 @@ function partyScreen(mode, prompt) {
           const y = 2 + k * 22, sel = k === this.i;
           box(4, y, 232, 22, sel ? "#fff8c0" : m.hp > 0 ? "#f8f8f0" : "#e8c8c0");
           drawMonIcon(m.slug, 8, y - 2);
-          text(monName(m), 34, y + 4);
-          text("Lv" + m.level, 130, y + 4);
-          hpBar(166, y + 6, 40, m.hp / m.maxhp);
-          text(`${m.hp}`, 210, y + 4);
-          if (m.status) text(m.status === "burn" ? "BRN" : "PSN", 100, y + 12, "#c04020", null);
+          text(monName(m), 34, y + 2);
+          text("Lv" + m.level, 34, y + 11, "#606060", null);
+          typeIcons(m.slug, 134, y + 5);
+          hpBar(162, y + 8, 42, m.hp / m.maxhp);
+          text(`${m.hp}`, 210, y + 6);
+          if (m.status) text(m.status === "burn" ? "BRN" : "PSN", 76, y + 12, "#c04020", null);
         });
         box(0, 134, VW, 26);
         text(prompt || (mode === "view" ? "Choose a monster." : "Choose a monster."), 10, 143);
@@ -1108,13 +1131,14 @@ function whereFound() {
 function hereList() { const W = whereFound(); return Object.keys(D.monsters).filter((s) => W[s] && W[s].maps.includes(world.id)); }
 
 // Lore page shared by the summary screen and the Wildmon-Dex.
-function drawLore(slug, known = true) {
+function drawLore(slug, known = true, banner = null) {
   const d = D.monsters[slug];
   ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
   box(2, 2, 92, 104, "#c8e0f0");
   if (known) drawMon(slug, "front", 16, 22);
   else { ctx.globalAlpha = 1; ctx.filter = "brightness(0)"; drawMon(slug, "front", 16, 22, 0.55); ctx.filter = "none"; }
   text(known ? d.name : "???", 8, 8);
+  if (known) nameIcons(slug, d.name, 8, 8, 91);
   if (known) { let tx = 8; for (const t of d.types) tx += typeTag(t, tx, 90) + 2; }
   box(96, 2, 142, 104);
   const size = `${d.height ? (d.height / 100).toFixed(1) + "M" : "?"} ${d.weight ? d.weight + "KG" : ""}`;
@@ -1131,8 +1155,10 @@ function drawLore(slug, known = true) {
   box(2, 108, 236, 50);
   const desc = known ? d.desc || "Little is known about this monster." : "You haven't seen this monster yet.";
   // long entries page through 3 lines at a time
-  const lines = wrap(desc, 220), pages = Math.ceil(lines.length / 3), pg = Math.floor(NOW / 3.5) % pages;
-  lines.slice(pg * 3, pg * 3 + 3).forEach((ln, i) => text(ln, 10, 115 + i * 12));
+  const per = banner ? 2 : 3, top = banner ? 127 : 115;
+  if (banner) { ctx.fillStyle = "#fff0a0"; ctx.fillRect(6, 111, 228, 13); text(banner, 10, 113, "#a05000", null); }
+  const lines = wrap(desc, 220), pages = Math.ceil(lines.length / per), pg = Math.floor(NOW / 3.5) % pages;
+  lines.slice(pg * per, pg * per + per).forEach((ln, i) => text(ln, 10, top + i * 12));
   if (pages > 1) text(`${pg + 1}/${pages}`, 210, 148, "#a09080", null);
 }
 
@@ -1151,6 +1177,7 @@ function summary(m) {
         box(2, 2, 92, 104, "#c8e0f0");
         drawMon(m.slug, "front", 16, 22);
         text(d.name, 8, 8);
+        nameIcons(m.slug, d.name, 8, 8, 91);
         let tx = 8;
         for (const t of d.types) tx += typeTag(t, tx, 90) + 2;
         box(96, 2, 142, 104);
@@ -1167,6 +1194,21 @@ function summary(m) {
         });
         if (d.evo) text(`Evolves at Lv${d.evo[0]}`, 104, 98, "#806020", null);
         text("INFO >", 184, 150, "#806040", null);
+      },
+    });
+  });
+}
+
+// After a catch: the new monster's Dex page with a congrats banner. Z/X closes and you're back where you were.
+function caughtInfo(m, first) {
+  return new Promise((res) => {
+    const t0 = NOW;
+    push({
+      opaque: true,
+      update() { if (NOW - t0 > 0.6 && (consume("a") || consume("b"))) { pop(this); res(); } },
+      draw() {
+        drawLore(m.slug, true, `${first ? "NEW! " : ""}${D.monsters[m.slug].name.toUpperCase()} CAUGHT!  LV${m.level}`);
+        if (Math.floor(NOW * 2) % 2) text("Z", 222, 113, "#a05000", null);
       },
     });
   });
@@ -1199,12 +1241,14 @@ function monsterLog() {
           const k = this.top + r; if (k >= all.length) break;
           const s2 = all[k], seen = S.seen[s2] || S.caught[s2], y = 22 + r * 15;
           box(2, y, 150, 15, k === this.i ? "#fff8c0" : "#f8f8f0");
-          text(String(k + 1).padStart(3, "0"), 7, y + 4, "#808080", null);
+          if (seen) typeIcons(s2, 6, y + 2); // seen entries show their type icons where the number goes
+          else text(String(k + 1).padStart(3, "0"), 7, y + 4, "#808080", null);
           text(seen ? D.monsters[s2].name : "-----", 36, y + 4);
-          if (S.caught[s2]) { ctx.fillStyle = "#e04030"; ctx.fillRect(140, y + 5, 5, 5); }
-          if (here.includes(s2)) { ctx.fillStyle = "#30a050"; ctx.fillRect(131, y + 5, 5, 5); }
+          if (S.caught[s2]) { ctx.fillStyle = "#e04030"; ctx.fillRect(143, y + 5, 5, 5); }
+          if (here.includes(s2)) { ctx.fillStyle = "#30a050"; ctx.fillRect(135, y + 5, 5, 5); }
         }
         box(154, 22, 84, 136, "#c8e0f0");
+        text("No." + String(this.i + 1).padStart(3, "0"), 160, 27, "#506070", null);
         const seen = S.seen[slug] || S.caught[slug];
         if (seen) drawMon(slug, "front", 164, 40);
         else { ctx.filter = "brightness(0)"; drawMon(slug, "front", 164, 40, 0.5); ctx.filter = "none"; }
@@ -1479,8 +1523,9 @@ class Battle {
     text(monName(m).slice(0, 10), x + 6, y + 5);
     text("Lv" + m.level, x + 80, y + 5);
     const hp = mine ? this.pHp : this.eHp;
-    text("HP", x + 6, y + 17, "#e08030", null);
-    hpBar(x + 22, y + 18, 80, hp / m.maxhp);
+    const icw = typeIcons(m.slug, x + 6, y + 16);
+    text("HP", x + 9 + icw, y + 17, "#e08030", null);
+    hpBar(x + 25 + icw, y + 18, 77 - icw, hp / m.maxhp);
     if (m.status) text(m.status === "burn" ? "BRN" : "PSN", x + 60, y + 5, "#c04020", null);
     if (mine) {
       text(`${Math.ceil(hp)}/${m.maxhp}`, x + 50, y + 25);
@@ -1789,11 +1834,13 @@ class Battle {
     }
     await wait(0.3);
     if (shakes === 3) {
+      const first = !S.caught[e.slug];
+      music("caught");
       await this.msg(`Gotcha! ${monName(e)} was caught!`);
-      music("win");
       const where = addMon(e);
       this.ball = null;
       if (where === "box") await this.msg(`Your party is full. ${monName(e)} was sent to the box.`);
+      await caughtInfo(e, first);
       return "caught";
     }
     this.ball = null;
