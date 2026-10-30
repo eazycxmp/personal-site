@@ -453,7 +453,7 @@ function loadMap(id, x, y, dir) {
   music(m.music || "town");
   World3D.build(m, BUILDINGS);
   World3D.snapYaw(p.angle);
-  if (prevId !== id) worldScene.banner = { name: m.name, t: NOW };
+  if (prevId !== id) worldScene.banner = { name: m.theme ? `${m.name}: ${m.theme}` : m.name, t: NOW };
 }
 
 function tileAt(x, y) {
@@ -680,14 +680,30 @@ function stepEvent() {
   const tr = world.npcs.find(trainerSees);
   if (tr) return () => trainerEncounter(tr, true);
   const table = p.surfing && tileAt(p.x, p.y) === "~" ? m.water : tileAt(p.x, p.y) === "," ? m.encounters : null;
-  if (table && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1))) {
-    const tot = table.reduce((a, e) => a + e[3], 0);
-    let r = Math.random() * tot, pick = table[0];
-    for (const e of table) { r -= e[3]; if (r <= 0) { pick = e; break; } }
-    const mon = makeMon(pick[0], rand(pick[1], pick[2]));
-    return () => wildBattle(mon);
+  if (table && table.length && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1))) {
+    const pick = pickWild(table), lv = rand(pick[1], pick[2]);
+    return () => wildBattle(makeMon(wildForm(pick[0], lv), lv));
   }
   return null;
+}
+
+// Wild picks never repeat a species you just met, and species you haven't logged yet turn up more,
+// so every walk through the grass brings something different.
+const recentWild = [];
+function pickWild(table) {
+  const fresh = table.filter((e) => !recentWild.includes(e[0]));
+  const pool = fresh.length >= 2 ? fresh : table;
+  const w = (e) => e[3] * (S.seen[e[0]] ? 1 : 2);
+  let r = Math.random() * pool.reduce((a, e) => a + w(e), 0), pick = pool[0];
+  for (const e of pool) { r -= w(e); if (r <= 0) { pick = e; break; } }
+  recentWild.push(pick[0]);
+  if (recentWild.length > Math.min(4, table.length - 2)) recentWild.shift();
+  return pick;
+}
+// a wild monster well past its evolution level has already evolved
+function wildForm(slug, lv) {
+  while (D.monsters[slug].evo && lv >= D.monsters[slug].evo[0] + 2) slug = D.monsters[slug].evo[1];
+  return slug;
 }
 
 function runScript(fn) {
@@ -1067,7 +1083,31 @@ function partyScreen(mode, prompt) {
   });
 }
 
-// Lore page shared by the summary screen and the Monster Log.
+// Where each species can be met in the wild (including already-evolved wild forms), for the Dex.
+let WHERE = null;
+function whereFound() {
+  if (WHERE) return WHERE;
+  WHERE = {};
+  for (const [id, m] of Object.entries(MAPS)) {
+    const label = m.theme || m.name;
+    for (const [tbl, tag] of [[m.encounters, ""], [m.water, " (SURF)"]]) for (const [slug, lo, hi] of tbl || []) {
+      if (!D.monsters[slug]) continue;
+      for (let lv = lo; lv <= hi; lv++) {
+        const f = wildForm(slug, lv), list = (WHERE[f] = WHERE[f] || { areas: [], maps: [] });
+        if (!list.areas.includes(label + tag)) list.areas.push(label + tag);
+        if (!list.maps.includes(id)) list.maps.push(id);
+      }
+    }
+  }
+  for (const st of Object.values(MAPS).flatMap((m) => [...(m.legends || []), ...(m.sleeper ? [m.sleeper] : [])])) {
+    const m = Object.values(MAPS).find((mm) => (mm.legends || []).includes(st) || mm.sleeper === st);
+    WHERE[st.slug] = { areas: [(m.theme || m.name)], maps: [] };
+  }
+  return WHERE;
+}
+function hereList() { const W = whereFound(); return Object.keys(D.monsters).filter((s) => W[s] && W[s].maps.includes(world.id)); }
+
+// Lore page shared by the summary screen and the Wildmon-Dex.
 function drawLore(slug, known = true) {
   const d = D.monsters[slug];
   ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
@@ -1079,7 +1119,9 @@ function drawLore(slug, known = true) {
   box(96, 2, 142, 104);
   const size = `${d.height ? (d.height / 100).toFixed(1) + "M" : "?"} ${d.weight ? d.weight + "KG" : ""}`;
   const evo = d.evo ? `LV${d.evo[0]} ${D.monsters[d.evo[1]].name}` : "FINAL FORM";
-  const rows = known ? [["SPECIES", d.species], ["HABITAT", (d.habitat || []).slice(0, 2).join(", ") || "Unknown"],
+  const wf = whereFound()[slug];
+  const found = wf ? wf.areas.slice(0, 2).join(", ") : ["agnite", "krokivip", "anoleaf"].includes(slug) ? "PROF. OAKLEY'S LAB" : "ONLY BY EVOLVING";
+  const rows = known ? [["SPECIES", d.species], ["FOUND IN", found],
     ["SIZE", size], ["EVOLVES", evo], ["TRAITS", (d.traits || []).slice(0, 2).join(", ") || "-"]] : [["SPECIES", "???"], ["HABITAT", "???"]];
   rows.forEach(([k, v], i) => {
     text(k, 102, 8 + i * 19, "#806040", null);
@@ -1130,7 +1172,7 @@ function summary(m) {
   });
 }
 
-// Monster Log: every species in the game, with lore for the ones you've seen.
+// Wildmon-Dex: every species in the game, with lore and where to find the ones you've seen.
 function monsterLog() {
   const all = Object.keys(D.monsters);
   return new Promise((res) => {
@@ -1148,11 +1190,11 @@ function monsterLog() {
         if (consume("b")) { pop(this); res(); }
       },
       draw() {
-        const slug = all[this.i];
+        const slug = all[this.i], here = this.here || (this.here = hereList());
         if (this.open) { drawLore(slug, !!S.seen[slug] || !!S.caught[slug]); return; }
         ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
         box(2, 2, 236, 18, "#f0e8d0");
-        text(`LOG  SEEN ${Object.keys(S.seen).length}  OWN ${Object.keys(S.caught).length}/${all.length}`, 8, 7);
+        text(`DEX  SEEN ${Object.keys(S.seen).length}  CAUGHT ${Object.keys(S.caught).length}/${all.length}`, 8, 7);
         for (let r = 0; r < 9; r++) {
           const k = this.top + r; if (k >= all.length) break;
           const s2 = all[k], seen = S.seen[s2] || S.caught[s2], y = 22 + r * 15;
@@ -1160,14 +1202,20 @@ function monsterLog() {
           text(String(k + 1).padStart(3, "0"), 7, y + 4, "#808080", null);
           text(seen ? D.monsters[s2].name : "-----", 36, y + 4);
           if (S.caught[s2]) { ctx.fillStyle = "#e04030"; ctx.fillRect(140, y + 5, 5, 5); }
+          if (here.includes(s2)) { ctx.fillStyle = "#30a050"; ctx.fillRect(131, y + 5, 5, 5); }
         }
         box(154, 22, 84, 136, "#c8e0f0");
         const seen = S.seen[slug] || S.caught[slug];
         if (seen) drawMon(slug, "front", 164, 40);
         else { ctx.filter = "brightness(0)"; drawMon(slug, "front", 164, 40, 0.5); ctx.filter = "none"; }
         if (seen) { let tx = 160; for (const t of D.monsters[slug].types) tx += typeTag(t, tx, 112) + 2; }
-        text("Z: INFO", 166, 132, "#506070", null);
-        text("<-> PAGE", 162, 144, "#506070", null);
+        if (here.length) {
+          const got = here.filter((s3) => S.seen[s3] || S.caught[s3]).length;
+          ctx.fillStyle = "#30a050"; ctx.fillRect(158, 127, 5, 5);
+          text(`HERE ${got}/${here.length}`, 166, 126, "#305040", null);
+        }
+        text("Z: INFO", 166, 137, "#506070", null);
+        text("<-> PAGE", 162, 147, "#506070", null);
       },
     });
   });
@@ -1218,14 +1266,14 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "LOG", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    const opts = ["PARTY", "DEX", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
     if (rider("psychic")) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
     if (pick === "TELEPORT") { await teleportMenu(); return; }
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
-    else if (pick === "LOG") await monsterLog();
+    else if (pick === "DEX") await monsterLog();
     else if (pick === "BAG") await useItemOutside();
     else if (pick === "TRAINER") await trainerCard();
     else if (pick === "SAVE") { await say(save() ? "Game saved!" : "Couldn't save (storage blocked)."); }
@@ -1263,7 +1311,6 @@ function trainerCard() {
 
 // ---------------------------------------------------------------- battle
 async function wildBattle(mon, extra = {}) {
-  S.seen[mon.slug] = true;
   const res = await runBattle({ wild: mon, party: [mon], bg: world.map.interior ? "interior" : world.map.bg, ...extra });
   if (res !== "lose") save();
   return res;
@@ -1450,7 +1497,9 @@ class Battle {
       this.eVis = true;
       await tween(0.6, (k) => { this.eX = -60 + 208 * k; this.plX = -80 + 100 * k; });
       this.showEBox = true;
+      const isNew = !S.seen[this.e.slug];
       await this.msg(this.legendary ? `The legendary ${monName(this.e).toUpperCase()} appeared!` : `A wild ${monName(this.e)} appeared!`);
+      if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Wildmon-Dex.`); }
     }
     const first = S.party.findIndex((m) => m.hp > 0);
     await tween(0.35, (k) => { this.plX = 20 - 110 * k; });

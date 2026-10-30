@@ -33,8 +33,17 @@ battle with no blackout), again on Route 2 and Route 3, and their ace ends up in
 Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
 off Fire/Water/Wood/Lightning) with its own Dragon Claw and Dragon Breath. The starters each have 3
 forms (Krokivip → Leviadile → Golnagi); every other family has 2 or 3 (fixed seed in
-`tools/build_data.py`), with one-of-a-kind species paired up by type. The Monster Log (menu → LOG)
-has each species' lore.
+`tools/build_data.py`), with one-of-a-kind species paired up by type. The Wildmon-Dex (menu → DEX)
+has each species' lore and where it's found; a green dot marks species living in the area you're in,
+with a HERE seen/total count. New species are announced the first time you meet them.
+
+**Wild areas are themed and get tougher each route**, each with its own species (none shared between
+routes): Route 1 Greenwood Trail (Lv 2–5: bugs, birds, burrowers), Route 2 Duskwood (Lv 8–13: plants,
+moths, bats, poisons), Route 3 Frostridge Pass (Lv 15–20: rock, ice, fire), Route 4 Starfall Woods
+(Lv 22–28: metal, cosmic, storm, dragons), Hollowmere ghost town (Lv 24–29). Wild picks never repeat a
+species you met in the last few encounters, unlogged species turn up twice as often, and wild monsters
+well past their evolution level appear already evolved. Tables live in the "Wild areas" section of
+`game/maps.js`.
 
 **Hollowmere, legendaries and the sleeping giant.** A side path west off Route 3 leads to Hollowmere,
 an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type monsters in the grass). A giant
@@ -48,6 +57,10 @@ facing, from any angle, and they turn to face you.
 SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
 your monster's real sprite turned into a 3D voxel model.
+
+**Everyone is a realistic person** (Quaternius base characters): trainers wear their area's uniform,
+nurses, professors, clerks and guards have fixed looks, and townsfolk get varied hair, skin and
+clothes, seeded by who they are so they look the same every visit.
 
 **Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
 the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's

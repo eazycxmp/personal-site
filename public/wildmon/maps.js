@@ -73,10 +73,7 @@
         team: [["banling", 4], ["rockitten", 5]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
     ],
     rate: 0.12,
-    encounters: [
-      ["memnomnom", 2, 4, 3], ["eyenemy", 2, 4, 3], ["katapill", 2, 4, 3], ["stonifly", 3, 5, 2],
-      ["virware", 3, 5, 2], ["nut", 3, 5, 2], ["slichen", 3, 5, 2], ["rockitten", 3, 5, 1], ["spighter", 4, 5, 1],
-    ],
+    encounters: [], // see "Wild areas" below
   });
 
   // ---------------- Ember City (Gym 1: Earth) ----------------
@@ -127,11 +124,7 @@
         team: [["rosarin", 11], ["banling", 10], ["slichen", 11]], intro: "The forest speaks through my monsters!", lose: "The forest is at peace with you." }),
     ],
     rate: 0.12,
-    encounters: [
-      ["seirein", 7, 10, 3], ["merlicun", 7, 10, 3], ["fordin", 8, 11, 2], ["lambert", 8, 11, 2],
-      ["komodraw", 8, 11, 2], ["pythwire", 9, 12, 2], ["masknake", 9, 12, 1], ["hydrone", 9, 12, 1],
-      ["cateye", 8, 11, 1], ["toufigel", 8, 11, 1], ["sludgehog", 9, 12, 1], ["nostray", 8, 11, 2], ["vamporm", 7, 10, 2],
-    ],
+    encounters: [], // see "Wild areas" below
   });
 
   // ---------------- Tide Harbor (Gym 2: Water) ----------------
@@ -189,12 +182,7 @@
         team: [["turnipper", 17], ["banling", 17], ["toufigel", 17]], intro: "The pines whisper of a strong trainer...", lose: "The whispers were right." }),
     ],
     rate: 0.12,
-    encounters: [
-      ["banling", 13, 17, 3], ["demosnow", 14, 17, 2], ["chromeye", 13, 17, 2], ["pawsand", 14, 18, 2],
-      ["potturmeist", 13, 17, 2], ["stomic", 14, 18, 2], ["spirain", 14, 18, 2], ["ignibus", 15, 19, 1],
-      ["mystikapi", 15, 19, 1], ["spycozeus", 15, 19, 1], ["joulraton", 15, 19, 1], ["urcheedle", 14, 18, 1],
-      ["flacono", 13, 17, 2],
-    ],
+    encounters: [], // see "Wild areas" below
   });
 
   // ---------------- Volt City (Gym 3: Lightning) ----------------
@@ -237,13 +225,7 @@
         team: [["babysnitch", 25], ["hoarse", 26], ["demosnow", 25]], intro: "Strange things live in these woods. I keep them in line!", lose: "You'd make a fine night ranger." }),
     ],
     rate: 0.12,
-    encounters: [
-      ["metesaur", 20, 24, 2], ["hissiorite", 20, 24, 2], ["nebufin", 21, 25, 2], ["poinchin", 20, 24, 2],
-      ["turnipper", 20, 24, 2], ["furnursus", 21, 25, 2], ["sprorm", 21, 25, 2], ["gupphish", 21, 25, 1],
-      ["manosting", 22, 26, 1], ["ghosteeth", 22, 26, 1], ["lunight", 22, 26, 1], ["solight", 22, 26, 1],
-      ["medushock", 23, 27, 1], ["volcoli", 23, 27, 1], ["djinnbo", 24, 27, 1], ["mingdyn", 24, 27, 1],
-      ["drokoro", 25, 27, 1], ["ziggurat", 25, 27, 1], ["yiinaang", 25, 27, 1], ["uf0", 22, 26, 1],
-    ],
+    encounters: [], // see "Wild areas" below
   });
 
   // ---------------- Shade Hollow (Gym 4: Shadow + Champion Hall) ----------------
@@ -357,8 +339,7 @@
         talk: ["This town emptied the night the shrine woke...", "They say the first wildmon of all still drifts up there, north of the square."] },
     ],
     rate: 0.15,
-    encounters: [["ghosteeth", 21, 25, 3], ["seirein", 21, 25, 3], ["uneye", 21, 25, 2], ["cackleen", 21, 25, 2],
-      ["babysnitch", 22, 26, 2], ["potturmeist", 21, 25, 2], ["lunight", 22, 26, 1], ["yiinaang", 24, 27, 1], ["djinnbo", 24, 27, 1]],
+    encounters: [], // see "Wild areas" below
   });
   W.hollow.water = [["manosting", 22, 26, 1], ["seirein", 22, 26, 1]];
   W.hollow_house = house("Abandoned House", { sprite: "heroine", x: 3, y: 4, dir: "down", name: "Pale Girl", outfit: "occult",
@@ -429,12 +410,36 @@
     ],
   });
 
-  // Creatures met while surfing (one roll per water tile entered).
+  // ---------------- Wild areas ----------------
+  // Each route has its own theme and its own species (no repeats between routes), and each one is
+  // tougher than the last, in step with its trainers. Species are listed as base forms; wild ones high
+  // enough above their evolution level show up already evolved (see wildForm in game.js).
+  // [slug, minLv, maxLv, weight]  weight 3 common, 2 uncommon, 1 rare.
+  const area = (id, theme, land, water) => { W[id].theme = theme; if (land) W[id].encounters = land; if (water) W[id].water = water; };
+  const lv = (lo, hi, list) => list.map(([s, w]) => [s, lo, hi, w]);
+  area("route1", "Greenwood Trail", lv(2, 5, [ // first steps: bugs, birds and burrowers
+    ["dandicub", 3], ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
+    ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1], ["memnomnom", 1]]));
+  area("route2", "Duskwood", lv(8, 13, [ // deep forest at dusk: plants, moths, bats, poisons
+    ["banling", 3], ["turnipper", 3], ["noctula", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2], ["fluttaflap", 2],
+    ["vamporm", 2], ["tumbleworm", 2], ["poinchin", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1], ["trapsnap", 1], ["hatchling", 1]]),
+    lv(8, 12, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]));
+  area("route3", "Frostridge Pass", lv(15, 20, [ // cold mountain: rock, ice and fire
+    ["rockitten", 3], ["waysprite", 3], ["pawsand", 2], ["grintot", 2], ["eskipup", 2], ["tweesher", 2], ["chillimp", 2],
+    ["hissiorite", 2], ["furnursus", 2], ["cardiling", 2], ["imbrickcile", 2], ["flacono", 2], ["devidin", 1],
+    ["selket", 1], ["lesmagu", 1], ["demosnow", 1], ["foxfire", 1]]),
+    lv(15, 19, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]));
+  area("route4", "Starfall Woods", lv(22, 28, [ // meteor-struck forest: metal, cosmic, storm and dragons
+    ["chromeye", 3], ["boltnu", 3], ["virware", 2], ["sprorm", 2], ["grimachin", 2], ["metesaur", 2], ["tetrchimp", 2],
+    ["joulraton", 2], ["fancair", 2], ["pythwire", 2], ["bugnin", 2], ["stomic", 2], ["komodraw", 1], ["cardinale", 1],
+    ["wrougon", 1], ["bursa", 1], ["chloragon", 1], ["pythonova", 1]]),
+    lv(21, 26, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]));
+  area("hollow", "Ghost Town", lv(24, 29, [ // what haunts the empty town
+    ["ghosteeth", 3], ["cackleen", 3], ["babysnitch", 3], ["potturmeist", 3], ["seirein", 2], ["uneye", 2],
+    ["hoarse", 2], ["runesquito", 2], ["djinnbo", 1], ["yiinaang", 1]]),
+    lv(24, 28, [["manosting", 1], ["seirein", 1]]));
   W.sprout.water = [["tadcool", 3, 5, 2], ["dollfin", 3, 5, 1]];
-  W.route2.water = [["nostray", 8, 11, 2], ["jelillow", 8, 11, 1], ["squink", 9, 12, 1]];
-  W.tide.water = [["squink", 15, 19, 2], ["nostray", 15, 19, 2], ["spirain", 16, 20, 1], ["gupphish", 17, 21, 1], ["manosting", 18, 22, 1]];
-  W.route3.water = [["spirain", 13, 17, 2], ["jelillow", 14, 18, 1], ["nebufin", 14, 18, 1]];
-  W.route4.water = [["nebufin", 20, 24, 2], ["gupphish", 21, 25, 1], ["manosting", 22, 26, 1]];
+  W.tide.water = lv(16, 21, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
   W.shade.water = [["manosting", 28, 32, 1], ["nebufin", 28, 32, 1]];
 
   window.WORLD = { maps: W, BUILDINGS };

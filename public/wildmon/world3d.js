@@ -19,7 +19,6 @@ window.World3D = (function () {
       "grass_leafsLarge", "grass", "flower_redA", "flower_purpleA", "flower_yellowA", "plant_bush", "plant_bushLarge",
       "rock_smallA", "rock_largeA", "rock_tallA", "fence_simple", "sign", "mushroom_red", "stump_round", "log", "path_stone",
       "lily_large", "lily_small"],
-    characters: ["male", "female"].flatMap((g) => "abcdef".split("").map((v) => `character-${g}-${v}`)),
     commercial: ["building-e", "building-l", "building-k", "building-m", "building-c", "building-skyscraper-e", "detail-awning-wide"],
     suburban: ["building-type-a", "building-type-c", "building-type-m", "planter"],
     town: ["banner-red", "banner-green", "lantern", "fountain-round", "stall-red", "rock-large", "hedge", "pillar-stone"],
@@ -62,8 +61,8 @@ window.World3D = (function () {
         undefined, (e) => { console.warn("qn model failed", f, e); res(); });
     })));
     const TL = new THREE.TextureLoader();
-    await Promise.all(["male", "female"].map((gname) => new Promise((res) => TL.load(`${base}qn/qn_${gname}_light.jpg`, (t) => {
-      t.flipY = false; t.encoding = THREE.sRGBEncoding; qnSkin[gname] = t; res();
+    await Promise.all(["male", "female", "male_dark", "female_dark"].map((k) => new Promise((res) => TL.load(`${base}qn/qn_${k.includes("_") ? k : k + "_light"}.jpg`, (t) => {
+      t.flipY = false; t.encoding = THREE.sRGBEncoding; qnSkin[k] = t; res();
     }, undefined, () => res()))));
     return Object.keys(models).length;
   }
@@ -662,9 +661,9 @@ window.World3D = (function () {
     g.setAttribute("qnr", new THREE.BufferAttribute(r, 1));
   }
   // skin material that hides the parts under the clothes (torso, upper arms, legs, feet) so nothing pokes through
-  function qnBodyMat(src, gname) {
-    const m = new THREE.MeshStandardMaterial({ map: qnSkin[gname] || null, roughness: 0.75, metalness: 0, normalMap: src.normalMap || null });
-    const hide = [0, 1, 1, 0, 1, 1, 1, 0];
+  function qnBodyMat(src, skinKey, long, shorts) {
+    const m = new THREE.MeshStandardMaterial({ map: qnSkin[skinKey] || null, roughness: 0.75, metalness: 0, normalMap: src.normalMap || null });
+    const hide = [0, 1, 1, long ? 1 : 0, 1, shorts ? 0 : 1, 1, 0];
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uHide = { value: hide };
       sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float qnr; varying float vQnr;")
@@ -676,25 +675,70 @@ window.World3D = (function () {
     return m;
   }
   const QN_CLIPS = { idle: "Idle_Loop", walk: "Walk_Loop", sprint: "Sprint_Loop", sit: "Sitting_Idle_Loop" };
-  function makeQNActor(key, gname, color) {
+  // How a person looks. Player/rival: their colour. Trainers: their area theme. Key townsfolk: fixed looks.
+  // Everyone else: varied, but seeded by who they are so they look the same every visit.
+  const ROLE_LOOK = {
+    nurse: { gender: "female", shirt: 0xf2a5c0, pants: 0xf4f0f0, hair: "Buns", hairCol: 0x3a2010 },
+    professor: { gender: "male", shirt: 0xf2f2f2, pants: 0x5a4a3a, long: true, hair: "SimpleParted", hairCol: 0xb8b8b8, beard: true },
+    scientist: { gender: "male", shirt: 0xf2f2f2, pants: 0x30303a, long: true, hair: "Buzzed", hairCol: 0x1a1414 },
+    shopkeeper: { gender: "male", shirt: 0x2f6fd0, pants: 0x2a2a34, hair: "SimpleParted", hairCol: 0x4a2a14 },
+    homemaker: { gender: "female", shirt: 0xb06ac0, pants: 0x3a3040, hair: "Long", hairCol: 0x6a3a1a },
+    heroine: { gender: "female", shirt: 0x2ab0a0, pants: 0x2a3550, hair: "SimpleParted", hairCol: 0x9a6a30 },
+    granny: { gender: "female", shirt: 0xb8a8d8, pants: 0x5a5060, long: true, hair: "Buns", hairCol: 0xd8d8d8 },
+    soldier: { gender: "male", shirt: 0x4a5a3a, pants: 0x3a4030, long: true, hair: "Buzzed", hairCol: 0x2a1a10 },
+  };
+  const THEME_LOOK = { // shirt / pants / long sleeves per trainer theme (colours from OUTFITS)
+    ranger: ["p", "s", true], nightranger: ["p", "s", true], sailor: ["s", "p", false], engineer: ["p", "a", true],
+    occult: ["p", "s", true], miner: ["p", "d", false], royal: ["p", "a", true],
+  };
+  const SHIRTS = [0xc8302c, 0x2f5fd0, 0x2f9a48, 0xe0a020, 0x8a3ad8, 0x2ab0a0, 0xe06a20, 0xf2f2f2, 0x3a3a44, 0xd85a8a];
+  const PANTS_ALL = [0x2a2a34, 0x2a3550, 0x3a3428, 0x5a4a3a, 0x3a3a40, 0x6a6a72];
+  const HAIR_COLS = [0x2a1a10, 0x4a2a14, 0x6a4020, 0x9a6a30, 0x1a1414, 0xb0a080, 0x7a2a14];
+  function hashOf(str) { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; }
+  function npcLook(sprite, outfit, key) {
+    const base = (sprite || "").split("_")[0];
+    const gender = /female/.test(CHAR_FOR[sprite] || CHAR_FOR[base] || "") ? "female" : "male";
+    const h = hashOf(key + sprite);
+    const pick = (arr, salt) => arr[(h >>> salt) % arr.length];
+    const look = {
+      gender, shirt: pick(SHIRTS, 0), pants: pick(PANTS_ALL, 5), long: (h >>> 9) % 3 === 0, shorts: gender === "male" && (h >>> 11) % 5 === 0,
+      hair: gender === "female" ? pick(["Long", "Buns", "SimpleParted", "BuzzedFemale"], 13) : pick(["SimpleParted", "Buzzed", "Long"], 13),
+      hairCol: pick(HAIR_COLS, 17), dark: (h >>> 21) % 10 < 3, beard: gender === "male" && (h >>> 25) % 4 === 0,
+    };
+    if (ROLE_LOOK[base]) Object.assign(look, ROLE_LOOK[base], { shorts: false });
+    if (outfit && THEME_LOOK[outfit] && OUTFITS[outfit]) {
+      const [sh, pa, long] = THEME_LOOK[outfit], pal = OUTFITS[outfit];
+      Object.assign(look, { shirt: pal[sh], pants: pal[pa], long, shorts: false });
+    }
+    return look;
+  }
+  function playerLook(gname, color) {
+    return { gender: gname, shirt: SHIRT[color] || 0x3060d8, pants: PANTS[color] || 0x2a2a34, hair: gname === "female" ? "Long" : "SimpleParted",
+      hairCol: gname === "female" ? 0x5a3418 : 0x2a1a10 };
+  }
+  function makeQNActor(key, look) {
+    const gname = look.gender;
     const src = models["qn/" + gname], lib = models["qn/anims"];
     const root = new THREE.Group();
     const body = window.SkeletonUtils.clone(src.scene);
     body.scale.setScalar(QN_HEIGHT / 1.84);
-    const hair = gname === "female" ? "Long" : "SimpleParted";
+    const skinKey = gname + (look.dark ? "_dark" : "");
+    const top = look.long ? "ShirtLong" : "Shirt", leg = look.shorts ? "Shorts" : "Pants";
+    const hairCol = new THREE.Color(look.hairCol ?? 0x2a1a10).multiplyScalar(2.2);
     body.traverse((m) => {
       if (!m.isSkinnedMesh) return;
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       const n = m.name.replace(/^QN_/, "").replace(/\.\d+$/, "");
-      if (/^Super[hH]ero/.test(n)) { qnRegions(m); m.material = qnBodyMat(m.material, gname); }
+      if (/^Super[hH]ero/.test(n)) { qnRegions(m); m.material = qnBodyMat(m.material, skinKey, look.long, look.shorts); }
       else if (n.startsWith("Wear_")) {
         const k = n.slice(5);
-        m.visible = k === "Shirt" || k === "Pants" || k === "Shoes";
-        if (m.visible) m.material = new THREE.MeshStandardMaterial({ color: k === "Shirt" ? SHIRT[color] || 0x3060d8 : k === "Pants" ? PANTS[color] || 0x2a2a34 : 0x2a1d12, roughness: 0.85, metalness: 0 });
+        m.visible = k === top || k === leg || k === "Shoes";
+        if (m.visible) m.material = new THREE.MeshStandardMaterial({ color: k === top ? look.shirt : k === leg ? look.pants : 0x2a1d12, roughness: 0.85, metalness: 0 });
       } else if (n.startsWith("Hair_")) {
-        m.visible = n.slice(5) === hair;
-        if (m.visible) { m.material = m.material.clone(); m.material.color = new THREE.Color(gname === "female" ? 0x5a3418 : 0x2a1a10).multiplyScalar(2.2); }
-      } else if (/Eyebrows/.test(n)) { m.material = m.material.clone(); m.material.color = new THREE.Color(0x2a1a10).multiplyScalar(2); }
+        const k = n.slice(5);
+        m.visible = k === look.hair || (k === "Beard" && look.beard);
+        if (m.visible) { m.material = m.material.clone(); m.material.color = hairCol; }
+      } else if (/Eyebrows/.test(n)) { m.material = m.material.clone(); m.material.color = hairCol.clone().multiplyScalar(0.9); }
     });
     root.add(body);
     scene.add(root);
@@ -711,32 +755,8 @@ window.World3D = (function () {
   }
 
   function makeActor(key, sprite, outfit, model) {
-    if (model && model.startsWith("qn:") && models["qn/" + model.slice(3)]) return makeQNActor(key, model.slice(3), outfit);
-    const base = model || CHAR_FOR[sprite] || CHAR_FOR[(sprite || "").split("_")[0]] || "character-male-a";
-    const src = models["characters/" + base];
-    const root = new THREE.Group();
-    const body = window.SkeletonUtils.clone(src.scene);
-    const h = src.box.max.y - src.box.min.y;
-    body.scale.setScalar(1.05 / (h || 1));
-    body.position.y = -src.box.min.y * (1.05 / (h || 1));
-    body.traverse((o) => {
-      if (!o.isMesh) return;
-      o.castShadow = true; o.frustumCulled = false;
-      // only the body (clothes) gets the outfit; the head keeps its own skin, face and hair
-      if (outfit && /body/i.test(o.name) && !Array.isArray(o.material)) {
-        let headMesh = null; body.traverse((q) => { if (q.isMesh && /head/i.test(q.name)) headMesh = q; });
-        o.material = bodyOutfitMaterial(o.material, outfit, base, clothCells(base, o, headMesh));
-      }
-    });
-    root.add(body);
-    scene.add(root);
-    const mixer = new THREE.AnimationMixer(body);
-    const acts = {};
-    for (const n of ["idle", "walk", "sprint", "sit"]) { const c = src.animations.find((a) => a.name === n); if (c) acts[n] = mixer.clipAction(c); }
-    const a = { root, mixer, acts, state: null, yaw: null };
-    setAnim(a, "idle");
-    actors.set(key, a);
-    return a;
+    if (model && model.startsWith("qn:")) return makeQNActor(key, playerLook(model.slice(3), outfit));
+    return makeQNActor(key, npcLook(sprite, outfit, key));
   }
   function setAnim(a, n) {
     if (a.state === n || !a.acts[n]) return;
@@ -993,7 +1013,7 @@ window.World3D = (function () {
       seatY = base + (p.alt || 0) + bob + mm.seat;
     } else if (activeMount) { scene.remove(activeMount); activeMount = null; }
     if (!(p.mount && p.surfing) && spray) updateSpray(dt, p, false, -1);
-    const look = state.look || { model: "character-male-e", outfit: "red" };
+    const look = state.look || { model: "qn:male", outfit: "red" };
     const pkey = "player:" + look.model + ":" + look.outfit;
     const surfing = p.mount && p.surfing;
     updateActor(pkey, null, p.px, p.pz, p.angle + (surfing ? 1.1 : 0), surfing ? "idle" : p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1, look.outfit, look.model);
