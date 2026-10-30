@@ -263,7 +263,7 @@
       { sprite: "soldier", x: 15, y: 14, dir: "down", name: "Guard",
         talk: ["Beyond here is the Champion.\nYou need all 4 badges."] },
       { sprite: "magician", x: 9, y: 22, dir: "up", name: "Mystic",
-        talk: ["Morrow's SHADOW monsters...", "...they say COSMIC and HEROIC\npower shines through darkness."] },
+        talk: ["Morrow's DARK monsters...", "...they say PSYCHIC and HEROIC\npower shines through darkness."] },
     ],
   });
 

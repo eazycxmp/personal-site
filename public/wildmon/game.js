@@ -17,9 +17,9 @@ const ITEMS = {
   tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild monsters." },
 };
 const TYPE_COLOR = {
-  fire: "#e0502c", water: "#3a7be0", wood: "#3fa34d", earth: "#a8763e", metal: "#8c96a3", frost: "#7fd4e8",
-  lightning: "#e6c02a", normal: "#a8a29a", venom: "#9a4fc2", heroic: "#e08a2c", cosmic: "#5f4fd0",
-  sky: "#6fb3e8", shadow: "#4a3b5c",
+  fire: "#e0502c", water: "#3a7be0", wood: "#3fa34d", earth: "#a8763e", steel: "#8c96a3", frost: "#7fd4e8",
+  lightning: "#e6c02a", normal: "#a8a29a", venom: "#9a4fc2", heroic: "#e08a2c", psychic: "#e0479a",
+  sky: "#6fb3e8", dark: "#4a3b5c", dragon: "#6a3ad8",
 };
 const BG_FOR = { grass: "grass_background", forest: "forest_background", beach: "beach_background", interior: "battle_interior" };
 
@@ -87,7 +87,7 @@ const KEYMAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right",
   KeyZ: "a", Enter: "a", Space: "a", KeyX: "b", Escape: "b", Backspace: "b",
-  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly",
+  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly", KeyT: "teleport",
 };
 addEventListener("keydown", (e) => {
   const k = KEYMAP[e.code];
@@ -513,6 +513,37 @@ function landingSpot(id) {
   for (const dy of [2, 1, 3]) if (!blockedAt(id, b.door.x, b.door.y + dy)) return [b.door.x, b.door.y + dy];
   return [b.door.x, b.door.y + 1];
 }
+// Teleport: a Psychic monster warps you instantly to any town you've visited, even from indoors.
+let warpFx = 0;
+async function teleportMenu() {
+  const m = rider("psychic");
+  if (!m) { await say("You need a PSYCHIC-type monster in your party to teleport."); return; }
+  const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
+  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { prompt: `${monName(m)} focuses its mind. Teleport where?`, x: 120, y: 4, w: 116 });
+  if (i < 0 || i === towns.length) return;
+  const dest = towns[i];
+  await say(`${monName(m)} used TELEPORT!`, { auto: 0.5 });
+  await tween(0.7, (k) => { warpFx = k; });
+  fade = 1;
+  const [lx, ly] = landingSpot(dest);
+  loadMap(dest, lx, ly, "down");
+  S.flags["visited_" + dest] = true;
+  await tween(0.6, (k) => { warpFx = 1 - k; fade = 1 - k; });
+  warpFx = 0; fade = 0;
+}
+// psychic swirl drawn over the screen while teleporting
+function drawWarpFx() {
+  if (!warpFx) return;
+  ctx.save();
+  ctx.fillStyle = `rgba(120, 30, 160, ${0.45 * warpFx})`; ctx.fillRect(0, 0, VW, VH);
+  for (let r = 0; r < 6; r++) {
+    const rad = ((NOW * 60 + r * 22) % 140) * warpFx;
+    ctx.strokeStyle = `rgba(255, 140, 255, ${0.8 * (1 - rad / 140)})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(VW / 2, VH / 2 + 10, rad, rad * 0.6, NOW * 2 + r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 async function flyMenu() {
   const p = world.player;
   if (!S.badges.includes("Volt Badge")) { await say("Your monsters can't carry you through the sky yet. Earn the VOLT BADGE first."); return; }
@@ -1124,8 +1155,10 @@ async function startMenu() {
   for (;;) {
     const opts = ["PARTY", "LOG", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
+    if (rider("psychic")) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
+    if (pick === "TELEPORT") { await teleportMenu(); return; }
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
     else if (pick === "LOG") await monsterLog();
     else if (pick === "BAG") await useItemOutside();
@@ -1713,6 +1746,7 @@ const worldScene = {
     if (consume("a")) { p.speed = 0; runScript(interact); return; }
     if (consume("b")) { p.speed = 0; runScript(startMenu); return; }
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
+    if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
     const turn = (held.left ? 1 : 0) - (held.right ? 1 : 0);
     this.turnVel += (turn * TURN_SPEED - this.turnVel) * Math.min(1, dt * 12);
@@ -1806,6 +1840,7 @@ function step(dt) {
   if (base && base.world3d) base.render3d(dt);
   else if (base && !base.world3d) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VW, VH); }
   for (let i = start; i < scenes.length; i++) scenes[i].draw();
+  drawWarpFx();
   if (fade > 0) { ctx.fillStyle = `rgba(0,0,0,${fade})`; ctx.fillRect(0, 0, VW, VH); }
 }
 

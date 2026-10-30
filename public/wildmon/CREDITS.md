@@ -20,12 +20,20 @@ samples can load.)
 | Z / Enter / Space | talk, confirm |
 | X / Esc | menu, back |
 | F | fly (after the Volt Badge, with a Sky monster) |
+| T | teleport to a visited town (any time, with a Psychic monster) |
 | M | mute music |
 
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
 blue → gold). The Water starter is Krokivip (the fiercer form of Kroki). The rival picks the starter that beats yours, challenges you in the lab (a practice
 battle with no blackout), again on Route 2 and Route 3, and their ace ends up in the Champion's team.
+
+**Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Wildmon's Steel, Dark and
+Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
+off Fire/Water/Wood/Lightning) with its own Dragon Claw and Dragon Breath. The starters each have 3
+forms (Krokivip → Leviadile → Golnagi); every other family has 2 or 3 (fixed seed in
+`tools/build_data.py`), with one-of-a-kind species paired up by type. The Monster Log (menu → LOG)
+has each species' lore.
 
 **Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
 SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
@@ -40,7 +48,7 @@ Hall. Route trainers only ambush once your team is 3 levels above their stronges
 
 Sprout Town → Route 1 → **Ember City** (Rock gym, Earth) → Route 2 → **Tide Harbor** (Tide gym, Water)
 → Route 3 → **Volt City** (Volt gym, Lightning) → Route 4 → **Shade Hollow** (Shade gym, Shadow)
-→ Champion's Hall. Guards gate each leg by badge count. 120 monsters, 112 moves, 13 types.
+→ Champion's Hall. Guards gate each leg by badge count. 208 monsters in 85 families, 135 moves, 14 types.
 
 ## Music
 
