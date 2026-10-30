@@ -23,7 +23,8 @@ samples can load.)
 | T | teleport to a visited town (any time, with a Psychic monster) |
 | M | mute music |
 
-**Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit (older
+**Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
+(and your rival) are realistic, motion-captured 3D people wearing that colour (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
 blue → gold). The Water starter is Krokivip (the fiercer form of Kroki). The rival picks the starter that beats yours, challenges you in the lab (a practice
 battle with no blackout), again on Route 2 and Route 3, and their ace ends up in the Champion's team.
@@ -95,6 +96,9 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
 - **3D models** (trees, grass, flowers, rocks, fences, buildings, animated characters): Kenney's
   Nature Kit, Mini Characters, City Kit (Commercial / Suburban) and Fantasy Town Kit, all CC0
   ([kenney.nl](https://kenney.nl)). Installed by `tools/install_models.py`; licenses in `game/assets/models/*/License.txt`.
+- **Realistic player and rival:** "Universal Base Characters" and "Universal Animation Library" by
+  Quaternius ([quaternius.com](https://quaternius.com)), CC0. Files in `game/assets/models/qn/`
+  (copied from the Build Your Empire conversion: `qn_male.glb`, `qn_female.glb`, `qn_anims.glb`, skin textures).
 - **three.js** (MIT), vendored in `game/vendor/`.
 
 Because of the CC BY-SA art and the not-for-profit 909 samples, keep this project free and credited.

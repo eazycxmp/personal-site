@@ -56,6 +56,15 @@ window.World3D = (function () {
         res();
       }, undefined, (e) => { console.warn("model failed", pack, n, e); res(); });
     })));
+    // realistic people (Quaternius Universal Base Characters + Universal Animation Library, CC0)
+    await Promise.all([["qn/male", "qn_male.glb"], ["qn/female", "qn_female.glb"], ["qn/anims", "qn_anims.glb"]].map(([k, f]) => new Promise((res) => {
+      loader.load(`${base}qn/${f}`, (g) => { g.scene.updateMatrixWorld(true); models[k] = { scene: g.scene, animations: g.animations }; res(); },
+        undefined, (e) => { console.warn("qn model failed", f, e); res(); });
+    })));
+    const TL = new THREE.TextureLoader();
+    await Promise.all(["male", "female"].map((gname) => new Promise((res) => TL.load(`${base}qn/qn_${gname}_light.jpg`, (t) => {
+      t.flipY = false; t.encoding = THREE.sRGBEncoding; qnSkin[gname] = t; res();
+    }, undefined, () => res()))));
     return Object.keys(models).length;
   }
 
@@ -582,7 +591,127 @@ window.World3D = (function () {
     return m2;
   }
 
+  // Per-model clothing: the 32x128 colour cells the body mesh samples, minus anything the head mesh
+  // uses (face, hair) and the skin-tone cells. Biggest cell = main colour, next = dark, then light, then accents.
+  const clothCache = {};
+  function clothCells(base, body, head) {
+    if (clothCache[base]) return clothCache[base];
+    const cells = (mesh) => {
+      const out = new Map(), uv = mesh && mesh.geometry.attributes.uv;
+      if (!uv) return out;
+      for (let i = 0; i < uv.count; i++) {
+        const cx = Math.min(15, Math.floor(uv.getX(i) * 16)), cy = Math.min(3, Math.floor(uv.getY(i) * 4));
+        const k = cx + "," + cy; out.set(k, (out.get(k) || 0) + 1);
+      }
+      return out;
+    };
+    const b = cells(body), h = cells(head);
+    const skin = (cx, cy) => (cy === 3 && cx >= 10) || (cy === 2 && cx <= 1);
+    // the body gets its own texture copy, so cells shared with the face are safe to recolour; skip skin only
+    void h;
+    const list = [...b.entries()].filter(([k]) => { const [cx, cy] = k.split(",").map(Number); return !skin(cx, cy); })
+      .sort((p1, p2) => p2[1] - p1[1]).map(([k]) => k.split(",").map(Number));
+    return (clothCache[base] = list);
+  }
+  const bodyOutfitCache = {};
+  function bodyOutfitMaterial(mat, theme, base, cellList) {
+    const key = base + ":" + theme;
+    if (bodyOutfitCache[key]) return bodyOutfitCache[key];
+    const pal = OUTFITS[theme], img = mat.map && mat.map.image;
+    if (!pal || !img || !cellList.length) return mat;
+    const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0);
+    const cw = img.width / 16, ch = img.height / 4;
+    const slots = ["p", "d", "s", "a"];
+    cellList.forEach(([cx, cy], idx) => {
+      const X = Math.round(cx * cw), Y = Math.round(cy * ch), W = Math.round(cw), H = Math.round(ch);
+      const d = x.getImageData(X, Y, W, H), px = d.data;
+      let sum = 0; for (let i = 0; i < px.length; i += 4) sum += px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11;
+      const mean = sum / (px.length / 4) || 1;
+      const col = new THREE.Color(pal[slots[Math.min(idx, 3)]]);
+      for (let i = 0; i < px.length; i += 4) {
+        const k = Math.min(1.5, Math.max(0.55, (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / mean));
+        px[i] = Math.min(255, col.r * 255 * k); px[i + 1] = Math.min(255, col.g * 255 * k); px[i + 2] = Math.min(255, col.b * 255 * k);
+      }
+      x.putImageData(d, X, Y);
+    });
+    const t = new THREE.CanvasTexture(c);
+    t.flipY = mat.map.flipY; t.encoding = THREE.sRGBEncoding; t.magFilter = THREE.NearestFilter;
+    const m2 = mat.clone(); m2.map = t;
+    return (bodyOutfitCache[key] = m2);
+  }
+
+  // ------------------------------------------------------------ realistic people (player and rival)
+  const qnSkin = {};
+  const QN_HEIGHT = 1.45; // metres-ish in tile units: just under the 1.62 door frames
+  const SHIRT = { red: 0xc8302c, blue: 0x2f5fd0, green: 0x2f9a48, gold: 0xe0a020 };
+  const PANTS = { red: 0x2a2a34, blue: 0x2a3550, green: 0x3a3428, gold: 0x2a2230 };
+  // which part of the body a vertex belongs to, from the bone that moves it most
+  const qnRegion = (n) => /^(hand|thumb|index|middle|ring|pinky)/.test(n) ? 7 : /^(spine|clavicle)/.test(n) ? 1 : /^upperarm/.test(n) ? 2
+    : /^lowerarm/.test(n) ? 3 : /^(pelvis|thigh)/.test(n) ? 4 : /^calf/.test(n) ? 5 : /^(foot|ball)/.test(n) ? 6 : 0;
+  function qnRegions(mesh) {
+    const g = mesh.geometry;
+    if (g.attributes.qnr) return;
+    const si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = mesh.skeleton.bones, r = new Float32Array(si.count);
+    for (let i = 0; i < si.count; i++) {
+      let best = 0, bw = -1;
+      const ws = [sw.getX(i), sw.getY(i), sw.getZ(i), sw.getW(i)], is = [si.getX(i), si.getY(i), si.getZ(i), si.getW(i)];
+      for (let j = 0; j < 4; j++) if (ws[j] > bw) { bw = ws[j]; best = is[j]; }
+      r[i] = qnRegion(bones[best] ? bones[best].name : "");
+    }
+    g.setAttribute("qnr", new THREE.BufferAttribute(r, 1));
+  }
+  // skin material that hides the parts under the clothes (torso, upper arms, legs, feet) so nothing pokes through
+  function qnBodyMat(src, gname) {
+    const m = new THREE.MeshStandardMaterial({ map: qnSkin[gname] || null, roughness: 0.75, metalness: 0, normalMap: src.normalMap || null });
+    const hide = [0, 1, 1, 0, 1, 1, 1, 0];
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uHide = { value: hide };
+      sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float qnr; varying float vQnr;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvQnr = qnr;");
+      sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uHide[8]; varying float vQnr;")
+        .replace("#include <map_fragment>", "#include <map_fragment>\n{ int ri = int(vQnr + .5); float h = 0.; for (int k = 0; k < 8; k++) if (k == ri) h = uHide[k]; if (h > .5) discard; }");
+    };
+    m.customProgramCacheKey = () => "qnbody";
+    return m;
+  }
+  const QN_CLIPS = { idle: "Idle_Loop", walk: "Walk_Loop", sprint: "Sprint_Loop", sit: "Sitting_Idle_Loop" };
+  function makeQNActor(key, gname, color) {
+    const src = models["qn/" + gname], lib = models["qn/anims"];
+    const root = new THREE.Group();
+    const body = window.SkeletonUtils.clone(src.scene);
+    body.scale.setScalar(QN_HEIGHT / 1.84);
+    const hair = gname === "female" ? "Long" : "SimpleParted";
+    body.traverse((m) => {
+      if (!m.isSkinnedMesh) return;
+      m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
+      const n = m.name.replace(/^QN_/, "").replace(/\.\d+$/, "");
+      if (/^Super[hH]ero/.test(n)) { qnRegions(m); m.material = qnBodyMat(m.material, gname); }
+      else if (n.startsWith("Wear_")) {
+        const k = n.slice(5);
+        m.visible = k === "Shirt" || k === "Pants" || k === "Shoes";
+        if (m.visible) m.material = new THREE.MeshStandardMaterial({ color: k === "Shirt" ? SHIRT[color] || 0x3060d8 : k === "Pants" ? PANTS[color] || 0x2a2a34 : 0x2a1d12, roughness: 0.85, metalness: 0 });
+      } else if (n.startsWith("Hair_")) {
+        m.visible = n.slice(5) === hair;
+        if (m.visible) { m.material = m.material.clone(); m.material.color = new THREE.Color(gname === "female" ? 0x5a3418 : 0x2a1a10).multiplyScalar(2.2); }
+      } else if (/Eyebrows/.test(n)) { m.material = m.material.clone(); m.material.color = new THREE.Color(0x2a1a10).multiplyScalar(2); }
+    });
+    root.add(body);
+    scene.add(root);
+    const mixer = new THREE.AnimationMixer(body);
+    const acts = {};
+    for (const [k, clipName] of Object.entries(QN_CLIPS)) {
+      const c = lib && lib.animations.find((a) => a.name === clipName);
+      if (c) acts[k] = mixer.clipAction(c);
+    }
+    const a = { root, mixer, acts, state: null, yaw: null, qn: true };
+    setAnim(a, "idle");
+    actors.set(key, a);
+    return a;
+  }
+
   function makeActor(key, sprite, outfit, model) {
+    if (model && model.startsWith("qn:") && models["qn/" + model.slice(3)]) return makeQNActor(key, model.slice(3), outfit);
     const base = model || CHAR_FOR[sprite] || CHAR_FOR[(sprite || "").split("_")[0]] || "character-male-a";
     const src = models["characters/" + base];
     const root = new THREE.Group();
@@ -593,7 +722,11 @@ window.World3D = (function () {
     body.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = true; o.frustumCulled = false;
-      if (outfit) o.material = Array.isArray(o.material) ? o.material.map((mt) => outfitMaterial(mt, outfit)) : outfitMaterial(o.material, outfit);
+      // only the body (clothes) gets the outfit; the head keeps its own skin, face and hair
+      if (outfit && /body/i.test(o.name) && !Array.isArray(o.material)) {
+        let headMesh = null; body.traverse((q) => { if (q.isMesh && /head/i.test(q.name)) headMesh = q; });
+        o.material = bodyOutfitMaterial(o.material, outfit, base, clothCells(base, o, headMesh));
+      }
     });
     root.add(body);
     scene.add(root);
@@ -865,7 +998,7 @@ window.World3D = (function () {
     const surfing = p.mount && p.surfing;
     updateActor(pkey, null, p.px, p.pz, p.angle + (surfing ? 1.1 : 0), surfing ? "idle" : p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1, look.outfit, look.model);
     const pa = actors.get(pkey);
-    pa.root.position.y = seatY;
+    pa.root.position.y = seatY - (pa.qn && p.mount && !surfing ? 0.36 : 0);
     if (surfing) { const f2 = [-Math.sin(p.angle), -Math.cos(p.angle)]; pa.root.position.x = p.px - f2[0] * 0.25; pa.root.position.z = p.pz - f2[1] * 0.25; }
     pa.root.scale.set(1, surfing ? 0.92 : 1, 1);
     for (const [k, a] of actors) if (!a.seen) { scene.remove(a.root); actors.delete(k); }

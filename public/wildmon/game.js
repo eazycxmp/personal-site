@@ -307,7 +307,8 @@ function partyAlive() { return S.party.filter((m) => m.hp > 0); }
 // ---------------------------------------------------------------- player & rival looks
 // You pick boy/girl and red/blue/green; your rival is always the opposite gender in a contrasting colour.
 const RIVAL_COLOR = { red: "green", green: "red", blue: "gold" };
-const MODEL_FOR = { player: { boy: "character-male-e", girl: "character-female-f" }, rival: { boy: "character-male-f", girl: "character-female-b" } };
+// you and your rival are realistic people (Quaternius); everyone else uses the Kenney mini figures
+const MODEL_FOR = { player: { boy: "qn:male", girl: "qn:female" }, rival: { boy: "qn:male", girl: "qn:female" } };
 const myLook = () => S.look || { gender: "boy", color: "red" };
 function rivalLook() { const l = myLook(); return { gender: l.gender === "boy" ? "girl" : "boy", color: RIVAL_COLOR[l.color] }; }
 const rivalName = () => (rivalLook().gender === "boy" ? "Rival Kai" : "Rival Mia");
