@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/* Monster Trails is a self-contained three.js page in /public/monster-trails, framed like Skyward.
+/* Wildmon is a self-contained three.js page in /public/wildmon, framed like Skyward.
    Its screen is 3:2 plus a help line, so the frame keeps roughly that shape. The ⛶ button asks the
    browser for real full screen. */
-export function MonsterTrailsFrame() {
+export function WildmonFrame() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(640);
 
@@ -29,8 +29,8 @@ export function MonsterTrailsFrame() {
     <div className="relative">
       <iframe
         ref={frameRef}
-        src="/monster-trails/index.html"
-        title="Monster Trails"
+        src="/wildmon/index.html"
+        title="Wildmon"
         allow="fullscreen; autoplay"
         allowFullScreen
         style={{ height }}

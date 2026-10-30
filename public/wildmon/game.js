@@ -1,5 +1,5 @@
 "use strict";
-// Monster Trails: a monster-catching RPG built on Tuxemon's open art.
+// Wildmon: a monster-catching RPG built on Tuxemon's open art.
 const D = window.GAME_DATA;
 // Krokivip is the Water starter (the fiercer form of Kroki); give it starter-level stats so the three are even.
 D.monsters.krokivip.stage = 0;
@@ -73,6 +73,7 @@ async function loadAssets(progress) {
     jobs.push(["portrait_" + s, `assets/portrait/${s}.png`]);
   }
   for (const m of Object.keys(D.monsters)) jobs.push(["mon_" + m, `assets/battle/${m}.png`]);
+  for (const a of Object.keys(D.fx || {})) jobs.push(["fx_" + a, `assets/fx/${a}.png`]);
   let done = 0;
   await Promise.all(jobs.map(([k, s]) => loadImg(k, s).then(() => progress(++done / jobs.length / 2))));
   await HouseDJ.load("assets/drums/");
@@ -349,7 +350,7 @@ function newState() {
     seen: {}, caught: {}, time: 0,
   };
 }
-const SAVE_KEY = "monster-trails-save-v1";
+const SAVE_KEY = "monster-trails-save-v1"; // kept from the old name so existing saves still load
 function save() {
   const p = world.player;
   if (world.map) { S.map = world.id; S.x = p.x; S.y = p.y; S.dir = p.dir; }
@@ -970,12 +971,43 @@ function partyScreen(mode, prompt) {
   });
 }
 
+// Lore page shared by the summary screen and the Monster Log.
+function drawLore(slug, known = true) {
+  const d = D.monsters[slug];
+  ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
+  box(2, 2, 92, 104, "#c8e0f0");
+  if (known) drawMon(slug, "front", 16, 22);
+  else { ctx.globalAlpha = 1; ctx.filter = "brightness(0)"; drawMon(slug, "front", 16, 22, 0.55); ctx.filter = "none"; }
+  text(known ? d.name : "???", 8, 8);
+  if (known) { let tx = 8; for (const t of d.types) tx += typeTag(t, tx, 90) + 2; }
+  box(96, 2, 142, 104);
+  const size = `${d.height ? (d.height / 100).toFixed(1) + "M" : "?"} ${d.weight ? d.weight + "KG" : ""}`;
+  const evo = d.evo ? `LV${d.evo[0]} ${D.monsters[d.evo[1]].name}` : "FINAL FORM";
+  const rows = known ? [["SPECIES", d.species], ["HABITAT", (d.habitat || []).slice(0, 2).join(", ") || "Unknown"],
+    ["SIZE", size], ["EVOLVES", evo], ["TRAITS", (d.traits || []).slice(0, 2).join(", ") || "-"]] : [["SPECIES", "???"], ["HABITAT", "???"]];
+  rows.forEach(([k, v], i) => {
+    text(k, 102, 8 + i * 19, "#806040", null);
+    const lines = wrap(String(v).toUpperCase(), 130);
+    text(lines[0], 102, 17 + i * 19, "#303030", null);
+  });
+  box(2, 108, 236, 50);
+  const desc = known ? d.desc || "Little is known about this monster." : "You haven't seen this monster yet.";
+  // long entries page through 3 lines at a time
+  const lines = wrap(desc, 220), pages = Math.ceil(lines.length / 3), pg = Math.floor(NOW / 3.5) % pages;
+  lines.slice(pg * 3, pg * 3 + 3).forEach((ln, i) => text(ln, 10, 115 + i * 12));
+  if (pages > 1) text(`${pg + 1}/${pages}`, 210, 148, "#a09080", null);
+}
+
 function summary(m) {
   return new Promise((res) => {
     push({
-      opaque: true,
-      update() { if (consume("a") || consume("b")) { pop(this); res(); } },
+      opaque: true, page: 0,
+      update() {
+        if (consume("left") || consume("right")) this.page ^= 1;
+        if (consume("a") || consume("b")) { pop(this); res(); }
+      },
       draw() {
+        if (this.page === 1) { drawLore(m.slug); text("< STATS", 172, 150, "#806040", null); return; }
         const d = D.monsters[m.slug];
         ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
         box(2, 2, 92, 104, "#c8e0f0");
@@ -996,6 +1028,50 @@ function summary(m) {
           text(`${mv.pp}/${M.pp} PP`, x + 8, y + 10, "#606060", null);
         });
         if (d.evo) text(`Evolves at Lv${d.evo[0]}`, 104, 98, "#806020", null);
+        text("INFO >", 184, 150, "#806040", null);
+      },
+    });
+  });
+}
+
+// Monster Log: every species in the game, with lore for the ones you've seen.
+function monsterLog() {
+  const all = Object.keys(D.monsters);
+  return new Promise((res) => {
+    push({
+      opaque: true, i: 0, top: 0, open: false,
+      update() {
+        if (this.open) { if (consume("a") || consume("b") || consume("left") || consume("right")) this.open = false; return; }
+        const n = all.length;
+        if (consume("up")) this.i = (this.i + n - 1) % n;
+        if (consume("down")) this.i = (this.i + 1) % n;
+        if (consume("left")) this.i = Math.max(0, this.i - 9);
+        if (consume("right")) this.i = Math.min(n - 1, this.i + 9);
+        this.top = clamp(this.i - 4, 0, n - 9);
+        if (consume("a")) this.open = true;
+        if (consume("b")) { pop(this); res(); }
+      },
+      draw() {
+        const slug = all[this.i];
+        if (this.open) { drawLore(slug, !!S.seen[slug] || !!S.caught[slug]); return; }
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        box(2, 2, 236, 18, "#f0e8d0");
+        text(`LOG  SEEN ${Object.keys(S.seen).length}  OWN ${Object.keys(S.caught).length}/${all.length}`, 8, 7);
+        for (let r = 0; r < 9; r++) {
+          const k = this.top + r; if (k >= all.length) break;
+          const s2 = all[k], seen = S.seen[s2] || S.caught[s2], y = 22 + r * 15;
+          box(2, y, 150, 15, k === this.i ? "#fff8c0" : "#f8f8f0");
+          text(String(k + 1).padStart(3, "0"), 7, y + 4, "#808080", null);
+          text(seen ? D.monsters[s2].name : "-----", 36, y + 4);
+          if (S.caught[s2]) { ctx.fillStyle = "#e04030"; ctx.fillRect(140, y + 5, 5, 5); }
+        }
+        box(154, 22, 84, 136, "#c8e0f0");
+        const seen = S.seen[slug] || S.caught[slug];
+        if (seen) drawMon(slug, "front", 164, 40);
+        else { ctx.filter = "brightness(0)"; drawMon(slug, "front", 164, 40, 0.5); ctx.filter = "none"; }
+        if (seen) { let tx = 160; for (const t of D.monsters[slug].types) tx += typeTag(t, tx, 112) + 2; }
+        text("Z: INFO", 166, 132, "#506070", null);
+        text("<-> PAGE", 162, 144, "#506070", null);
       },
     });
   });
@@ -1046,16 +1122,16 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
-    if (S.badges.includes("Volt Badge")) opts.splice(2, 0, "FLY");
-    let i = await choose(opts, { x: 150, y: 2, w: 88 });
-    if (opts[i] === "FLY") { await flyMenu(); return; }
-    if (S.badges.includes("Volt Badge") && i > 2) i--;
-    if (i === 0) { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
-    else if (i === 1) await useItemOutside();
-    else if (i === 2) await trainerCard();
-    else if (i === 3) { await say(save() ? "Game saved!" : "Couldn't save (storage blocked)."); }
-    else if (i === 4) toggleMute();
+    const opts = ["PARTY", "LOG", "BAG", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
+    const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
+    if (pick === "FLY") { await flyMenu(); return; }
+    if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
+    else if (pick === "LOG") await monsterLog();
+    else if (pick === "BAG") await useItemOutside();
+    else if (pick === "TRAINER") await trainerCard();
+    else if (pick === "SAVE") { await say(save() ? "Game saved!" : "Couldn't save (storage blocked)."); }
+    else if (pick && pick.startsWith("MUSIC")) toggleMute();
     else return;
   }
 }
@@ -1186,6 +1262,14 @@ class Battle {
   }
   update() {}
   draw() {
+    const shake = this.shake ? (Math.random() - 0.5) * this.shake : 0;
+    ctx.save(); ctx.translate(shake, shake * 0.5);
+    this.drawScene();
+    ctx.restore();
+    if (this.flash) { ctx.fillStyle = this.flash; ctx.fillRect(0, 0, VW, 112); }
+    box(0, 112, VW, 48);
+  }
+  drawScene() {
     const bg = IMG[this.bg];
     if (bg) ctx.drawImage(bg, 8, 0, 240, 108, 0, 0, 240, 108);
     // platforms
@@ -1197,6 +1281,15 @@ class Battle {
     ctx.drawImage(lookPortrait(myLook()), 0, 0, 64, 128, this.plX, -12, 64, 128);
     if (this.eVis) drawMon(this.e.slug, "front", this.eX, this.eY, this.eAlpha, this.eScale);
     if (this.pVis && this.p) drawMon(this.p.slug, "back", this.pX, this.pY, this.pAlpha, this.pScale);
+    if (this.fx) {
+      // Tuxemon technique animation: a strip/grid of frames
+      const f = this.fx, cols = Math.max(1, Math.floor(f.img.width / f.w)), fr = Math.min(f.frame, f.count - 1);
+      const sx = (fr % cols) * f.w, sy = Math.floor(fr / cols) * f.h, sc = f.scale;
+      ctx.save();
+      if (f.flip) { ctx.translate(f.x, 0); ctx.scale(-1, 1); ctx.translate(-f.x, 0); }
+      ctx.drawImage(f.img, sx, sy, f.w, f.h, Math.round(f.x - f.w * sc / 2), Math.round(f.y - f.h * sc / 2), f.w * sc, f.h * sc);
+      ctx.restore();
+    }
     if (this.ball) {
       const im = IMG.item_tuxeball;
       ctx.save(); ctx.translate(this.ball.x, this.ball.y); ctx.rotate(this.ball.r || 0);
@@ -1205,7 +1298,29 @@ class Battle {
     }
     if (this.showEBox) this.drawBox(this.e, 4, 4, false);
     if (this.showPBox && this.p) this.drawBox(this.p, 124, 66, true);
-    box(0, 112, VW, 48);
+  }
+  // Play a move's animation: ranged moves fly from the attacker, then the effect plays on the target.
+  async playFx(M, mine) {
+    const def = M.anim && D.fx && D.fx[M.anim], img = M.anim && IMG["fx_" + M.anim];
+    const from = mine ? [52, 78] : [180, 38], to = mine ? [180, 38] : [52, 78];
+    const tint = TYPE_COLOR[M.type] || "#ffffff";
+    if (!def || !img) { this.flash = tint + "55"; await wait(0.12); this.flash = null; return; }
+    const cols = Math.max(1, Math.floor(img.width / def.w)), rows = Math.max(1, Math.floor(img.height / def.h));
+    const count = cols * rows, scale = Math.min(1.6, 84 / Math.max(def.w, def.h));
+    const fx = this.fx = { img, w: def.w, h: def.h, count, frame: 0, x: from[0], y: from[1], scale, flip: !mine };
+    if (!M.phys) {
+      // travel
+      await tween(0.28, (k) => { fx.x = from[0] + (to[0] - from[0]) * k; fx.y = from[1] + (to[1] - from[1]) * k - Math.sin(k * Math.PI) * 12; fx.frame = Math.floor(k * Math.min(3, count)); });
+    }
+    fx.x = to[0]; fx.y = to[1];
+    const step = clamp(def.d || 0.1, 0.05, 0.1);
+    for (let i = 0; i < count; i++) {
+      fx.frame = i;
+      if (i === Math.floor(count / 2)) this.flash = tint + "44";
+      await wait(step);
+      this.flash = null;
+    }
+    this.fx = null;
   }
   drawBox(m, x, y, mine) {
     const h = mine ? 42 : 30;
@@ -1371,6 +1486,7 @@ class Battle {
     // lunge
     await tween(0.12, (k) => { if (mine) this.pX = 20 + 14 * k; else this.eX = 148 - 14 * k; });
     await tween(0.12, (k) => { if (mine) this.pX = 34 - 14 * k; else this.eX = 134 + 14 * k; });
+    await this.playFx(M, mine);
     let r;
     if (moveId === "struggle") {
       r = { dmg: Math.max(1, Math.floor(((2 * att.level / 5 + 2) * 20 * att.melee / def.armour) / 50 + 2)), eff: 1, crit: false };
@@ -1385,6 +1501,7 @@ class Battle {
     const from = def.hp;
     def.hp = Math.max(0, def.hp - r.dmg);
     await tween(0.5, (k) => { const v = from + (def.hp - from) * k; if (mine) this.eHp = v; else this.pHp = v; });
+    if (r.crit || r.eff > 1) { this.shake = 6; await wait(0.25); this.shake = 0; }
     if (r.crit) await this.msg("A critical hit!");
     if (r.eff > 1) await this.msg("It's super effective!");
     else if (r.eff < 1) await this.msg("It's not very effective...");
@@ -1649,9 +1766,9 @@ function titleScene(hasSave) {
         const k = Math.floor(NOW / 2.5) % showcase.length;
         drawMon(showcase[k], "front", 88, 38 + Math.sin(NOW * 3) * 2);
         ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(0, 6, 240, 30);
-        ctx.font = "16px PS"; ctx.textBaseline = "top";
-        ctx.fillStyle = "#203010"; ctx.fillText("MONSTER", 66, 9); ctx.fillText("TRAILS", 74, 25 - 6);
-        ctx.fillStyle = "#f8d848"; ctx.fillText("MONSTER", 64, 7); ctx.fillText("TRAILS", 72, 23 - 6);
+        ctx.font = "24px PS"; ctx.textBaseline = "top";
+        ctx.fillStyle = "#203010"; ctx.fillText("WILDMON", 39, 11);
+        ctx.fillStyle = "#f8d848"; ctx.fillText("WILDMON", 36, 8);
         text("Art: Tuxemon + Kenney (CC)", 8, 150, "#d8e8c8", "#203010");
       },
     });
@@ -1724,5 +1841,5 @@ async function boot() {
     });
   }
 }
-window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, starterSelect, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
+window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, starterSelect, monsterLog, summary, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
 boot();

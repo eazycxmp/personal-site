@@ -1,4 +1,4 @@
-# Monster Trails
+# Wildmon
 
 A 3D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
 fight trainers, beat 4 gyms, then challenge the Champion.

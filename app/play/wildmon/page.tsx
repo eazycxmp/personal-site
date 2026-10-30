@@ -1,12 +1,12 @@
 import { SHARES, shareMetadata } from "../share";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
-import { MonsterTrailsFrame } from "@/components/monster-trails-frame";
+import { WildmonFrame } from "@/components/wildmon-frame";
 import Link from "next/link";
 
-export const metadata = shareMetadata(SHARES["monster-trails"], "Monster Trails — Espen Campbell");
+export const metadata = shareMetadata(SHARES["wildmon"], "Wildmon — Espen Campbell");
 
-export default function MonsterTrailsPage() {
+export default function WildmonPage() {
   return (
     <>
       <Nav />
@@ -18,7 +18,7 @@ export default function MonsterTrailsPage() {
           >
             ← Play
           </Link>
-          <h1 className="serif-display text-[44px] md:text-[56px] leading-[1.05] mt-6 mb-4">Monster Trails</h1>
+          <h1 className="serif-display text-[44px] md:text-[56px] leading-[1.05] mt-6 mb-4">Wildmon</h1>
           <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
             A 3D monster-catching adventure. Pick a starter, walk into the tall grass to battle and catch
             over 200 strange creatures, beat four gyms and challenge the Champion, all to a live drum &amp; bass
@@ -29,7 +29,7 @@ export default function MonsterTrailsPage() {
         </div>
       </main>
       <div className="mx-auto max-w-[2400px] px-3 md:px-4 pb-16">
-        <MonsterTrailsFrame />
+        <WildmonFrame />
       </div>
       <Footer />
     </>
