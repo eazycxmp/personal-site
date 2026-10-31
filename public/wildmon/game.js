@@ -645,7 +645,10 @@ function landingSpot(id) {
 }
 // Teleport: a Psychic monster warps you instantly to any town you've visited, even from indoors.
 let warpFx = 0;
+// Teleport unlocks with the Shade Badge, or early by returning Old Whisper's flute in Hollowmere.
+const canTeleport = () => S.badges.includes("Shade Badge") || !!S.flags.q_flute_done;
 async function teleportMenu() {
+  if (!canTeleport()) { await say("Your monsters don't know how to TELEPORT yet. Earn the SHADE BADGE, or help someone in the ghost town west of Route 3."); return; }
   const m = rider("psychic");
   if (!m) { await say("You need a PSYCHIC-type monster in your party to teleport."); return; }
   const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
@@ -917,6 +920,7 @@ async function trainerEncounter(n, spotted) {
       await say(`You received the ${n.badge.toUpperCase()}!`);
       if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER monster can carry you across water. Face the water and press Z to SURF!");
       if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY monster can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
+      if (n.badge === "Shade Badge" && !S.flags.q_flute_done) await say("With the SHADE BADGE, a PSYCHIC monster can TELEPORT you to any town you've visited, even from indoors. Press T!");
       const left = BADGES.length - S.badges.length;
       await say(left ? `Badges: ${S.badges.length}/${BADGES.length}. ${left} more to challenge the Champion!` : "You have all 8 badges!\nThe Champion's Hall in Prime\nCity is now open to you!");
     }
@@ -1134,7 +1138,12 @@ async function questTalk(n) {
       S.bag.level_treat = (S.bag.level_treat || 0) + 3;
       await say(`${who}: His flute... I never thought I'd hold it again.`);
       await say(`${who}: Take these. He baked them for his monsters every winter.`);
-      await say("You received 3 LEVEL TREATS!"); return save();
+      await say("You received 3 LEVEL TREATS!");
+      if (!S.badges.includes("Shade Badge")) {
+        await say(`${who}: And one more thing. He taught his monsters to step between places with a song. Let me teach yours.`);
+        await say("Your PSYCHIC monsters can now TELEPORT to any town you've visited! Press T, or choose TELEPORT in the menu.");
+      }
+      return save();
     }
     S.flags.q_flute_started = true;
     await say(`${who}: My husband played a wooden flute every night, before the town emptied.`);
@@ -1642,7 +1651,7 @@ async function startMenu() {
   for (;;) {
     const opts = ["PARTY", "DEX", "BAG", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
-    if (rider("psychic")) opts.splice(3, 0, "TELEPORT");
+    if (rider("psychic") && canTeleport()) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
     if (pick === "TELEPORT") { await teleportMenu(); return; }

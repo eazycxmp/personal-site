@@ -20,7 +20,7 @@ samples can load.)
 | Z / Enter / Space | talk, confirm |
 | X / Esc | menu, back |
 | F | fly (after the Volt Badge, with a Sky monster) |
-| T | teleport to a visited town (any time, with a Psychic monster) |
+| T | teleport to a visited town (with a Psychic monster, once you have the Shade Badge or have returned Old Whisper's flute) |
 | M | mute music |
 
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
