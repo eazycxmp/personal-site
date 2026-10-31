@@ -11,7 +11,7 @@ const GAMES = [
     slug: "wildmon",
     title: "Wildmon",
     tag: "3D · Monster Catching",
-    body: "Walk into the tall grass to battle and catch over 200 strange creatures, from djinns and ghost flames to ice devils and cosmic dragons. Train a team, beat four gyms, then take on the Champion, all to a live drum & bass soundtrack.",
+    body: "Walk into the tall grass to battle and catch over 200 strange creatures, from djinns and ghost flames to ice devils and cosmic dragons. Train a team, beat eight gyms, climb a glacier for a sea-god, then take on the Champion, all to a live drum & bass soundtrack.",
     released: "Oct 2026",
   },
   {
@@ -29,13 +29,6 @@ const GAMES = [
     released: "Oct 2026",
   },
   {
-    slug: "paint",
-    title: "Paint the Pup",
-    tag: "Color · Kids",
-    body: "A puppy coloring page. Tap a space for a suggested color, then finger-paint. The color stays inside the lines.",
-    released: "Sep 2026",
-  },
-  {
     slug: "blackjack",
     title: "Blackjack",
     tag: "Cards · Odds",
@@ -48,13 +41,6 @@ const GAMES = [
     tag: "3D \u00b7 Rugby",
     body: "A rugby runner in the browser. Motion-captured players on a full stadium pitch \u2014 catch the up-and-under, beat the defensive line, pass or dive for the try. Pick your strip and the opposition changes to match.",
     released: "Aug 2026",
-  },
-  {
-    slug: "run",
-    title: "Maze Run",
-    tag: "Reflex · Speed",
-    body: "A small dot runs through a maze. Speed increases the longer you survive. Get hit by a wall and it's over. Beat the high score.",
-    released: "May 2026",
   },
 ];
 

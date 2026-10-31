@@ -21,7 +21,7 @@ export default function WildmonPage() {
           <h1 className="serif-display text-[44px] md:text-[56px] leading-[1.05] mt-6 mb-4">Wildmon</h1>
           <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
             A 3D monster-catching adventure. Pick a starter, walk into the tall grass to battle and catch
-            over 200 strange creatures, beat four gyms and challenge the Champion, all to a live drum &amp; bass
+            over 200 strange creatures, beat eight gyms and challenge the Champion, all to a live drum &amp; bass
             soundtrack. UP walks, LEFT and RIGHT steer, SHIFT runs, Z talks and confirms, X opens the menu.
             Click the game first so it gets your keyboard. Art from the open-source Tuxemon project and
             Kenney; credits are in the game folder.

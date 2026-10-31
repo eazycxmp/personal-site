@@ -15,6 +15,9 @@ const nextConfig = {
       // Wildmon was first published as Monster Trails
       { source: '/play/monster-trails', destination: '/play/wildmon', permanent: true },
       { source: '/monster-trails/:path*', destination: '/wildmon/:path*', permanent: true },
+      // Maze Run and Paint the Pup were retired
+      { source: '/play/run', destination: '/play', permanent: false },
+      { source: '/play/paint', destination: '/play', permanent: false },
     ];
   },
 };
