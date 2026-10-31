@@ -1,8 +1,6 @@
 "use strict";
 // Wildmon: a monster-catching RPG built on Tuxemon's open art.
 const D = window.GAME_DATA;
-// Krokivip is the Water starter (the fiercer form of Kroki); give it starter-level stats so the three are even.
-D.monsters.krokivip.stage = 0;
 const MAPS = window.WORLD.maps;
 const BUILDINGS = window.WORLD.BUILDINGS;
 const T = 16, VW = 240, VH = 160;
@@ -540,6 +538,11 @@ function tileAt(x, y) {
   return m.grid[y][x];
 }
 function npcAt(x, y) { return world.npcs.find((n) => n.x === x && n.y === y); }
+// how high a tile stands (glacier tiers and their ice steps); everything else is at 0
+function heightAt(x, y) {
+  const h = world.map.heights;
+  return h && h[y] && h[y][x] != null ? h[y][x] : 0;
+}
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
   if (t === null || "T~FWC".includes(t)) return true;
@@ -630,7 +633,10 @@ async function trySurf(tx, ty) {
   await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
   p.x = tx; p.y = ty;
 }
-const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade"];
+const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
+// every gym badge in order, with the monster shown for it on the trainer card
+const BADGES = [["Rock Badge", "selket"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
+  ["Leaf Badge", "moloch"], ["Blaze Badge", "eruptibus"], ["Iron Badge", "lightmare"], ["Prime Badge", "golnagi"]];
 function landingSpot(id) {
   const m = MAPS[id];
   const b = (m.buildings || []).find((x) => x.type === "center") || (m.buildings || []).find((x) => x.to === "home") || m.buildings[0];
@@ -706,6 +712,8 @@ function gateAt(x, y, moveDir) {
   return null;
 }
 let gateCooldown = 0;
+// distance from a point to the nearest edge of tile (tx, ty); 0 inside it
+function rectDist(x, z, tx, ty) { return Math.hypot(Math.max(tx - x, 0, x - tx - 1), Math.max(ty - z, 0, z - ty - 1)); }
 // can the player's circle stand at (nx, nz)?
 function freeAt(nx, nz, moveDir) {
   const p = world.player, m = world.map;
@@ -722,8 +730,14 @@ function freeAt(nx, nz, moveDir) {
         if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => say(g.text)); }
         return false;
       }
-      if (p.surfing && tileAt(tx, ty) === "~" && !npcAt(tx, ty)) continue;
-      if (blocked(tx, ty, true)) return false;
+      if (p.surfing && tileAt(tx, ty) === "~" && !npcAt(tx, ty) && heightAt(tx, ty) === heightAt(p.x, p.y)) continue;
+      // cliff edges (only ice steps go up or down) and solid tiles. If you're already brushing one, you may
+      // still move as long as you don't push further into it, so you can never get wedged.
+      if (Math.abs(heightAt(tx, ty) - heightAt(p.x, p.y)) > 0.5 || blocked(tx, ty, true)) {
+        const before = rectDist(p.px, p.pz, tx, ty);
+        if (before < RADIUS && rectDist(nx, nz, tx, ty) >= before) continue;
+        return false;
+      }
     }
   }
   return true;
@@ -753,7 +767,17 @@ function movePlayer(dx, dz) {
   const tx = Math.floor(p.px), ty = Math.floor(p.pz);
   if (tx !== p.x || ty !== p.y) {
     p.x = tx; p.y = ty;
-    if (p.surfing && tileAt(tx, ty) !== "~") { p.surfing = false; p.mount = null; }
+    if (p.surfing && tileAt(tx, ty) !== "~") {
+      // hop fully onto the shore: stopping at its edge would leave you overlapping water you can no longer cross
+      p.surfing = false; p.mount = null; p.speed = 0;
+      const x0 = p.px, z0 = p.pz;
+      runScript(async () => {
+        await tween(0.2, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
+        const ev = stepEvent();
+        if (ev) await ev();
+      });
+      return;
+    }
     const ev = stepEvent();
     if (ev) { p.speed = 0; runScript(ev); }
   }
@@ -893,8 +917,8 @@ async function trainerEncounter(n, spotted) {
       await say(`You received the ${n.badge.toUpperCase()}!`);
       if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER monster can carry you across water. Face the water and press Z to SURF!");
       if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY monster can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
-      const left = 4 - S.badges.length;
-      await say(left ? `Badges: ${S.badges.length}/4. ${left} more to challenge the Champion!` : "You have all 4 badges!\nThe Champion's Hall in Shade\nHollow is now open to you!");
+      const left = BADGES.length - S.badges.length;
+      await say(left ? `Badges: ${S.badges.length}/${BADGES.length}. ${left} more to challenge the Champion!` : "You have all 8 badges!\nThe Champion's Hall in Prime\nCity is now open to you!");
     }
     if (n.champion) await championEnding();
     save();
@@ -906,7 +930,7 @@ function evolvedFor(slug, lv) {
   return slug;
 }
 // the starter that beats yours; the rival always picks it
-function rivalStarter() { return { agnite: "krokivip", krokivip: "anoleaf", kroki: "anoleaf", anoleaf: "agnite" }[S.starter] || "krokivip"; }
+function rivalStarter() { return { agnite: "kroki", krokivip: "anoleaf", kroki: "anoleaf", anoleaf: "agnite" }[S.starter] || "kroki"; }
 function rivalSlug() {
   return { agnite: "leviadile", krokivip: "velocitile", kroki: "velocitile", anoleaf: "agnigon" }[S.starter] || "agnigon";
 }
@@ -1204,15 +1228,16 @@ async function momTalk(n) {
   const lines = [
     `Oh, ${me}! The professor called. So ${partner} is your partner now? It's adorable!`,
     "Listen, before you go, here's what's ahead of you. Sit down for a second.",
-    "There are 4 GYMS: Ember City (Rock), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow). Beat their leaders to earn 4 badges.",
-    "With all 4 badges you can climb to the Champion's Hall. Guards won't let you through some roads until you have enough badges.",
+    "There are 8 GYMS. First Ember City (Rock), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow).",
+    "Past Shade Hollow come Verdance (Wood), Cinder Peak (Fire) and Ironhold (Steel). Last of all is the PRIME GYM in Prime City, full of dragons.",
+    "With all 8 badges you can enter the Champion's Hall in Prime City. Guards won't let you through some roads until you have enough badges.",
     "Tall grass is full of wild monsters. Every route has its own kinds, and they get tougher the farther you go.",
     "Some monsters only come out at NIGHT. Watch the clock in the corner and go back to the grass after dark.",
     "Trainers on the routes will wait until you're a bit stronger, so train in the grass before you take them on.",
     "Use type matchups! Water beats Fire, Fire beats Wood, Wood beats Water and Earth... the little icons next to each name show their types.",
     "When your team is hurt, any Healing Center will patch them up for free. Or come home and I'll take care of them.",
     "Fill your Wildmon-Dex! Professor Oakley gives out prizes as you catch more kinds.",
-    "And people say there's a ghost town west of Route 3, and a pitch-dark cave north of Route 4. Be careful, OK?",
+    "And people say there's a ghost town west of Route 3, a pitch-dark cave north of Route 4, and a frozen sea east of Tide Harbor with a glacier you can climb. Be careful, OK?",
     "Oh, and your rival left in a hurry. I'm sure you'll run into them on the road!",
   ];
   for (const l of lines) await say(`Mom: ${l}`);
@@ -1305,7 +1330,7 @@ function characterCreator() {
 }
 
 function starterSelect() {
-  const opts = ["agnite", "krokivip", "anoleaf"]; // Krokivip: the fiercer form of Kroki
+  const opts = ["agnite", "kroki", "anoleaf"];
   return new Promise((res) => {
     push({
       opaque: true, i: 0, confirming: false,
@@ -1424,7 +1449,7 @@ function drawLore(slug, known = true, banner = null, shiny = false) {
   const size = `${d.height ? (d.height / 100).toFixed(1) + "M" : "?"} ${d.weight ? d.weight + "KG" : ""}`;
   const evo = d.evo ? `LV${d.evo[0]} ${D.monsters[d.evo[1]].name}` : "FINAL FORM";
   const wf = whereFound()[slug];
-  const found = wf ? wf.areas.slice(0, 2).join(", ") : ["agnite", "krokivip", "anoleaf"].includes(slug) ? "PROF. OAKLEY'S LAB" : "ONLY BY EVOLVING";
+  const found = wf ? wf.areas.slice(0, 2).join(", ") : ["agnite", "kroki", "anoleaf"].includes(slug) ? "PROF. OAKLEY'S LAB" : "ONLY BY EVOLVING";
   const rows = known ? [["SPECIES", d.species], ["FOUND IN", found],
     ["SIZE", size], ["EVOLVES", evo], ["TRAITS", (d.traits || []).slice(0, 2).join(", ") || "-"]] : [["SPECIES", "???"], ["HABITAT", "???"]];
   rows.forEach(([k, v], i) => {
@@ -1645,14 +1670,11 @@ function trainerCard() {
         const rows = [["MONEY", "$" + S.money], ["CAUGHT", `${Object.keys(S.caught).length}/${Object.keys(D.monsters).length}`],
           ["SEEN", Object.keys(S.seen).length], ["TIME", `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`]];
         rows.forEach(([k, v], i) => { text(k, 16, 34 + i * 14); text(String(v), 80, 34 + i * 14); });
-        text("BADGES", 16, 100);
-        ["Rock Badge", "Tide Badge", "Volt Badge", "Shade Badge"].forEach((b, i) => {
-          const has = S.badges.includes(b);
-          const x = 20 + i * 52;
-          ctx.globalAlpha = has ? 1 : 0.2;
-          drawMonIcon(["selket", "bigfin", "ouroboutlet", "lendos"][i], x, 110);
+        text(`BADGES ${S.badges.length}/${BADGES.length}`, 16, 100);
+        BADGES.forEach(([b, mon], i) => { // one icon per gym; faded until you earn it
+          ctx.globalAlpha = S.badges.includes(b) ? 1 : 0.2;
+          drawMonIcon(mon, 12 + i * 27, 116);
           ctx.globalAlpha = 1;
-          text(b.split(" ")[0], x - 2, 138, has ? "#303030" : "#a09888", null);
         });
       },
     });
@@ -2305,6 +2327,8 @@ const worldScene = {
       return m.grid[y][x] === "W" || m.grid[y][x] === "T" || world.solid.has(x + "," + y) || world.doors.some((b) => b.door.x === x && b.door.y === y);
     };
     const look = myLook();
+    const p3 = world.player; // ease up and down the glacier steps
+    p3.ground = (p3.ground || 0) + (heightAt(p3.x, p3.y) - (p3.ground || 0)) * Math.min(1, dt * 10);
     World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid,
       daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash,
       pickups: (world.pickups || []).map((it) => ({ id: it.id, x: it.x, y: it.y, img: IMG["item_" + ITEMS[it.item].icon] })), look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
@@ -2314,7 +2338,7 @@ const worldScene = {
 // ---------------------------------------------------------------- title
 function titleScene(hasSave) {
   return new Promise((res) => {
-    const showcase = ["agnite", "krokivip", "anoleaf", "rockitten", "fluoresfin", "eaglace"];
+    const showcase = ["agnite", "kroki", "anoleaf", "rockitten", "fluoresfin", "eaglace"];
     const sc = push({
       opaque: true,
       update() {},

@@ -1,7 +1,7 @@
 # Wildmon
 
 A 3D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
-fight trainers, beat 4 gyms, then challenge the Champion.
+fight trainers, beat 7 gyms and the Prime Gym, then challenge the Champion.
 
 ## Play
 
@@ -26,13 +26,13 @@ samples can load.)
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
 (and your rival) are realistic, motion-captured 3D people wearing that colour (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
-blue → gold). The Water starter is Krokivip (the fiercer form of Kroki). The rival picks the starter that beats yours, challenges you in the lab (a practice
-battle with no blackout), again on Route 2 and Route 3, and their ace ends up in the Champion's team.
+blue → gold). The Water starter is Kroki, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
+battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team.
 
 **Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Wildmon's Steel, Dark and
 Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
 off Fire/Water/Wood/Lightning) with its own Dragon Claw and Dragon Breath. The starters each have 3
-forms (Krokivip → Leviadile → Golnagi); every other family has 2 or 3 (fixed seed in
+forms, except the Water starter, which has 4 (Kroki → Krokivip at 14 → Leviadile at 23 → Golnagi at 30); every other family has 2 or 3 (fixed seed in
 `tools/build_data.py`), with one-of-a-kind species paired up by type. The Wildmon-Dex (menu → DEX)
 has each species' lore and where it's found; a green dot marks species living in the area you're in,
 with a HERE seen/total count. New species are announced the first time you meet them.
@@ -49,12 +49,12 @@ well past their evolution level appear already evolved. Tables live in the "Wild
 an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type monsters in the grass). A giant
 COALDIAK sleeps across that path: Kat in Volt City gives you the WAKE BELL to rouse it (then battle
 it). Three legendaries wait in the world, one each: PRIMORDIA at Hollowmere's Shrine of Origins,
-PHARAVION on the Sea Shrine island off Tide Harbor, and KERNEL in a clearing on Route 4. Walk up and
+PHARAVION on top of the glacier in the Frost Sea, and KERNEL in a clearing on Route 4. Walk up and
 press Z; catch or beat one and it's gone for good. You can talk to anyone you're near and roughly
 facing, from any angle, and they turn to face you.
 
 **Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
-SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor).
+SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor). After you surf back to shore you hop fully onto land, so you never get stuck at the water's edge.
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
 your monster's real sprite turned into a 3D voxel model.
 
@@ -110,7 +110,17 @@ Hall. Route trainers only ambush once your team is 3 levels above their stronges
 
 Sprout Town → Route 1 → **Ember City** (Rock gym, Earth) → Route 2 → **Tide Harbor** (Tide gym, Water)
 → Route 3 → **Volt City** (Volt gym, Lightning) → Route 4 → **Shade Hollow** (Shade gym, Shadow)
-→ Champion's Hall. Guards gate each leg by badge count. 208 monsters in 85 families, 135 moves, 14 types.
+→ Route 5 Thornwood Wilds → **Verdance** (Leaf gym, Wood) → Route 6 Ashfall Trail → **Cinder Peak** (Blaze gym, Fire)
+→ Route 7 Rustline Road → **Ironhold** (Iron gym, Steel) → Route 8 Victory Ridge → **Prime City** (the PRIME GYM:
+dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count (8 badges for the Hall).
+Wild levels climb from 2–5 on Route 1 to 45–50 on Victory Ridge; leaders go 13, 20, 27, 34, 40, 45, 50, 55; the
+Champion tops out at 60. The trainer card shows all 8 badges.
+
+**Frost Sea (side route):** east along Tide Harbor's pier. Surf between ice floes with frosty tall grass
+(water and ice monsters, Lv 17–23, plus an ice devil at night). A glacier rises in the northeast: maps
+can now raise tiles (`raise: [[x, y, w, h, height]]`), and you can only step up or down half a tier at a
+time, so you climb its two tiers by the ice steps. Pharavion (Lv 32) waits on the top tier. Tide Harbor
+itself got easier (water Lv 11–15, island grass Lv 14–19). 208 monsters in 85 families, 135 moves, 14 types.
 
 ## Music
 

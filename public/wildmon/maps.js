@@ -31,6 +31,10 @@
       }
     }
     def.grid = g;
+    if (def.raise) {
+      def.heights = g.map((r) => r.map(() => 0));
+      for (const [x, y, w, h, z] of def.raise) for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) def.heights[j][i] = z;
+    }
     return def;
   }
 
@@ -136,9 +140,10 @@
     name: "Tide Harbor", w: 30, h: 32, music: "town", bg: "beach",
     ops: [
       ["~", 0, 19, 30, 11], [".", 11, 23, 7, 4], [",", 12, 24, 5, 2], ["=", 0, 18, 30, 1], ["=", 0, 7, 28, 2], ["=", 26, 0, 2, 18],
-      ["=", 7, 17, 20, 1], ["f", 12, 11, 3, 3], ["T", 12, 2, 2, 4],
+      ["=", 7, 17, 23, 1], ["f", 12, 11, 3, 3], ["T", 12, 2, 2, 4],
     ],
-    exits: [{ edge: "w", at: 7, w: 2, to: "route2" }, { edge: "n", at: 26, w: 2, to: "route3" }],
+    exits: [{ edge: "w", at: 7, w: 2, to: "route2" }, { edge: "n", at: 26, w: 2, to: "route3" },
+      { edge: "e", at: 17, w: 2, to: "frostsea" }],
     buildings: [
       { type: "center", x: 2, y: 2, to: "tide_center" },
       { type: "mart", x: 7, y: 2, to: "tide_mart" },
@@ -147,20 +152,21 @@
     ],
     gates: [{ x: 26, y: 3, w: 2, h: 1, badges: 2, block: "n", text: "GUARD: Route 3 is for trainers\nwith 2 badges or more!" }],
     signs: [{ x: 15, y: 15, text: "TIDE HARBOR\nGym Leader: MARINA\n\"Waves wear down mountains.\"" },
-      { x: 17, y: 23, text: "SEA SHRINE\nOnly those who ride\nthe waves reach here." }],
+      { x: 17, y: 23, text: "SEA SHRINE\nOur sea-god PHARAVION now\nsleeps atop the glacier\nout on the FROST SEA." }],
     npcs: [
       { sprite: "soldier", x: 25, y: 3, dir: "right", name: "Guard",
         talk: ["Two badges, then you may pass\nnorth to Route 3."] },
       { sprite: "fisher", x: 3, y: 18, dir: "down", name: "Old Angler", role: "rod" },
       { sprite: "beachcomber", x: 10, y: 15, dir: "down", name: "Beachcomber",
         talk: ["Marina's WATER monsters hate\nWOOD and LIGHTNING attacks!",
-          "See that island out at sea? With the TIDE BADGE, a Water monster can carry you there."] },
+          "See that island out at sea? With the TIDE BADGE, a Water monster can carry you there.",
+          "Go east along the pier to reach the FROST SEA. Water and ice monsters live out on the floes!"] },
       trainer({ id: "sea_hermit", outfit: "sailor", sprite: "riverboatcaptain", x: 14, y: 23, dir: "down", sight: 0, name: "Sea Hermit",
-        team: [["manosting", 22], ["gupphish", 23], ["spirain", 24]],
+        team: [["manosting", 17], ["gupphish", 18], ["spirain", 19]],
         intro: "Few ever reach my shrine. Show me the strength that carried you here!", lose: "The sea chose well. Rare creatures hide in the shrine grass." }),
     ],
     rate: 0.15,
-    encounters: [["medushock", 20, 24, 2], ["manosting", 20, 24, 2], ["spirain", 18, 22, 2], ["mingdyn", 22, 25, 1], ["gupphish", 19, 23, 2]],
+    encounters: [["medushock", 14, 18, 2], ["manosting", 14, 18, 2], ["spirain", 14, 17, 2], ["mingdyn", 16, 19, 1], ["gupphish", 14, 18, 2]],
   });
 
   // ---------------- Route 3 ----------------
@@ -238,25 +244,205 @@
   W.shade = outdoor({
     name: "Shade Hollow", w: 30, h: 26, music: "mystery", bg: "forest",
     ops: [
-      ["=", 2, 16, 28, 2], ["=", 14, 14, 2, 2], ["=", 6, 15, 1, 1],
+      ["=", 2, 16, 28, 2], ["=", 14, 0, 2, 16], ["=", 6, 15, 1, 1], ["f", 9, 5, 3, 2], ["T", 18, 3, 2, 2],
       ["f", 10, 19, 4, 2], ["T", 2, 2, 4, 6], ["T", 24, 2, 4, 4], ["~", 22, 20, 5, 3],
     ],
-    exits: [{ edge: "e", at: 16, w: 2, to: "route4" }],
+    exits: [{ edge: "e", at: 16, w: 2, to: "route4" }, { edge: "n", at: 14, w: 2, to: "route5" }],
     buildings: [
-      { type: "hall", x: 10, y: 2, to: "hall" },
       { type: "center", x: 4, y: 11, to: "shade_center" },
       { type: "mart", x: 4, y: 19, to: "shade_mart" },
       { type: "gym", x: 20, y: 6, to: "shade_gym" },
       { type: "tower", x: 15, y: 19, to: "tower" },
     ],
-    gates: [{ x: 14, y: 14, w: 1, h: 1, badges: 4, block: "n", text: "GUARD: Only holders of all 4 badges\nmay challenge the Champion!" },
+    gates: [{ x: 14, y: 2, w: 2, h: 1, badges: 4, block: "n", text: "GUARD: The wilds north of here are\nfor trainers with 4 badges!" },
       { x: 17, y: 22, w: 1, h: 1, requires: "champion", block: "n", text: "BATTLE TOWER: Open to Champions only.\nBeat the Champion, then come back!" }],
-    signs: [{ x: 13, y: 18, text: "SHADE HOLLOW\nGym Leader: MORROW\nNorth: CHAMPION'S HALL" }],
+    signs: [{ x: 13, y: 18, text: "SHADE HOLLOW\nGym Leader: MORROW\nNorth: THORNWOOD WILDS" }],
     npcs: [
-      { sprite: "soldier", x: 15, y: 14, dir: "down", name: "Guard",
-        talk: ["Beyond here is the Champion.\nYou need all 4 badges."] },
+      { sprite: "soldier", x: 16, y: 3, dir: "down", name: "Guard",
+        talk: ["Four badges to head north.", "Four more gyms lie beyond, and the PRIME GYM waits at the very end."] },
       { sprite: "magician", x: 9, y: 22, dir: "up", name: "Mystic",
         talk: ["Morrow's DARK monsters...", "...they say PSYCHIC and HEROIC\npower shines through darkness."] },
+    ],
+  });
+
+  // ---------------- Frost Sea (side route off Tide Harbor's pier) ----------------
+  // Ice floes with frosty grass dot the sea; a glacier rises in the northeast. Climb its ice steps to the top
+  // tier, where PHARAVION sleeps. Needs SURF (Tide Badge).
+  W.frostsea = outdoor({
+    name: "Frost Sea", w: 40, h: 30, music: "route", bg: "beach", frost: true, rate: 0.12,
+    ops: [
+      ["~", 2, 2, 36, 26], [".", 0, 14, 6, 7], ["=", 0, 17, 5, 2],
+      [".", 10, 4, 6, 5], [",", 11, 5, 4, 3],
+      [".", 12, 19, 7, 6], [",", 13, 20, 5, 4],
+      [".", 22, 12, 5, 4], [",", 23, 13, 3, 2],
+      [".", 27, 2, 11, 10], [",", 29, 7, 3, 2], [",", 33, 2, 3, 2],
+    ],
+    // tier 1 of the glacier, tier 2 above it, and an ice step up to each
+    raise: [[28, 2, 10, 8, 1], [32, 2, 6, 4, 2], [30, 10, 1, 1, 0.5], [34, 6, 1, 1, 1.5]],
+    exits: [{ edge: "w", at: 17, w: 2, to: "tide" }],
+    signs: [{ x: 3, y: 15, text: "FROST SEA\nSurf out to the floes.\nThe glacier lies northeast." }],
+    legends: [{ id: "legend_pharavion", slug: "pharavion", lv: 32, x: 35, y: 3 }],
+    items: [{ id: "item_floe_balls", x: 15, y: 4, item: "great_ball", n: 3 }, { id: "item_glacier_treat", x: 37, y: 9, item: "level_treat", n: 1 }],
+    npcs: [
+      { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
+        talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top."] },
+      trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 19, dir: "left", sight: 3, name: "Ice Diver Juno",
+        team: [["fribbit", 20], ["bigfin", 21]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
+      trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
+        team: [["houndice", 21], ["crustagu", 21], ["heronquak", 22]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
+      trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
+        team: [["snowrilla", 23], ["hectapod", 22], ["eaglace", 23]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
+    ],
+    encounters: [],
+  });
+
+  // ---------------- Route 5: Thornwood Wilds (Shade Hollow -> Verdance) ----------------
+  W.route5 = outdoor({
+    name: "Route 5", w: 22, h: 44, music: "route", bg: "forest", look: "wood",
+    ops: [
+      ["=", 10, 0, 2, 44], [",", 2, 34, 8, 8], [",", 12, 30, 8, 8], [",", 2, 18, 7, 10], [",", 13, 14, 7, 8],
+      [",", 4, 3, 14, 6], ["T", 13, 24, 6, 4], ["T", 2, 12, 6, 4], ["~", 15, 39, 4, 3], ["f", 13, 10, 4, 2], ["f", 3, 29, 3, 2],
+    ],
+    exits: [{ edge: "s", at: 10, w: 2, to: "shade" }, { edge: "n", at: 10, w: 2, to: "verdance" }],
+    signs: [{ x: 12, y: 41, text: "ROUTE 5 - THORNWOOD WILDS\nNorth: Verdance" }],
+    npcs: [
+      trainer({ id: "r5_a", outfit: "ranger", sprite: "woodnymph", x: 8, y: 36, dir: "right", sight: 4, name: "Druid Wren",
+        team: [["dandylion", 31], ["legko", 32]], intro: "The old trees chose my monsters. Let's see yours!", lose: "The forest bows to you." }),
+      trainer({ id: "r5_b", outfit: "ranger", sprite: "monk_green", x: 13, y: 22, dir: "left", sight: 4, name: "Druid Bram",
+        team: [["stegofor", 32], ["tumblebee", 32], ["spycozeus", 33]], intro: "Thorns and stings, that's my style!", lose: "Pricked my pride." }),
+      trainer({ id: "rival_r5", rival: true, sprite: "adventurer", x: 12, y: 6, dir: "left", sight: 3, name: "$rival",
+        team: [["$rivalstarter", 35], ["spirain", 33], ["banling", 33], ["seirein", 34]],
+        intro: "Four badges each! But the next four are the real test. Show me!", lose: "Ugh! See you at Verdance... I'm not done!" }),
+    ],
+    rate: 0.12, encounters: [],
+  });
+
+  // Towns 5-7 share one layout: a path cross, Healing Center and Mart up top, the Gym on the right.
+  // inn/out pick the exits ("s", "n", "w", "e"); the onward exit has a badge gate and a guard.
+  function town(def, inn, out, badges, guardText) {
+    const ex = { n: { edge: "n", at: 12, w: 2 }, s: { edge: "s", at: 12, w: 2 }, w: { edge: "w", at: 11, w: 2 }, e: { edge: "e", at: 11, w: 2 } };
+    const gate = { n: { x: 12, y: 2, w: 2, h: 1 }, e: { x: 27, y: 11, w: 1, h: 2 } }[out[0]];
+    const guard = { n: [14, 3, "down"], e: [27, 10, "down"] }[out[0]];
+    return outdoor(Object.assign(def, {
+      w: 30, h: 24,
+      ops: [["=", 12, 0, 2, 24], ["=", 0, 11, 30, 2], ["=", 2, 7, 10, 1], ["=", 20, 10, 1, 1], ["=", 3, 20, 10, 1], ["=", 12, 21, 11, 1],
+        ...(def.ops || [])],
+      exits: [Object.assign(ex[inn[0]], { to: inn[1] }), Object.assign(ex[out[0]], { to: out[1] })],
+      buildings: [
+        { type: "center", x: 2, y: 3, to: def.id + "_center" }, { type: "mart", x: 7, y: 3, to: def.id + "_mart" },
+        { type: "gym", x: 17, y: 2, to: def.id + "_gym" }, { type: "house", x: 3, y: 14, to: def.id + "_house" },
+      ],
+      gates: [Object.assign(gate, { badges, block: out[0], text: guardText })],
+      npcs: [{ sprite: "soldier", x: guard[0], y: guard[1], dir: guard[2], name: "Guard", talk: [guardText.replace("GUARD: ", "")] }, ...(def.npcs || [])],
+    }));
+  }
+
+  // ---------------- Verdance (Gym 5: Wood) ----------------
+  W.verdance = town({ id: "verdance", name: "Verdance", music: "chill", bg: "forest", look: "wood",
+    ops: [["f", 15, 15, 4, 3], ["T", 24, 15, 4, 6], ["~", 19, 15, 3, 2]],
+    signs: [{ x: 14, y: 13, text: "VERDANCE\nGym Leader: FERN\n\"Roots run deep.\"" }],
+    npcs: [{ sprite: "florist", x: 10, y: 15, dir: "left", name: "Gardener",
+      talk: ["Fern grows WOOD monsters.", "FIRE, SKY and FROST attacks wilt them fast!"] }],
+  }, ["s", "route5"], ["e", "route6"], 5, "GUARD: The Ashfall Trail is scorching.\nYou need 5 badges!");
+
+  // ---------------- Route 6: Ashfall Trail (Verdance -> Cinder Peak) ----------------
+  W.route6 = outdoor({
+    name: "Route 6", w: 44, h: 18, music: "route", bg: "forest", look: "ash",
+    ops: [
+      ["=", 0, 8, 44, 2], [",", 4, 2, 9, 6], [",", 6, 11, 10, 5], [",", 20, 2, 8, 5], [",", 22, 11, 9, 5], [",", 34, 3, 7, 12],
+      ["T", 15, 2, 4, 4], ["T", 32, 11, 2, 5], ["~", 17, 12, 3, 3],
+    ],
+    exits: [{ edge: "w", at: 8, w: 2, to: "verdance" }, { edge: "e", at: 8, w: 2, to: "cinder" }],
+    signs: [{ x: 3, y: 7, text: "ROUTE 6 - ASHFALL TRAIL\nEast: Cinder Peak" }],
+    npcs: [
+      trainer({ id: "r6_a", outfit: "miner", sprite: "firefighter", x: 10, y: 7, dir: "down", sight: 3, name: "Fire Watcher Pyro",
+        team: [["cardiwing", 36], ["grinflare", 37]], intro: "Hot ash, hotter battles!", lose: "Extinguished..." }),
+      trainer({ id: "r6_b", outfit: "miner", sprite: "miner", x: 26, y: 10, dir: "up", sight: 3, name: "Ash Miner Cole",
+        team: [["rockat", 37], ["selmatek", 37], ["cocrune", 38]], intro: "I dig in the ash for rare ore. And rare fights!", lose: "Struck out." }),
+      trainer({ id: "r6_c", outfit: "miner", sprite: "magician_fiery", x: 38, y: 7, dir: "left", sight: 4, name: "Fire Dancer Sola",
+        team: [["solight", 38], ["urcheedle", 38], ["cobarett", 39]], intro: "Dance with the flames!", lose: "My flame flickers out." }),
+    ],
+    rate: 0.12, encounters: [],
+  });
+
+  // ---------------- Cinder Peak (Gym 6: Fire) ----------------
+  W.cinder = town({ id: "cinder", name: "Cinder Peak", music: "funky", bg: "forest", look: "ash",
+    ops: [["T", 22, 14, 6, 6], ["T", 26, 2, 2, 2]],
+    signs: [{ x: 14, y: 13, text: "CINDER PEAK\nGym Leader: BLAZE\n\"Burn bright.\"" }],
+    npcs: [{ sprite: "cooldude", x: 9, y: 16, dir: "right", name: "Hiker",
+      talk: ["Blaze's FIRE monsters hate WATER and EARTH attacks.", "Bring something that swims!"] }],
+  }, ["w", "route6"], ["n", "route7"], 6, "GUARD: Rustline Road is for trainers\nwith 6 badges!");
+
+  // ---------------- Route 7: Rustline Road (Cinder Peak -> Ironhold) ----------------
+  W.route7 = outdoor({
+    name: "Route 7", w: 22, h: 44, music: "route", bg: "forest", look: "steel",
+    ops: [
+      ["=", 10, 0, 2, 44], [",", 2, 33, 8, 8], [",", 12, 27, 8, 10], [",", 2, 16, 8, 10], [",", 12, 8, 8, 8],
+      [",", 3, 3, 6, 6], ["T", 12, 18, 6, 4], ["T", 2, 28, 4, 3], ["~", 14, 39, 4, 3], ["F", 12, 25, 6, 1],
+    ],
+    exits: [{ edge: "s", at: 10, w: 2, to: "cinder" }, { edge: "n", at: 10, w: 2, to: "ironhold" }],
+    signs: [{ x: 12, y: 41, text: "ROUTE 7 - RUSTLINE ROAD\nNorth: Ironhold" }],
+    npcs: [
+      trainer({ id: "r7_a", outfit: "engineer", sprite: "scientist_black", x: 8, y: 36, dir: "right", sight: 4, name: "Mechanic Rusty",
+        team: [["puparmor", 41], ["weavifly", 42]], intro: "Every bolt tightened. Let's battle!", lose: "Loose screw somewhere..." }),
+      trainer({ id: "r7_b", outfit: "engineer", sprite: "firefighter", x: 13, y: 24, dir: "left", sight: 4, name: "Engineer Tess",
+        team: [["windeye", 42], ["arthrobolt", 42], ["trojerror", 43]], intro: "My machines don't feel pain. Do yours?", lose: "System failure!" }),
+      trainer({ id: "r7_c", outfit: "occult", sprite: "magician", x: 8, y: 6, dir: "right", sight: 4, name: "Psychic Lumen",
+        team: [["eyesore", 43], ["masknake", 43], ["mystikapi", 44]], intro: "I saw you coming from miles away.", lose: "I did not see THAT coming." }),
+    ],
+    rate: 0.12, encounters: [],
+  });
+
+  // ---------------- Ironhold (Gym 7: Steel) ----------------
+  W.ironhold = town({ id: "ironhold", name: "Ironhold", music: "wild", bg: "grass", look: "steel",
+    ops: [["T", 24, 15, 4, 6], ["F", 15, 18, 6, 1]],
+    signs: [{ x: 14, y: 13, text: "IRONHOLD\nGym Leader: FORGE\n\"Nothing bends.\"" }],
+    npcs: [{ sprite: "scientist", x: 10, y: 16, dir: "left", name: "Smith",
+      talk: ["Forge's STEEL monsters shrug off most hits.", "FIRE and EARTH attacks melt right through them!"] }],
+  }, ["s", "route7"], ["e", "route8"], 7, "GUARD: Victory Ridge is for trainers\nwith 7 badges!");
+
+  // ---------------- Route 8: Victory Ridge (Ironhold -> Prime City) ----------------
+  W.route8 = outdoor({
+    name: "Route 8", w: 44, h: 18, music: "route", bg: "forest", look: "prime",
+    ops: [
+      ["=", 0, 8, 44, 2], [",", 3, 2, 10, 5], [",", 5, 11, 9, 5], [",", 17, 2, 9, 5], [",", 18, 11, 10, 5], [",", 31, 2, 9, 13],
+      ["T", 14, 11, 3, 5], ["T", 28, 2, 3, 5], ["f", 40, 3, 2, 3],
+    ],
+    exits: [{ edge: "w", at: 8, w: 2, to: "ironhold" }, { edge: "e", at: 8, w: 2, to: "prime" }],
+    signs: [{ x: 3, y: 7, text: "ROUTE 8 - VICTORY RIDGE\nEast: Prime City" }],
+    npcs: [
+      trainer({ id: "r8_a", outfit: "royal", sprite: "knight", x: 10, y: 10, dir: "up", sight: 3, name: "Ace Trainer Roland",
+        team: [["bricgard", 46], ["strella", 46], ["glombroc", 47]], intro: "Only the best walk Victory Ridge.", lose: "You really are one of the best." }),
+      trainer({ id: "r8_b", outfit: "royal", sprite: "dragonrider", x: 24, y: 7, dir: "down", sight: 3, name: "Ace Trainer Vesper",
+        team: [["gryfix", 47], ["myrmison", 47], ["miaownolith", 48]], intro: "The Prime Gym is close. Prove you belong!", lose: "You belong." }),
+      trainer({ id: "rival_r8", rival: true, sprite: "adventurer", x: 38, y: 10, dir: "up", sight: 3, name: "$rival",
+        team: [["$rivalstarter", 50], ["spirain", 47], ["banling", 47], ["seirein", 48], ["metesaur", 48], ["komoduel", 49]],
+        intro: "Seven badges! This is our last battle before the Prime Gym. All or nothing!",
+        lose: "...You're the real deal. Go win that Prime Badge. I'll be cheering." }),
+    ],
+    rate: 0.12, encounters: [],
+  });
+
+  // ---------------- Prime City (Gym 8: the Prime Gym, then the Champion's Hall) ----------------
+  W.prime = outdoor({
+    name: "Prime City", w: 34, h: 28, music: "funky", bg: "grass", look: "prime",
+    ops: [
+      ["=", 0, 16, 34, 2], ["=", 16, 14, 2, 2], ["=", 4, 14, 1, 2], ["=", 9, 14, 1, 2], ["=", 26, 14, 1, 2],
+      ["f", 2, 6, 4, 2], ["f", 27, 22, 4, 2], ["T", 28, 2, 4, 3], ["T", 2, 2, 3, 4], ["~", 20, 21, 4, 3],
+    ],
+    exits: [{ edge: "w", at: 16, w: 2, to: "route8" }],
+    buildings: [
+      { type: "hall", x: 12, y: 2, to: "hall" },
+      { type: "center", x: 2, y: 10, to: "prime_center" },
+      { type: "mart", x: 7, y: 10, to: "prime_mart" },
+      { type: "gym", x: 23, y: 6, to: "prime_gym" },
+    ],
+    gates: [{ x: 16, y: 14, w: 1, h: 1, badges: 8, block: "n", text: "GUARD: Only holders of all 8 badges\nmay challenge the Champion!" }],
+    signs: [{ x: 15, y: 19, text: "PRIME CITY\nPrime Leader: DRAKE\nNorth: CHAMPION'S HALL" }],
+    npcs: [
+      { sprite: "soldier", x: 17, y: 14, dir: "down", name: "Guard", talk: ["Beyond here is the Champion.\nYou need all 8 badges."] },
+      { sprite: "granny", x: 10, y: 19, dir: "up", name: "Old Champion",
+        talk: ["Drake of the PRIME GYM trains DRAGONS, the mightiest monsters of all.", "Dragons fear FROST attacks and other dragons. Steel stands up to them."] },
     ],
   });
 
@@ -357,7 +543,6 @@
   W.hollow_house.wall = W.hollow_house2.wall = "wood";
 
   // legendaries
-  W.tide.legends = [{ id: "legend_pharavion", slug: "pharavion", lv: 40, x: 12, y: 26 }];
   W.route4.legends = [{ id: "legend_kernel", slug: "kernel", lv: 45, x: 41, y: 12 }];
 
   const gym = (name, wall, npcs, music, fight) => interior({
@@ -409,14 +594,65 @@
     rugs: [[4, 4], [4, 10]], ops: [["C", 0, 8, 5, 1], ["C", 6, 8, 6, 1]],
     npcs: [
       trainer({ id: "elite", outfit: "royal", sprite: "soldier", x: 4, y: 7, dir: "right", sight: 3, name: "Elite Vance",
-        team: [["saurchin", 37], ["jemuar", 38], ["deviraptor", 37]],
+        team: [["saurchin", 55], ["jemuar", 56], ["deviraptor", 56], ["snokari", 55]],
         intro: "None reach the Champion without\nbeating me first!", lose: "Go on. The Champion awaits." }),
       trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
-        team: [["drokoro", 40], ["pythonova", 40], ["demosnow", 40], ["novaquarius", 41], ["ziggurat", 41], ["$rival", 42]],
-        intro: "So you're the trainer with four\nbadges. I am Aurora, Champion of\nthis land. Give me everything!",
+        team: [["drokoro", 57], ["pythonova", 57], ["demosnow", 58], ["novaquarius", 58], ["ziggurat", 59], ["$rival", 60]],
+        intro: "So you're the trainer with all\neight badges. I am Aurora,\nChampion of this land. Give me\neverything!",
         lose: "Magnificent! You are the new\nCHAMPION!" }),
     ],
   });
+
+  for (const [id, town] of [["verdance", "Verdance"], ["cinder", "Cinder"], ["ironhold", "Ironhold"], ["prime", "Prime"]]) {
+    W[id + "_center"] = center(town); W[id + "_mart"] = mart(town);
+  }
+  W.verdance_house = house("House", { sprite: "picnicker", x: 4, y: 4, dir: "down", name: "Kid",
+    talk: ["Mom says there are EIGHT gyms!", "The last one, the PRIME GYM, is full of dragons. So cool!"] });
+  W.cinder_house = house("House", { sprite: "granny", x: 3, y: 4, dir: "down", name: "Granny",
+    talk: ["The mountain rumbles every night.", "Blaze says it's just the volcano snoring."] });
+  W.ironhold_house = house("House", { sprite: "firefighter", x: 4, y: 4, dir: "down", name: "Foundry Worker",
+    talk: ["We forge the Iron Badges right here in town.", "Forge tests every one by hitting it with a hammer."] });
+
+  W.verdance_gym = gym("Verdance Gym", "green", [
+    trainer({ id: "g5_t1", outfit: "ranger", sprite: "woodnymph", x: 2, y: 9, dir: "right", sight: 5, name: "Druid Moss",
+      team: [["ninjasmine", 35], ["sapsnap", 35]], intro: "Fern grew us from seeds!", lose: "Uprooted..." }),
+    trainer({ id: "g5_t2", outfit: "ranger", sprite: "monk_green", x: 9, y: 6, dir: "left", sight: 5, name: "Druid Oak",
+      team: [["bamboon", 36], ["brachifor", 36]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
+    trainer({ id: "g5_leader", outfit: "ranger", sprite: "florist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Fern", leader: 5,
+      team: [["toxiris", 37], ["beenstalker", 38], ["wendigger", 38], ["volcoli", 39], ["moloch", 40]],
+      intro: "I'm Fern. My WOOD monsters have\nroots older than this town.\nLet's grow!",
+      lose: "You cut right through!\nThe LEAF BADGE is yours.", badge: "Leaf Badge" }),
+  ], "chill", "funkboss");
+  W.cinder_gym = gym("Cinder Gym", "cream", [
+    trainer({ id: "g6_t1", outfit: "miner", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Stoker Ash",
+      team: [["vulpyre", 40], ["shelagu", 40]], intro: "Feel the heat!", lose: "Cooled off..." }),
+    trainer({ id: "g6_t2", outfit: "miner", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Fire Eater Kip",
+      team: [["flambear", 41], ["potturney", 41]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
+    trainer({ id: "g6_leader", outfit: "miner", sprite: "magician_fiery", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Blaze", leader: 6,
+      team: [["sludgehog", 42], ["loliferno", 43], ["statursus", 43], ["gupphire", 44], ["eruptibus", 45]],
+      intro: "Blaze's the name! My FIRE burns\nhotter than the mountain itself!",
+      lose: "Doused! Take the\nBLAZE BADGE.", badge: "Blaze Badge" }),
+  ], "funky", "boss");
+  W.ironhold_gym = gym("Ironhold Gym", "blue", [
+    trainer({ id: "g7_t1", outfit: "engineer", sprite: "scientist_black", x: 2, y: 9, dir: "right", sight: 5, name: "Welder Max",
+      team: [["bolt", 45], ["katacoon", 45]], intro: "Sparks will fly!", lose: "Burnt out." }),
+    trainer({ id: "g7_t2", outfit: "engineer", sprite: "firefighter", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Dot",
+      team: [["uf0", 46], ["angrito", 46]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
+    trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
+      team: [["sphake", 47], ["gastronium", 48], ["tigrock", 48], ["hydrone", 49], ["lightmare", 50]],
+      intro: "I'm Forge. My STEEL monsters\ndon't dent. Hit them with all\nyou've got!",
+      lose: "You bent steel!\nThe IRON BADGE is yours.", badge: "Iron Badge" }),
+  ], "route", "boss");
+  W.prime_gym = gym("Prime Gym", "blue", [
+    trainer({ id: "g8_t1", outfit: "royal", sprite: "dragonrider", x: 2, y: 9, dir: "right", sight: 5, name: "Dragon Tamer Ryu",
+      team: [["sapragon", 50], ["devidra", 51]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
+    trainer({ id: "g8_t2", outfit: "royal", sprite: "dragonrider_green", x: 9, y: 6, dir: "left", sight: 5, name: "Dragon Tamer Kira",
+      team: [["dragarbor", 51], ["ferricran", 52]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
+    trainer({ id: "g8_leader", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Prime Leader Drake", leader: 8,
+      team: [["allagon", 52], ["firomenis", 53], ["qetzlrokilus", 53], ["wrougon", 54], ["golnagi", 55]],
+      intro: "I am Drake of the PRIME GYM.\nSeven badges got you here.\nDragons decide if you go on!",
+      lose: "Incredible... The PRIME BADGE\nis yours. The Champion awaits!", badge: "Prime Badge" }),
+  ], "mystery", "darkboss");
 
   // ---------------- Glimmer Cave (north off Route 4) ----------------
   // Pitch dark: a Lightning or Fire monster plus the Volt Badge lights it with FLASH. Wild monsters lurk on
@@ -499,8 +735,34 @@
     ["rockitten", 3], ["imbrickcile", 3], ["potturmeist", 2], ["pawsand", 2], ["nut", 2], ["boltnu", 2],
     ["grintot", 2], ["babysnitch", 1], ["noctula", 2]]),
     lv(26, 30, [["squink", 2], ["jelillow", 1]]));
-  W.tide.water = lv(16, 21, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
+  W.tide.water = lv(11, 15, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
   W.shade.water = [["manosting", 28, 32, 1], ["nebufin", 28, 32, 1]];
+  // The Frost Sea side route: ice floes and a glacier, between the 2nd and 3rd gyms.
+  area("frostsea", "Frost Sea", lv(18, 23, [ // frosty grass on the floes and the glacier
+    ["houndice", 3], ["heronquak", 3], ["angesnow", 2], ["seraphice", 2], ["snowrilla", 2], ["eaglace", 1]]),
+    lv(17, 22, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
+    lv(19, 23, [["lucifice", 2]])); // the ice devil only skates out at night
+  // Past Shade Hollow the wild ones are mostly already evolved.
+  area("route5", "Thornwood Wilds", lv(30, 35, [ // ancient overgrown forest: wood, venom and birds
+    ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],
+    ["tumblebee", 2], ["birdling", 2], ["corvix", 1]]),
+    lv(30, 34, [["galasces", 2], ["krokivip", 1]]),
+    lv(31, 35, [["spighter", 2], ["dracune", 2], ["hoarseshoo", 1]]));
+  area("route6", "Ashfall Trail", lv(35, 40, [ // volcanic ash fields: fire and earth
+    ["cobarett", 3], ["cardiwing", 2], ["solight", 2], ["grinflare", 2], ["rockat", 3], ["selmatek", 2],
+    ["urcheedle", 2], ["knightsand", 1], ["cocrune", 2]]),
+    lv(35, 39, [["lightmare", 1]]),
+    lv(36, 40, [["vulpyre", 2], ["loliferno", 1]]));
+  area("route7", "Rustline Road", lv(40, 45, [ // scrapyards and power lines: steel, lightning and psychic
+    ["puparmor", 3], ["weavifly", 2], ["trojerror", 2], ["windeye", 2], ["apeoro", 2], ["arthrobolt", 2],
+    ["eyesore", 2], ["masknake", 2], ["angrito", 1]]),
+    lv(40, 44, [["hydrone", 2]]),
+    lv(41, 45, [["bewhich", 2], ["lunight", 2], ["equill", 1]]));
+  area("route8", "Victory Ridge", lv(45, 50, [ // the toughest wilds before the Prime Gym
+    ["bricgard", 3], ["myrmison", 2], ["miaownolith", 2], ["glombroc", 2], ["conglolem", 2], ["rabbitosaur", 2],
+    ["strella", 2], ["gryfix", 2], ["aardart", 2], ["komoduel", 1], ["devidra", 1]]),
+    null,
+    lv(46, 50, [["mystikapi", 2], ["qetzlrokilus", 1]]));
 
   window.WORLD = { maps: W, BUILDINGS };
 })();

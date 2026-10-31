@@ -127,6 +127,18 @@ window.World3D = (function () {
       },
     };
   }
+  // a recoloured copy of a model (snow-dusted pines, ashen trees); the original stays untouched
+  function tinted(key, hex, mix = 0.6) {
+    const k2 = key + "#" + hex.toString(16) + mix;
+    if (!models[k2] && models[key]) {
+      const scene2 = models[key].scene.clone(true), col = new THREE.Color(hex);
+      const tint = (mt) => { const c = mt.clone(); c.color.lerp(col, mix); return c; }; // blend part of the way to the tint
+      scene2.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(tint) : tint(o.material); });
+      scene2.updateMatrixWorld(true);
+      models[k2] = { scene: scene2, box: models[key].box };
+    }
+    return models[k2] ? k2 : key;
+  }
   function place(key, x, zz, { rot = 0, scale = 1, y = 0 } = {}) {
     const m = models[key];
     if (!m) return new THREE.Group();
@@ -144,12 +156,22 @@ window.World3D = (function () {
     volt: { trees: ["tree_cone", "tree_pineTallA", "tree_pineRoundA", "tree_detailed"], grass: 0x68aa52, grassDark: 0x4d8c42, sky: 0xa6d2ee },
     shade: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed", "tree_pineTallA"], grass: 0x4f7f48, grassDark: 0x3a6538, sky: 0x8b9cb8 },
     ghost: { trees: ["tree_default_dark", "tree_oak_dark", "tree_pineTallA_detailed"], grass: 0x58654f, grassDark: 0x3e4a3a, sky: 0x5c5a72, fog: [6, 22] },
+    // Frost Sea: snowfields, ice-tinted pines and frosty grass
+    frost: { trees: ["tree_pineTallA", "tree_pineRoundA", "tree_cone"], grass: 0xe4edf2, grassDark: 0xc4d6e0, sky: 0xcfe6f4, tint: 0xe6f2fa },
+    wood: { trees: ["tree_oak", "tree_fat", "tree_detailed", "tree_default", "tree_pineRoundC"], grass: 0x4f9a3c, grassDark: 0x37782c, sky: 0x9fd4c0 },
+    ash: { trees: ["tree_pineTallA_detailed", "tree_default_dark", "tree_oak_dark", "tree_cone"], grass: 0x8a7a68, grassDark: 0x6c5c4c, sky: 0xe0b090, tint: 0x3a3430, tintMix: 0.45 },
+    steel: { trees: ["tree_cone", "tree_pineTallA", "tree_pineTallA_detailed"], grass: 0x7a8f74, grassDark: 0x5f7558, sky: 0xb4c0cc },
+    prime: { trees: ["tree_palmTall", "tree_oak", "tree_detailed", "tree_cone"], grass: 0x6fb04e, grassDark: 0x55913c, sky: 0xc8d8f8 },
     // Glimmer Cave: rock walls, stone floor, near-total darkness until FLASH
     cave: { trees: ["rock_tallA", "rock_largeA"], grass: 0x5a554e, grassDark: 0x48443e, sky: 0x06070a, fog: [1.5, 6], rocks: true },
   };
+  const MAP_THEME = { verdance: "wood", cinder: "ash", ironhold: "steel", prime: "prime" };
   function themeFor(m) {
     const id = m.id || "";
     if (m.cave) return THEMES.cave;
+    if (m.frost) return THEMES.frost;
+    if (m.look && THEMES[m.look]) return THEMES[m.look];
+    if (/_(center|mart|house|gym)$/.test(id) && MAP_THEME[id.split("_")[0]]) return THEMES[MAP_THEME[id.split("_")[0]]];
     if (id.startsWith("tide") || id === "route2") return THEMES.tide;
     if (id.startsWith("volt") || id === "route3") return THEMES.volt;
     if (m.ghost || id.startsWith("hollow")) return THEMES.ghost;
@@ -175,7 +197,11 @@ window.World3D = (function () {
     blockers.length = 0;
   }
 
+  // ground height of a tile (glacier tiers), 0 for flat maps
+  let curMap = null;
+  const hAt = (m, x, y) => (m && m.heights && x >= 0 && y >= 0 && x < m.w && y < m.h ? m.heights[y][x] : 0);
   function build(m, BUILDINGS) {
+    curMap = m;
     clearMap();
     mapRoot = new THREE.Group();
     scene.add(mapRoot);
@@ -212,11 +238,19 @@ window.World3D = (function () {
     };
     for (let y = -pad; y < m.h + pad; y++) for (let x = -pad; x < m.w + pad; x++) {
       const ch = tile(x, y);
-      let base = th.grass, h = 0;
-      if (ch === "=") base = 0xd9c08a;
+      let base = th.grass, h = hAt(m, x, y);
+      if (ch === "=") base = th === THEMES.frost ? 0xb8c8d4 : 0xd9c08a;
       else if (ch === "," || ch === "T") base = th.grassDark;
       else if (ch === "~") { base = 0x2d5d86; h = -0.35; }
+      if (h > 0) base = ch === "," ? 0xc8dce8 : 0xf2f7fa; // packed snow on the glacier
       quad([[x, h, y + 1], [x + 1, h, y + 1], [x + 1, h, y], [x, h, y]], base, (R() - 0.5) * 0.025);
+      if (h > 0) { // sheer blue ice walls down to whatever is lower next door
+        const ice = 0x8fc3e0, lo = (nx, ny) => Math.max(0, hAt(m, nx, ny));
+        if (lo(x, y - 1) < h) quad([[x, h, y], [x + 1, h, y], [x + 1, lo(x, y - 1), y], [x, lo(x, y - 1), y]], ice, (R() - 0.5) * 0.04);
+        if (lo(x, y + 1) < h) quad([[x + 1, h, y + 1], [x, h, y + 1], [x, lo(x, y + 1), y + 1], [x + 1, lo(x, y + 1), y + 1]], ice, (R() - 0.5) * 0.04);
+        if (lo(x - 1, y) < h) quad([[x, h, y + 1], [x, h, y], [x, lo(x - 1, y), y], [x, lo(x - 1, y), y + 1]], ice, (R() - 0.5) * 0.04);
+        if (lo(x + 1, y) < h) quad([[x + 1, h, y], [x + 1, h, y + 1], [x + 1, lo(x + 1, y), y + 1], [x + 1, lo(x + 1, y), y]], ice, (R() - 0.5) * 0.04);
+      }
       if (ch !== "~") continue;
       const bank = 0x9a8a5e;
       if (tile(x, y - 1) !== "~") quad([[x, h, y], [x + 1, h, y], [x + 1, 0, y], [x, 0, y]], bank);
@@ -246,7 +280,10 @@ window.World3D = (function () {
     dayBase = { sky: new THREE.Color(th.sky), hemi: hemi.intensity, sun: sun.intensity, sunCol: sun.color.clone(), cave: !!th.rocks };
     const PAD = 9;
     mapRoot.add(groundMesh(m, th, R, PAD));
-    const sc = Scatter();
+    const sc0 = Scatter(), sc = {
+      add: (key, x, zz, o = {}) => sc0.add(th.tint ? tinted(key, th.tint, th.tintMix) : key, x, zz, { ...o, y: (o.y || 0) + hAt(m, Math.floor(x), Math.floor(zz)) }),
+      build: (p) => sc0.build(p),
+    };
     const treeAt = (x, zz) => {
       const key = "nature/" + th.trees[Math.floor(R() * th.trees.length)];
       if (th.rocks) { // cave walls: one boulder per tile, never wider than the tile
@@ -439,9 +476,10 @@ window.World3D = (function () {
         o = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
         o.scale.set(0.75, 0.75, 1);
         o.userData.root = mapRoot; o.userData.ring = marker(it.x + 0.5, it.y + 0.5, 0xffd030);
+        o.userData.ring.position.y += hAt(curMap, it.x, it.y);
         mapRoot.add(o, o.userData.ring); pickupObjs.set(it.id, o);
       }
-      if (o) o.position.set(it.x + 0.5, 0.6 + Math.sin(now * 3 + it.x) * 0.08, it.y + 0.5);
+      if (o) o.position.set(it.x + 0.5, hAt(curMap, it.x, it.y) + 0.6 + Math.sin(now * 3 + it.x) * 0.08, it.y + 0.5);
     }
   }
   const NIGHT_SKY = new THREE.Color(0x0c1430), DUSK_SKY = new THREE.Color(0xe8865a), MOON = new THREE.Color(0x8aa0ff);
@@ -838,7 +876,7 @@ window.World3D = (function () {
   function updateActor(key, sprite, x, zz, yaw, anim, dt, timeScale = 1, outfit, model) {
     const a = actors.get(key) || makeActor(key, sprite, outfit, model);
     a.seen = true;
-    a.root.position.set(x, 0, zz);
+    a.root.position.set(x, hAt(curMap, Math.floor(x), Math.floor(zz)), zz);
     a.yaw = a.yaw === null ? yaw : lerpAngle(a.yaw, yaw, Math.min(1, dt * 14));
     a.root.rotation.y = a.yaw + Math.PI; // models face +Z; yaw 0 means facing -Z (north)
     setAnim(a, anim);
@@ -929,7 +967,7 @@ window.World3D = (function () {
         g.rotation.y = Math.atan2(p.px - cx, p.pz - cz); // face whoever walks up
         scene.add(g); statueObjs.set(st.id, o);
       }
-      o.g.position.set(o.cx, 0, o.cz);
+      o.g.position.set(o.cx, hAt(curMap, Math.floor(o.cx), Math.floor(o.cz)), o.cz);
       if (st.kind === "legend") {
         o.g.children[0].position.y = 0.35 + Math.sin(now * 1.4) * 0.18;
         const want = Math.atan2(p.px - o.cx, p.pz - o.cz);
@@ -1028,7 +1066,7 @@ window.World3D = (function () {
     // Anything between the camera and the player is cut away by pushing the near plane out.
     // steady, fairly high chase view looking down over the player's shoulder
     const back = inside ? 3.2 : 4.4, up = inside ? 3.6 : 5.0;
-    const lift = (p.alt || 0) + (p.mount ? 0.9 : 0);
+    const lift = (p.alt || 0) + (p.ground || 0) + (p.mount ? 0.9 : 0);
     const want = new THREE.Vector3(p.px - f[0] * back, up + lift, p.pz - f[1] * back);
     const near = Math.max(0.1, Math.hypot(back, up - 0.8) - 1.6);
     if (Math.abs(camera.near - near) > 0.01) { camera.near = near; camera.updateProjectionMatrix(); }
@@ -1093,7 +1131,7 @@ window.World3D = (function () {
     const surfing = p.mount && p.surfing;
     updateActor(pkey, null, p.px, p.pz, p.angle + (surfing ? 1.1 : 0), surfing ? "idle" : p.mount ? "sit" : anim, dt, p.mount ? 1 : moving ? Math.max(0.5, spd / (spd > 4 ? 5 : 3)) : 1, look.outfit, look.model);
     const pa = actors.get(pkey);
-    pa.root.position.y = seatY - (pa.qn && p.mount && !surfing ? 0.36 : 0);
+    pa.root.position.y = seatY + (p.ground || 0) - (pa.qn && p.mount && !surfing ? 0.36 : 0);
     if (surfing) { const f2 = [-Math.sin(p.angle), -Math.cos(p.angle)]; pa.root.position.x = p.px - f2[0] * 0.25; pa.root.position.z = p.pz - f2[1] * 0.25; }
     pa.root.scale.set(1, surfing ? 0.92 : 1, 1);
     for (const [k, a] of actors) if (!a.seen) { scene.remove(a.root); actors.delete(k); }
