@@ -116,6 +116,18 @@ dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count 
 Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest monsters go 13, 18, 25,
 31, 38, 42, 48, 53, and the Champion tops out at 55. The trainer card shows all 8 badges.
 
+**Support moves, stages and statuses:** every monster learns two moves for its first type (tools/build_data.py
+`SUPPORT_MOVES` / `SUPPORT_BY_TYPE`): stat raisers (Flex, Focus, Stone Skin, Mist Veil, Tailwind), drops (Snarl,
+Acid Spit, Mud Shot), heals (Photosynth, Regenerate, Second Wind), SLEEP (Lullaby, Spore Cloud: skips 1-3 turns),
+PARALYSIS (Static Jolt: half speed, 1 in 4 turns lost) and strike-first attacks (Quick Strike, Ice Shard,
+Shadow Sneak). Stat stages: +1 = x1.5, +2 = x2, -1 = x0.67 (capped at +-4), reset when a monster leaves the
+field. Foes use support moves when they make sense (heal when low, sleep you when you have no status...).
+Status chips (BRN PSN SLP PAR) sit just outside the HP boxes. FULL HEAL ($400) cures any status.
+
+**Held items** (PARTY > ITEM to give or take): Apple (eaten at half HP for 1/3 HP), Elixir (cures the first
+status), Sweet Candy (+50% EXP, from 3 badges or the Battle Tower) and a Berry per type (+20% to that type's
+moves, from 2 badges). Icons are Tuxemon's own item art. Long menus (the mart) scroll.
+
 **Move cards:** when a monster wants to learn a move, and when you highlight a move in battle, a card
 shows its type, MELEE or RANGED (which stats it pits: MELEE vs ARMOUR, RANGED vs DODGE), power, the real
 chance it hits for your side, PP, its burn/poison chance (burned or poisoned foes lose 1/8 HP a turn),

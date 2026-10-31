@@ -163,7 +163,7 @@ window.World3D = (function () {
     steel: { trees: ["tree_cone", "tree_pineTallA", "tree_pineTallA_detailed"], grass: 0x7a8f74, grassDark: 0x5f7558, sky: 0xb4c0cc },
     prime: { trees: ["tree_palmTall", "tree_oak", "tree_detailed", "tree_cone"], grass: 0x6fb04e, grassDark: 0x55913c, sky: 0xc8d8f8 },
     // Glimmer Cave: rock walls, stone floor, near-total darkness until FLASH
-    cave: { trees: ["rock_tallA", "rock_largeA"], grass: 0x5a554e, grassDark: 0x48443e, sky: 0x06070a, fog: [1.5, 6], rocks: true },
+    cave: { trees: ["rock_tallA", "rock_largeA"], grass: 0x5a554e, grassDark: 0x48443e, sky: 0x06070a, fog: [1.5, 6], rocks: true, tint: 0x5e5850, tintMix: 0.7 }, // tint hides the boulders' mossy tops
   };
   const MAP_THEME = { verdance: "wood", cinder: "ash", ironhold: "steel", prime: "prime" };
   function themeFor(m) {
@@ -888,10 +888,11 @@ window.World3D = (function () {
   // A mount is the monster's real Tuxemon back sprite extruded into voxels: every opaque pixel
   // becomes a block, thicker toward the middle of the body so it reads as a solid creature.
   const mounts = {};
-  function mountModel(slug, upright, size) {
-    const ck = slug + (upright ? ":up" : "") + (size ? ":" + size : "");
+  function mountModel(key, upright, size) {
+    const ck = key + (upright ? ":up" : "") + (size ? ":" + size : "");
     if (mounts[ck]) return mounts[ck];
-    const img = IMG["mon_" + slug];
+    const slug = key.replace("*", ""), shiny = key.endsWith("*"); // "slug*" = shiny colours
+    const img = shiny && typeof shinyImg === "function" ? shinyImg(slug) : IMG["mon_" + slug];
     const S = 64, c = document.createElement("canvas"); c.width = S; c.height = S;
     const x = c.getContext("2d"); x.drawImage(img, 64, 0, 64, 64, 0, 0, S, S); // back view
     const px = x.getImageData(0, 0, S, S).data;

@@ -15,6 +15,15 @@ const ITEMS = {
   tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild monsters." },
   great_ball: { name: "Great Ball", price: 600, ball: 1.8, icon: "great_ball", desc: "A better chance to catch." },
   mega_potion: { name: "Mega Potion", price: 1500, heal: 200, icon: "mega_potion", desc: "Restores 200 HP." },
+  full_heal: { name: "Full Heal", price: 400, cure: true, icon: "full_heal", desc: "Cures sleep, paralysis, burns and poison." },
+  // held items: give one to a monster from its PARTY menu (ITEM); it works on its own in battle
+  apple: { name: "Apple", price: 300, hold: true, icon: "apple", desc: "Held: eaten at half HP to restore 1/3 of its HP. Used up." },
+  elixir: { name: "Elixir", price: 800, hold: true, icon: "elixir", desc: "Held: cures the first status it gets. Used up." },
+  exp_candy: { name: "Sweet Candy", price: 3000, hold: true, minBadges: 3, icon: "exp_candy", desc: "Held: the holder gets 50% more EXP." },
+  // one berry per type: held, that type's moves hit 20% harder
+  ...Object.fromEntries(["fire", "water", "wood", "earth", "lightning", "frost", "sky", "venom", "normal", "heroic", "steel", "dark", "psychic"].map((t) => [
+    "berry_" + t, { name: t[0].toUpperCase() + t.slice(1) + " Berry", price: 1500, hold: true, boost: t, minBadges: 2, icon: "berry_" + t,
+      desc: `Held: its ${t.toUpperCase()} moves do 20% more damage.` }])),
   // prizes and rewards (not sold)
   master_ball: { name: "Master Ball", ball: 255, icon: "master_ball", desc: "Catches any monster, every time." },
   sweet_sand: { name: "Sweet Sand", lure: 150, icon: "sweet_sand", desc: "For 150 steps: more monsters, rarer ones and shinies." },
@@ -203,15 +212,28 @@ function typeTag(type, x, y) {
 // What a move does, in plain words: type, melee or ranged (which stats it pits against each other), power,
 // how often it really hits for your side, PP, its burn/poison chance, the same-type bonus (the x1.5 chip), and
 // (in battle) how it fares against the foe in front of you. compact = one short line, for stacked cards.
+function fxFacts(M) { // what a move's extra effect does, as short phrases
+  const fx = M.fx || {}, out = [], st = (o) => Object.entries(o).map(([k, d]) => `${STAT_NAME[k]} ${d > 0 ? "+" : ""}${d}`).join(" ");
+  if (fx.self) out.push(`Raises its ${st(fx.self)}`);
+  if (fx.foe) out.push(`${fx.chance != null && fx.chance < 1 ? Math.round(fx.chance * 100) + "%: " : ""}their ${st(fx.foe)}`);
+  if (fx.heal) out.push(`Heals ${Math.round(fx.heal * 100)}% of its HP`);
+  if (fx.inflict === "sleep") out.push("SLEEP: foe skips 1-3 turns");
+  if (fx.inflict === "para") out.push("PARALYSIS: half speed, 1 in 4 turns lost");
+  if (fx.first) out.push("Always strikes first");
+  return out;
+}
 function moveFacts(m, id, foe, compact) {
   const M = D.moves[id], lines = [];
   const st = M.status ? `${Math.round(Math.max(M.chance, 0.15) * 100)}% to ${M.status === "burn" ? "BURN" : "POISON"}` : "";
-  if (compact) return [(M.phys ? "MELEE vs ARMOUR" : "RANGED vs DODGE") + (st ? ", " + st.replace(" to ", " ") : "")];
-  lines.push(M.phys ? "Its MELEE vs their ARMOUR" : "Its RANGED vs their DODGE");
-  if (st) lines.push(st);
-  if (st) lines[lines.length - 1] += ": -1/8 HP a turn";
+  const fx = fxFacts(M);
+  if (compact) return [M.power ? (M.phys ? "MELEE vs ARMOUR" : "RANGED vs DODGE") + (st ? ", " + st.replace(" to ", " ") : fx.length ? ", " + fx[0] : "") : fx[0]];
+  if (M.power) lines.push(M.phys ? "Its MELEE vs their ARMOUR" : "Its RANGED vs their DODGE");
+  if (st) lines.push(st + ": -1/8 HP a turn");
+  lines.push(...fx);
+  if (M.fx && (M.fx.self || M.fx.foe)) lines.push("Each stage: +1 = x1.5, +2 = x2, -1 = x0.67");
   if (foe) {
     const eff = typeMult(M.type, D.monsters[foe.slug].types);
+    if (!M.power) { if (M.fx && M.fx.inflict && foe.status) lines.push(`${monName(foe)} already has a status: fails`); return lines; }
     const share = foe.hp > 0 ? calcDamage(m, foe, id, false).dmg / foe.hp : 0;
     const vs = eff >= 2 ? `SUPER x${eff}` : eff < 1 ? `WEAK x${eff}` : "NORMAL x1";
     lines.push(eff === 0 ? `NO EFFECT on ${monName(foe)}` : `${vs}: ` + (share >= 1 ? "can KO it" : `~${Math.max(1, Math.round(share * 100))}% of its HP`));
@@ -229,16 +251,17 @@ function drawMoveCard(m, id, x, y, o = {}) {
   let cy = y + 6;
   if (title) { text(title, x + 8, cy, "#707070", null); cy += 10; }
   let nx = x + 8 + typeTag(M.type, x + 8, cy) + 3;
-  if (D.monsters[m.slug].types.includes(M.type)) { // same type as the monster: x1.5 damage
+  if (M.power && D.monsters[m.slug].types.includes(M.type)) { // same type as the monster: x1.5 damage
     ctx.fillStyle = "#d4a020"; ctx.fillRect(nx, cy, textW("x1.5") + 4, 10); text("x1.5", nx + 2, cy + 1, "#fff", null); nx += textW("x1.5") + 7;
   }
-  const cat = M.phys ? "MELEE" : "RANGED", cx = x + w - 12 - textW(cat);
-  ctx.fillStyle = M.phys ? "#b05a30" : "#3a70b0"; ctx.fillRect(cx, cy, textW(cat) + 4, 10);
+  const cat = !M.power ? "SUPPORT" : M.phys ? "MELEE" : "RANGED", cx = x + w - 12 - textW(cat);
+  ctx.fillStyle = !M.power ? "#4a8a4a" : M.phys ? "#b05a30" : "#3a70b0"; ctx.fillRect(cx, cy, textW(cat) + 4, 10);
   text(cat, cx + 2, cy + 1, "#fff", null);
   let nm = M.name; while (nm.length > 3 && nx + textW(nm) > cx - 3) nm = nm.slice(0, -1);
   text(nm, nx, cy + 1);
   cy += 13;
-  text(`POW ${M.power}  HIT ${Math.round(hitChance(M.acc, true) * 100)}%  PP ${pp == null ? M.pp : pp}/${M.pp}`, x + 8, cy, "#303030", null);
+  const selfOnly = !M.power && M.fx && (M.fx.self || M.fx.heal);
+  text(`POW ${M.power || "-"}  HIT ${selfOnly ? "-" : Math.round(hitChance(M.acc, true) * 100) + "%"}  PP ${pp == null ? M.pp : pp}/${M.pp}`, x + 8, cy, "#303030", null);
   cy += 11;
   for (const l of moveFacts(m, id, foe, compact)) for (const part of wrap(l, w - 14)) { text(part, x + 8, cy, "#505050", null); cy += 10; }
   return h;
@@ -373,14 +396,18 @@ function choose(items, o = {}) {
     const labels = items.map((it) => (typeof it === "string" ? it : it.label));
     const colW = o.colW || Math.max(...labels.map(textW)) + 16;
     const rowH = 14;
-    const rows = Math.ceil(items.length / cols);
+    const allRows = Math.ceil(items.length / cols);
+    // long one-column lists (a mart's stock) scroll, showing up to 10 rows at a time
+    const rows = cols === 1 ? Math.min(allRows, o.maxRows || 10) : allRows;
     const w = o.w || colW * cols + 14;
     const h = o.h || rows * rowH + 10;
     const x = o.x ?? VW - w;
     const y = o.y ?? (o.prompt ? 112 - h : VH - h);
     push({
-      i: o.start || 0,
+      i: o.start || 0, opened: NOW, top: 0,
       update() {
+        // a press made while mashing through the text before this menu appeared doesn't pick anything
+        if (NOW - this.opened < 0.25) { consume("a"); consume("b"); }
         const r = Math.floor(this.i / cols), c = this.i % cols;
         if (consume("up") && r > 0) this.i -= cols;
         if (consume("down") && this.i + cols < items.length) this.i += cols;
@@ -396,11 +423,18 @@ function choose(items, o = {}) {
       draw() {
         if (o.prompt) { box(0, 112, VW, 48); wrap(o.prompt, o.promptW || VW - 24).slice(0, 3).forEach((l, i) => text(l, 10, 120 + i * 12)); }
         box(x, y, w, h);
+        if (cols === 1) this.top = clamp(this.top, this.i - rows + 1, this.i);
         labels.forEach((l, k) => {
-          const cx = x + 14 + (k % cols) * colW, cy = y + 6 + Math.floor(k / cols) * rowH;
+          if (cols === 1 && (k < this.top || k >= this.top + rows)) return;
+          const cx = x + 14 + (k % cols) * colW, cy = y + 6 + (Math.floor(k / cols) - (cols === 1 ? this.top : 0)) * rowH;
           text(l, cx, cy, items[k].disabled ? "#a0a0a0" : "#303030");
           if (k === this.i) cursor(cx - 9, cy);
         });
+        if (cols === 1 && allRows > rows) { // more above / below
+          ctx.fillStyle = "#6890b0";
+          if (this.top > 0) ctx.fillRect(x + w - 12, y + 4, 5, 2);
+          if (this.top + rows < allRows) ctx.fillRect(x + w - 12, y + h - 6, 5, 2);
+        }
         if (o.extra) o.extra(this.i);
       },
     });
@@ -433,11 +467,21 @@ function typeMult(moveType, defTypes) {
   for (const t of defTypes) k *= (D.chart[moveType] && D.chart[moveType][t]) ?? 1;
   return k;
 }
+// Battle stat stages: +1 = x1.5, +2 = x2, -1 = x0.67, -2 = x0.5 (capped at +-4). They live on m.st during a
+// battle and reset when a monster leaves the field. Paralysis halves speed.
+const stageMult = (n) => (n >= 0 ? (2 + n) / 2 : 2 / (2 - n));
+function statOf(m, k) {
+  const v = m[k] * stageMult((m.st && m.st[k]) || 0);
+  return k === "speed" && m.status === "para" ? v / 2 : v;
+}
+const STATUS_TAG = { burn: "BRN", poison: "PSN", sleep: "SLP", para: "PAR" };
+const STAT_NAME = { melee: "MELEE", armour: "ARMOUR", ranged: "RANGED", dodge: "DODGE", speed: "SPEED" };
 function calcDamage(att, def, moveId, roll = true) {
   const mv = D.moves[moveId];
-  const A = mv.phys ? att.melee : att.ranged;
-  const Df = mv.phys ? def.armour : def.dodge;
-  const stab = D.monsters[att.slug].types.includes(mv.type) ? 1.5 : 1;
+  if (!mv.power) return { dmg: 0, eff: typeMult(mv.type, D.monsters[def.slug].types), crit: false };
+  const A = statOf(att, mv.phys ? "melee" : "ranged");
+  const Df = statOf(def, mv.phys ? "armour" : "dodge");
+  const stab = (D.monsters[att.slug].types.includes(mv.type) ? 1.5 : 1) * (att.item && ITEMS[att.item] && ITEMS[att.item].boost === mv.type ? 1.2 : 1);
   const eff = typeMult(mv.type, D.monsters[def.slug].types);
   const crit = roll && Math.random() < 1 / 16 ? 1.5 : 1;
   const base = ((2 * att.level / 5 + 2) * mv.power * A / Df) / 50 + 2;
@@ -652,6 +696,8 @@ function placePlayer(x, y, dir) {
 // ---------------------------------------------------------------- riding: Surf and Fly
 // Surf (Tide Badge + a Water monster) carries you across water; Fly (Volt Badge + a Sky monster)
 // takes you to any town you've visited. You ride your own monster in 3D.
+// what the 3D view rides: the slug, with a * when it's shiny so the model gets the shiny colours
+const mountKey = (m) => m.slug + (m.shiny ? "*" : "");
 const rider = (type) => S.party.find((m) => m.hp > 0 && D.monsters[m.slug].types.includes(type));
 // FLASH: with the Volt Badge, a Lightning or Fire monster lights up dark caves
 const flashMon = () => (S.badges.includes("Volt Badge") ? rider("lightning") || rider("fire") : null);
@@ -700,7 +746,7 @@ async function trySurf(tx, ty) {
   const m = rider("water");
   if (!m) { await say("None of your monsters can swim. Catch a WATER-type monster to ride across water."); return; }
   if (!(await yesNo(`The water is calm. Ride ${monName(m)} across it?`))) return;
-  p.mount = m.slug; p.surfing = true;
+  p.mount = mountKey(m); p.surfing = true;
   const x0 = p.px, z0 = p.pz;
   await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
   p.x = tx; p.y = ty;
@@ -759,14 +805,14 @@ async function flyMenu() {
   const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { prompt: `Fly on ${monName(m)}. Where to?`, x: 120, y: 4, w: 116 });
   if (i < 0 || i === towns.length) return;
   const dest = towns[i];
-  p.mount = m.slug; p.surfing = false; p.speed = 0;
+  p.mount = mountKey(m); p.surfing = false; p.speed = 0;
   await say(`${monName(m)} spreads its wings!`, { auto: 0.6 });
   await tween(1.3, (k) => { p.alt = 8 * k * k; });
   await fadeTo(1, 0.3);
   const [lx, ly] = landingSpot(dest);
   loadMap(dest, lx, ly, "down");
   S.flags["visited_" + dest] = true;
-  p.mount = m.slug; p.alt = 8;
+  p.mount = mountKey(m); p.alt = 8;
   await fadeTo(0, 0.3);
   await tween(1.3, (k) => { p.alt = 8 * (1 - k) * (1 - k); });
   p.alt = 0; p.mount = null;
@@ -1132,11 +1178,11 @@ async function healAt(n) {
 
 async function shop() {
   await say("Clerk: Welcome! What can I get\nfor you?");
-  const keys = Object.keys(ITEMS).filter((k) => ITEMS[k].price);
+  const keys = Object.keys(ITEMS).filter((k) => ITEMS[k].price && S.badges.length >= (ITEMS[k].minBadges || 0));
   for (;;) {
     const i = await choose(keys.map((k) => `${ITEMS[k].name.padEnd(13)}$${ITEMS[k].price}`).concat(["DONE"]), {
       x: 60, y: 4, w: 176,
-      extra: () => { box(4, 4, 52, 22); text("$" + S.money, 10, 11); },
+      extra: () => { box(4, 4, 52, 22); text("$" + S.money, 10, 11); }, // the full description shows when you pick an amount
     });
     if (i < 0 || i === keys.length) break;
     const it = ITEMS[keys[i]];
@@ -1255,7 +1301,7 @@ const TOWER_TRAINERS = [
   ["Engineer Zia", "scientist_black"], ["Seer Ren", "magician_fiery"], ["Hexer Nyx", "goth_rose"], ["Knight Vance", "soldier"],
   ["Ranger Lia", "catgirl_green"], ["Firefighter Ash", "firefighter"], ["Witch Agatha", "witch"],
 ];
-const TOWER_PRIZES = [["master_ball", 12], ["level_treat", 3], ["mega_potion", 2], ["sweet_sand", 2], ["great_ball", 1]];
+const TOWER_PRIZES = [["master_ball", 12], ["exp_candy", 4], ["level_treat", 3], ["mega_potion", 2], ["sweet_sand", 2], ["great_ball", 1]];
 function towerTeam(streak) {
   const pool = Object.keys(D.monsters).filter((sl) => !D.monsters[sl].legendary && D.monsters[sl].stage >= 1);
   const lv = clamp(topLevel(), 40, 70) + Math.floor(streak / 3);
@@ -1467,9 +1513,10 @@ function partyScreen(mode, prompt) {
       },
       async sub() {
         const m = S.party[this.i];
-        const c = await choose(["SUMMARY", "MAKE LEAD", "CANCEL"], { x: 150, y: 100 });
+        const c = await choose(["SUMMARY", "MAKE LEAD", "ITEM", "CANCEL"], { x: 150, y: 86 });
         if (c === 0) await summary(m);
         if (c === 1 && this.i > 0) { S.party.splice(this.i, 1); S.party.unshift(m); this.i = 0; }
+        if (c === 2) await holdMenu(m);
       },
       draw() {
         ctx.fillStyle = "#4878a8"; ctx.fillRect(0, 0, VW, VH);
@@ -1479,11 +1526,12 @@ function partyScreen(mode, prompt) {
           drawMonIcon(m.slug, 8, y - 2, m.shiny);
           if (m.shiny) drawStar(28, y + 2);
           text(monName(m), 34, y + 2);
+          if (m.item && IMG["item_" + m.item]) ctx.drawImage(IMG["item_" + m.item], 112, y + 3, 16, 16); // held item
           text("Lv" + m.level, 34, y + 11, "#606060", null);
           typeIcons(m.slug, 134, y + 5);
           hpBar(162, y + 8, 42, m.hp / m.maxhp);
           text(`${m.hp}`, 210, y + 6);
-          if (m.status) text(m.status === "burn" ? "BRN" : "PSN", 76, y + 12, "#c04020", null);
+          if (m.status) text(STATUS_TAG[m.status] || "PSN", 76, y + 12, "#c04020", null);
         });
         box(0, 134, VW, 26);
         text(prompt || (mode === "view" ? "Choose a monster." : "Choose a monster."), 10, 143);
@@ -1548,6 +1596,23 @@ function drawLore(slug, known = true, banner = null, shiny = false) {
   if (pages > 1) text(`${pg + 1}/${pages}`, 210, 148, "#a09080", null);
 }
 
+// Give a monster an item to hold (it works by itself in battle), or take it back into the bag.
+async function holdMenu(m) {
+  const held = Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && ITEMS[k].hold);
+  const opts = [...held.map((k) => `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), ...(m.item ? ["TAKE BACK"] : []), "CANCEL"];
+  if (!held.length && !m.item) { await say("You have no items a monster can hold. Marts sell APPLES, ELIXIRS and BERRIES."); return; }
+  const i = await choose(opts, { x: 70, y: 2, w: 166, extra: (k) => {
+    const key = held[k] || (k === held.length && m.item ? m.item : null);
+    if (key) { box(0, 112, VW, 48); wrap(ITEMS[key].desc, VW - 24).slice(0, 3).forEach((l, j) => text(l, 10, 120 + j * 12)); }
+  } });
+  if (i < 0 || opts[i] === "CANCEL") return;
+  if (opts[i] === "TAKE BACK") { S.bag[m.item] = (S.bag[m.item] || 0) + 1; await say(`Took the ${ITEMS[m.item].name.toUpperCase()} from ${monName(m)}.`); m.item = null; return save(); }
+  const k = held[i];
+  if (m.item) S.bag[m.item] = (S.bag[m.item] || 0) + 1;
+  S.bag[k]--; m.item = k;
+  await say(`${monName(m)} is now holding the ${ITEMS[k].name.toUpperCase()}.`);
+  save();
+}
 function summary(m) {
   return new Promise((res) => {
     push({
@@ -1580,6 +1645,7 @@ function summary(m) {
           text(`${mv.pp}/${M.pp} PP`, x + 8, y + 10, "#606060", null);
         });
         if (d.evo) text(`Evolves at Lv${d.evo[0]}`, 104, 98, "#806020", null);
+        if (m.item) { ctx.drawImage(IMG["item_" + m.item], 68, 20, 20, 20); text("HELD", 66, 41, "#606060", null); }
         text("INFO >", 184, 150, "#806040", null);
       },
     });
@@ -1655,7 +1721,7 @@ function monsterLog() {
 
 function bagScreen(inBattle) {
   return new Promise((res) => {
-    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat)));
+    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat || ITEMS[k].hold)));
     const ks = keys();
     if (!ks.length) { say("Your bag is empty.").then(() => res(null)); return; }
     choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
@@ -1708,6 +1774,11 @@ function applyItem(key, m) {
     if (m.hp > 0) return "It won't have any effect.";
     m.hp = Math.floor(m.maxhp / 2); S.bag[key]--;
     return `${monName(m)} was revived!`;
+  }
+  if (it.cure) {
+    if (!m.status || m.hp <= 0) return "It won't have any effect.";
+    m.status = null; S.bag[key]--;
+    return `${monName(m)} is cured!`;
   }
   if (it.heal) {
     if (m.hp <= 0 || m.hp >= m.maxhp) return "It won't have any effect.";
@@ -1780,7 +1851,7 @@ async function runBattle(opts) {
   await battleIntroWipe();
   push(B);
   let res;
-  try { res = await B.run(); } finally { pop(B); }
+  try { res = await B.run(); } finally { pop(B); for (const m of S.party) delete m.st; }
   if (res === "lose" && opts.practice) { music(areaMusic()); return res; }
   if (res === "lose") { await blackout(); return res; }
   await evolveCheck();
@@ -1931,6 +2002,7 @@ class Battle {
     this.eHp = this.e.hp; this.pHp = 0; this.pExp = 0;
     this.ball = null; this.showEBox = false; this.showPBox = false;
     this.participants = new Set();
+    this.e.st = {};
   }
   update() {}
   draw() {
@@ -2012,7 +2084,11 @@ class Battle {
     const icw = typeIcons(m.slug, x + 6, y + 16);
     text("HP", x + 9 + icw, y + 17, "#e08030", null);
     hpBar(x + 25 + icw, y + 18, 77 - icw, hp / m.maxhp);
-    if (m.status) text(m.status === "burn" ? "BRN" : "PSN", x + 60, y + 5, "#c04020", null);
+    if (m.status) { // a coloured chip just outside the box: below the foe's, above yours
+      const tag = STATUS_TAG[m.status] || "PSN", cy = mine ? y - 11 : y + h + 1;
+      ctx.fillStyle = { burn: "#d04820", poison: "#8a3aa8", sleep: "#707888", para: "#c8a018" }[m.status] || "#c04020";
+      ctx.fillRect(x + 4, cy, textW(tag) + 4, 10); text(tag, x + 6, cy + 1, "#fff", null);
+    }
     if (mine) {
       text(`${Math.ceil(hp)}/${m.maxhp}`, x + 50, y + 25);
       const lo = expFor(m.level), hi = expFor(m.level + 1);
@@ -2068,7 +2144,9 @@ class Battle {
         await this.enemyTurn();
       } else {
         const eMove = this.pickEnemyMove();
-        const pFirst = this.p.speed > this.e.speed || (this.p.speed === this.e.speed && Math.random() < 0.5);
+        const pri = (id) => !!(D.moves[id] && D.moves[id].fx && D.moves[id].fx.first);
+        const ps = statOf(this.p, "speed"), es = statOf(this.e, "speed");
+        const pFirst = pri(act.move) !== pri(eMove) ? pri(act.move) : ps > es || (ps === es && Math.random() < 0.5);
         if (pFirst) {
           await this.useMove(this.p, this.e, act.move, true);
           if (this.e.hp > 0 && this.p.hp > 0) await this.useMove(this.e, this.p, eMove, false);
@@ -2084,6 +2162,7 @@ class Battle {
   }
 
   async sendEnemy() {
+    this.e.st = {};
     this.eVis = true; this.eX = 148; this.eScale = 0; this.eAlpha = 1;
     this.eHp = this.e.hp;
     S.seen[this.e.slug] = true;
@@ -2092,7 +2171,8 @@ class Battle {
     this.showEBox = true;
   }
   async sendPlayer(m) {
-    this.p = m;
+    if (this.p) this.p.st = {}; // boosts and drops wear off when it leaves the field
+    this.p = m; m.st = {};
     this.pHp = m.hp; this.pExp = m.exp;
     this.participants.add(m);
     this.pVis = true; this.pScale = 0; this.pAlpha = 1;
@@ -2127,7 +2207,7 @@ class Battle {
         const t = await partyScreen("pick", `Use ${it.name} on which monster?`);
         if (t < 0) continue;
         const m = S.party[t];
-        if ((it.revive && m.hp > 0) || (it.heal && (m.hp <= 0 || m.hp >= m.maxhp))) { await this.msg("It won't have any effect."); continue; }
+        if ((it.revive && m.hp > 0) || (it.heal && (m.hp <= 0 || m.hp >= m.maxhp)) || (it.cure && (!m.status || m.hp <= 0))) { await this.msg("It won't have any effect."); continue; }
         return { type: "item", key, target: t };
       } else if (c === 2) {
         const i = await partyScreen("switch", "Switch to which monster?");
@@ -2154,7 +2234,18 @@ class Battle {
   pickEnemyMove() {
     const usable = this.e.moves.filter((mv) => mv.pp > 0);
     if (!usable.length) return "struggle";
-    const scored = usable.map((mv) => ({ mv, s: Math.max(1, calcDamage(this.e, this.p, mv.id, false).dmg * D.moves[mv.id].acc) }));
+    const e = this.e, p = this.p, dmg = (id) => calcDamage(e, p, id, false).dmg * D.moves[id].acc;
+    const best = Math.max(1, ...usable.map((mv) => dmg(mv.id)));
+    const value = (id) => { // support moves are worth a fraction of its best hit, when they make sense
+      const M = D.moves[id], fx = M.fx || {};
+      if (M.power) return dmg(id) * (fx.first && p.hp <= dmg(id) ? 1.5 : 1);
+      if (fx.heal) return e.hp < e.maxhp * 0.4 ? best * 1.3 : 0;
+      if (fx.inflict) return p.status ? 0 : best * 0.7 * M.acc;
+      if (fx.self) return e.hp > e.maxhp * 0.6 && Object.keys(fx.self).every((k) => ((e.st && e.st[k]) || 0) < 2) ? best * 0.6 : 0;
+      if (fx.foe) return Object.keys(fx.foe).every((k) => ((p.st && p.st[k]) || 0) > -2) ? best * 0.4 : 0;
+      return 0;
+    };
+    const scored = usable.map((mv) => ({ mv, s: Math.max(1, value(mv.id)) }));
     const smart = this.trainer && (this.trainer.leader || this.trainer.champion) ? 0.85 : 0.4;
     if (Math.random() < smart) return scored.sort((a, b) => b.s - a.s)[0].mv.id;
     return scored[rand(0, scored.length - 1)].mv.id;
@@ -2162,15 +2253,25 @@ class Battle {
 
   async useMove(att, def, moveId, mine) {
     const M = moveId === "struggle" ? { name: "Struggle", type: "normal", power: 20, acc: 1, phys: true } : D.moves[moveId];
+    const fx = M.fx || {};
+    const who = mine ? monName(att) : `Foe ${monName(att)}`;
+    const dn = mine ? `Foe ${monName(def)}` : monName(def);
+    // sleep and paralysis can cost the turn
+    if (att.status === "sleep") {
+      if (--att.sleep > 0) { await this.msg(`${who} is fast asleep.`); return; }
+      att.status = null; await this.msg(`${who} woke up!`);
+    }
+    if (att.status === "para" && Math.random() < 0.25) { await this.msg(`${who} is paralysed! It can't move!`); return; }
     const slot = att.moves.find((m) => m.id === moveId);
     if (slot) slot.pp--;
-    const who = mine ? monName(att) : `Foe ${monName(att)}`;
     await this.msg(`${who} used ${M.name}!`);
-    if (Math.random() > hitChance(M.acc, mine)) { await this.msg(`${who}'s attack missed!`); return; }
+    const selfOnly = !M.power && (fx.self || fx.heal); // boosts and heals never miss
+    if (!selfOnly && Math.random() > hitChance(M.acc, mine)) { await this.msg(`${who}'s attack missed!`); return; }
     // lunge
     await tween(0.12, (k) => { if (mine) this.pX = 20 + 14 * k; else this.eX = 148 - 14 * k; });
     await tween(0.12, (k) => { if (mine) this.pX = 34 - 14 * k; else this.eX = 134 + 14 * k; });
     await this.playFx(M, mine);
+    if (!M.power) { await this.applyFx(att, def, fx, mine, who, dn); return; }
     let r;
     if (moveId === "struggle") {
       r = { dmg: Math.max(1, Math.floor(((2 * att.level / 5 + 2) * 20 * att.melee / def.armour) / 50 + 2)), eff: 1, crit: false };
@@ -2197,20 +2298,67 @@ class Battle {
     }
     if (def.hp > 0 && M.status && !def.status && Math.random() < Math.max(M.chance, 0.15)) {
       def.status = M.status;
-      const dn = mine ? `Foe ${monName(def)}` : monName(def);
       await this.msg(M.status === "burn" ? `${dn} was burned!` : `${dn} was poisoned!`);
+    }
+    if (def.hp > 0 && fx.foe && Math.random() < (fx.chance ?? 1)) await this.applyFx(att, def, { foe: fx.foe }, mine, who, dn);
+    await this.heldCheck(def, !mine);
+  }
+
+  // stat stages, heals and sleep/paralysis from support moves (and the stat drops riding on some attacks)
+  async applyFx(att, def, fx, mine, who, dn) {
+    const stage = async (m, name, changes) => {
+      m.st = m.st || {};
+      for (const [k, d] of Object.entries(changes)) {
+        const cur = m.st[k] || 0, next = clamp(cur + d, -4, 4);
+        if (next === cur) { await this.msg(`${name}'s ${STAT_NAME[k]} won't go any ${d > 0 ? "higher" : "lower"}!`); continue; }
+        m.st[k] = next;
+        await this.msg(`${name}'s ${STAT_NAME[k]} ${d > 0 ? (d > 1 ? "rose sharply!" : "rose!") : (d < -1 ? "harshly fell!" : "fell!")}`);
+      }
+    };
+    if (fx.self) await stage(att, who, fx.self);
+    if (fx.foe) await stage(def, dn, fx.foe);
+    if (fx.heal) {
+      if (att.hp >= att.maxhp) { await this.msg(`${who}'s HP is already full!`); return; }
+      const from = att.hp;
+      att.hp = Math.min(att.maxhp, att.hp + Math.floor(att.maxhp * fx.heal));
+      await tween(0.5, (k) => { const v = from + (att.hp - from) * k; if (mine) this.pHp = v; else this.eHp = v; });
+      await this.msg(`${who} recovered ${att.hp - from} HP!`);
+    }
+    if (fx.inflict) {
+      if (def.status) { await this.msg("But it failed!"); return; }
+      def.status = fx.inflict;
+      if (fx.inflict === "sleep") { def.sleep = rand(2, 4); await this.msg(`${dn} fell asleep!`); }
+      else await this.msg(`${dn} is paralysed! It may be unable to move!`);
+      await this.heldCheck(def, !mine);
+    }
+  }
+
+  // held items that trigger on their own: an Apple at half HP, an Elixir against a status
+  async heldCheck(m, mine) {
+    if (!m || m.hp <= 0 || !m.item) return;
+    const name = mine ? monName(m) : `Foe ${monName(m)}`;
+    if (m.item === "apple" && m.hp < m.maxhp / 2) {
+      const from = m.hp;
+      m.hp = Math.min(m.maxhp, m.hp + Math.floor(m.maxhp / 3)); m.item = null;
+      await tween(0.5, (k) => { const v = from + (m.hp - from) * k; if (mine) this.pHp = v; else this.eHp = v; });
+      await this.msg(`${name} ate its APPLE and recovered HP!`);
+    }
+    if (m.item === "elixir" && m.status) {
+      m.status = null; m.item = null;
+      await this.msg(`${name} drank its ELIXIR and was cured!`);
     }
   }
 
   async endOfTurn() {
     for (const [m, mine] of [[this.p, true], [this.e, false]]) {
-      if (!m || m.hp <= 0 || !m.status) continue;
+      if (!m || m.hp <= 0 || (m.status !== "burn" && m.status !== "poison")) continue;
       const d = Math.max(1, Math.floor(m.maxhp / 8));
       const from = m.hp;
       m.hp = Math.max(0, m.hp - d);
       const who = mine ? monName(m) : `Foe ${monName(m)}`;
       await this.msg(m.status === "burn" ? `${who} is hurt by its burn!` : `${who} is hurt by poison!`);
       await tween(0.4, (k) => { const v = from + (m.hp - from) * k; if (mine) this.pHp = v; else this.eHp = v; });
+      await this.heldCheck(m, mine);
     }
   }
 
@@ -2227,7 +2375,7 @@ class Battle {
       const EXP_RATE = 1.6; // faster leveling (requested)
       const gain = Math.floor((50 + stage * 50) * this.e.level / 7 * (this.trainer ? 1.5 : 1) * EXP_RATE);
       const alive = [...this.participants].filter((m) => m.hp > 0 && S.party.includes(m));
-      for (const m of alive) await this.giveExp(m, Math.max(1, Math.floor(gain / alive.length)));
+      for (const m of alive) await this.giveExp(m, Math.max(1, Math.floor(gain / alive.length * (m.item === "exp_candy" ? 1.5 : 1))));
       this.participants = new Set(this.p.hp > 0 ? [this.p] : []);
       const next = this.eParty.find((m) => m.hp > 0);
       if (!next) {
@@ -2548,7 +2696,7 @@ async function boot() {
   loadMap(S.map, S.x, S.y, S.dir);
   if (tileAt(S.x, S.y) === "~") {
     const m = rider("water");
-    if (m) { world.player.mount = m.slug; world.player.surfing = true; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
+    if (m) { world.player.mount = mountKey(m); world.player.surfing = true; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
   }
   if (!S.starter) {
     runScript(async () => {
