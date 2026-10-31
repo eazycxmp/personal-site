@@ -200,6 +200,78 @@ function typeTag(type, x, y) {
   text(type.toUpperCase(), x + 2, y + 1, "#fff", null);
   return w;
 }
+// What a move does, in plain words: type, melee or ranged (which stats it pits against each other), power,
+// how often it really hits for your side, PP, its burn/poison chance, the same-type bonus (the x1.5 chip), and
+// (in battle) how it fares against the foe in front of you. compact = one short line, for stacked cards.
+function moveFacts(m, id, foe, compact) {
+  const M = D.moves[id], lines = [];
+  const st = M.status ? `${Math.round(Math.max(M.chance, 0.15) * 100)}% to ${M.status === "burn" ? "BURN" : "POISON"}` : "";
+  if (compact) return [(M.phys ? "MELEE vs ARMOUR" : "RANGED vs DODGE") + (st ? ", " + st.replace(" to ", " ") : "")];
+  lines.push(M.phys ? "Its MELEE vs their ARMOUR" : "Its RANGED vs their DODGE");
+  if (st) lines.push(st);
+  if (st) lines[lines.length - 1] += ": -1/8 HP a turn";
+  if (foe) {
+    const eff = typeMult(M.type, D.monsters[foe.slug].types);
+    const share = foe.hp > 0 ? calcDamage(m, foe, id, false).dmg / foe.hp : 0;
+    const vs = eff >= 2 ? `SUPER x${eff}` : eff < 1 ? `WEAK x${eff}` : "NORMAL x1";
+    lines.push(eff === 0 ? `NO EFFECT on ${monName(foe)}` : `${vs}: ` + (share >= 1 ? "can KO it" : `~${Math.max(1, Math.round(share * 100))}% of its HP`));
+  }
+  return lines;
+}
+const CARD_W = 236;
+function moveCardH(m, id, { foe = null, title = null, compact = false } = {}) {
+  return 34 + (title ? 10 : 0) + moveFacts(m, id, foe, compact).reduce((n, l) => n + wrap(l, CARD_W - 14).length, 0) * 10;
+}
+function drawMoveCard(m, id, x, y, o = {}) {
+  const { foe = null, title = null, pp = null, compact = false } = o;
+  const M = D.moves[id], w = CARD_W, h = moveCardH(m, id, o);
+  box(x, y, w, h);
+  let cy = y + 6;
+  if (title) { text(title, x + 8, cy, "#707070", null); cy += 10; }
+  let nx = x + 8 + typeTag(M.type, x + 8, cy) + 3;
+  if (D.monsters[m.slug].types.includes(M.type)) { // same type as the monster: x1.5 damage
+    ctx.fillStyle = "#d4a020"; ctx.fillRect(nx, cy, textW("x1.5") + 4, 10); text("x1.5", nx + 2, cy + 1, "#fff", null); nx += textW("x1.5") + 7;
+  }
+  const cat = M.phys ? "MELEE" : "RANGED", cx = x + w - 12 - textW(cat);
+  ctx.fillStyle = M.phys ? "#b05a30" : "#3a70b0"; ctx.fillRect(cx, cy, textW(cat) + 4, 10);
+  text(cat, cx + 2, cy + 1, "#fff", null);
+  let nm = M.name; while (nm.length > 3 && nx + textW(nm) > cx - 3) nm = nm.slice(0, -1);
+  text(nm, nx, cy + 1);
+  cy += 13;
+  text(`POW ${M.power}  HIT ${Math.round(hitChance(M.acc, true) * 100)}%  PP ${pp == null ? M.pp : pp}/${M.pp}`, x + 8, cy, "#303030", null);
+  cy += 11;
+  for (const l of moveFacts(m, id, foe, compact)) for (const part of wrap(l, w - 14)) { text(part, x + 8, cy, "#505050", null); cy += 10; }
+  return h;
+}
+// show a move card above whatever else is on screen until the promise settles
+async function withMoveCards(cards, fn) {
+  const sc = push({ update() {}, draw() { let y = 2; for (const c of cards) y += drawMoveCard(c.m, c.id, 2, y, c) + 2; } });
+  try { return await fn(sc); } finally { pop(sc); }
+}
+// Learning a move: if there's room it's learned; otherwise you see what it does (and what each old move does)
+// before deciding what to forget. tell() shows a message (battle box or overworld box).
+async function offerMove(m, id, tell) {
+  const name = D.moves[id].name;
+  if (m.moves.length < 4) {
+    m.moves.push({ id, pp: D.moves[id].pp });
+    await withMoveCards([{ m, id, title: "NEW MOVE" }], () => tell(`${monName(m)} learned ${name}!`));
+    return;
+  }
+  const card = { m, id, title: `NEW MOVE FOR ${monName(m).toUpperCase()}` };
+  const big = { ...card }; // full explanation while you decide; two compact cards while you pick what to forget
+  card.compact = true;
+  const ok = await withMoveCards([big], () => yesNo(`${monName(m)} wants to learn ${name}. Forget a move for it?`));
+  if (!ok) { await tell(`${monName(m)} did not learn ${name}.`); return; }
+  const cmp = { m, id: m.moves[0].id, pp: m.moves[0].pp, title: "FORGET THIS ONE?", compact: true };
+  const i = await withMoveCards([card, cmp], () => choose([...m.moves.map((x) => D.moves[x.id].name.slice(0, 12)), "KEEP ALL"], {
+    cols: 2, x: 0, y: 112, w: 240, h: 48, colW: 116,
+    onMove: (k) => { const old = m.moves[k]; if (old) Object.assign(cmp, { id: old.id, pp: old.pp, title: "FORGET THIS ONE?" }); else Object.assign(cmp, { id, pp: null, title: "KEEP ALL: SKIP THE NEW MOVE" }); },
+  }));
+  if (i < 0 || i >= m.moves.length) { await tell(`${monName(m)} did not learn ${name}.`); return; }
+  const old = D.moves[m.moves[i].id].name;
+  m.moves[i] = { id, pp: D.moves[id].pp };
+  await tell(`${monName(m)} forgot ${old} and learned ${name}!`);
+}
 function wrap(str, maxW) {
   const out = [];
   for (const para of str.split("\n")) {
@@ -1625,8 +1697,7 @@ async function levelTreat(m) {
   await say(`${monName(m)} ate the LEVEL TREAT and grew to Lv ${m.level}!`);
   for (const [lv, id] of D.monsters[m.slug].moves) {
     if (lv !== m.level || m.moves.some((x) => x.id === id)) continue;
-    if (m.moves.length < 4) { m.moves.push({ id, pp: D.moves[id].pp }); await say(`${monName(m)} learned ${D.moves[id].name}!`); }
-    else await say(`${monName(m)} wants to learn ${D.moves[id].name}, but already knows 4 moves.`);
+    await offerMove(m, id, say);
   }
   await evolveCheck();
   save();
@@ -2069,14 +2140,12 @@ class Battle {
   }
   async chooseMove() {
     const mvs = this.p.moves;
-    const i = await choose(mvs.map((mv) => ({ label: D.moves[mv.id].name.slice(0, 11), disabled: mv.pp <= 0 })), {
-      cols: 2, x: 0, y: 112, w: 176, h: 48, colW: 82,
+    const i = await choose(mvs.map((mv) => ({ label: D.moves[mv.id].name.slice(0, 13), disabled: mv.pp <= 0 })), {
+      cols: 2, x: 0, y: 112, w: 240, h: 48, colW: 116,
+      // the highlighted move's card (type, power, hit chance, PP, effect, how it does against this foe)
       extra: (k) => {
-        box(176, 112, 64, 48);
-        const mv = mvs[k], M = D.moves[mv.id];
-        text(`PP ${mv.pp}/${M.pp}`, 182, 120, "#303030", null);
-        typeTag(M.type, 182, 133);
-        text(M.phys ? "MELEE" : "RANGED", 182, 147, "#707070", null);
+        const h = moveCardH(this.p, mvs[k].id, { foe: this.e });
+        drawMoveCard(this.p, mvs[k].id, 2, 110 - h, { foe: this.e, pp: mvs[k].pp });
       },
     });
     return i < 0 ? null : mvs[i].id;
@@ -2210,19 +2279,7 @@ class Battle {
   async learnMoves(m) {
     for (const [lv, id] of D.monsters[m.slug].moves) {
       if (lv !== m.level || m.moves.some((x) => x.id === id)) continue;
-      const name = D.moves[id].name;
-      if (m.moves.length < 4) {
-        m.moves.push({ id, pp: D.moves[id].pp });
-        await this.msg(`${monName(m)} learned ${name}!`);
-        continue;
-      }
-      const ok = await yesNo(`${monName(m)} wants to learn ${name}. Forget a move for it?`);
-      if (!ok) { await this.msg(`${monName(m)} did not learn ${name}.`); continue; }
-      const i = await choose(m.moves.map((x) => D.moves[x.id].name), { prompt: "Forget which move?" });
-      if (i < 0) { await this.msg(`${monName(m)} did not learn ${name}.`); continue; }
-      const old = D.moves[m.moves[i].id].name;
-      m.moves[i] = { id, pp: D.moves[id].pp };
-      await this.msg(`${monName(m)} forgot ${old} and learned ${name}!`);
+      await offerMove(m, id, (t) => this.msg(t));
     }
   }
 

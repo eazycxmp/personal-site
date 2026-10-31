@@ -116,6 +116,14 @@ dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count 
 Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest monsters go 13, 18, 25,
 31, 38, 42, 48, 53, and the Champion tops out at 55. The trainer card shows all 8 badges.
 
+**Move cards:** when a monster wants to learn a move, and when you highlight a move in battle, a card
+shows its type, MELEE or RANGED (which stats it pits: MELEE vs ARMOUR, RANGED vs DODGE), power, the real
+chance it hits for your side, PP, its burn/poison chance (burned or poisoned foes lose 1/8 HP a turn),
+and a gold x1.5 chip when it matches the monster's type. In battle it also says how it does against the
+foe in front of you (SUPER x2, WEAK x0.5, NO EFFECT) and about how much of its HP one hit takes, using
+the game's own damage formula. Before forgetting a move you see the new move and each old one side by side.
+Level Treats now let you swap moves too.
+
 **Evolution is sculpting:** the monster hardens into clay, sags into a lump on a potter's wheel, gets
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
