@@ -561,31 +561,31 @@
   ], "funky", "funkboss");
   W.tide_gym = gym("Tide Gym", "blue", [
     trainer({ id: "g2_t1", outfit: "sailor", sprite: "swimmer_blue", x: 2, y: 9, dir: "right", sight: 5, name: "Sailor Kai",
-      team: [["nostray", 15], ["lesmagu", 15]], intro: "Ahoy! Ready to get soaked?", lose: "Washed overboard!" }),
+      team: [["nostray", 13], ["lesmagu", 13]], intro: "Ahoy! Ready to get soaked?", lose: "Washed overboard!" }),
     trainer({ id: "g2_t2", outfit: "sailor", sprite: "riverboatcaptain", x: 9, y: 6, dir: "left", sight: 5, name: "Captain Moe",
-      team: [["jelillow", 16], ["spirain", 16]], intro: "All hands on deck! Battle stations!", lose: "Abandon ship!" }),
+      team: [["jelillow", 14], ["spirain", 14]], intro: "All hands on deck! Battle stations!", lose: "Abandon ship!" }),
     trainer({ id: "g2_leader", outfit: "sailor", sprite: "swimmer", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Marina", leader: 2,
-      team: [["squink", 17], ["spirain", 18], ["gupphish", 19], ["shnark", 20]],
+      team: [["squink", 15], ["spirain", 16], ["gupphish", 17], ["shnark", 18]],
       intro: "Welcome to Tide Gym! I'm Marina.\nThe sea is calm... until it isn't!",
       lose: "Swept away! You've earned\nthe TIDE BADGE!", badge: "Tide Badge" }),
   ], "funky", "funkboss");
   W.volt_gym = gym("Volt Gym", "green", [
     trainer({ id: "g3_t1", outfit: "engineer", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Engineer Watt",
-      team: [["chromeye", 22], ["fluoresfin", 22]], intro: "Feel the voltage!", lose: "Short circuit!" }),
+      team: [["chromeye", 20], ["fluoresfin", 20]], intro: "Feel the voltage!", lose: "Short circuit!" }),
     trainer({ id: "g3_t2", outfit: "engineer", sprite: "scientist_black", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Zia",
-      team: [["joulraton", 23], ["boltnu", 23]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
+      team: [["joulraton", 21], ["boltnu", 21]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
     trainer({ id: "g3_leader", outfit: "engineer", sprite: "scientist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Volta", leader: 3,
-      team: [["incandesfin", 24], ["exclawvate", 25], ["medushock", 26], ["ouroboutlet", 27]],
+      team: [["incandesfin", 22], ["exclawvate", 23], ["medushock", 24], ["ouroboutlet", 25]],
       intro: "I'm Volta! My LIGHTNING monsters\nstrike before you can blink!",
       lose: "Grounded at last!\nThe VOLT BADGE is yours!", badge: "Volt Badge" }),
   ], "route", "boss");
   W.shade_gym = gym("Shade Gym", "cream", [
     trainer({ id: "g4_t1", outfit: "occult", sprite: "goth_rose", x: 2, y: 9, dir: "right", sight: 5, name: "Hexer Nyx",
-      team: [["cackleen", 28], ["seirein", 28]], intro: "Boo!", lose: "Spooked myself..." }),
+      team: [["cackleen", 25], ["seirein", 25]], intro: "Boo!", lose: "Spooked myself..." }),
     trainer({ id: "g4_t2", outfit: "occult", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Seer Ren",
-      team: [["noctalo", 29], ["babysnitch", 29]], intro: "I foresaw this battle. And your defeat!", lose: "I... didn't see that coming." }),
+      team: [["noctalo", 26], ["babysnitch", 26]], intro: "I foresaw this battle. And your defeat!", lose: "I... didn't see that coming." }),
     trainer({ id: "g4_leader", outfit: "occult", sprite: "magician", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Morrow", leader: 4,
-      team: [["brumi", 31], ["yiinaang", 32], ["baddrscratch", 33], ["lendos", 34]],
+      team: [["brumi", 28], ["yiinaang", 29], ["baddrscratch", 30], ["lendos", 31]],
       intro: "I am Morrow. In the dark, all\nmonsters are equal... except mine.",
       lose: "The light wins today.\nTake the SHADE BADGE.", badge: "Shade Badge" }),
   ], "mystery", "darkboss");
@@ -594,10 +594,10 @@
     rugs: [[4, 4], [4, 10]], ops: [["C", 0, 8, 5, 1], ["C", 6, 8, 6, 1]],
     npcs: [
       trainer({ id: "elite", outfit: "royal", sprite: "soldier", x: 4, y: 7, dir: "right", sight: 3, name: "Elite Vance",
-        team: [["saurchin", 55], ["jemuar", 56], ["deviraptor", 56], ["snokari", 55]],
+        team: [["saurchin", 50], ["jemuar", 51], ["deviraptor", 51], ["snokari", 50]],
         intro: "None reach the Champion without\nbeating me first!", lose: "Go on. The Champion awaits." }),
       trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
-        team: [["drokoro", 57], ["pythonova", 57], ["demosnow", 58], ["novaquarius", 58], ["ziggurat", 59], ["$rival", 60]],
+        team: [["drokoro", 52], ["pythonova", 52], ["demosnow", 53], ["novaquarius", 53], ["ziggurat", 54], ["$rival", 55]],
         intro: "So you're the trainer with all\neight badges. I am Aurora,\nChampion of this land. Give me\neverything!",
         lose: "Magnificent! You are the new\nCHAMPION!" }),
     ],
@@ -615,41 +615,41 @@
 
   W.verdance_gym = gym("Verdance Gym", "green", [
     trainer({ id: "g5_t1", outfit: "ranger", sprite: "woodnymph", x: 2, y: 9, dir: "right", sight: 5, name: "Druid Moss",
-      team: [["ninjasmine", 35], ["sapsnap", 35]], intro: "Fern grew us from seeds!", lose: "Uprooted..." }),
+      team: [["ninjasmine", 33], ["sapsnap", 33]], intro: "Fern grew us from seeds!", lose: "Uprooted..." }),
     trainer({ id: "g5_t2", outfit: "ranger", sprite: "monk_green", x: 9, y: 6, dir: "left", sight: 5, name: "Druid Oak",
-      team: [["bamboon", 36], ["brachifor", 36]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
+      team: [["bamboon", 34], ["brachifor", 34]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
     trainer({ id: "g5_leader", outfit: "ranger", sprite: "florist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Fern", leader: 5,
-      team: [["toxiris", 37], ["beenstalker", 38], ["wendigger", 38], ["volcoli", 39], ["moloch", 40]],
+      team: [["toxiris", 35], ["beenstalker", 36], ["wendigger", 36], ["volcoli", 37], ["moloch", 38]],
       intro: "I'm Fern. My WOOD monsters have\nroots older than this town.\nLet's grow!",
       lose: "You cut right through!\nThe LEAF BADGE is yours.", badge: "Leaf Badge" }),
   ], "chill", "funkboss");
   W.cinder_gym = gym("Cinder Gym", "cream", [
     trainer({ id: "g6_t1", outfit: "miner", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Stoker Ash",
-      team: [["vulpyre", 40], ["shelagu", 40]], intro: "Feel the heat!", lose: "Cooled off..." }),
+      team: [["vulpyre", 37], ["shelagu", 37]], intro: "Feel the heat!", lose: "Cooled off..." }),
     trainer({ id: "g6_t2", outfit: "miner", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Fire Eater Kip",
-      team: [["flambear", 41], ["potturney", 41]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
+      team: [["flambear", 38], ["potturney", 38]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
     trainer({ id: "g6_leader", outfit: "miner", sprite: "magician_fiery", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Blaze", leader: 6,
-      team: [["sludgehog", 42], ["loliferno", 43], ["statursus", 43], ["gupphire", 44], ["eruptibus", 45]],
+      team: [["sludgehog", 39], ["loliferno", 40], ["statursus", 40], ["gupphire", 41], ["eruptibus", 42]],
       intro: "Blaze's the name! My FIRE burns\nhotter than the mountain itself!",
       lose: "Doused! Take the\nBLAZE BADGE.", badge: "Blaze Badge" }),
   ], "funky", "boss");
   W.ironhold_gym = gym("Ironhold Gym", "blue", [
     trainer({ id: "g7_t1", outfit: "engineer", sprite: "scientist_black", x: 2, y: 9, dir: "right", sight: 5, name: "Welder Max",
-      team: [["bolt", 45], ["katacoon", 45]], intro: "Sparks will fly!", lose: "Burnt out." }),
+      team: [["bolt", 43], ["katacoon", 43]], intro: "Sparks will fly!", lose: "Burnt out." }),
     trainer({ id: "g7_t2", outfit: "engineer", sprite: "firefighter", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Dot",
-      team: [["uf0", 46], ["angrito", 46]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
+      team: [["uf0", 44], ["angrito", 44]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
     trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
-      team: [["sphake", 47], ["gastronium", 48], ["tigrock", 48], ["hydrone", 49], ["lightmare", 50]],
+      team: [["sphake", 45], ["gastronium", 46], ["tigrock", 46], ["hydrone", 47], ["lightmare", 48]],
       intro: "I'm Forge. My STEEL monsters\ndon't dent. Hit them with all\nyou've got!",
       lose: "You bent steel!\nThe IRON BADGE is yours.", badge: "Iron Badge" }),
   ], "route", "boss");
   W.prime_gym = gym("Prime Gym", "blue", [
     trainer({ id: "g8_t1", outfit: "royal", sprite: "dragonrider", x: 2, y: 9, dir: "right", sight: 5, name: "Dragon Tamer Ryu",
-      team: [["sapragon", 50], ["devidra", 51]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
+      team: [["sapragon", 48], ["devidra", 49]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
     trainer({ id: "g8_t2", outfit: "royal", sprite: "dragonrider_green", x: 9, y: 6, dir: "left", sight: 5, name: "Dragon Tamer Kira",
-      team: [["dragarbor", 51], ["ferricran", 52]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
+      team: [["dragarbor", 49], ["ferricran", 50]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
     trainer({ id: "g8_leader", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Prime Leader Drake", leader: 8,
-      team: [["allagon", 52], ["firomenis", 53], ["qetzlrokilus", 53], ["wrougon", 54], ["golnagi", 55]],
+      team: [["allagon", 50], ["firomenis", 51], ["qetzlrokilus", 51], ["wrougon", 52], ["golnagi", 53]],
       intro: "I am Drake of the PRIME GYM.\nSeven badges got you here.\nDragons decide if you go on!",
       lose: "Incredible... The PRIME BADGE\nis yours. The Champion awaits!", badge: "Prime Badge" }),
   ], "mystery", "darkboss");
@@ -708,23 +708,23 @@
     ["dandicub", 3], ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
     ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1]]), null,
     lv(3, 5, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
-  area("route2", "Duskwood", lv(8, 13, [ // deep forest at dusk: plants, moths, bats, poisons
+  area("route2", "Duskwood", lv(9, 14, [ // deep forest at dusk: plants, moths, bats, poisons
     ["banling", 3], ["turnipper", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2],
     ["tumbleworm", 2], ["poinchin", 2], ["trapsnap", 1], ["hatchling", 1]]),
-    lv(8, 12, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
-    lv(9, 13, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark
-  area("route3", "Frostridge Pass", lv(15, 20, [ // cold mountain: rock, ice and fire
+    lv(9, 13, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
+    lv(10, 14, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark
+  area("route3", "Frostridge Pass", lv(16, 21, [ // cold mountain: rock, ice and fire
     ["rockitten", 3], ["waysprite", 3], ["pawsand", 2], ["grintot", 2], ["eskipup", 2], ["tweesher", 2], ["chillimp", 2],
     ["hissiorite", 2], ["furnursus", 2], ["cardiling", 2], ["imbrickcile", 2], ["flacono", 2], ["devidin", 1],
     ["lesmagu", 1]]),
-    lv(15, 19, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]),
-    lv(16, 20, [["demosnow", 3], ["foxfire", 2], ["selket", 2], ["ignibus", 1]])); // snow demons and will-o'-wisps
-  area("route4", "Starfall Woods", lv(22, 28, [ // meteor-struck forest: metal, cosmic, storm and dragons
+    lv(16, 20, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]),
+    lv(17, 21, [["demosnow", 3], ["foxfire", 2], ["selket", 2], ["ignibus", 1]])); // snow demons and will-o'-wisps
+  area("route4", "Starfall Woods", lv(23, 29, [ // meteor-struck forest: metal, cosmic, storm and dragons
     ["boltnu", 3], ["virware", 2], ["sprorm", 2], ["grimachin", 2],
     ["joulraton", 2], ["fancair", 2], ["pythwire", 2], ["bugnin", 2], ["stomic", 2], ["komodraw", 1], ["cardinale", 1],
     ["wrougon", 1], ["chloragon", 1], ["pythonova", 1]]),
-    lv(21, 26, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]),
-    lv(23, 28, [["chromeye", 3], ["metesaur", 3], ["tetrchimp", 2], ["bursa", 1]])); // stargazers under falling stars
+    lv(22, 27, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]),
+    lv(24, 29, [["chromeye", 3], ["metesaur", 3], ["tetrchimp", 2], ["bursa", 1]])); // stargazers under falling stars
   area("hollow", "Ghost Town", lv(24, 29, [ // what haunts the empty town
     ["ghosteeth", 3], ["cackleen", 3], ["babysnitch", 3], ["potturmeist", 3], ["seirein", 2], ["uneye", 2],
     ["hoarse", 2], ["runesquito", 2]]),
@@ -743,26 +743,26 @@
     lv(17, 22, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
     lv(19, 23, [["lucifice", 2]])); // the ice devil only skates out at night
   // Past Shade Hollow the wild ones are mostly already evolved.
-  area("route5", "Thornwood Wilds", lv(30, 35, [ // ancient overgrown forest: wood, venom and birds
+  area("route5", "Thornwood Wilds", lv(31, 36, [ // ancient overgrown forest: wood, venom and birds
     ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],
     ["tumblebee", 2], ["birdling", 2], ["corvix", 1]]),
-    lv(30, 34, [["galasces", 2], ["krokivip", 1]]),
-    lv(31, 35, [["spighter", 2], ["dracune", 2], ["hoarseshoo", 1]]));
-  area("route6", "Ashfall Trail", lv(35, 40, [ // volcanic ash fields: fire and earth
+    lv(31, 35, [["galasces", 2], ["krokivip", 1]]),
+    lv(32, 36, [["spighter", 2], ["dracune", 2], ["hoarseshoo", 1]]));
+  area("route6", "Ashfall Trail", lv(36, 41, [ // volcanic ash fields: fire and earth
     ["cobarett", 3], ["cardiwing", 2], ["solight", 2], ["grinflare", 2], ["rockat", 3], ["selmatek", 2],
     ["urcheedle", 2], ["knightsand", 1], ["cocrune", 2]]),
-    lv(35, 39, [["lightmare", 1]]),
-    lv(36, 40, [["vulpyre", 2], ["loliferno", 1]]));
-  area("route7", "Rustline Road", lv(40, 45, [ // scrapyards and power lines: steel, lightning and psychic
+    lv(36, 40, [["lightmare", 1]]),
+    lv(37, 41, [["vulpyre", 2], ["loliferno", 1]]));
+  area("route7", "Rustline Road", lv(41, 46, [ // scrapyards and power lines: steel, lightning and psychic
     ["puparmor", 3], ["weavifly", 2], ["trojerror", 2], ["windeye", 2], ["apeoro", 2], ["arthrobolt", 2],
     ["eyesore", 2], ["masknake", 2], ["angrito", 1]]),
-    lv(40, 44, [["hydrone", 2]]),
-    lv(41, 45, [["bewhich", 2], ["lunight", 2], ["equill", 1]]));
-  area("route8", "Victory Ridge", lv(45, 50, [ // the toughest wilds before the Prime Gym
+    lv(41, 45, [["hydrone", 2]]),
+    lv(42, 46, [["bewhich", 2], ["lunight", 2], ["equill", 1]]));
+  area("route8", "Victory Ridge", lv(46, 51, [ // the toughest wilds before the Prime Gym
     ["bricgard", 3], ["myrmison", 2], ["miaownolith", 2], ["glombroc", 2], ["conglolem", 2], ["rabbitosaur", 2],
     ["strella", 2], ["gryfix", 2], ["aardart", 2], ["komoduel", 1], ["devidra", 1]]),
     null,
-    lv(46, 50, [["mystikapi", 2], ["qetzlrokilus", 1]]));
+    lv(47, 51, [["mystikapi", 2], ["qetzlrokilus", 1]]));
 
   window.WORLD = { maps: W, BUILDINGS };
 })();

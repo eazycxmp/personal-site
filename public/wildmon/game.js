@@ -1745,30 +1745,99 @@ async function evolveCheck() {
     await evolveScene(m, d.evo[1]);
   }
 }
+// Evolution as sculpting: the monster hardens into clay, melts into a lump, gets kneaded, and is moulded
+// pixel by pixel into its new form, which is then glazed back into full colour from the bottom up.
+function spritePixels(slug, shiny) {
+  const im = shiny ? shinyImg(slug) : IMG["mon_" + slug];
+  const c = document.createElement("canvas"); c.width = 64; c.height = 64;
+  const g = c.getContext("2d"); g.drawImage(im, 0, 0, 64, 64, 0, 0, 64, 64);
+  const d = g.getImageData(0, 0, 64, 64).data, px = [];
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+    const i = (y * 64 + x) * 4;
+    if (d[i + 3] < 128) continue;
+    const lum = (0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]) / 255;
+    px.push({ x, y, r: d[i], g: d[i + 1], b: d[i + 2], lum });
+  }
+  return px;
+}
+const clayOf = (lum) => { const k = 0.55 + 0.6 * lum; return `rgb(${Math.min(255, 200 * k) | 0},${Math.min(255, 138 * k) | 0},${Math.min(255, 92 * k) | 0})`; };
 async function evolveScene(m, to) {
-  const from = m.slug;
+  const from = m.slug, OX = 88, OY = 26, BX = 120, BY = 82; // sprite corner, lump centre
+  const ease = (k) => (k < 0 ? 0 : k > 1 ? 1 : k * k * (3 - 2 * k));
+  const back = (k) => { k = Math.max(0, Math.min(1, k)); const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+  // the lump is the sprite squashed flat and wide, so the body sags into it in one piece (and back out)
+  const lumpPoint = (p) => [BX + (p.x - 32) * 1.25, BY + 6 - (63 - p.y) * 0.3];
+  // old pixels sag into the lump, top rows last; new pixels are pulled up out of it, bottom rows first
+  const oldPx = spritePixels(from, m.shiny).map((p) => ({ ...p, to: lumpPoint(p), delay: p.y / 63 * 0.1 + (63 - p.y) / 63 * 0.5, sway: p.y * 0.2 }));
+  const newPx = spritePixels(to, m.shiny).map((p) => ({ ...p, from: lumpPoint(p), delay: (63 - p.y) / 63 * 0.6 }));
+  const sparks = [];
   const sc = push({
-    opaque: true, show: from, flash: 0,
+    opaque: true, phase: "show", k: 0, flash: 0, glaze: 0, knead: 0, hands: 0,
     update() {},
     draw() {
-      ctx.fillStyle = "#101828"; ctx.fillRect(0, 0, VW, VH);
-      for (let i = 0; i < 30; i++) {
-        const a = NOW * 0.6 + i * 0.7, r = 30 + ((NOW * 40 + i * 17) % 60);
-        ctx.fillStyle = "rgba(255,255,220,0.6)";
-        ctx.fillRect(120 + Math.cos(a) * r, 56 + Math.sin(a) * r, 2, 2);
+      ctx.fillStyle = "#1a1420"; ctx.fillRect(0, 0, VW, VH);
+      // a warm studio spotlight on the potter's wheel
+      const gr = ctx.createRadialGradient(BX, BY - 20, 6, BX, BY - 20, 90);
+      gr.addColorStop(0, "rgba(255,210,150,0.28)"); gr.addColorStop(1, "rgba(255,210,150,0)");
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
+      ctx.fillStyle = "#3a2a22"; ctx.beginPath(); ctx.ellipse(BX, BY + 8, 44, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#5a4232"; ctx.beginPath(); ctx.ellipse(BX, BY + 6, 40, 6, 0, 0, Math.PI * 2); ctx.fill();
+      const t = this.k;
+      if (this.phase === "show") { // full colour fading to clay
+        drawMon(from, "front", OX, OY, 1, 1, m.shiny);
+        ctx.globalAlpha = t;
+        for (const p of oldPx) { ctx.fillStyle = clayOf(p.lum); ctx.fillRect(OX + p.x, OY + p.y, 1, 1); }
+        ctx.globalAlpha = 1;
+      } else if (this.phase === "melt") {
+        for (const p of oldPx) {
+          const e = ease((t - p.delay) / 0.55), drip = e * e;
+          const x = OX + p.x + (p.to[0] - OX - p.x) * e + Math.sin(p.sway + t * 7) * 2 * e * (1 - e);
+          const y = OY + p.y + (p.to[1] - OY - p.y) * drip;
+          ctx.fillStyle = clayOf(p.lum * (1 - e) + 0.45 * e); ctx.fillRect(x | 0, y | 0, 2, 2);
+        }
+      } else if (this.phase === "knead") { // the lump squashes and stretches as it is worked
+        const sq = 1 + Math.sin(this.knead * 9) * 0.22, st = 1 / sq;
+        for (const p of oldPx) {
+          const x = BX + (p.to[0] - BX) * sq, y = BY + (p.to[1] - BY) * st - (st - 1) * 10;
+          ctx.fillStyle = clayOf(0.45 + Math.sin(p.sway + this.knead * 5) * 0.12); ctx.fillRect(x | 0, y | 0, 2, 2);
+        }
+        // two pressing palms, squeezing in time with the lump
+        const press = Math.max(0, Math.sin(this.knead * 9));
+        ctx.fillStyle = "rgba(240,200,170,0.9)";
+        for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.ellipse(BX + s2 * (38 - press * 10), BY - 2, 7, 11, s2 * 0.3, 0, Math.PI * 2); ctx.fill(); }
+      } else { // mould: clay pixels rise into the new shape, then the glaze sweeps up
+        const line = OY + 64 - this.glaze * 70;
+        if (this.phase === "mould" && t < 0.35) { // the old lump gives way to the new one
+          ctx.globalAlpha = 1 - t / 0.35;
+          for (const p of oldPx) { ctx.fillStyle = clayOf(0.45); ctx.fillRect(p.to[0] | 0, p.to[1] | 0, 2, 2); }
+          ctx.globalAlpha = 1;
+        }
+        for (const p of newPx) {
+          const e = this.phase === "mould" ? back((t - p.delay) / 0.6) : 1;
+          const x = p.from[0] + (OX + p.x - p.from[0]) * e, y = p.from[1] + (OY + p.y - p.from[1]) * e;
+          if (OY + p.y >= line && e >= 1) ctx.fillStyle = `rgb(${p.r},${p.g},${p.b})`;
+          else ctx.fillStyle = clayOf(p.lum);
+          ctx.fillRect(x | 0, y | 0, e >= 1 ? 1 : 2, e >= 1 ? 1 : 2);
+        }
+        if (this.glaze > 0 && this.glaze < 1) { // shimmering edge of the glaze
+          ctx.fillStyle = "rgba(255,255,230,0.85)"; ctx.fillRect(OX - 4, line | 0, 72, 1);
+        }
       }
-      drawMon(this.show, "front", 88, 26);
+      for (const s2 of sparks) { ctx.fillStyle = `rgba(255,240,180,${s2.life})`; ctx.fillRect(s2.x | 0, s2.y | 0, 2, 2); s2.x += s2.vx; s2.y += s2.vy; s2.vy += 0.05; s2.life -= 0.02; }
+      for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life <= 0) sparks.splice(i, 1);
       if (this.flash) { ctx.fillStyle = `rgba(255,255,255,${this.flash})`; ctx.fillRect(0, 0, VW, VH); }
     },
   });
   await say(`What? ${D.monsters[from].name} is evolving!`);
-  let period = 0.5;
-  for (let i = 0; i < 12; i++) { sc.show = i % 2 ? to : from; await wait(period); period *= 0.8; }
-  await tween(0.4, (k) => { sc.flash = k; });
-  sc.show = to;
+  await tween(0.9, (k) => { sc.k = k; });
+  sc.phase = "melt"; await tween(1.4, (k) => { sc.k = k * 1.3; });
+  sc.phase = "knead"; await tween(1.6, (k) => { sc.knead = k * 2.2; });
+  sc.phase = "mould"; await tween(1.6, (k) => { sc.k = k * 1.3; });
   m.slug = to;
   calcStats(m);
-  await tween(0.6, (k) => { sc.flash = 1 - k; });
+  sc.phase = "glaze"; await tween(0.9, (k) => { sc.glaze = k; });
+  for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, v = 0.6 + Math.random() * 1.6; sparks.push({ x: OX + 32, y: OY + 36, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.8, life: 1 }); }
+  await tween(0.25, (k) => { sc.flash = 0.7 * (1 - k); });
   S.caught[to] = true; S.seen[to] = true;
   await say(`Congratulations! ${D.monsters[from].name} evolved into ${D.monsters[to].name}!`);
   pop(sc);

@@ -113,8 +113,23 @@ Sprout Town → Route 1 → **Ember City** (Rock gym, Earth) → Route 2 → **T
 → Route 5 Thornwood Wilds → **Verdance** (Leaf gym, Wood) → Route 6 Ashfall Trail → **Cinder Peak** (Blaze gym, Fire)
 → Route 7 Rustline Road → **Ironhold** (Iron gym, Steel) → Route 8 Victory Ridge → **Prime City** (the PRIME GYM:
 dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count (8 badges for the Hall).
-Wild levels climb from 2–5 on Route 1 to 45–50 on Victory Ridge; leaders go 13, 20, 27, 34, 40, 45, 50, 55; the
-Champion tops out at 60. The trainer card shows all 8 badges.
+Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest monsters go 13, 18, 25,
+31, 38, 42, 48, 53, and the Champion tops out at 55. The trainer card shows all 8 badges.
+
+**Evolution is sculpting:** the monster hardens into clay, sags into a lump on a potter's wheel, gets
+kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
+colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
+
+**Difficulty is tuned with a playtest bot:** `node tools/playtest_curve.js` plays the whole game with each
+starter (seeded, 20 runs by default) using the game's own stat, damage, accuracy, EXP and evolution code
+pulled straight out of game.js. It walks each route (`--wild 8` battles), fights every trainer, catches and
+switch-trains a team of 6, and grinds the last route whenever it loses to a gym. It prints, per gym, the
+boss's top level, your top and average level, the share of runs won on the first try and how much grinding
+was needed. `--side` adds the Frost Sea, Hollowmere and Glimmer Cave. `python3 tools/shift_levels.py
+teams:<map>=-1 wild:<area>=+1` shifts levels. Finding: the EXP rate barely matters (the team settles near
+the latest route's wild level either way); the gap between a route and the next gym is what sets difficulty.
+Tuned so a natural player wins most gyms within one or two tries (25–60% first try, about 5–10 wild battles
+of grinding at the median). Doing the side areas makes the middle gyms easy (80–90%).
 
 **Frost Sea (side route):** east along Tide Harbor's pier. Surf between ice floes with frosty tall grass
 (water and ice monsters, Lv 17–23, plus an ice devil at night). A glacier rises in the northeast: maps
