@@ -128,6 +128,18 @@ Status chips (BRN PSN SLP PAR) sit just outside the HP boxes. FULL HEAL ($400) c
 status), Sweet Candy (+50% EXP, from 3 badges or the Battle Tower) and a Berry per type (+20% to that type's
 moves, from 2 badges). Icons are Tuxemon's own item art. Long menus (the mart) scroll.
 
+**Moves outside battle:** face an obstacle and press Z. CUT (Rock Badge + a Wood monster) clears thorn
+bushes, ROCK SMASH (Volt Badge + an Earth or Steel monster) breaks cracked rocks, STRENGTH (Shade Badge +
+an Earth, Heroic or Normal monster) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
+a good item (Great Balls, berries, Level Treats, Sweet Candy, Elixirs); cleared obstacles stay cleared.
+
+**Gym puzzles:** every gym is a 14x18 puzzle room: Ember a boulder maze, Tide a slippery wet floor (you slide
+until a pillar stops you), Volt floor switches that open electric gates, Shade a pitch-dark pillar maze (no
+minimap), Verdance a hedge maze, Cinder fire gates opened in sequence, Ironhold a polished steel floor to
+slide across, and the Prime Gym a hall of dragon statues with two sealed gates. Pressed switches stay pressed.
+`tools/validate_world.js` solves every gym (walking, sliding and switches) and checks the leader and every gym
+trainer can be reached, and that each nook item needs its field move.
+
 **Move cards:** when a monster wants to learn a move, and when you highlight a move in battle, a card
 shows its type, MELEE or RANGED (which stats it pits: MELEE vs ARMOUR, RANGED vs DODGE), power, the real
 chance it hits for your side, PP, its burn/poison chance (burned or poisoned foes lose 1/8 HP a turn),

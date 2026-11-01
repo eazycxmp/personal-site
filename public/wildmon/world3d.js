@@ -313,6 +313,15 @@ window.World3D = (function () {
         const horiz = m.grid[y][x - 1] === "F" || m.grid[y][x + 1] === "F";
         const fs = size("nature/fence_simple");
         sc.add("nature/fence_simple", cx, cz, { rot: horiz ? 0 : Math.PI / 2, sx: 1 / fs.x, sy: 1.1, sz: 1.1 });
+      } else if (ch === "b") { // thorn bush (CUT): a dense, dark knot of bushes
+        for (let k = 0; k < 3; k++) sc.add(tinted("nature/plant_bushLarge", 0x2a5a2a, 0.5), x + 0.25 + R() * 0.5, y + 0.25 + R() * 0.5, { rot: R() * 6, scale: 1.5 + R() * 0.4 });
+      } else if (ch === "k") { // cracked rock (ROCK SMASH): a brown, waist-high rock with rubble at its feet
+        const ks = size("nature/rock_tallA");
+        sc.add(tinted("nature/rock_tallA", 0x8a6a48, 0.55), cx, cz, { rot: R() * 6, scale: Math.min(1.0 / ks.x, 1.0 / ks.z, 0.9 / ks.y) });
+        for (let r = 0; r < 3; r++) sc.add(tinted("nature/rock_smallA", 0x8a6a48, 0.55), x + 0.15 + R() * 0.7, y + 0.15 + R() * 0.7, { rot: R() * 6, scale: 0.6 });
+      } else if (ch === "o") { // huge grey boulder (STRENGTH): fills the tile, taller than you
+        const os = size("nature/rock_tallA");
+        sc.add(tinted("nature/rock_tallA", 0x55524c, 0.6), cx, cz, { rot: R() * 6, scale: Math.min(1.45 / os.x, 1.45 / os.z, 1.6 / os.y) });
       } else if (ch === "~") {
         waterTiles.push([x, y]);
         if (R() < 0.12) sc.add("nature/" + (R() < 0.5 ? "lily_large" : "lily_small"), cx + (R() - 0.5) * 0.5, cz + (R() - 0.5) * 0.5, { rot: R() * 6, scale: 1.3, y: -0.08 });
@@ -349,7 +358,7 @@ window.World3D = (function () {
 
   // Signposts beside every map exit, saying where it leads; lanterns flank the opening.
   function exitSigns(m) {
-    const solid = (x, y) => x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWC".includes(m.grid[y][x]);
+    const solid = (x, y) => x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbko".includes(m.grid[y][x]);
     const ROT = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }; // board faces back into the map
     for (const e of m.exits || []) {
       if (!e.label) continue;
@@ -570,11 +579,7 @@ window.World3D = (function () {
     t.encoding = THREE.sRGBEncoding;
     return t;
   }
-  const INTERIOR_PROPS = {
-    ember_gym: [["town/rock-large", 1.5, 5], ["town/rock-large", 10.5, 5], ["nature/rock_tallA", 1.5, 11], ["nature/rock_tallA", 10.5, 11]],
-    tide_gym: [["town/fountain-round", 1.6, 11.5], ["town/fountain-round", 10.4, 11.5]],
-    volt_gym: [["town/lantern", 1.5, 4], ["town/lantern", 10.5, 4], ["town/lantern", 1.5, 11], ["town/lantern", 10.5, 11], ["town/pillar-stone", 3.5, 8], ["town/pillar-stone", 8.5, 8]],
-    shade_gym: [["nature/tree_default_dark", 1.2, 5], ["nature/tree_oak_dark", 10.8, 5], ["town/lantern", 3, 11], ["town/lantern", 9, 11]],
+  const INTERIOR_PROPS = { // gyms are puzzle rooms now; their maze pieces are their decoration
     hall: [["town/pillar-stone", 2, 5], ["town/pillar-stone", 10, 5], ["town/pillar-stone", 2, 12], ["town/pillar-stone", 10, 12], ["town/banner-red", 4, 3.4], ["town/banner-red", 8, 3.4]],
     lab: [["suburban/planter", 1, 7], ["suburban/planter", 11, 7]],
     home: [["suburban/planter", 1, 3.6], ["nature/plant_bush", 7, 3.6]],
@@ -600,6 +605,34 @@ window.World3D = (function () {
     wall(W + 0.6, 0.3, W / 2, north - 0.15, W);
     wall(0.3, D, -0.15, north + D / 2, D);
     wall(0.3, D, W + 0.15, north + D / 2, D);
+    // gym puzzle pieces: boulders, hedges, statues, glowing gates, floor switches and slippery floor
+    const sc = Scatter();
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      const ch = m.grid[y][x], cx = x + 0.5, cz = y + 0.5;
+      if (ch === "R") { const k = "nature/rock_tallA", z = size(k); sc.add(k, cx, cz, { rot: ((x * 7 + y * 3) % 4) * 1.57, scale: Math.min(1.05 / z.x, 1.05 / z.z, 1.3 / z.y) }); }
+      else if (ch === "H") { const k = "town/hedge", z = size(k); sc.add(k, cx, cz, { sx: 1.0 / z.x, sy: 1.3 / z.y, sz: 1.0 / z.z }); }
+      else if (ch === "P") { const k = "town/pillar-stone", z = size(k); sc.add(k, cx, cz, { scale: Math.min(0.9 / z.x, 0.9 / z.z, 2.0 / z.y) }); }
+      else if (ch === "g" || ch === "j") { // a fence with a glowing barrier across the gap
+        const k = "nature/fence_simple", z = size(k);
+        const horiz = "RHPW".includes(m.grid[y][x - 1] || "W") || "RHPW".includes(m.grid[y][x + 1] || "W");
+        sc.add(k, cx, cz, { rot: horiz ? 0 : Math.PI / 2, sx: 1 / z.x, sy: 1.3, sz: 1.3 });
+        const glow = own(new THREE.Mesh(new THREE.PlaneGeometry(1, 1.1), new THREE.MeshBasicMaterial({ color: m.gateCol || 0x80c0ff, transparent: true, opacity: 0.45, side: THREE.DoubleSide })));
+        glow.position.set(cx, 0.55, cz); glow.rotation.y = horiz ? 0 : Math.PI / 2; mapRoot.add(glow);
+      } else if (ch === "1" || ch === "2") mapRoot.add(marker(cx, cz, ch === "1" ? 0x40c0ff : 0xff8040));
+      else if (ch === "y") { // a switch already pressed: a dim plate
+        const plate = own(new THREE.Mesh(new THREE.CircleGeometry(0.32, 20), new THREE.MeshLambertMaterial({ color: 0x606870 })));
+        plate.rotation.x = -Math.PI / 2; plate.position.set(cx, 0.02, cz); mapRoot.add(plate);
+      } else if (ch === "I") {
+        const ice = own(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ color: m.ice || 0x9fd8f0, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.7 })));
+        ice.rotation.x = -Math.PI / 2; ice.position.set(cx, 0.01, cz); ice.receiveShadow = true; mapRoot.add(ice);
+      }
+    }
+    sc.build(mapRoot);
+    if (m.dark) { // the Shade Gym: you can only see a few steps around you
+      scene.background = new THREE.Color(0x020204);
+      scene.fog = new THREE.Fog(0x020204, 4.2, 8);
+      hemi.intensity = 0.35; sun.intensity = 0.4;
+    }
     const ctrMat = new THREE.MeshLambertMaterial({ map: texCrop(IMG.floors, 0, 64, 16, 16) });
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       if (m.grid[y][x] !== "C") continue;

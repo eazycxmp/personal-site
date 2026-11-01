@@ -764,5 +764,164 @@
     null,
     lv(47, 51, [["mystikapi", 2], ["qetzlrokilus", 1]]));
 
+  // ---------------- Gym puzzles ----------------
+  // Each gym is a 14x18 room: 3 rows of wall, 14 rows of puzzle (y 3-16), the exit at the bottom (x 6-7).
+  // R rock, H hedge, P pillar/statue (solid). I slippery floor: you slide until something stops you.
+  // 1 / 2 floor switches: stepping on one opens every g / j gate for good. The leader stands at (6, 3).
+  // pos: where the two gym trainers and the leader stand, [x, y, facing, sight].
+  const puzzle = (id, rows, pos, extra = {}) => {
+    const m = W[id];
+    if (rows.length !== 14 || rows.some((r) => r.length !== 14)) throw new Error(id + ": puzzle rows must be 14x14");
+    m.w = 14; m.h = 18; m.rugs = [];
+    m.grid = [...Array(3)].map(() => Array(14).fill("W")).concat(rows.map((r) => r.split("")), [Array(14).fill(".")]);
+    m.grid[17][6] = m.grid[17][7] = "X";
+    m.npcs.forEach((n, i) => { const [x, y, dir, sight] = pos[i]; Object.assign(n, { x, y, dir }, sight != null ? { sight } : {}); });
+    Object.assign(m, extra);
+  };
+  puzzle("ember_gym", [ // a maze of boulders
+    "..............",
+    "..............",
+    "RRRRR.RRRRRRR.",
+    ".....R......R.",
+    ".RRR.R.RRRR.R.",
+    ".R...R.R....R.",
+    ".R.RRR.R.RRRR.",
+    ".R.....R......",
+    ".RRRRRRR.RRRR.",
+    "..............",
+    "RRRRRR.RRRRRRR",
+    "..............",
+    "..............",
+    "..............",
+  ], [[2, 12, "right", 4], [9, 6, "left", 2], [6, 3, "down", 0]]);
+  puzzle("tide_gym", [ // a slippery wet floor: slide, and stop against the pillars
+    "..............",
+    "PPPPPPP.PPPPPP",
+    "IIIIIIIIPIIIII",
+    "IIIIIIIIIIIIII",
+    "IIIPIIIIIIIIPI",
+    "IIIIIIIIIIIIII",
+    "IPIIIIIIIIIIII",
+    "IIIIIIIPIIIIII",
+    "IIIIIIIIIIIPII",
+    "IIIIPIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "IIIIIIIIIIIIII",
+    "..............",
+    "..............",
+  ], [[1, 15, "right", 3], [12, 16, "left", 3], [6, 3, "down", 0]], { ice: 0x9fd8f0 });
+  puzzle("volt_gym", [ // floor switches open the electric gates
+    "..............",
+    "..............",
+    "PPPPPPPPPPjPPP",
+    "..............",
+    "2.............",
+    "..............",
+    "PPPgPPPPPPPPPP",
+    "..............",
+    ".............1",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+  ], [[4, 11, "down", 3], [8, 7, "down", 3], [6, 3, "down", 0]], { gateCol: 0xffe040 });
+  puzzle("shade_gym", [ // a pitch-dark maze of pillars
+    "..............",
+    "PPPPP.PPPPPPPP",
+    "....P.......P.",
+    ".PP.P.PPPPP.P.",
+    ".P..P.P...P...",
+    ".P.PP.P.P.PPP.",
+    ".P....P.P...P.",
+    ".PPPPPP.PPP.P.",
+    "........P...P.",
+    "PPPPPP.PP.PPP.",
+    "......P.......",
+    ".PPPP.P.PPPPPP",
+    "..............",
+    "..............",
+  ], [[0, 11, "right", 3], [13, 5, "down", 2], [6, 3, "down", 0]], { dark: true });
+  puzzle("verdance_gym", [ // a hedge maze
+    "..............",
+    "HHHHHH.HHHHHHH",
+    ".......H.....H",
+    ".HHHH.H.HHHH.H",
+    ".H..H...H..H.H",
+    ".H.HHHHHH.HH.H",
+    ".H........H..H",
+    ".HHHHHHH.HH.HH",
+    "...H.....H....",
+    "HH.H.HHHHH.HH.",
+    "...H.......H..",
+    ".HHHHHHHHH.H.H",
+    "..............",
+    "..............",
+  ], [[12, 10, "left", 3], [3, 7, "left", 2], [6, 3, "down", 0]]);
+  puzzle("cinder_gym", [ // boulders, fire gates and the switches that douse them
+    "..............",
+    "..............",
+    "RRRRRRgRRRRRRR",
+    ".......R.....1",
+    ".RRRR.R.RRRRR.",
+    ".R....R.t.....",
+    ".R.RRRRRRRRjRR",
+    ".R...........2",
+    ".RRRRRRRRRRR..",
+    "..............",
+    "RRRRRR.RRRRRRR",
+    "..............",
+    "..............",
+    "..............",
+  ], [[2, 12, "right", 4], [8, 8, "down", 3], [6, 3, "down", 0]], { gateCol: 0xff6020 });
+  puzzle("ironhold_gym", [ // polished steel: slide across it
+    "..............",
+    "PPPPPP.PPPPPPP",
+    "IIIIIPIIIIIIII",
+    "IIIIIIIIIIIPII",
+    "IIIIIIIIIIIIII",
+    "PIIIIIIIIIIIII",
+    "IIIIIIPIIIIIII",
+    "IIIIIIIIIIIIIP",
+    "IIIIIIIIIIIIII",
+    "IIPIIIIIIIIIII",
+    "IIIIIIIIIPIIII",
+    "IIIIIIIIIIIIII",
+    "..............",
+    "..............",
+  ], [[0, 15, "right", 3], [13, 16, "left", 3], [6, 3, "down", 0]], { ice: 0xb8c4cc });
+  puzzle("prime_gym", [ // a hall of dragon statues, two sealed gates
+    "..............",
+    "..............",
+    "PPPPPPjPPPPPPP",
+    "P...........2P",
+    "P.PPPPPPPPPP.P",
+    "P.P........P.P",
+    "P.P.PPgPPP.P.P",
+    "P.P.P....P.P.P",
+    "P...P..1.P...P",
+    "PPPPP....PPPPP",
+    "..............",
+    "..............",
+    "..............",
+    "..............",
+  ], [[3, 13, "right", 4], [10, 13, "left", 4], [6, 3, "down", 0]], { gateCol: 0xb070ff });
+
+  // ---------------- Hidden nooks behind CUT bushes (b), ROCK SMASH rocks (k) and STRENGTH boulders (o) ----------------
+  // Each is carved into a clump of trees: the item sits inside, the obstacle blocks the only way in.
+  const nook = (id, [gx, gy, ch], [ix, iy], item, n = 1) => {
+    const m = W[id];
+    m.grid[gy][gx] = ch; m.grid[iy][ix] = ".";
+    (m.items = m.items || []).push({ id: `nook_${id}_${ix}_${iy}`, x: ix, y: iy, item, n, behind: ch });
+  };
+  nook("route1", [4, 17, "b"], [4, 16], "great_ball", 2);
+  nook("route2", [17, 5, "b"], [17, 4], "berry_wood");
+  nook("route3", [16, 17, "k"], [16, 16], "level_treat");
+  nook("route4", [20, 5, "o"], [20, 4], "exp_candy");
+  nook("route5", [15, 27, "o"], [15, 26], "berry_dark");
+  nook("route6", [16, 5, "k"], [16, 4], "elixir", 2);
+  nook("route7", [14, 21, "o"], [14, 20], "exp_candy");
+  nook("route8", [29, 6, "b"], [29, 5], "level_treat", 2);
+
   window.WORLD = { maps: W, BUILDINGS };
 })();

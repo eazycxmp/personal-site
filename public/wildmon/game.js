@@ -613,6 +613,11 @@ function exitTile(m, e, i) {
 
 function loadMap(id, x, y, dir) {
   const m = MAPS[id], prevId = world.id;
+  for (const n of ["1", "2"]) if (S.flags[`sw_${id}_${n}`]) pressSwitch(m, n);
+  for (const k of Object.keys(S.flags)) { // bushes cut, rocks smashed and boulders moved stay that way
+    const f = k.match(/^field_(.+)_(\d+)_(\d+)$/);
+    if (f && f[1] === id && m.grid[+f[3]]) m.grid[+f[3]][+f[2]] = ".";
+  }
   world.map = m; world.id = id;
   S.map = id;
   const p = world.player;
@@ -661,7 +666,7 @@ function heightAt(x, y) {
 }
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
-  if (t === null || "T~FWC".includes(t)) return true;
+  if (t === null || "T~FWCbkoRHPgj".includes(t)) return true;
   if (world.solid.has(x + "," + y)) return true;
   if (npcAt(x, y)) return true;
   if (!ignorePlayer && world.player.x === x && world.player.y === y) return true;
@@ -690,7 +695,7 @@ function placePlayer(x, y, dir) {
   const p = world.player;
   p.x = x; p.y = y; p.px = x + 0.5; p.pz = y + 0.5;
   p.dir = dir; p.angle = ANGLE[dir]; p.speed = 0;
-  p.mount = null; p.surfing = false; p.alt = 0;
+  p.mount = null; p.surfing = false; p.alt = 0; p.slide = null;
 }
 
 // ---------------------------------------------------------------- riding: Surf and Fly
@@ -750,6 +755,31 @@ async function trySurf(tx, ty) {
   const x0 = p.px, z0 = p.pz;
   await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
   p.x = tx; p.y = ty;
+}
+// Moves used outside battle: face the obstacle and press Z. Each needs a badge and a monster of the right type.
+const FIELD = {
+  b: { move: "CUT", badge: "Rock Badge", types: ["wood"], what: "A thorny bush blocks the way.", done: "cut the bush down" },
+  k: { move: "ROCK SMASH", badge: "Volt Badge", types: ["earth", "steel"], what: "A cracked boulder blocks the way.", done: "smashed the rock to bits" },
+  o: { move: "STRENGTH", badge: "Shade Badge", types: ["earth", "heroic", "normal"], what: "A huge boulder blocks the way.", done: "shoved the boulder aside" },
+};
+async function fieldAction(x, y) {
+  const f = FIELD[tileAt(x, y)];
+  const mon = S.party.find((m) => m.hp > 0 && f.types.some((t) => D.monsters[m.slug].types.includes(t)));
+  if (!S.badges.includes(f.badge) || !mon) {
+    await say(`${f.what} A ${f.types.join(" or ").toUpperCase()} monster could use ${f.move} here, once you have the ${f.badge.toUpperCase()}.`);
+    return;
+  }
+  if (!(await yesNo(`${f.what} Use ${f.move}?`))) return;
+  await say(`${monName(mon)} used ${f.move}! It ${f.done}!`);
+  world.map.grid[y][x] = ".";
+  S.flags[`field_${world.id}_${x}_${y}`] = true;
+  World3D.build(world.map, BUILDINGS); World3D.snapYaw(world.player.angle);
+  save();
+}
+// Gym switches: stepping on 1 opens every g gate, 2 every j gate, for good. Pressed switches show as y.
+function pressSwitch(m, n) {
+  const gate = n === "1" ? "g" : "j";
+  for (const row of m.grid) for (let x = 0; x < row.length; x++) { if (row[x] === gate) row[x] = "."; else if (row[x] === n) row[x] = "y"; }
 }
 const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
 // every gym badge in order, with the monster shown for it on the trainer card
@@ -888,6 +918,11 @@ function movePlayer(dx, dz) {
   const tx = Math.floor(p.px), ty = Math.floor(p.pz);
   if (tx !== p.x || ty !== p.y) {
     p.x = tx; p.y = ty;
+    if (!p.slide && tileAt(tx, ty) === "I") { // slippery floor: carry on straight until something stops you
+      p.slide = Math.abs(dx) > Math.abs(dz) ? [Math.sign(dx), 0] : [0, Math.sign(dz)];
+      if (p.slide[0]) p.pz = ty + 0.5; else p.px = tx + 0.5;
+      p.angle = Math.atan2(-p.slide[0], -p.slide[1]); p.speed = 0;
+    }
     if (p.surfing && tileAt(tx, ty) !== "~") {
       // hop fully onto the shore: stopping at its edge would leave you overlapping water you can no longer cross
       p.surfing = false; p.mount = null; p.speed = 0;
@@ -918,7 +953,7 @@ async function faceDir(dir) {
 // is a tile on another map solid? (tiles, building footprints, NPCs, signs)
 function blockedAt(id, x, y) {
   const m = MAPS[id];
-  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWC".includes(m.grid[y][x])) return true;
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgj".includes(m.grid[y][x])) return true;
   for (const b of m.buildings || []) { const B = BUILDINGS[b.type]; if (x >= b.x && x < b.x + B.tw && y >= b.y && y < b.y + B.th) return true; }
   return (m.npcs || []).some((n) => n.x === x && n.y === y) || (m.signs || []).some((s2) => s2.x === x && s2.y === y);
 }
@@ -937,6 +972,14 @@ function crossExit(e, i) {
 function stepEvent() {
   const p = world.player, m = world.map;
   if (m.interior && tileAt(p.x, p.y) === "X") return () => warp(m.out.map, m.out.x, m.out.y + (blockedAt(m.out.map, m.out.x, m.out.y + 1) ? 0 : 1), "down");
+  const sw = m.interior && tileAt(p.x, p.y);
+  if (sw === "1" || sw === "2") return async () => {
+    S.flags[`sw_${world.id}_${sw}`] = true;
+    pressSwitch(m, sw);
+    World3D.build(m, BUILDINGS); World3D.snapYaw(p.angle);
+    await say("*CLICK* You stepped on a switch. Somewhere, a gate swung open!");
+    save();
+  };
   const door = world.doors.find((b) => b.door.x === p.x && b.door.y === p.y);
   if (door && door.to) {
     const inn = MAPS[door.to];
@@ -1102,6 +1145,7 @@ async function interact() {
   const [dx, dy] = DIRS[p.dir];
   let x = p.x + dx, y = p.y + dy;
   if (tileAt(x, y) === "~" && !p.surfing) { await waterAction(x, y); return; }
+  if (FIELD[tileAt(x, y)]) { await fieldAction(x, y); return; }
   if (tileAt(x, y) === "C") { x += dx; y += dy; }
   const n = npcAt(x, y);
   if (n) {
@@ -2496,6 +2540,7 @@ function minimapCanvas() {
 }
 function drawMinimap() {
   const m = world.map, p = world.player;
+  if (m.dark) return; // the dark gym's maze would be no puzzle with a map of it
   const s = Math.min(64 / m.w, 50 / m.h), w = Math.round(m.w * s), h = Math.round(m.h * s);
   const x0 = VW - w - 4, y0 = 4;
   ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
@@ -2575,6 +2620,12 @@ const worldScene = {
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
+    if (p.slide) { // sliding: no steering until you stop
+      const x0 = p.px, z0 = p.pz, n = 3;
+      for (let i = 0; i < n && !world.busy; i++) movePlayer(p.slide[0] * 6 * dt / n, p.slide[1] * 6 * dt / n);
+      if ((p.px === x0 && p.pz === z0) || tileAt(p.x, p.y) !== "I") { p.slide = null; p.px = p.x + 0.5; p.pz = p.y + 0.5; }
+      return;
+    }
     const turn = (held.left ? 1 : 0) - (held.right ? 1 : 0);
     this.turnVel += (turn * TURN_SPEED - this.turnVel) * Math.min(1, dt * 12);
     p.angle += this.turnVel * dt;
