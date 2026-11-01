@@ -140,6 +140,22 @@ slide across, and the Prime Gym a hall of dragon statues with two sealed gates. 
 `tools/validate_world.js` solves every gym (walking, sliding and switches) and checks the leader and every gym
 trainer can be reached, and that each nook item needs its field move.
 
+**Elite Four:** the Champion's Hall is four Elite chambers in a row (Glacia: Frost, Lumina: Psychic, Nox:
+Dark/Venom, Vance: Steel/Heroic), then Champion Aurora. Each Elite stands in the doorway to the next chamber
+and steps aside once beaten; no healing between fights, only your items.
+
+**Weather:** afternoon rain (13:00-17:00) on Route 2 and at Tide Harbor, snow on Frostridge Pass and the Frost
+Sea, falling ash on the Ashfall Trail. Rain and ash grey the sky; the clock shows RAIN / SNOW / ASH; a banner
+says when rain starts and stops. Some monsters only show up in that weather (the Dex marks them).
+
+**Day Care and eggs:** in Ember City. A monster left there gains a level every 150 steps you walk (never past
+your strongest monster; $100 a level). Every 400 steps it also leaves an EGG of its species' first form
+(carry up to 3); eggs hatch after 250 more steps at Lv 5, with double the shiny odds.
+
+**Region map:** MAP in the menu shows every town, route and side area. Browse them to see each one's name and
+how many of its wild monsters you've caught; a gold star marks an area you've caught everything in. Fly and
+Teleport show the same map with the highlighted town.
+
 **Move cards:** when a monster wants to learn a move, and when you highlight a move in battle, a card
 shows its type, MELEE or RANGED (which stats it pits: MELEE vs ARMOUR, RANGED vs DODGE), power, the real
 chance it hits for your side, PP, its burn/poison chance (burned or poisoned foes lose 1/8 HP a turn),

@@ -396,6 +396,7 @@ window.World3D = (function () {
     house: { key: "suburban/building-type-a", extras: [] },
     house2: { key: "suburban/building-type-c", extras: [] },
     lab: { key: "commercial/building-c", extras: [["suburban/planter", -0.4], ["suburban/planter", 0.4]] },
+    tower: { key: "commercial/building-m", extras: [["town/banner-red", -0.3], ["town/banner-red", 0.3]] },
     hall: { key: "commercial/building-skyscraper-e", extras: [["town/pillar-stone", -0.36], ["town/pillar-stone", 0.36], ["town/banner-red", -0.2], ["town/banner-red", 0.2]] },
   };
   // fitted into the tile footprint, front facing +Z (south), base on the ground
@@ -523,6 +524,44 @@ window.World3D = (function () {
     sun.color.copy(dayBase.sunCol).lerp(MOON, 1 - k).lerp(DUSK_SKY, dusk * 0.5);
     stars.position.set(p.px, 0, p.pz);
     stars.material.opacity = Math.max(0, (0.6 - k) / 0.6);
+    const wx = lastState.weather; // rain and ash dull the sky and close the fog in
+    if (wx === "rain" || wx === "ash") {
+      const grey = new THREE.Color(wx === "rain" ? 0x5a6670 : 0x7a5a48);
+      scene.background.lerp(grey, 0.55); if (scene.fog) { scene.fog.color.copy(scene.background); scene.fog.far = 26; }
+      hemi.intensity *= 0.75; sun.intensity *= 0.55;
+    } else if (scene.fog && !dayBase.cave && scene.fog.far === 26) scene.fog.far = 38;
+  }
+  // Weather: snow and ash drift down as flakes, rain falls as streaks, all in a box that follows you.
+  let weatherFx = null;
+  function updateWeather(kind, p, dt) {
+    if (weatherFx && weatherFx.kind !== kind) { scene.remove(weatherFx.obj); weatherFx.obj.geometry.dispose(); weatherFx.obj.material.map.dispose(); weatherFx = null; }
+    if (!kind) return;
+    if (!weatherFx) {
+      const rain = kind === "rain", n = rain ? 1100 : 800, pos = new Float32Array(n * 3);
+      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      const drops = [];
+      for (let i = 0; i < n; i++) drops.push([(Math.random() - 0.5) * 24, Math.random() * 10, (Math.random() - 0.5) * 24, Math.random() * 6.28]);
+      // each particle is a small sprite: a thin falling streak for rain, a soft round flake for snow and ash
+      const c = document.createElement("canvas"); c.width = c.height = 32;
+      const g = c.getContext("2d");
+      if (rain) { const gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, "rgba(200,220,245,0)"); gr.addColorStop(1, "rgba(200,220,245,0.95)"); g.fillStyle = gr; g.fillRect(14, 0, 3, 32); }
+      else { const gr = g.createRadialGradient(16, 16, 1, 16, 16, 14); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); }
+      const tex = new THREE.CanvasTexture(c);
+      const obj = new THREE.Points(geo, new THREE.PointsMaterial({ map: tex, color: kind === "ash" ? 0xd8cfc4 : 0xffffff, size: rain ? 0.55 : kind === "snow" ? 0.22 : 0.2, transparent: true, depthWrite: false, opacity: rain ? 0.8 : 0.95 }));
+      obj.frustumCulled = false;
+      scene.add(obj);
+      weatherFx = { kind, obj, drops, pos, t: 0 };
+    }
+    const w = weatherFx, rain = kind === "rain", fall = rain ? 16 : kind === "snow" ? 1.1 : 0.7;
+    w.t += dt;
+    w.obj.position.set(p.px, 0, p.pz);
+    w.drops.forEach((d, i) => {
+      d[1] -= fall * dt;
+      if (d[1] < 0) { d[1] += 10; d[0] = (Math.random() - 0.5) * 24; d[2] = (Math.random() - 0.5) * 24; }
+      const sway = rain ? 0 : Math.sin(w.t * 1.3 + d[3]) * 0.35;
+      w.pos.set([d[0] + sway, d[1], d[2] + (rain ? 0 : Math.cos(w.t + d[3]) * 0.2)], i * 3);
+    });
+    w.obj.geometry.attributes.position.needsUpdate = true;
   }
   function marker(x, zz, color) {
     const ring = own(new THREE.Mesh(new THREE.RingGeometry(0.28, 0.42, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false })));
@@ -532,7 +571,7 @@ window.World3D = (function () {
   }
 
   function buildingModel(b, B) {
-    const spec = BMODEL[b.type];
+    const spec = BMODEL[b.type] || BMODEL.house; // an unknown type still gets a building, never an error
     const g = new THREE.Group();
     if (!models[spec.key]) return g;
     const s = size(spec.key), box = models[spec.key].box;
@@ -580,7 +619,9 @@ window.World3D = (function () {
     return t;
   }
   const INTERIOR_PROPS = { // gyms are puzzle rooms now; their maze pieces are their decoration
-    hall: [["town/pillar-stone", 2, 5], ["town/pillar-stone", 10, 5], ["town/pillar-stone", 2, 12], ["town/pillar-stone", 10, 12], ["town/banner-red", 4, 3.4], ["town/banner-red", 8, 3.4]],
+    // lanterns in the corners of each Elite chamber, banners behind the Champion
+    hall: [["town/banner-red", 4, 3.4], ["town/banner-red", 10, 3.4],
+      ...[8, 14, 20, 26].flatMap((y) => [["town/lantern", 0.7, y + 0.3], ["town/lantern", 13.3, y + 0.3]])],
     lab: [["suburban/planter", 1, 7], ["suburban/planter", 11, 7]],
     home: [["suburban/planter", 1, 3.6], ["nature/plant_bush", 7, 3.6]],
   };
@@ -1125,6 +1166,7 @@ window.World3D = (function () {
     camera.lookAt(lookAt);
     lastState = state;
     applyDaylight(state.daylight ?? 1, state.hour ?? 12, p);
+    updateWeather(state.interior ? null : state.weather, p, dt);
     updatePickups(state.pickups || [], now);
     sun.position.set(p.px + 8, 14, p.pz + 5);
     sun.target.position.set(p.px, 0, p.pz);

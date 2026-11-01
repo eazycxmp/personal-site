@@ -11,6 +11,7 @@ const ROW = { down: 0, left: 1, right: 2, up: 3 };
 const ITEMS = {
   potion: { name: "Potion", price: 200, heal: 30, icon: "potion", desc: "Restores 30 HP." },
   super_potion: { name: "Super Potion", price: 600, heal: 80, icon: "super_potion", desc: "Restores 80 HP." },
+  egg: { name: "Egg", key: true, icon: "ancient_egg", desc: "From the Day Care. It hatches as you walk." },
   revive: { name: "Revive", price: 1000, revive: true, icon: "revive", desc: "Revives a fainted monster." },
   tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild monsters." },
   great_ball: { name: "Great Ball", price: 600, ball: 1.8, icon: "great_ball", desc: "A better chance to catch." },
@@ -624,6 +625,10 @@ function loadMap(id, x, y, dir) {
   placePlayer(x, y, dir || p.dir);
   world.npcs = (m.npcs || []).filter((n) => !(n.rival && S.flags[n.id])).map((n, i) => {
     const o = { ...n, def: n, key: id + "_" + i, fx: n.x * T, fy: n.y * T, defeated: !!(n.id && S.flags[n.id]) };
+    if (o.defeated && n.aside) { // beaten Elites stand clear of their doorway
+      for (const d of n.aside) { o.x += DIRS[d][0]; o.y += DIRS[d][1]; }
+      o.fx = o.x * T; o.fy = o.y * T; o.dir = "left";
+    }
     if (n.rival) { const rl = rivalLook(); o.name = rivalName(); o.model = MODEL_FOR.rival[rl.gender]; o.outfit = rl.color; }
     return o;
   });
@@ -781,6 +786,69 @@ function pressSwitch(m, n) {
   const gate = n === "1" ? "g" : "j";
   for (const row of m.grid) for (let x = 0; x < row.length; x++) { if (row[x] === gate) row[x] = "."; else if (row[x] === n) row[x] = "y"; }
 }
+// ---------------------------------------------------------------- region map
+// Where each area sits on the map panel (towns, routes, and side areas), and how they join up.
+const REGION = {
+  sprout: [14, 140, "town"], route1: [14, 124], ember: [14, 108, "town"], route2: [34, 108], tide: [54, 108, "town"],
+  frostsea: [90, 112, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
+  cave: [34, 60, "side"], shade: [14, 76, "town"], route5: [14, 60], verdance: [14, 44, "town"], route6: [34, 44],
+  cinder: [54, 44, "town"], route7: [54, 28], ironhold: [54, 12, "town"], route8: [78, 12], prime: [102, 12, "town"],
+};
+const REGION_LINKS = [["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
+  "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea"], ["route3", "hollow"], ["route4", "cave"]];
+// the outdoor area you're in (indoors counts as the town or route outside)
+function regionHere() { let id = world.id; for (let i = 0; i < 4 && MAPS[id] && MAPS[id].interior && MAPS[id].out; i++) id = MAPS[id].out.map; return id; }
+// species found in an area, and how many of them you've caught
+function areaDex(id) {
+  const W = whereFound(), all = Object.keys(D.monsters).filter((s2) => W[s2] && W[s2].maps.includes(id));
+  return { all, caught: all.filter((s2) => S.caught[s2]).length };
+}
+function drawRegion(x0, y0, sel) {
+  box(x0, y0, 120, 156, "#d8e8c8");
+  const at = (id) => [x0 + 4 + REGION[id][0], y0 + 2 + REGION[id][1]];
+  ctx.strokeStyle = "#8a9a70"; ctx.lineWidth = 2;
+  for (const chain of REGION_LINKS) {
+    ctx.beginPath(); chain.forEach((id, i) => { const [x, y] = at(id); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  }
+  const here = regionHere();
+  for (const [id, [, , kind]] of Object.entries(REGION)) {
+    const [x, y] = at(id), seen = !!S.flags["visited_" + id], d = areaDex(id);
+    ctx.fillStyle = !seen ? "#a8b098" : kind === "town" ? "#d04830" : kind === "side" ? "#3a70b0" : "#5a8a3a";
+    const r = kind === "town" ? 4 : 3;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    if (seen && d.all.length && d.caught === d.all.length) drawStar(x + 3, y - 8); // caught everything here
+    if (id === sel) { ctx.strokeStyle = (NOW * 3) % 1 < 0.6 ? "#ffffff" : "#303030"; ctx.lineWidth = 1; ctx.strokeRect(x - r - 2.5, y - r - 2.5, r * 2 + 5, r * 2 + 5); }
+    if (id === here && (NOW * 2) % 1 < 0.7) { ctx.fillStyle = "#ffe040"; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+// MAP from the menu: browse every area; see its name and how much of its Dex you've filled
+function regionMap() {
+  const ids = Object.keys(REGION);
+  return new Promise((res) => {
+    push({
+      opaque: true, i: Math.max(0, ids.indexOf(regionHere())),
+      update() {
+        if (consume("down") || consume("left")) this.i = (this.i + ids.length - 1) % ids.length;
+        if (consume("up") || consume("right")) this.i = (this.i + 1) % ids.length;
+        if (consume("a") || consume("b")) { pop(this); res(); }
+      },
+      draw() {
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        const id = ids[this.i], m = MAPS[id], seen = !!S.flags["visited_" + id], d = areaDex(id);
+        drawRegion(2, 2, id);
+        box(124, 2, 114, 156);
+        wrap(seen ? m.name.toUpperCase() : "???", 100).forEach((l, k) => text(l, 130, 10 + k * 11));
+        if (seen && m.theme && m.theme !== m.name) wrap(m.theme, 100).slice(0, 2).forEach((l, k) => text(l, 130, 34 + k * 10, "#606060", null));
+        if (d.all.length) {
+          text(`CAUGHT ${d.caught}/${d.all.length}`, 130, 60, d.caught === d.all.length ? "#a07000" : "#303030", null);
+          if (seen && d.caught === d.all.length) { drawStar(130, 72); text("ALL CAUGHT!", 138, 71, "#a07000", null); }
+        } else text("No wild ones", 130, 60, "#606060", null);
+        if (id === regionHere()) text("YOU ARE HERE", 130, 80, "#c04020", null);
+        text("< > browse", 130, 140, "#806040", null);
+      },
+    });
+  });
+}
 const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
 // every gym badge in order, with the monster shown for it on the trainer card
 const BADGES = [["Rock Badge", "selket"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
@@ -800,7 +868,8 @@ async function teleportMenu() {
   const m = rider("psychic");
   if (!m) { await say("You need a PSYCHIC-type monster in your party to teleport."); return; }
   const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
-  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { prompt: `${monName(m)} focuses its mind. Teleport where?`, x: 120, y: 4, w: 116 });
+  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { x: 120, y: 4, w: 116, // the map shows where each town is
+    extra: (k) => drawRegion(0, 0, towns[k]) });
   if (i < 0 || i === towns.length) return;
   const dest = towns[i];
   await say(`${monName(m)} used TELEPORT!`, { auto: 0.5 });
@@ -832,7 +901,8 @@ async function flyMenu() {
   if (!m) { await say("You need a SKY-type monster in your party to fly."); return; }
   if (world.map.interior) { await say("You can't fly indoors! Head outside first."); return; }
   const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
-  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { prompt: `Fly on ${monName(m)}. Where to?`, x: 120, y: 4, w: 116 });
+  const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { x: 120, y: 4, w: 116, // the map shows where each town is
+    extra: (k) => drawRegion(0, 0, towns[k]) });
   if (i < 0 || i === towns.length) return;
   const dest = towns[i];
   p.mount = mountKey(m); p.surfing = false; p.speed = 0;
@@ -934,7 +1004,10 @@ function movePlayer(dx, dz) {
       });
       return;
     }
-    const ev = stepEvent();
+    if (S.daycare) S.daycare.steps++;
+    for (const e of S.eggs || []) e.steps++;
+    const hatch = (S.eggs || []).find((e) => e.steps >= EGG_STEPS);
+    const ev = hatch ? () => hatchDayCareEgg(hatch) : stepEvent();
     if (ev) { p.speed = 0; runScript(ev); }
   }
 }
@@ -989,7 +1062,7 @@ function stepEvent() {
   if (tr) return () => trainerEncounter(tr, true);
   const here = tileAt(p.x, p.y), land = here === "," || (m.cave && (here === "." || here === "="));
   const table = p.surfing && here === "~" ? m.water
-    : land ? (isNight() && m.night ? m.encounters.concat(m.night) : m.encounters) : null;
+    : land ? m.encounters.concat(isNight() && m.night ? m.night : [], weatherNow() && m.weather.mons ? m.weather.mons : []) : null;
   if (table && S.lure > 0 && !m.interior) S.lure--;
   const lured = S.lure > 0 ? 1.6 : 1;
   if (table && table.length && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1)) * lured) {
@@ -1076,6 +1149,12 @@ async function trainerEncounter(n, spotted) {
     n.defeated = true;
     S.flags[n.id] = true;
     await say(`${n.name}: ${n.lose}`);
+    if (n.aside) { // back to the doorway (they walk up to you when they spot you), then out of the way
+      while (n.y !== n.def.y) await walkNpc(n, n.y > n.def.y ? "up" : "down");
+      while (n.x !== n.def.x) await walkNpc(n, n.x > n.def.x ? "left" : "right");
+      for (const d of n.aside) await walkNpc(n, d);
+      n.dir = "left";
+    }
     if (n.badge && !S.badges.includes(n.badge)) {
       S.badges.push(n.badge);
       await say(`You received the ${n.badge.toUpperCase()}!`);
@@ -1203,6 +1282,7 @@ async function talkTo(n) {
   if (n.role === "tower") return towerHost(n);
   if (n.role === "towershop") return towerShop(n);
   if (n.role === "shop") return shop();
+  if (n.role === "daycare") return dayCare(n);
   if (n.role === "box") return boxMenu();
   if (n.role === "prof") return professor(n);
   for (const line of n.talk || []) await say(`${n.name}: ${line}`);
@@ -1311,6 +1391,75 @@ async function questTalk(n) {
     await say(`${who}: My husband played a wooden flute every night, before the town emptied.`);
     return say(`${who}: It must still be in our old house, the one in the middle of town. Would you look for it?`);
   }
+}
+// ---------------------------------------------------------------- Day Care and eggs
+// A monster left at the Day Care (Ember City) gains a level every 150 steps you walk (never past your strongest
+// monster), for $100 a level. Every 400 steps it also leaves an EGG of its species' first form (carry up to 3),
+// which hatches 250 steps later at Lv 5, with double the usual shiny odds.
+const DC_STEPS_PER_LV = 150, DC_STEPS_PER_EGG = 400, EGG_STEPS = 250;
+function baseForm(slug) {
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const [s2, d] of Object.entries(D.monsters)) if (d.evo && d.evo[1] === slug) { slug = s2; changed = true; break; }
+  }
+  return slug;
+}
+function dayCareGain() {
+  const dc = S.daycare;
+  return dc ? Math.min(Math.floor(dc.steps / DC_STEPS_PER_LV), Math.max(0, topLevel() - dc.mon.level), 100 - dc.mon.level) : 0;
+}
+function syncEggs() { S.eggs = S.eggs || []; if (S.eggs.length) S.bag.egg = S.eggs.length; else delete S.bag.egg; }
+async function dayCare(n) {
+  const who = n.name;
+  const dc = S.daycare;
+  if (dc) {
+    const eggsDue = Math.floor(dc.steps / DC_STEPS_PER_EGG) - (dc.eggs || 0);
+    S.eggs = S.eggs || [];
+    if (eggsDue > 0 && S.eggs.length < 3) {
+      dc.eggs = (dc.eggs || 0) + 1;
+      S.eggs.push({ slug: baseForm(dc.mon.slug), steps: 0 }); syncEggs();
+      await say(`${who}: Oh, there you are! We found an EGG with your ${monName(dc.mon)}. Take good care of it!`);
+      await say("You received an EGG! It will hatch as you walk.");
+    }
+    const gain = dayCareGain(), cost = gain * 100;
+    await say(`${who}: Your ${monName(dc.mon)} ${gain ? `has grown ${gain} level${gain > 1 ? "s" : ""}` : "is doing well"}.`);
+    if (!(await yesNo(`Take ${monName(dc.mon)} back? ${cost ? `It's $${cost}.` : "No charge."}`))) return;
+    if (S.money < cost) { await say(`${who}: You'll need $${cost}, dear.`); return; }
+    if (S.party.length >= 6) { await say(`${who}: Your party is full! Make some room first.`); return; }
+    S.money -= cost;
+    const m = dc.mon;
+    for (let i = 0; i < gain; i++) { // level up, learning new moves in place of the oldest
+      m.level++;
+      for (const [lv, id] of D.monsters[m.slug].moves) {
+        if (lv !== m.level || m.moves.some((x) => x.id === id)) continue;
+        if (m.moves.length >= 4) m.moves.shift();
+        m.moves.push({ id, pp: D.moves[id].pp });
+      }
+    }
+    m.exp = expFor(m.level); calcStats(m); healMon(m);
+    S.party.push(m); S.daycare = null;
+    await say(`You got ${monName(m)} back${gain ? `, now Lv ${m.level}` : ""}!`);
+    save(); return;
+  }
+  await say(`${who}: Welcome to the DAY CARE! Leave a monster with me and it grows as you walk. Sometimes we even find an EGG!`);
+  if (S.party.length < 2) { await say(`${who}: You'll need at least two monsters, dear. You can't travel alone!`); return; }
+  if (!(await yesNo("Leave a monster at the Day Care?"))) return;
+  const i = await partyScreen("pick", "Leave which monster?");
+  if (i < 0) return;
+  const [m] = S.party.splice(i, 1);
+  S.daycare = { mon: m, steps: 0, eggs: 0 };
+  await say(`${who}: I'll take good care of ${monName(m)}. Come back any time!`);
+  save();
+}
+async function hatchDayCareEgg(e) {
+  S.eggs.splice(S.eggs.indexOf(e), 1); syncEggs();
+  await say("Oh? Your EGG is moving...");
+  const m = makeMon(e.slug, 5);
+  if (rollShiny() || rollShiny()) m.shiny = true;
+  const where = addMon(m);
+  if (m.shiny) { S.shinyCaught = S.shinyCaught || {}; S.shinyCaught[m.slug] = true; }
+  await say(`It hatched into ${m.shiny ? "a SHINY " : ""}${monName(m).toUpperCase()}!${where === "box" ? " (Sent to the box.)" : ""}`);
+  save();
 }
 async function hatchEgg() {
   delete S.bag.ancient_egg; S.flags.q_egg_done = true;
@@ -1591,7 +1740,7 @@ function whereFound() {
   WHERE = {};
   for (const [id, m] of Object.entries(MAPS)) {
     const label = m.theme || m.name;
-    for (const [tbl, tag] of [[m.encounters, ""], [m.water, " (SURF)"], [m.night, " (NIGHT)"]]) for (const [slug, lo, hi] of tbl || []) {
+    for (const [tbl, tag] of [[m.encounters, ""], [m.water, " (SURF)"], [m.night, " (NIGHT)"], [m.weather && m.weather.mons, m.weather ? ` (${m.weather.kind.toUpperCase()})` : ""]]) for (const [slug, lo, hi] of tbl || []) {
       if (!D.monsters[slug]) continue;
       for (let lv = lo; lv <= hi; lv++) {
         const f = wildForm(slug, lv), list = (WHERE[f] = WHERE[f] || { areas: [], maps: [] });
@@ -1835,7 +1984,7 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "DEX", "BAG", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    const opts = ["PARTY", "DEX", "BAG", "MAP", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
     if (rider("psychic") && canTeleport()) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
@@ -1843,6 +1992,7 @@ async function startMenu() {
     if (pick === "TELEPORT") { await teleportMenu(); return; }
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
     else if (pick === "DEX") await monsterLog();
+    else if (pick === "MAP") await regionMap();
     else if (pick === "BAG") await useItemOutside();
     else if (pick === "QUESTS") await questLog();
     else if (pick === "TRAINER") await trainerCard();
@@ -2538,6 +2688,14 @@ function minimapCanvas() {
   mmCache = { id: world.id, c };
   return mmCache;
 }
+// the weather on a map right now: rain at certain hours, or snow/ash all the time (null indoors and on clear maps)
+function weatherNow(m = world.map) {
+  const w = m && m.weather;
+  if (!w || m.interior) return null;
+  if (w.from == null) return w.kind;
+  const h = hourNow();
+  return h >= w.from && h < w.to ? w.kind : null;
+}
 function drawMinimap() {
   const m = world.map, p = world.player;
   if (m.dark) return; // the dark gym's maze would be no puzzle with a map of it
@@ -2546,7 +2704,7 @@ function drawMinimap() {
   ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
   ctx.drawImage(minimapCanvas().c, x0, y0, w, h);
   if (!m.interior && !m.cave) {
-    const ct = clockText(), cw = textW(ct) + 8;
+    const wx = weatherNow(), ct = wx ? clockText().replace(/^\S+/, wx.toUpperCase()) : clockText(), cw = textW(ct) + 8;
     ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - cw, y0 - 2, cw, 12);
     text(ct, x0 - 2 - cw, y0, isNight() ? "#b8c8ff" : "#fff0a0", null);
   }
@@ -2605,13 +2763,14 @@ const WALK_SPEED = 3.2, RUN_SPEED = 5.6, TURN_SPEED = 2.9;
 const worldScene = {
   opaque: true, world3d: true, turnVel: 0,
   update(dt) {
-    const wasNight = isNight();
+    const wasNight = isNight(), wasRain = weatherNow();
     S.time += dt;
     gateCooldown -= dt;
     if (wasNight !== isNight() && !world.busy) {
       music(areaMusic());
       if (!world.map.interior) this.banner = { name: isNight() ? "Night has fallen..." : "The sun is rising!", t: NOW };
     }
+    if (wasRain !== weatherNow() && !world.busy) this.banner = { name: weatherNow() ? "It started to rain..." : "The rain stopped.", t: NOW };
     const p = world.player;
     for (const n of world.npcs) if (!n.walking) { n.fx = n.x * T; n.fy = n.y * T; }
     if (world.busy) { p.speed *= Math.max(0, 1 - dt * 12); this.turnVel = 0; return; }
@@ -2664,7 +2823,7 @@ const worldScene = {
     const p3 = world.player; // ease up and down the glacier steps
     p3.ground = (p3.ground || 0) + (heightAt(p3.x, p3.y) - (p3.ground || 0)) * Math.min(1, dt * 10);
     World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid,
-      daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash,
+      daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash, weather: weatherNow(),
       pickups: (world.pickups || []).map((it) => ({ id: it.id, x: it.x, y: it.y, img: IMG["item_" + ITEMS[it.item].icon] })), look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
   },
 };

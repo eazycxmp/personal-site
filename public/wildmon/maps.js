@@ -101,7 +101,8 @@
       { type: "house2", x: 20, y: 15, to: "ember_house2" },
     ],
     gates: [{ x: 27, y: 11, w: 1, h: 2, badges: 1, block: "e", text: "GUARD: The road east is rough.\nCome back with the Rock Badge!" }],
-    signs: [{ x: 14, y: 13, text: "EMBER CITY\nGym Leader: BRACK\n\"Solid as bedrock.\"" }],
+    signs: [{ x: 14, y: 13, text: "EMBER CITY\nGym Leader: BRACK\n\"Solid as bedrock.\"" },
+      { x: 9, y: 18, text: "DAY CARE\nWe raise your monsters\nwhile you walk!" }],
     npcs: [
       { sprite: "soldier", x: 27, y: 10, dir: "down", name: "Guard",
         talk: ["Only trainers with the Rock Badge\nmay pass east."] },
@@ -496,8 +497,9 @@
   });
 
   W.ember_center = center("Ember"); W.ember_mart = mart("Ember");
-  W.ember_house = house("House", { sprite: "miner", x: 3, y: 4, dir: "down", name: "Miner",
-    talk: ["Hold SHIFT to run.", "Faster feet, faster badges!"] });
+  W.ember_house = house("Day Care", { sprite: "miner", x: 2, y: 4, dir: "down", name: "Miner",
+    talk: ["Hold SHIFT to run.", "My aunt runs the DAY CARE. Leave a monster with her and it grows while you walk!"] });
+  W.ember_house.npcs.push({ sprite: "granny", x: 5, y: 3, dir: "down", name: "Day Care Lady", role: "daycare" });
   W.ember_house2 = house("House", { sprite: "fashionista", x: 4, y: 5, dir: "left", name: "Fashionista",
     talk: ["Monsters evolve when they reach\ncertain levels.", "Keep battling and you'll see!"] });
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
@@ -589,19 +591,39 @@
       intro: "I am Morrow. In the dark, all\nmonsters are equal... except mine.",
       lose: "The light wins today.\nTake the SHADE BADGE.", badge: "Shade Badge" }),
   ], "mystery", "darkboss");
+  // The Champion's Hall: four Elite chambers in a row, then the Champion. Each Elite stands in the doorway to the
+  // next chamber and steps aside once beaten (aside: the steps they take). No healing between, only your items.
+  const hallRows = [
+    "..............", "..............", "..............", "..............",
+    "PPPPPP.PPPPPPP", "..............", "..............", "..............", "..............", "..............",
+    "PPPPPP.PPPPPPP", "..............", "..............", "..............", "..............", "..............",
+    "PPPPPP.PPPPPPP", "..............", "..............", "..............", "..............", "..............",
+    "PPPPPP.PPPPPPP", "..............", "..............", "..............",
+  ];
+  const elite = (o) => trainer(Object.assign({ outfit: "royal", dir: "down", sight: 3, aside: ["up", "right"] }, o));
   W.hall = interior({
-    name: "Champion's Hall", w: 12, h: 16, music: "mystery", fight: "boss", wall: "blue", floor: "gray", gym: true,
-    rugs: [[4, 4], [4, 10]], ops: [["C", 0, 8, 5, 1], ["C", 6, 8, 6, 1]],
+    name: "Champion's Hall", w: 14, h: 30, music: "mystery", fight: "boss", wall: "blue", floor: "gray", gym: true,
     npcs: [
-      trainer({ id: "elite", outfit: "royal", sprite: "soldier", x: 4, y: 7, dir: "right", sight: 3, name: "Elite Vance",
-        team: [["saurchin", 50], ["jemuar", 51], ["deviraptor", 51], ["snokari", 50]],
-        intro: "None reach the Champion without\nbeating me first!", lose: "Go on. The Champion awaits." }),
-      trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
+      elite({ id: "elite1", sprite: "witch", x: 6, y: 25, name: "Elite Glacia",
+        team: [["eaglace", 48], ["lucifice", 48], ["seraphice", 49], ["snowrilla", 50]],
+        intro: "Welcome to the Elite Four. I am\nGlacia. Let my FROST monsters\nchill you to the bone!", lose: "Brr... Go on. Three more wait." }),
+      elite({ id: "elite2", sprite: "magician", x: 6, y: 19, name: "Elite Lumina",
+        team: [["angrito", 49], ["mystikapi", 50], ["apeoro", 50], ["statursus", 51]],
+        intro: "I am Lumina. My PSYCHIC monsters\nalready know how this ends.", lose: "I didn't foresee THAT. Pass." }),
+      elite({ id: "elite3", sprite: "goth", x: 6, y: 13, name: "Elite Nox",
+        team: [["bewhich", 50], ["dracune", 50], ["banvengeance", 51], ["loliferno", 51], ["hoarseshoo", 52]],
+        intro: "Nox. DARK and VENOM. Nobody\nleaves my chamber unhurt.", lose: "Hmph. The last Elite is no joke." }),
+      elite({ id: "elite", sprite: "knight", x: 6, y: 7, name: "Elite Vance",
+        team: [["saurchin", 51], ["jemuar", 52], ["deviraptor", 52], ["snokari", 51], ["brickhemoth", 53]],
+        intro: "I am Vance, last of the Elite\nFour. None reach the Champion\nwithout beating me first!", lose: "Go on. The Champion awaits." }),
+      trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 6, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
         team: [["drokoro", 52], ["pythonova", 52], ["demosnow", 53], ["novaquarius", 53], ["ziggurat", 54], ["$rival", 55]],
-        intro: "So you're the trainer with all\neight badges. I am Aurora,\nChampion of this land. Give me\neverything!",
+        intro: "So you beat the Elite Four. I am\nAurora, Champion of this land.\nGive me everything!",
         lose: "Magnificent! You are the new\nCHAMPION!" }),
     ],
   });
+  W.hall.grid = [...Array(3)].map(() => Array(14).fill("W")).concat(hallRows.map((r) => r.split("")), [Array(14).fill(".")]);
+  W.hall.grid[29][6] = W.hall.grid[29][7] = "X";
 
   for (const [id, town] of [["verdance", "Verdance"], ["cinder", "Cinder"], ["ironhold", "Ironhold"], ["prime", "Prime"]]) {
     W[id + "_center"] = center(town); W[id + "_mart"] = mart(town);
@@ -763,6 +785,15 @@
     ["strella", 2], ["gryfix", 2], ["aardart", 2], ["komoduel", 1], ["devidra", 1]]),
     null,
     lv(47, 51, [["mystikapi", 2], ["qetzlrokilus", 1]]));
+
+  // ---------------- Weather ----------------
+  // kind: rain / snow / ash. from-to: the in-game hours it happens (always, if left out). mons: weather-only monsters
+  // mixed into the grass while it lasts.
+  W.route2.weather = { kind: "rain", from: 13, to: 17, mons: [["fribbit", 10, 14, 2]] };
+  W.tide.weather = { kind: "rain", from: 13, to: 17, mons: [["tornicane", 15, 19, 2], ["galasces", 15, 19, 1]] };
+  W.route3.weather = { kind: "snow", mons: [["houndice", 17, 21, 2]] };
+  W.frostsea.weather = { kind: "snow" };
+  W.route6.weather = { kind: "ash", mons: [["eruptibus", 37, 41, 1]] };
 
   // ---------------- Gym puzzles ----------------
   // Each gym is a 14x18 room: 3 rows of wall, 14 rows of puzzle (y 3-16), the exit at the bottom (x 6-7).
