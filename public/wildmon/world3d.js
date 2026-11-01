@@ -128,11 +128,15 @@ window.World3D = (function () {
     };
   }
   // a recoloured copy of a model (snow-dusted pines, ashen trees); the original stays untouched
-  function tinted(key, hex, mix = 0.6) {
-    const k2 = key + "#" + hex.toString(16) + mix;
+  function tinted(key, hex, mix = 0.6, glow = 0) {
+    const k2 = key + "#" + hex.toString(16) + mix + (glow ? "g" + glow : "");
     if (!models[k2] && models[key]) {
       const scene2 = models[key].scene.clone(true), col = new THREE.Color(hex);
-      const tint = (mt) => { const c = mt.clone(); c.color.lerp(col, mix); return c; }; // blend part of the way to the tint
+      const tint = (mt) => { // blend part of the way to the tint; glow lifts it out of tree shade
+        const c = mt.clone(); c.color.lerp(col, mix);
+        if (glow && c.emissive) c.emissive.copy(col).multiplyScalar(glow);
+        return c;
+      };
       scene2.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(tint) : tint(o.material); });
       scene2.updateMatrixWorld(true);
       models[k2] = { scene: scene2, box: models[key].box };
@@ -313,8 +317,10 @@ window.World3D = (function () {
         const horiz = m.grid[y][x - 1] === "F" || m.grid[y][x + 1] === "F";
         const fs = size("nature/fence_simple");
         sc.add("nature/fence_simple", cx, cz, { rot: horiz ? 0 : Math.PI / 2, sx: 1 / fs.x, sy: 1.1, sz: 1.1 });
-      } else if (ch === "b") { // thorn bush (CUT): a dense, dark knot of bushes
-        for (let k = 0; k < 3; k++) sc.add(tinted("nature/plant_bushLarge", 0x2a5a2a, 0.5), x + 0.25 + R() * 0.5, y + 0.25 + R() * 0.5, { rot: R() * 6, scale: 1.5 + R() * 0.4 });
+      } else if (ch === "b") { // thorn bush (CUT): a rust-orange bramble with yellow blooms, so it stands out from the green trees
+        const bs = size("nature/plant_bushLarge"), bsc = Math.min(1.05 / bs.x, 1.05 / bs.z, 1.5 / bs.y);
+        sc.add(tinted("nature/plant_bushLarge", 0xff7a1a, 0.9, 0.35), cx, cz + 0.15, { rot: R() * 6, scale: bsc });
+        for (let k = 0; k < 5; k++) sc.add("nature/" + (k % 2 ? "flower_redA" : "flower_yellowA"), x + 0.1 + R() * 0.8, y + 0.1 + R() * 0.8, { rot: R() * 6, scale: 1.8 });
       } else if (ch === "k") { // cracked rock (ROCK SMASH): a brown, waist-high rock with rubble at its feet
         const ks = size("nature/rock_tallA");
         sc.add(tinted("nature/rock_tallA", 0x8a6a48, 0.55), cx, cz, { rot: R() * 6, scale: Math.min(1.0 / ks.x, 1.0 / ks.z, 0.9 / ks.y) });

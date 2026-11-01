@@ -614,6 +614,7 @@ function exitTile(m, e, i) {
 
 function loadMap(id, x, y, dir) {
   const m = MAPS[id], prevId = world.id;
+  world.hinted = new Set();
   for (const n of ["1", "2"]) if (S.flags[`sw_${id}_${n}`]) pressSwitch(m, n);
   for (const k of Object.keys(S.flags)) { // bushes cut, rocks smashed and boulders moved stay that way
     const f = k.match(/^field_(.+)_(\d+)_(\d+)$/);
@@ -771,7 +772,8 @@ async function fieldAction(x, y) {
   const f = FIELD[tileAt(x, y)];
   const mon = S.party.find((m) => m.hp > 0 && f.types.some((t) => D.monsters[m.slug].types.includes(t)));
   if (!S.badges.includes(f.badge) || !mon) {
-    await say(`${f.what} A ${f.types.join(" or ").toUpperCase()} monster could use ${f.move} here, once you have the ${f.badge.toUpperCase()}.`);
+    const need = [!S.badges.includes(f.badge) && `the ${f.badge.toUpperCase()}`, !mon && `a ${f.types.join(" or ").toUpperCase()} monster in your team`].filter(Boolean);
+    await say(`${f.what} It could be cleared with ${f.move}. You need ${need.join(" and ")}.`);
     return;
   }
   if (!(await yesNo(`${f.what} Use ${f.move}?`))) return;
@@ -780,6 +782,17 @@ async function fieldAction(x, y) {
   S.flags[`field_${world.id}_${x}_${y}`] = true;
   World3D.build(world.map, BUILDINGS); World3D.snapYaw(world.player.angle);
   save();
+}
+// Walking into a bush, cracked rock or boulder explains it (once per visit), so nobody has to guess to press Z.
+function bumpField(dx, dz) {
+  const p = world.player;
+  const tx = Math.floor(p.px + Math.sign(dx) * 0.6), ty = Math.floor(p.pz + Math.sign(dz) * 0.6);
+  if (!FIELD[tileAt(tx, ty)] || (tx === p.x && ty === p.y)) return;
+  world.hinted = world.hinted || new Set();
+  const key = world.id + "_" + tx + "_" + ty;
+  if (world.hinted.has(key)) return;
+  world.hinted.add(key); p.speed = 0;
+  runScript(() => fieldAction(tx, ty));
 }
 // Gym switches: stepping on 1 opens every g gate, 2 every j gate, for good. Pressed switches show as y.
 function pressSwitch(m, n) {
@@ -966,8 +979,11 @@ function freeAt(nx, nz, moveDir) {
 function movePlayer(dx, dz) {
   const p = world.player;
   if (dx && freeAt(p.px + dx, p.pz, dx > 0 ? "right" : "left")) p.px += dx;
-  if (dz && freeAt(p.px, p.pz + dz, dz > 0 ? "down" : "up")) p.pz += dz;
-  else if (dz < 0) {
+  else if (dx) bumpField(dx, 0);
+  const zFree = dz && freeAt(p.px, p.pz + dz, dz > 0 ? "down" : "up");
+  if (zFree) p.pz += dz;
+  else if (dz) bumpField(0, dz);
+  if (dz < 0 && !zFree) {
     // forgiving doors: bumping the building front near a door walks you in
     const d = world.doors.find((b) => b.to && p.y === b.door.y + 1 && Math.abs(p.px - (b.door.x + 0.5)) < 1.35);
     if (d) {
