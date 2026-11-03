@@ -1,5 +1,5 @@
 "use strict";
-// Wildmon: a monster-catching RPG built on Tuxemon's open art.
+// Pocemon: a monster-catching RPG built on Tuxemon's open art.
 const D = window.GAME_DATA;
 const MAPS = window.WORLD.maps;
 const BUILDINGS = window.WORLD.BUILDINGS;
@@ -1404,7 +1404,7 @@ async function boxMenu() {
   }
 }
 
-// Wildmon-Dex prizes from Prof. Oakley: [kinds caught, item, count, how he says it]
+// Pocedex prizes from Prof. Oakley: [kinds caught, item, count, how he says it]
 const DEX_REWARDS = [
   [10, "great_ball", 5, "5 GREAT BALLS"], [25, "sweet_sand", 3, "3 SWEET SAND"], [50, "lucky_bamboo", 1, "the LUCKY BAMBOO"],
   [75, "level_treat", 5, "5 LEVEL TREATS"], [100, "master_ball", 1, "a MASTER BALL"],
@@ -1622,7 +1622,7 @@ async function momTalk(n) {
     "Trainers on the routes will wait until you're a bit stronger, so train in the grass before you take them on.",
     "Use type matchups! Water beats Fire, Fire beats Wood, Wood beats Water and Earth... the little icons next to each name show their types.",
     "When your team is hurt, any Healing Center will patch them up for free. Or come home and I'll take care of them.",
-    "Fill your Wildmon-Dex! Professor Oakley gives out prizes as you catch more kinds.",
+    "Fill your Pocedex! Professor Oakley gives out prizes as you catch more kinds.",
     "And people say there's a ghost town west of Route 3, a pitch-dark cave north of Route 4, and a frozen sea east of Tide Harbor with a glacier you can climb. Be careful, OK?",
     "Oh, and your rival left in a hurry. I'm sure you'll run into them on the road!",
   ];
@@ -1823,7 +1823,7 @@ function whereFound() {
 }
 function hereList() { const W = whereFound(); return Object.keys(D.monsters).filter((s) => W[s] && W[s].maps.includes(world.id)); }
 
-// Lore page shared by the summary screen and the Wildmon-Dex.
+// Lore page shared by the summary screen and the Pocedex.
 function drawLore(slug, known = true, banner = null, shiny = false) {
   const d = D.monsters[slug];
   ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
@@ -1926,7 +1926,7 @@ function caughtInfo(m, first) {
   });
 }
 
-// Wildmon-Dex: every species in the game, with lore and where to find the ones you've seen.
+// Pocedex: every species in the game, with lore and where to find the ones you've seen.
 function monsterLog() {
   const all = Object.keys(D.monsters);
   return new Promise((res) => {
@@ -2374,7 +2374,7 @@ class Battle {
       if (this.e.shiny) { this.sparkle = { t: NOW, x: this.eX + 32, y: this.eY + 36 }; S.shinySeen = S.shinySeen || {}; S.shinySeen[this.e.slug] = true; }
       await this.msg(this.legendary ? `The legendary ${monName(this.e).toUpperCase()} appeared!` : `A wild ${monName(this.e)} appeared!`);
       if (this.e.shiny) await this.msg("Whoa! Its colors are different... it's a SHINY!");
-      if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Wildmon-Dex.`); }
+      if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Pocedex.`); }
     }
     const first = S.party.findIndex((m) => m.hp > 0);
     await tween(0.35, (k) => { this.plX = 20 - 110 * k; });
@@ -2913,9 +2913,9 @@ function titleScene(hasSave) {
         drawMon(showcase[k], "front", 88, 38 + Math.sin(NOW * 3) * 2);
         ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.fillRect(0, 6, 240, 30);
         ctx.font = "24px PS"; ctx.textBaseline = "top";
-        ctx.fillStyle = "#203010"; ctx.fillText("WILDMON", 39, 11);
-        ctx.fillStyle = "#f8d848"; ctx.fillText("WILDMON", 36, 8);
-        text("Art: Tuxemon + Kenney (CC)", 8, 150, "#d8e8c8", "#203010");
+        ctx.fillStyle = "#203010"; ctx.fillText("POCEMON", 39, 11);
+        ctx.fillStyle = "#f8d848"; ctx.fillText("POCEMON", 36, 8);
+        text("Art: Tuxemon project (CC)", 8, 150, "#d8e8c8", "#203010");
       },
     });
     const items = hasSave ? ["CONTINUE", "NEW GAME"] : ["NEW GAME"];

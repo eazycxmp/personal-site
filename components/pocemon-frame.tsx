@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/* Wildmon is a self-contained three.js page in /public/wildmon, framed like Skyward.
+/* Pocemon is a self-contained 2D canvas page in /public/pocemon, framed like Skyward.
    Its screen is 3:2 plus a help line, so the frame keeps roughly that shape. The ⛶ button asks the
    browser for real full screen. */
-export function WildmonFrame() {
+export function PocemonFrame() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(640);
 
@@ -29,8 +29,8 @@ export function WildmonFrame() {
     <div className="relative">
       <iframe
         ref={frameRef}
-        src="/wildmon/index.html"
-        title="Wildmon"
+        src="/pocemon/index.html"
+        title="Pocemon"
         allow="fullscreen; autoplay"
         allowFullScreen
         style={{ height }}

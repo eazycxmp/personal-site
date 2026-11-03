@@ -555,7 +555,7 @@
       trainer({ id: "hollow_t2", outfit: "occult", sprite: "magician", x: 21, y: 11, dir: "left", sight: 4, name: "Phantom Ike",
         team: [["uneye", 24], ["cackleen", 24], ["babysnitch", 25]], intro: "Boo-hoo-hoo! Nobody leaves Hollowmere!", lose: "Fine... go on. Mind the shrine." }),
       { sprite: "granny", x: 20, y: 21, dir: "left", name: "Old Whisper",
-        talk: ["This town emptied the night the shrine woke...", "They say the first wildmon of all still drifts up there, north of the square."] },
+        talk: ["This town emptied the night the shrine woke...", "They say the first pocemon of all still drifts up there, north of the square."] },
     ],
     rate: 0.15,
     encounters: [], // see "Wild areas" below

@@ -1,4 +1,4 @@
-# Wildmon
+# Pocemon
 
 A top-down 2D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
 fight trainers, beat 7 gyms and the Prime Gym, then challenge the Champion.
@@ -27,11 +27,11 @@ saves are asked once). Your rival is always the opposite gender in a contrasting
 blue → gold). The Water starter is Kroki, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
 battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team.
 
-**Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Wildmon's Steel, Dark and
+**Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Pocemon's Steel, Dark and
 Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
 off Fire/Water/Wood/Lightning) with its own Dragon Claw and Dragon Breath. The starters each have 3
 forms, except the Water starter, which has 4 (Kroki → Krokivip at 14 → Leviadile at 23 → Golnagi at 30); every other family has 2 or 3 (fixed seed in
-`tools/build_data.py`), with one-of-a-kind species paired up by type. The Wildmon-Dex (menu → DEX)
+`tools/build_data.py`), with one-of-a-kind species paired up by type. The Pocedex (menu → DEX)
 has each species' lore and where it's found; a green dot marks species living in the area you're in,
 with a HERE seen/total count. New species are announced the first time you meet them.
 

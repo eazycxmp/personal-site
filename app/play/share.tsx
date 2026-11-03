@@ -9,7 +9,7 @@ export const SHARES = {
   vortex: { emoji: "🏉", title: "Vortex Rugby", line: "Catch the up-and-under, beat the line and dive for the try.", from: "#1f6feb", to: "#14b88a", path: "/play/vortex" },
   blackjack: { emoji: "🃏", title: "Blackjack", line: "Beat the dealer, learn to count cards, and a coach grades every move.", from: "#0f7a3a", to: "#2bb36b", path: "/play/blackjack" },
   "build-your-empire": { emoji: "🏰", title: "Build Your Empire", line: "One campfire, one fish. Grow it into castles, trains, air strikes and a trip to the Moon.", from: "#f2a51a", to: "#d9443a", path: "/play/build-your-empire" },
-  wildmon: { emoji: "🐉", title: "Wildmon", line: "Catch strange creatures in the tall grass, beat eight gyms and take on the Champion.", from: "#2f8f4e", to: "#7c3aed", path: "/play/wildmon" },
+  pocemon: { emoji: "🐉", title: "Pocemon", line: "Catch strange creatures in the tall grass, beat eight gyms and take on the Champion.", from: "#2f8f4e", to: "#7c3aed", path: "/play/pocemon" },
   skyward: { emoji: "✈️", title: "Skyward", line: "Fly an F-16, a Mustang, an A380 or a stunt plane through a mountain valley.", from: "#3a78c6", to: "#ffb547", path: "/play/skyward" },
 } satisfies Record<string, Share>;
 
