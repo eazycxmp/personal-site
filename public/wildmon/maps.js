@@ -288,11 +288,11 @@
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
         talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top."] },
       trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 19, dir: "left", sight: 3, name: "Ice Diver Juno",
-        team: [["fribbit", 20], ["bigfin", 21]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
+        team: [["fribbit", 18], ["bigfin", 19]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
-        team: [["houndice", 21], ["crustagu", 21], ["heronquak", 22]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
+        team: [["houndice", 19], ["crustagu", 19], ["heronquak", 20]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
       trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
-        team: [["snowrilla", 23], ["hectapod", 22], ["eaglace", 23]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
+        team: [["snowrilla", 21], ["hectapod", 20], ["eaglace", 21]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
     ],
     encounters: [],
   });
@@ -760,10 +760,10 @@
   W.tide.water = lv(11, 15, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
   W.shade.water = [["manosting", 28, 32, 1], ["nebufin", 28, 32, 1]];
   // The Frost Sea side route: ice floes and a glacier, between the 2nd and 3rd gyms.
-  area("frostsea", "Frost Sea", lv(18, 23, [ // frosty grass on the floes and the glacier
+  area("frostsea", "Frost Sea", lv(16, 21, [ // frosty grass on the floes and the glacier
     ["houndice", 3], ["heronquak", 3], ["angesnow", 2], ["seraphice", 2], ["snowrilla", 2], ["eaglace", 1]]),
-    lv(17, 22, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
-    lv(19, 23, [["lucifice", 2]])); // the ice devil only skates out at night
+    lv(15, 20, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
+    lv(17, 21, [["lucifice", 2]])); // the ice devil only skates out at night
   // Past Shade Hollow the wild ones are mostly already evolved.
   area("route5", "Thornwood Wilds", lv(31, 36, [ // ancient overgrown forest: wood, venom and birds
     ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],

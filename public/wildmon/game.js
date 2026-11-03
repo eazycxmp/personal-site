@@ -862,6 +862,55 @@ function regionMap() {
     });
   });
 }
+// Type guide: browse the types with < >; for each, what its moves hit hard or barely scratch, and what hits a
+// monster of that type hard or bounces off it. Read straight from the battle chart.
+const TYPE_ORDER = ["normal", "fire", "water", "wood", "earth", "lightning", "frost", "sky", "venom", "heroic", "steel",
+  "dark", "psychic", "dragon"];
+function typeGuide(start) {
+  const ts = TYPE_ORDER.filter((t) => D.chart[t]);
+  const mult = (a, d) => (D.chart[a] && D.chart[a][d]) ?? 1;
+  // icon + name chips that wrap onto new lines; returns the y below the last line
+  const chips = (list, x, y, right) => {
+    if (!list.length) { text("nothing", x, y + 2, "#909090", null); return y + 13; }
+    let cx = x;
+    for (const d of list) {
+      const w = 14 + textW(d.toUpperCase()) + 6;
+      if (cx + w > right) { cx = x; y += 13; }
+      typeIcon(d, cx, y); text(d.toUpperCase(), cx + 14, y + 2, "#303030", null);
+      cx += w;
+    }
+    return y + 14;
+  };
+  return new Promise((res) => {
+    push({
+      opaque: true, i: Math.max(0, ts.indexOf(start)),
+      update() {
+        if (consume("left") || consume("up")) this.i = (this.i + ts.length - 1) % ts.length;
+        if (consume("right") || consume("down")) this.i = (this.i + 1) % ts.length;
+        if (consume("a") || consume("b")) { pop(this); res(); }
+      },
+      draw() {
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        box(2, 2, 236, 156);
+        const t = ts[this.i];
+        text("<", 8, 8, "#806040", null);
+        typeIcon(t, 18, 6); const w = typeTag(t, 32, 7);
+        text(">", 36 + w, 8, "#806040", null);
+        text(`${this.i + 1}/${ts.length}`, 232 - textW(`${this.i + 1}/${ts.length}`), 8, "#909090", null);
+        let y = 22;
+        text("ATTACKING WITH IT", 8, y, "#806040", null); y += 11;
+        text("STRONG VS", 8, y + 2, "#2a8030", null); y = chips(ts.filter((d) => mult(t, d) > 1), 82, y, 234);
+        text("WEAK VS", 8, y + 2, "#a05020", null); y = chips(ts.filter((d) => mult(t, d) < 1), 82, y, 234);
+        y += 3;
+        text("DEFENDING AS IT", 8, y, "#806040", null); y += 11;
+        text("WEAK TO", 8, y + 2, "#c03020", null); y = chips(ts.filter((a2) => mult(a2, t) > 1), 82, y, 234);
+        text("TOUGH VS", 8, y + 2, "#2a6090", null); y = chips(ts.filter((a2) => mult(a2, t) < 1), 82, y, 234);
+        this.bottom = y;
+        if (y <= 146) text("Two types: x2 and x2 make x4", 8, 146, "#909090", null);
+      },
+    });
+  });
+}
 const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
 // every gym badge in order, with the monster shown for it on the trainer card
 const BADGES = [["Rock Badge", "selket"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
@@ -2000,7 +2049,7 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "DEX", "BAG", "MAP", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    const opts = ["PARTY", "DEX", "BAG", "MAP", "TYPES", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
     if (rider("psychic") && canTeleport()) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
@@ -2009,6 +2058,7 @@ async function startMenu() {
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
     else if (pick === "DEX") await monsterLog();
     else if (pick === "MAP") await regionMap();
+    else if (pick === "TYPES") await typeGuide();
     else if (pick === "BAG") await useItemOutside();
     else if (pick === "QUESTS") await questLog();
     else if (pick === "TRAINER") await trainerCard();

@@ -128,6 +128,9 @@ Status chips (BRN PSN SLP PAR) sit just outside the HP boxes. FULL HEAL ($400) c
 status), Sweet Candy (+50% EXP, from 3 badges or the Battle Tower) and a Berry per type (+20% to that type's
 moves, from 2 badges). Icons are Tuxemon's own item art. Long menus (the mart) scroll.
 
+**Type guide:** TYPES in the menu shows, for each of the 14 types, what its moves are strong and weak against
+and what it is weak to or tough against. Frost is weak to Fire, Earth, Heroic and Steel.
+
 **Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Rock Badge + a Wood monster)
 clears the orange thorn bushes, ROCK SMASH (Volt Badge + an Earth or Steel monster) breaks cracked rocks, STRENGTH (Shade Badge +
 an Earth, Heroic or Normal monster) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
