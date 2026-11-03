@@ -36,9 +36,9 @@ has each species' lore and where it's found; a green dot marks species living in
 with a HERE seen/total count. New species are announced the first time you meet them.
 
 **Wild areas are themed and get tougher each route**, each with its own species (none shared between
-routes): Route 1 Greenwood Trail (Lv 2–5: bugs, birds, burrowers), Route 2 Duskwood (Lv 8–13: plants,
-moths, bats, poisons), Route 3 Frostridge Pass (Lv 15–20: rock, ice, fire), Route 4 Starfall Woods
-(Lv 22–28: metal, cosmic, storm, dragons), Hollowmere ghost town (Lv 24–29). Wild picks never repeat a
+routes): Route 1 Greenwood Trail (Lv 3–6: bugs, birds, burrowers), Route 2 Duskwood (Lv 7–12: plants,
+moths, bats, poisons), Route 3 Frostridge Pass (Lv 12–17: rock, ice, fire), Route 4 Starfall Woods
+(Lv 16–22: metal, cosmic, storm, dragons), Hollowmere ghost town (Lv 16–21). Wild picks never repeat a
 species you met in the last few encounters, unlogged species turn up twice as often, and wild monsters
 well past their evolution level appear already evolved. Tables live in the "Wild areas" section of
 `game/maps.js`.
@@ -182,6 +182,12 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Level curve (Nov 2):** every step goes up about 5 levels, and the wild monsters before each gym top out
+2–3 below its leader. Leaders' aces: 10, 15, 20, 25, 30, 35, 40, 45; the Elite Four 42–45 and the
+Champion 47. Routes 5–8 run 22–27, 27–32, 32–37, 37–42. With the playtest bot, every gym is won first try
+33–100% of the time (median 0–5 extra battles) and the Hall 33–47%. Running from wild battles starts at
+80% and gets 25% likelier with every try.
+
 **Difficulty is tuned with a playtest bot:** `node tools/playtest_curve.js` plays the whole game with each
 starter (seeded, 20 runs by default) using the game's own stat, damage, accuracy, EXP and evolution code
 pulled straight out of game.js. It walks each route (`--wild 8` battles), fights every trainer, catches and
@@ -194,10 +200,10 @@ Tuned so a natural player wins most gyms within one or two tries (25–60% first
 of grinding at the median). Doing the side areas makes the middle gyms easy (80–90%).
 
 **Frost Sea (side route):** east along Tide Harbor's pier. Surf between ice floes with frosty tall grass
-(water and ice monsters, Lv 17–23, plus an ice devil at night). A glacier rises in the northeast: maps
+(water and ice monsters, Lv 13–18, plus an ice devil at night). A glacier rises in the northeast: maps
 can now raise tiles (`raise: [[x, y, w, h, height]]`), and you can only step up or down half a tier at a
 time, so you climb its two tiers by the ice steps. Pharavion (Lv 32) waits on the top tier. Tide Harbor
-itself got easier (water Lv 11–15, island grass Lv 14–19). 208 monsters in 85 families, 135 moves, 14 types.
+itself got easier (water Lv 7–11, island grass Lv 10–15). 208 monsters in 85 families, 135 moves, 14 types.
 
 ## Music
 

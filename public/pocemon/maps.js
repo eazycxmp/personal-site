@@ -77,9 +77,9 @@
     signs: [{ x: 12, y: 37, text: "ROUTE 1\nNorth: Ember City" }],
     npcs: [
       trainer({ id: "r1_pic", outfit: "ranger", sprite: "catgirl_green", x: 8, y: 19, dir: "right", name: "Ranger Lia",
-        team: [["katapill", 3], ["stonifly", 3]], intro: "I patrol these woods. Let's see how you treat your monsters!", lose: "You've got a ranger's instincts." }),
+        team: [["katapill", 4], ["stonifly", 4]], intro: "I patrol these woods. Let's see how you treat your monsters!", lose: "You've got a ranger's instincts." }),
       trainer({ id: "r1_cool", outfit: "ranger", sprite: "adventurer_green", x: 14, y: 3, dir: "left", name: "Ranger Rex",
-        team: [["banling", 4], ["rockitten", 5]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
+        team: [["banling", 5], ["rockitten", 6]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -124,14 +124,14 @@
     signs: [{ x: 4, y: 7, text: "ROUTE 2\nEast: Tide Harbor" }],
     npcs: [
       trainer({ id: "rival_r2", rival: true, leaveTo: "tide", sprite: "adventurer", x: 6, y: 7, dir: "down", sight: 2, name: "$rival",
-        team: [["$rivalstarter", 12], ["seirein", 11]],
+        team: [["$rivalstarter", 10], ["seirein", 9]],
         intro: "There you are! I beat the Ember Gym too. Time for a rematch!", lose: "Argh! Fine, I'm heading to Tide Harbor. Don't fall behind!" }),
       trainer({ id: "r2_fish", outfit: "ranger", sprite: "rogue_green", x: 19, y: 11, dir: "up", sight: 3, name: "Ranger Gil",
-        team: [["fordin", 9], ["lambert", 10]], intro: "Shh, you'll spook the wildlife. Battle quietly!", lose: "Nature favors you today." }),
+        team: [["fordin", 7], ["lambert", 8]], intro: "Shh, you'll spook the wildlife. Battle quietly!", lose: "Nature favors you today." }),
       trainer({ id: "r2_ten", outfit: "ranger", sprite: "monk_green", x: 28, y: 6, dir: "down", sight: 3, name: "Ranger Tia",
-        team: [["merlicun", 10], ["trapsnap", 10]], intro: "These moths only come out at dusk. Want to meet them?", lose: "Fluttered away..." }),
+        team: [["merlicun", 8], ["trapsnap", 8]], intro: "These moths only come out at dusk. Want to meet them?", lose: "Fluttered away..." }),
       trainer({ id: "r2_flo", outfit: "ranger", sprite: "woodnymph", x: 38, y: 12, dir: "up", name: "Forest Keeper Ivy",
-        team: [["rosarin", 11], ["banling", 10], ["slichen", 11]], intro: "The forest speaks through my monsters!", lose: "The forest is at peace with you." }),
+        team: [["rosarin", 9], ["banling", 8], ["slichen", 9]], intro: "The forest speaks through my monsters!", lose: "The forest is at peace with you." }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -164,11 +164,11 @@
           "See that island out at sea? With the TIDE BADGE, a Water monster can carry you there.",
           "Go east along the pier to reach the FROST SEA. Water and ice monsters live out on the floes!"] },
       trainer({ id: "sea_hermit", outfit: "sailor", sprite: "riverboatcaptain", x: 14, y: 23, dir: "down", sight: 0, name: "Sea Hermit",
-        team: [["manosting", 17], ["gupphish", 18], ["spirain", 19]],
+        team: [["manosting", 13], ["gupphish", 14], ["spirain", 15]],
         intro: "Few ever reach my shrine. Show me the strength that carried you here!", lose: "The sea chose well. Rare creatures hide in the shrine grass." }),
     ],
     rate: 0.15,
-    encounters: [["medushock", 14, 18, 2], ["manosting", 14, 18, 2], ["spirain", 14, 17, 2], ["mingdyn", 16, 19, 1], ["gupphish", 14, 18, 2]],
+    encounters: [["medushock", 10, 14, 2], ["manosting", 10, 14, 2], ["spirain", 10, 13, 2], ["mingdyn", 12, 15, 1], ["gupphish", 10, 14, 2]],
   });
 
   // ---------------- Route 3 ----------------
@@ -182,17 +182,17 @@
     exits: [{ edge: "s", at: 10, w: 2, to: "tide" }, { edge: "n", at: 10, w: 2, to: "volt" },
       { edge: "w", at: 20, w: 2, to: "hollow", narrow: true }],
     // a giant sleeps across the side path; ring the WAKE BELL to rouse it
-    sleeper: { id: "sleeper_r3", slug: "coaldiak", lv: 30, tiles: [[1, 20], [1, 21], [2, 20], [2, 21]] },
+    sleeper: { id: "sleeper_r3", slug: "coaldiak", lv: 20, tiles: [[1, 20], [1, 21], [2, 20], [2, 21]] },
     npcs: [
       trainer({ id: "rival_r3", rival: true, leaveTo: "volt", sprite: "adventurer", x: 12, y: 3, dir: "left", sight: 3, name: "$rival",
-        team: [["$rivalstarter", 20], ["spirain", 19], ["banling", 19]],
+        team: [["$rivalstarter", 16], ["spirain", 15], ["banling", 15]],
         intro: "Volt City is just ahead. Let's see who's ready for the Volt Gym!", lose: "You're getting really strong... I'll see you at the top!" }),
       trainer({ id: "r3_ninja", outfit: "ranger", sprite: "dragonrider_green", x: 6, y: 32, dir: "right", sight: 5, name: "Mountain Ranger Kaz",
-        team: [["katapill", 15], ["foxfire", 16]], intro: "Mountain rangers move unseen. Surprise!", lose: "You spotted me after all." }),
+        team: [["katapill", 11], ["foxfire", 12]], intro: "Mountain rangers move unseen. Surprise!", lose: "You spotted me after all." }),
       trainer({ id: "r3_sci", outfit: "ranger", sprite: "miner_green", x: 15, y: 20, dir: "left", sight: 5, name: "Mountain Ranger Ohm",
-        team: [["pawsand", 16], ["grintot", 16], ["stonifly", 15]], intro: "I guard the high trail. Rock-solid monsters only!", lose: "Crumbled like a landslide." }),
+        team: [["pawsand", 12], ["grintot", 12], ["stonifly", 11]], intro: "I guard the high trail. Rock-solid monsters only!", lose: "Crumbled like a landslide." }),
       trainer({ id: "r3_goth", outfit: "ranger", sprite: "disciple_green", x: 6, y: 11, dir: "right", sight: 5, name: "Mountain Ranger Raven",
-        team: [["turnipper", 17], ["banling", 17], ["toufigel", 17]], intro: "The pines whisper of a strong trainer...", lose: "The whispers were right." }),
+        team: [["turnipper", 13], ["banling", 13], ["toufigel", 13]], intro: "The pines whisper of a strong trainer...", lose: "The whispers were right." }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -235,11 +235,11 @@
     exits: [{ edge: "e", at: 8, w: 2, to: "volt" }, { edge: "w", at: 8, w: 2, to: "shade" }, { edge: "n", at: 24, w: 2, to: "cave" }],
     npcs: [
       trainer({ id: "r4_knight", outfit: "nightranger", sprite: "adventurer_green", x: 35, y: 6, dir: "down", sight: 3, name: "Night Ranger Gareth",
-        team: [["furnursus", 24], ["metesaur", 25]], intro: "Nobody crosses the dark woods without a ranger's say-so!", lose: "Go on, but watch the shadows." }),
+        team: [["furnursus", 17], ["metesaur", 18]], intro: "Nobody crosses the dark woods without a ranger's say-so!", lose: "Go on, but watch the shadows." }),
       trainer({ id: "r4_drag", outfit: "nightranger", sprite: "dragonrider_green", x: 22, y: 12, dir: "up", sight: 4, name: "Night Ranger Sol",
-        team: [["chloragon", 25], ["devidin", 24], ["metesaur", 25]], intro: "My dragons hunt at night. Ready?", lose: "Even dragons rest." }),
+        team: [["chloragon", 18], ["devidin", 17], ["metesaur", 18]], intro: "My dragons hunt at night. Ready?", lose: "Even dragons rest." }),
       trainer({ id: "r4_witch", outfit: "nightranger", sprite: "rogue_green", x: 9, y: 6, dir: "down", sight: 3, name: "Night Ranger Morgana",
-        team: [["babysnitch", 25], ["hoarse", 26], ["demosnow", 25]], intro: "Strange things live in these woods. I keep them in line!", lose: "You'd make a fine night ranger." }),
+        team: [["babysnitch", 18], ["hoarse", 19], ["demosnow", 18]], intro: "Strange things live in these woods. I keep them in line!", lose: "You'd make a fine night ranger." }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -297,11 +297,11 @@
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
         talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top, and baby ice monsters hide in the cave."] },
       trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
-        team: [["fribbit", 18], ["bigfin", 19]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
+        team: [["fribbit", 15], ["bigfin", 16]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
-        team: [["houndice", 19], ["crustagu", 19], ["heronquak", 20]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
+        team: [["houndice", 16], ["crustagu", 16], ["heronquak", 17]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
       trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
-        team: [["snowrilla", 21], ["hectapod", 20], ["eaglace", 21]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
+        team: [["snowrilla", 18], ["hectapod", 17], ["eaglace", 18]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
     ],
     encounters: [],
   });
@@ -320,7 +320,7 @@
       { id: "item_icecave_treat", x: 4, y: 18, item: "level_treat", n: 1 }],
     npcs: [
       trainer({ id: "ic_skier", outfit: "sailor", sprite: "ninja", x: 7, y: 17, dir: "right", sight: 3, name: "Ice Hermit Yuki",
-        team: [["demosnow", 20], ["chillimp", 21], ["lucifice", 22]], intro: "Few find this cave. Fewer leave it warm!", lose: "The ice favours you today." }),
+        team: [["demosnow", 17], ["chillimp", 18], ["lucifice", 19]], intro: "Few find this cave. Fewer leave it warm!", lose: "The ice favours you today." }),
     ],
     encounters: [],
   });
@@ -336,11 +336,11 @@
     signs: [{ x: 12, y: 41, text: "ROUTE 5 - THORNWOOD WILDS\nNorth: Verdance" }],
     npcs: [
       trainer({ id: "r5_a", outfit: "ranger", sprite: "woodnymph", x: 8, y: 36, dir: "right", sight: 4, name: "Druid Wren",
-        team: [["dandylion", 31], ["legko", 32]], intro: "The old trees chose my monsters. Let's see yours!", lose: "The forest bows to you." }),
+        team: [["dandylion", 22], ["legko", 23]], intro: "The old trees chose my monsters. Let's see yours!", lose: "The forest bows to you." }),
       trainer({ id: "r5_b", outfit: "ranger", sprite: "monk_green", x: 13, y: 22, dir: "left", sight: 4, name: "Druid Bram",
-        team: [["stegofor", 32], ["tumblebee", 32], ["spycozeus", 33]], intro: "Thorns and stings, that's my style!", lose: "Pricked my pride." }),
+        team: [["stegofor", 23], ["tumblebee", 23], ["spycozeus", 24]], intro: "Thorns and stings, that's my style!", lose: "Pricked my pride." }),
       trainer({ id: "rival_r5", rival: true, leaveTo: "verdance", sprite: "adventurer", x: 12, y: 6, dir: "left", sight: 3, name: "$rival",
-        team: [["$rivalstarter", 35], ["spirain", 33], ["banling", 33], ["seirein", 34]],
+        team: [["$rivalstarter", 26], ["spirain", 24], ["banling", 24], ["seirein", 25]],
         intro: "Four badges each! But the next four are the real test. Show me!", lose: "Ugh! See you at Verdance... I'm not done!" }),
     ],
     rate: 0.12, encounters: [],
@@ -385,11 +385,11 @@
     signs: [{ x: 3, y: 7, text: "ROUTE 6 - ASHFALL TRAIL\nEast: Cinder Peak" }],
     npcs: [
       trainer({ id: "r6_a", outfit: "miner", sprite: "firefighter", x: 10, y: 7, dir: "down", sight: 3, name: "Fire Watcher Pyro",
-        team: [["cardiwing", 36], ["grinflare", 37]], intro: "Hot ash, hotter battles!", lose: "Extinguished..." }),
+        team: [["cardiwing", 27], ["grinflare", 28]], intro: "Hot ash, hotter battles!", lose: "Extinguished..." }),
       trainer({ id: "r6_b", outfit: "miner", sprite: "miner", x: 26, y: 10, dir: "up", sight: 3, name: "Ash Miner Cole",
-        team: [["rockat", 37], ["selmatek", 37], ["cocrune", 38]], intro: "I dig in the ash for rare ore. And rare fights!", lose: "Struck out." }),
+        team: [["rockat", 28], ["selmatek", 28], ["cocrune", 29]], intro: "I dig in the ash for rare ore. And rare fights!", lose: "Struck out." }),
       trainer({ id: "r6_c", outfit: "miner", sprite: "magician_fiery", x: 38, y: 7, dir: "left", sight: 4, name: "Fire Dancer Sola",
-        team: [["solight", 38], ["urcheedle", 38], ["cobarett", 39]], intro: "Dance with the flames!", lose: "My flame flickers out." }),
+        team: [["solight", 29], ["urcheedle", 29], ["cobarett", 30]], intro: "Dance with the flames!", lose: "My flame flickers out." }),
     ],
     rate: 0.12, encounters: [],
   });
@@ -413,11 +413,11 @@
     signs: [{ x: 12, y: 41, text: "ROUTE 7 - RUSTLINE ROAD\nNorth: Ironhold" }],
     npcs: [
       trainer({ id: "r7_a", outfit: "engineer", sprite: "scientist_black", x: 8, y: 36, dir: "right", sight: 4, name: "Mechanic Rusty",
-        team: [["puparmor", 41], ["weavifly", 42]], intro: "Every bolt tightened. Let's battle!", lose: "Loose screw somewhere..." }),
+        team: [["puparmor", 32], ["weavifly", 33]], intro: "Every bolt tightened. Let's battle!", lose: "Loose screw somewhere..." }),
       trainer({ id: "r7_b", outfit: "engineer", sprite: "firefighter", x: 13, y: 24, dir: "left", sight: 4, name: "Engineer Tess",
-        team: [["windeye", 42], ["arthrobolt", 42], ["trojerror", 43]], intro: "My machines don't feel pain. Do yours?", lose: "System failure!" }),
+        team: [["windeye", 33], ["arthrobolt", 33], ["trojerror", 34]], intro: "My machines don't feel pain. Do yours?", lose: "System failure!" }),
       trainer({ id: "r7_c", outfit: "occult", sprite: "magician", x: 8, y: 6, dir: "right", sight: 4, name: "Psychic Lumen",
-        team: [["eyesore", 43], ["masknake", 43], ["mystikapi", 44]], intro: "I saw you coming from miles away.", lose: "I did not see THAT coming." }),
+        team: [["eyesore", 34], ["masknake", 34], ["mystikapi", 35]], intro: "I saw you coming from miles away.", lose: "I did not see THAT coming." }),
     ],
     rate: 0.12, encounters: [],
   });
@@ -441,11 +441,11 @@
     signs: [{ x: 3, y: 7, text: "ROUTE 8 - VICTORY RIDGE\nEast: Prime City" }],
     npcs: [
       trainer({ id: "r8_a", outfit: "royal", sprite: "knight", x: 10, y: 10, dir: "up", sight: 3, name: "Ace Trainer Roland",
-        team: [["bricgard", 46], ["strella", 46], ["glombroc", 47]], intro: "Only the best walk Victory Ridge.", lose: "You really are one of the best." }),
+        team: [["bricgard", 37], ["strella", 37], ["glombroc", 38]], intro: "Only the best walk Victory Ridge.", lose: "You really are one of the best." }),
       trainer({ id: "r8_b", outfit: "royal", sprite: "dragonrider", x: 24, y: 7, dir: "down", sight: 3, name: "Ace Trainer Vesper",
-        team: [["gryfix", 47], ["myrmison", 47], ["miaownolith", 48]], intro: "The Prime Gym is close. Prove you belong!", lose: "You belong." }),
+        team: [["gryfix", 38], ["myrmison", 38], ["miaownolith", 39]], intro: "The Prime Gym is close. Prove you belong!", lose: "You belong." }),
       trainer({ id: "rival_r8", rival: true, leaveTo: "prime", sprite: "adventurer", x: 38, y: 10, dir: "up", sight: 3, name: "$rival",
-        team: [["$rivalstarter", 50], ["spirain", 47], ["banling", 47], ["seirein", 48], ["metesaur", 48], ["komoduel", 49]],
+        team: [["$rivalstarter", 41], ["spirain", 38], ["banling", 38], ["seirein", 39], ["metesaur", 39], ["komoduel", 40]],
         intro: "Seven badges! This is our last battle before the Prime Gym. All or nothing!",
         lose: "...You're the real deal. Go win that Prime Badge. I'll be cheering." }),
     ],
@@ -570,9 +570,9 @@
     legends: [{ id: "legend_primordia", slug: "primordia", lv: 40, x: 15, y: 3 }],
     npcs: [
       trainer({ id: "hollow_t1", outfit: "occult", sprite: "goth", x: 12, y: 13, dir: "down", sight: 3, name: "Lost Soul Mara",
-        team: [["seirein", 23], ["ghosteeth", 24]], intro: "You can see me...? Then stay. Forever.", lose: "I... remember now. I was a trainer too." }),
+        team: [["seirein", 15], ["ghosteeth", 16]], intro: "You can see me...? Then stay. Forever.", lose: "I... remember now. I was a trainer too." }),
       trainer({ id: "hollow_t2", outfit: "occult", sprite: "magician", x: 21, y: 11, dir: "left", sight: 4, name: "Phantom Ike",
-        team: [["uneye", 24], ["cackleen", 24], ["babysnitch", 25]], intro: "Boo-hoo-hoo! Nobody leaves Hollowmere!", lose: "Fine... go on. Mind the shrine." }),
+        team: [["uneye", 16], ["cackleen", 16], ["babysnitch", 17]], intro: "Boo-hoo-hoo! Nobody leaves Hollowmere!", lose: "Fine... go on. Mind the shrine." }),
       { sprite: "granny", x: 20, y: 21, dir: "left", name: "Old Whisper",
         talk: ["This town emptied the night the shrine woke...", "They say the first pocemon of all still drifts up there, north of the square."] },
     ],
@@ -583,7 +583,7 @@
   W.hollow_house = house("Abandoned House", { sprite: "heroine", x: 3, y: 4, dir: "down", name: "Pale Girl", outfit: "occult",
     talk: ["...have you seen my family?", "They went up to the shrine and never came down.", "...it's cold here. So cold."] });
   W.hollow_house2 = house("Abandoned House", trainer({ id: "hollow_t3", outfit: "occult", sprite: "witch", x: 4, y: 4, dir: "down", sight: 0,
-    name: "Witch Agatha", team: [["djinnbo", 26], ["lendos", 26]], intro: "Hee hee... a visitor! My pets are hungry.", lose: "Off you go, dearie. Take the shrine's blessing." }));
+    name: "Witch Agatha", team: [["djinnbo", 18], ["lendos", 18]], intro: "Hee hee... a visitor! My pets are hungry.", lose: "Off you go, dearie. Take the shrine's blessing." }));
   W.hollow_house.wall = W.hollow_house2.wall = "wood";
 
   // legendaries
@@ -595,41 +595,41 @@
 
   W.ember_gym = gym("Ember Gym", "cream", [
     trainer({ id: "g1_t1", outfit: "miner", sprite: "miner", x: 2, y: 9, dir: "right", sight: 5, name: "Miner Tobin",
-      team: [["rockitten", 9]], intro: "Brack trains us hard. Ready?", lose: "Hmm. Solid." }),
+      team: [["rockitten", 6]], intro: "Brack trains us hard. Ready?", lose: "Hmm. Solid." }),
     trainer({ id: "g1_t2", outfit: "miner", sprite: "miner_green", x: 9, y: 6, dir: "left", sight: 5, name: "Hiker Dale",
-      team: [["stonifly", 8], ["scarlant", 8]], intro: "Rocks never lose!", lose: "...Except today." }),
+      team: [["stonifly", 5], ["scarlant", 5]], intro: "Rocks never lose!", lose: "...Except today." }),
     trainer({ id: "g1_leader", outfit: "miner", sprite: "miner", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Brack", leader: 1,
-      team: [["shull", 11], ["imbrickcile", 12], ["grintot", 12], ["pawsand", 13]],
+      team: [["shull", 8], ["imbrickcile", 9], ["grintot", 9], ["pawsand", 10]],
       intro: "I'm Brack, the Ember Gym Leader!\nMy EARTH monsters are hard as\nstone. Show me what you've got!",
       lose: "You cracked my defense!\nTake the ROCK BADGE!", badge: "Rock Badge" }),
   ], "funky", "funkboss");
   W.tide_gym = gym("Tide Gym", "blue", [
     trainer({ id: "g2_t1", outfit: "sailor", sprite: "swimmer_blue", x: 2, y: 9, dir: "right", sight: 5, name: "Sailor Kai",
-      team: [["nostray", 13], ["lesmagu", 13]], intro: "Ahoy! Ready to get soaked?", lose: "Washed overboard!" }),
+      team: [["nostray", 10], ["lesmagu", 10]], intro: "Ahoy! Ready to get soaked?", lose: "Washed overboard!" }),
     trainer({ id: "g2_t2", outfit: "sailor", sprite: "riverboatcaptain", x: 9, y: 6, dir: "left", sight: 5, name: "Captain Moe",
-      team: [["jelillow", 14], ["spirain", 14]], intro: "All hands on deck! Battle stations!", lose: "Abandon ship!" }),
+      team: [["jelillow", 11], ["spirain", 11]], intro: "All hands on deck! Battle stations!", lose: "Abandon ship!" }),
     trainer({ id: "g2_leader", outfit: "sailor", sprite: "swimmer", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Marina", leader: 2,
-      team: [["squink", 15], ["spirain", 16], ["gupphish", 17], ["shnark", 18]],
+      team: [["squink", 12], ["spirain", 13], ["gupphish", 14], ["shnark", 15]],
       intro: "Welcome to Tide Gym! I'm Marina.\nThe sea is calm... until it isn't!",
       lose: "Swept away! You've earned\nthe TIDE BADGE!", badge: "Tide Badge" }),
   ], "funky", "funkboss");
   W.volt_gym = gym("Volt Gym", "green", [
     trainer({ id: "g3_t1", outfit: "engineer", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Engineer Watt",
-      team: [["chromeye", 20], ["fluoresfin", 20]], intro: "Feel the voltage!", lose: "Short circuit!" }),
+      team: [["chromeye", 15], ["fluoresfin", 15]], intro: "Feel the voltage!", lose: "Short circuit!" }),
     trainer({ id: "g3_t2", outfit: "engineer", sprite: "scientist_black", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Zia",
-      team: [["joulraton", 21], ["boltnu", 21]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
+      team: [["joulraton", 16], ["boltnu", 16]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
     trainer({ id: "g3_leader", outfit: "engineer", sprite: "scientist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Volta", leader: 3,
-      team: [["incandesfin", 22], ["exclawvate", 23], ["medushock", 24], ["ouroboutlet", 25]],
+      team: [["incandesfin", 17], ["exclawvate", 18], ["medushock", 19], ["ouroboutlet", 20]],
       intro: "I'm Volta! My LIGHTNING monsters\nstrike before you can blink!",
       lose: "Grounded at last!\nThe VOLT BADGE is yours!", badge: "Volt Badge" }),
   ], "route", "boss");
   W.shade_gym = gym("Shade Gym", "cream", [
     trainer({ id: "g4_t1", outfit: "occult", sprite: "goth_rose", x: 2, y: 9, dir: "right", sight: 5, name: "Hexer Nyx",
-      team: [["cackleen", 25], ["seirein", 25]], intro: "Boo!", lose: "Spooked myself..." }),
+      team: [["cackleen", 19], ["seirein", 19]], intro: "Boo!", lose: "Spooked myself..." }),
     trainer({ id: "g4_t2", outfit: "occult", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Seer Ren",
-      team: [["noctalo", 26], ["babysnitch", 26]], intro: "I foresaw this battle. And your defeat!", lose: "I... didn't see that coming." }),
+      team: [["noctalo", 20], ["babysnitch", 20]], intro: "I foresaw this battle. And your defeat!", lose: "I... didn't see that coming." }),
     trainer({ id: "g4_leader", outfit: "occult", sprite: "magician", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Morrow", leader: 4,
-      team: [["brumi", 28], ["yiinaang", 29], ["baddrscratch", 30], ["lendos", 31]],
+      team: [["brumi", 22], ["yiinaang", 23], ["baddrscratch", 24], ["lendos", 25]],
       intro: "I am Morrow. In the dark, all\nmonsters are equal... except mine.",
       lose: "The light wins today.\nTake the SHADE BADGE.", badge: "Shade Badge" }),
   ], "mystery", "darkboss");
@@ -647,19 +647,19 @@
     name: "Champion's Hall", w: 14, h: 30, music: "mystery", fight: "boss", wall: "blue", floor: "gray", gym: true,
     npcs: [
       elite({ id: "elite1", sprite: "witch", x: 6, y: 25, name: "Elite Glacia",
-        team: [["eaglace", 48], ["lucifice", 48], ["seraphice", 49], ["snowrilla", 50]],
+        team: [["eaglace", 40], ["lucifice", 40], ["seraphice", 41], ["snowrilla", 42]],
         intro: "Welcome to the Elite Four. I am\nGlacia. Let my FROST monsters\nchill you to the bone!", lose: "Brr... Go on. Three more wait." }),
       elite({ id: "elite2", sprite: "magician", x: 6, y: 19, name: "Elite Lumina",
-        team: [["angrito", 49], ["mystikapi", 50], ["apeoro", 50], ["statursus", 51]],
+        team: [["angrito", 41], ["mystikapi", 42], ["apeoro", 42], ["statursus", 43]],
         intro: "I am Lumina. My PSYCHIC monsters\nalready know how this ends.", lose: "I didn't foresee THAT. Pass." }),
       elite({ id: "elite3", sprite: "goth", x: 6, y: 13, name: "Elite Nox",
-        team: [["bewhich", 50], ["dracune", 50], ["banvengeance", 51], ["loliferno", 51], ["hoarseshoo", 52]],
+        team: [["bewhich", 42], ["dracune", 42], ["banvengeance", 43], ["loliferno", 43], ["hoarseshoo", 44]],
         intro: "Nox. DARK and VENOM. Nobody\nleaves my chamber unhurt.", lose: "Hmph. The last Elite is no joke." }),
       elite({ id: "elite", sprite: "knight", x: 6, y: 7, name: "Elite Vance",
-        team: [["saurchin", 51], ["jemuar", 52], ["deviraptor", 52], ["snokari", 51], ["brickhemoth", 53]],
+        team: [["saurchin", 43], ["jemuar", 44], ["deviraptor", 44], ["snokari", 43], ["brickhemoth", 45]],
         intro: "I am Vance, last of the Elite\nFour. None reach the Champion\nwithout beating me first!", lose: "Go on. The Champion awaits." }),
       trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 6, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
-        team: [["drokoro", 52], ["pythonova", 52], ["demosnow", 53], ["novaquarius", 53], ["ziggurat", 54], ["$rival", 55]],
+        team: [["drokoro", 44], ["pythonova", 44], ["demosnow", 45], ["novaquarius", 45], ["ziggurat", 46], ["$rival", 47]],
         intro: "So you beat the Elite Four. I am\nAurora, Champion of this land.\nGive me everything!",
         lose: "Magnificent! You are the new\nCHAMPION!" }),
     ],
@@ -679,41 +679,41 @@
 
   W.verdance_gym = gym("Verdance Gym", "green", [
     trainer({ id: "g5_t1", outfit: "ranger", sprite: "woodnymph", x: 2, y: 9, dir: "right", sight: 5, name: "Druid Moss",
-      team: [["ninjasmine", 33], ["sapsnap", 33]], intro: "Fern grew us from seeds!", lose: "Uprooted..." }),
+      team: [["ninjasmine", 25], ["sapsnap", 25]], intro: "Fern grew us from seeds!", lose: "Uprooted..." }),
     trainer({ id: "g5_t2", outfit: "ranger", sprite: "monk_green", x: 9, y: 6, dir: "left", sight: 5, name: "Druid Oak",
-      team: [["bamboon", 34], ["brachifor", 34]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
+      team: [["bamboon", 26], ["brachifor", 26]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
     trainer({ id: "g5_leader", outfit: "ranger", sprite: "florist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Fern", leader: 5,
-      team: [["toxiris", 35], ["beenstalker", 36], ["wendigger", 36], ["volcoli", 37], ["moloch", 38]],
+      team: [["toxiris", 27], ["beenstalker", 28], ["wendigger", 28], ["volcoli", 29], ["moloch", 30]],
       intro: "I'm Fern. My WOOD monsters have\nroots older than this town.\nLet's grow!",
       lose: "You cut right through!\nThe LEAF BADGE is yours.", badge: "Leaf Badge" }),
   ], "chill", "funkboss");
   W.cinder_gym = gym("Cinder Gym", "cream", [
     trainer({ id: "g6_t1", outfit: "miner", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Stoker Ash",
-      team: [["vulpyre", 37], ["shelagu", 37]], intro: "Feel the heat!", lose: "Cooled off..." }),
+      team: [["vulpyre", 30], ["shelagu", 30]], intro: "Feel the heat!", lose: "Cooled off..." }),
     trainer({ id: "g6_t2", outfit: "miner", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Fire Eater Kip",
-      team: [["flambear", 38], ["potturney", 38]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
+      team: [["flambear", 31], ["potturney", 31]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
     trainer({ id: "g6_leader", outfit: "miner", sprite: "magician_fiery", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Blaze", leader: 6,
-      team: [["sludgehog", 39], ["loliferno", 40], ["statursus", 40], ["gupphire", 41], ["eruptibus", 42]],
+      team: [["sludgehog", 32], ["loliferno", 33], ["statursus", 33], ["gupphire", 34], ["eruptibus", 35]],
       intro: "Blaze's the name! My FIRE burns\nhotter than the mountain itself!",
       lose: "Doused! Take the\nBLAZE BADGE.", badge: "Blaze Badge" }),
   ], "funky", "boss");
   W.ironhold_gym = gym("Ironhold Gym", "blue", [
     trainer({ id: "g7_t1", outfit: "engineer", sprite: "scientist_black", x: 2, y: 9, dir: "right", sight: 5, name: "Welder Max",
-      team: [["bolt", 43], ["katacoon", 43]], intro: "Sparks will fly!", lose: "Burnt out." }),
+      team: [["bolt", 35], ["katacoon", 35]], intro: "Sparks will fly!", lose: "Burnt out." }),
     trainer({ id: "g7_t2", outfit: "engineer", sprite: "firefighter", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Dot",
-      team: [["uf0", 44], ["angrito", 44]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
+      team: [["uf0", 36], ["angrito", 36]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
     trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
-      team: [["sphake", 45], ["gastronium", 46], ["tigrock", 46], ["hydrone", 47], ["lightmare", 48]],
+      team: [["sphake", 37], ["gastronium", 38], ["tigrock", 38], ["hydrone", 39], ["lightmare", 40]],
       intro: "I'm Forge. My STEEL monsters\ndon't dent. Hit them with all\nyou've got!",
       lose: "You bent steel!\nThe IRON BADGE is yours.", badge: "Iron Badge" }),
   ], "route", "boss");
   W.prime_gym = gym("Prime Gym", "blue", [
     trainer({ id: "g8_t1", outfit: "royal", sprite: "dragonrider", x: 2, y: 9, dir: "right", sight: 5, name: "Dragon Tamer Ryu",
-      team: [["sapragon", 48], ["devidra", 49]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
+      team: [["sapragon", 40], ["devidra", 41]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
     trainer({ id: "g8_t2", outfit: "royal", sprite: "dragonrider_green", x: 9, y: 6, dir: "left", sight: 5, name: "Dragon Tamer Kira",
-      team: [["dragarbor", 49], ["ferricran", 50]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
+      team: [["dragarbor", 41], ["ferricran", 42]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
     trainer({ id: "g8_leader", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Prime Leader Drake", leader: 8,
-      team: [["allagon", 50], ["firomenis", 51], ["qetzlrokilus", 51], ["wrougon", 52], ["golnagi", 53]],
+      team: [["allagon", 42], ["firomenis", 43], ["qetzlrokilus", 43], ["wrougon", 44], ["golnagi", 45]],
       intro: "I am Drake of the PRIME GYM.\nSeven badges got you here.\nDragons decide if you go on!",
       lose: "Incredible... The PRIME BADGE\nis yours. The Champion awaits!", badge: "Prime Badge" }),
   ], "mystery", "darkboss");
@@ -735,7 +735,7 @@
     items: [{ id: "item_cave_mega", x: 5, y: 9, item: "mega_potion", n: 2 }],
     npcs: [
       { kind: "trainer", sight: 3, id: "cave_hiker", outfit: "miner", sprite: "miner_green", x: 7, y: 20, dir: "right", name: "Spelunker Rhea",
-        team: [["imbrickcile", 30], ["grimachin", 31], ["runesquito", 31]], intro: "You found the cave! Few make it this deep.", lose: "Watch your step in the dark!" },
+        team: [["imbrickcile", 23], ["grimachin", 24], ["runesquito", 24]], intro: "You found the cave! Few make it this deep.", lose: "Watch your step in the dark!" },
     ],
     encounters: [],
   });
@@ -768,78 +768,78 @@
     W[id].theme = theme; if (land) W[id].encounters = land; if (water) W[id].water = water; if (night) W[id].night = night;
   };
   const lv = (lo, hi, list) => list.map(([s, w]) => [s, lo, hi, w]);
-  area("route1", "Greenwood Trail", lv(2, 5, [ // first steps: bugs, birds and burrowers
+  area("route1", "Greenwood Trail", lv(3, 6, [ // first steps: bugs, birds and burrowers
     ["dandicub", 3], ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
     ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1]]), null,
-    lv(3, 5, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
-  area("route2", "Duskwood", lv(9, 14, [ // deep forest at dusk: plants, moths, bats, poisons
+    lv(4, 6, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
+  area("route2", "Duskwood", lv(7, 12, [ // deep forest at dusk: plants, moths, bats, poisons
     ["banling", 3], ["turnipper", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2],
     ["tumbleworm", 2], ["poinchin", 2], ["trapsnap", 1], ["hatchling", 1]]),
-    lv(9, 13, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
-    lv(10, 14, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark
-  area("route3", "Frostridge Pass", lv(16, 21, [ // cold mountain: rock, ice and fire
+    lv(7, 11, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
+    lv(8, 12, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark
+  area("route3", "Frostridge Pass", lv(12, 17, [ // cold mountain: rock, ice and fire
     ["rockitten", 3], ["waysprite", 3], ["pawsand", 2], ["grintot", 2], ["eskipup", 2], ["tweesher", 2], ["chillimp", 2],
     ["hissiorite", 2], ["furnursus", 2], ["cardiling", 2], ["imbrickcile", 2], ["flacono", 2], ["devidin", 1],
     ["lesmagu", 1]]),
-    lv(16, 20, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]),
-    lv(17, 21, [["demosnow", 3], ["foxfire", 2], ["selket", 2], ["ignibus", 1]])); // snow demons and will-o'-wisps
-  area("route4", "Starfall Woods", lv(23, 29, [ // meteor-struck forest: metal, cosmic, storm and dragons
+    lv(12, 16, [["tadcool", 2], ["jelillow", 2], ["dollfin", 1]]),
+    lv(13, 17, [["demosnow", 3], ["foxfire", 2], ["selket", 2], ["ignibus", 1]])); // snow demons and will-o'-wisps
+  area("route4", "Starfall Woods", lv(16, 22, [ // meteor-struck forest: metal, cosmic, storm and dragons
     ["boltnu", 3], ["virware", 2], ["sprorm", 2], ["grimachin", 2],
     ["joulraton", 2], ["fancair", 2], ["pythwire", 2], ["bugnin", 2], ["stomic", 2], ["komodraw", 1], ["cardinale", 1],
     ["wrougon", 1], ["chloragon", 1], ["pythonova", 1]]),
-    lv(22, 27, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]),
-    lv(24, 29, [["chromeye", 3], ["metesaur", 3], ["tetrchimp", 2], ["bursa", 1]])); // stargazers under falling stars
-  area("hollow", "Ghost Town", lv(24, 29, [ // what haunts the empty town
+    lv(15, 20, [["nebufin", 2], ["spirain", 2], ["gupphish", 1]]),
+    lv(17, 22, [["chromeye", 3], ["metesaur", 3], ["tetrchimp", 2], ["bursa", 1]])); // stargazers under falling stars
+  area("hollow", "Ghost Town", lv(16, 21, [ // what haunts the empty town
     ["ghosteeth", 3], ["cackleen", 3], ["babysnitch", 3], ["potturmeist", 3], ["seirein", 2], ["uneye", 2],
     ["hoarse", 2], ["runesquito", 2]]),
-    lv(24, 28, [["manosting", 1], ["seirein", 1]]),
-    lv(26, 30, [["djinnbo", 2], ["yiinaang", 2]])); // the town's true residents wake at night
+    lv(16, 20, [["manosting", 1], ["seirein", 1]]),
+    lv(18, 22, [["djinnbo", 2], ["yiinaang", 2]])); // the town's true residents wake at night
   W.sprout.water = [["tadcool", 3, 5, 2], ["dollfin", 3, 5, 1]];
-  area("cave", "Glimmer Cave", lv(26, 32, [ // rock, metal and shadow dwellers, already evolved this deep
+  area("cave", "Glimmer Cave", lv(19, 25, [ // rock, metal and shadow dwellers, already evolved this deep
     ["rockitten", 3], ["imbrickcile", 3], ["potturmeist", 2], ["pawsand", 2], ["nut", 2], ["boltnu", 2],
     ["grintot", 2], ["babysnitch", 1], ["noctula", 2]]),
-    lv(26, 30, [["squink", 2], ["jelillow", 1]]));
-  W.tide.water = lv(11, 15, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
-  W.shade.water = [["manosting", 28, 32, 1], ["nebufin", 28, 32, 1]];
+    lv(19, 23, [["squink", 2], ["jelillow", 1]]));
+  W.tide.water = lv(7, 11, [["squink", 2], ["nostray", 2], ["dollfin", 2], ["fluoresfin", 1], ["gupphish", 1], ["jelillow", 1]]);
+  W.shade.water = [["manosting", 20, 24, 1], ["nebufin", 20, 24, 1]];
   // The Frost Sea side route: ice floes and a glacier, between the 2nd and 3rd gyms.
-  area("frostsea", "Frost Sea", lv(16, 21, [ // frosty grass on the floes and the glacier
+  area("frostsea", "Frost Sea", lv(13, 18, [ // frosty grass on the floes and the glacier
     ["houndice", 3], ["heronquak", 3], ["angesnow", 2], ["seraphice", 2], ["snowrilla", 2], ["eaglace", 1]]),
-    lv(15, 20, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
-    lv(17, 21, [["lucifice", 2]])); // the ice devil only skates out at night
-  area("icecave", "Ice Cave", lv(17, 22, [ // the babies of the ice families shelter in here
+    lv(12, 17, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
+    lv(14, 18, [["lucifice", 2]])); // the ice devil only skates out at night
+  area("icecave", "Ice Cave", lv(14, 19, [ // the babies of the ice families shelter in here
     ["eskipup", 3], ["chillimp", 3], ["tweesher", 3], ["waysprite", 2], ["demosnow", 2], ["houndice", 1]]),
-    lv(17, 21, [["tadcool", 3], ["fribbit", 1]]),
-    lv(19, 23, [["lucifice", 2], ["demosnow", 3]]));
+    lv(14, 18, [["tadcool", 3], ["fribbit", 1]]),
+    lv(16, 20, [["lucifice", 2], ["demosnow", 3]]));
   // Past Shade Hollow the wild ones are mostly already evolved.
-  area("route5", "Thornwood Wilds", lv(31, 36, [ // ancient overgrown forest: wood, venom and birds
+  area("route5", "Thornwood Wilds", lv(22, 27, [ // ancient overgrown forest: wood, venom and birds
     ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],
     ["tumblebee", 2], ["birdling", 2], ["corvix", 1]]),
-    lv(31, 35, [["galasces", 2], ["krokivip", 1]]),
-    lv(32, 36, [["spighter", 2], ["dracune", 2], ["hoarseshoo", 1]]));
-  area("route6", "Ashfall Trail", lv(36, 41, [ // volcanic ash fields: fire and earth
+    lv(22, 26, [["galasces", 2], ["krokivip", 1]]),
+    lv(23, 27, [["spighter", 2], ["dracune", 2], ["hoarseshoo", 1]]));
+  area("route6", "Ashfall Trail", lv(27, 32, [ // volcanic ash fields: fire and earth
     ["cobarett", 3], ["cardiwing", 2], ["solight", 2], ["grinflare", 2], ["rockat", 3], ["selmatek", 2],
     ["urcheedle", 2], ["knightsand", 1], ["cocrune", 2]]),
-    lv(36, 40, [["lightmare", 1]]),
-    lv(37, 41, [["vulpyre", 2], ["loliferno", 1]]));
-  area("route7", "Rustline Road", lv(41, 46, [ // scrapyards and power lines: steel, lightning and psychic
+    lv(27, 31, [["lightmare", 1]]),
+    lv(28, 32, [["vulpyre", 2], ["loliferno", 1]]));
+  area("route7", "Rustline Road", lv(32, 37, [ // scrapyards and power lines: steel, lightning and psychic
     ["puparmor", 3], ["weavifly", 2], ["trojerror", 2], ["windeye", 2], ["apeoro", 2], ["arthrobolt", 2],
     ["eyesore", 2], ["masknake", 2], ["angrito", 1]]),
-    lv(41, 45, [["hydrone", 2]]),
-    lv(42, 46, [["bewhich", 2], ["lunight", 2], ["equill", 1]]));
-  area("route8", "Victory Ridge", lv(46, 51, [ // the toughest wilds before the Prime Gym
+    lv(32, 36, [["hydrone", 2]]),
+    lv(33, 37, [["bewhich", 2], ["lunight", 2], ["equill", 1]]));
+  area("route8", "Victory Ridge", lv(37, 42, [ // the toughest wilds before the Prime Gym
     ["bricgard", 3], ["myrmison", 2], ["miaownolith", 2], ["glombroc", 2], ["conglolem", 2], ["rabbitosaur", 2],
     ["strella", 2], ["gryfix", 2], ["aardart", 2], ["komoduel", 1], ["devidra", 1]]),
     null,
-    lv(47, 51, [["mystikapi", 2], ["qetzlrokilus", 1]]));
+    lv(38, 42, [["mystikapi", 2], ["qetzlrokilus", 1]]));
 
   // ---------------- Weather ----------------
   // kind: rain / snow / ash. from-to: the in-game hours it happens (always, if left out). mons: weather-only monsters
   // mixed into the grass while it lasts.
-  W.route2.weather = { kind: "rain", from: 13, to: 17, mons: [["fribbit", 10, 14, 2]] };
-  W.tide.weather = { kind: "rain", from: 13, to: 17, mons: [["tornicane", 15, 19, 2], ["galasces", 15, 19, 1]] };
-  W.route3.weather = { kind: "snow", mons: [["houndice", 17, 21, 2]] };
+  W.route2.weather = { kind: "rain", from: 13, to: 17, mons: [["fribbit", 8, 12, 2]] };
+  W.tide.weather = { kind: "rain", from: 13, to: 17, mons: [["tornicane", 11, 15, 2], ["galasces", 11, 15, 1]] };
+  W.route3.weather = { kind: "snow", mons: [["houndice", 13, 17, 2]] };
   W.frostsea.weather = { kind: "snow" };
-  W.route6.weather = { kind: "ash", mons: [["eruptibus", 37, 41, 1]] };
+  W.route6.weather = { kind: "ash", mons: [["eruptibus", 28, 32, 1]] };
 
   // ---------------- Gym puzzles ----------------
   // Each gym is a 14x18 room: 3 rows of wall, 14 rows of puzzle (y 3-16), the exit at the bottom (x 6-7).

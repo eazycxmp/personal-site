@@ -2418,7 +2418,9 @@ class Battle {
       const act = await this.chooseAction();
       if (act.type === "run") {
         if (this.trainer) { await this.msg("No! There's no running from a\ntrainer battle!"); continue; }
-        const chance = clamp(0.5 + (this.p.speed - this.e.speed) / 40, 0.3, 0.98);
+        // easy to get away, and easier with every try: a slower monster only drags it down a little
+        this.runTries = (this.runTries || 0) + 1;
+        const chance = clamp(0.8 + (this.p.speed - this.e.speed) / 80 + 0.25 * (this.runTries - 1), 0.6, 1);
         if (Math.random() < chance) { await this.msg("Got away safely!"); return "run"; }
         await this.msg("Can't escape!");
         await this.enemyTurn();
