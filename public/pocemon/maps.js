@@ -289,6 +289,7 @@
     // tier 1 of the glacier, tier 2 above it, an ice step up to each; the cave mouth sits in a taller ice cliff
     raise: [[28, 2, 10, 8, 1], [32, 2, 6, 4, 2], [30, 10, 1, 1, 0.5], [34, 6, 1, 1, 1.5], [28, 0, 1, 2, 2], [31, 0, 1, 2, 2], [29, 0, 2, 2, 1]],
     mouths: [[29, 1], [30, 1]],
+    warps: [{ x: 37, y: 2, to: "icecave", tx: 20, ty: 3, dir: "down", look: "hole" }], // the ice cave's back way up
     exits: [{ edge: "w", at: 17, w: 2, to: "tide" }, { edge: "n", at: 29, w: 2, to: "icecave", narrow: true }],
     signs: [{ x: 3, y: 15, text: "FROST SEA\nSurf out to the floes.\nThe glacier lies northeast." }, { x: 27, y: 3, text: "ICE CAVE\nIn the glacier's north face.\nMind the slippery floor!" }],
     legends: [{ id: "legend_pharavion", slug: "pharavion", lv: 32, x: 35, y: 3 }],
@@ -312,12 +313,15 @@
       ["T", 0, 0, 24, 26],
       [".", 11, 19, 2, 7], [".", 3, 13, 18, 7], [",", 4, 14, 4, 3], [",", 15, 17, 4, 2], ["~", 15, 14, 3, 2],
       [".", 11, 12, 2, 1], [".", 17, 12, 1, 1], ["I", 6, 4, 12, 8], [".", 10, 2, 4, 2],
+      [".", 19, 2, 3, 4], [".", 19, 6, 1, 7], // the back room, with a ladder up to the glacier top
       ["R", 11, 6, 2, 1], ["R", 13, 4, 1, 1], ["R", 13, 11, 1, 1], ["R", 3, 13, 1, 1], ["R", 20, 19, 1, 1], ["R", 9, 18, 1, 1],
     ],
     exits: [{ edge: "s", at: 11, w: 2, to: "frostsea", narrow: true }],
+    warps: [{ x: 20, y: 2, to: "frostsea", tx: 37, ty: 3, dir: "down", look: "ladder" }],
     signs: [{ x: 10, y: 21, text: "ICE CAVE\nOn the ice you slide until\nsomething stops you." }],
     items: [{ id: "item_icecave_candy", x: 11, y: 2, item: "exp_candy", n: 1 }, { id: "item_icecave_berry", x: 19, y: 13, item: "berry_frost", n: 1 },
-      { id: "item_icecave_treat", x: 4, y: 18, item: "level_treat", n: 1 }],
+      { id: "item_icecave_treat", x: 4, y: 18, item: "level_treat", n: 1 },
+      { id: "item_icecave_backroom", x: 21, y: 4, item: "great_ball", n: 3 }],
     npcs: [
       trainer({ id: "ic_skier", outfit: "sailor", sprite: "ninja", x: 7, y: 17, dir: "right", sight: 3, name: "Ice Hermit Yuki",
         team: [["demosnow", 19], ["chillimp", 20], ["lucifice", 21]], intro: "Few find this cave. Fewer leave it warm!", lose: "The ice favours you today." }),
@@ -331,8 +335,10 @@
     ops: [
       ["=", 10, 0, 2, 44], [",", 2, 34, 8, 8], [",", 12, 30, 8, 8], [",", 2, 18, 7, 10], [",", 13, 14, 7, 8],
       [",", 4, 3, 14, 6], ["T", 13, 24, 6, 4], ["T", 2, 12, 6, 4], ["~", 15, 39, 4, 3], ["f", 13, 10, 4, 2], ["f", 3, 29, 3, 2],
+      ["=", 12, 16, 10, 1], // a trail east to the mouth of Glimmer Cave's tunnel
     ],
-    exits: [{ edge: "s", at: 10, w: 2, to: "shade" }, { edge: "n", at: 10, w: 2, to: "verdance" }],
+    mouths: [[21, 16]],
+    exits: [{ edge: "s", at: 10, w: 2, to: "shade" }, { edge: "n", at: 10, w: 2, to: "verdance" }, { edge: "e", at: 16, w: 1, to: "cave", narrow: true }],
     signs: [{ x: 12, y: 41, text: "ROUTE 5 - THORNWOOD WILDS\nNorth: Verdance" }],
     npcs: [
       trainer({ id: "r5_a", outfit: "ranger", sprite: "woodnymph", x: 8, y: 36, dir: "right", sight: 4, name: "Druid Wren",
@@ -728,8 +734,9 @@
       [".", 11, 22, 2, 10], [".", 4, 18, 16, 6], [".", 4, 8, 3, 10], [".", 4, 4, 9, 5],
       [".", 11, 6, 9, 2], [".", 14, 2, 8, 6],
       ["T", 9, 20, 2, 2], ["~", 15, 19, 3, 2], ["T", 6, 5, 1, 1],
+      [".", 0, 12, 4, 1], ["o", 2, 12, 1, 1], // the tunnel west to Route 5, blocked by a boulder (STRENGTH)
     ],
-    exits: [{ edge: "s", at: 11, w: 2, to: "route4" }],
+    exits: [{ edge: "s", at: 11, w: 2, to: "route4" }, { edge: "w", at: 12, w: 1, to: "route5", narrow: true }],
     signs: [{ x: 13, y: 24, text: "GLIMMER CAVE\nToo dark to see without FLASH." }],
     legends: [{ id: "legend_asudopt", slug: "asudopt", lv: 55, x: 18, y: 3, needs: ["primordia", "pharavion", "kernel"] }],
     items: [{ id: "item_cave_mega", x: 5, y: 9, item: "mega_potion", n: 2 }],

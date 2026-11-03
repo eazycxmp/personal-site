@@ -818,7 +818,7 @@ const REGION = {
   cave: [34, 60, "side"], shade: [14, 76, "town"], route5: [14, 60], verdance: [14, 44, "town"], route6: [34, 44],
   cinder: [54, 44, "town"], route7: [54, 28], ironhold: [54, 12, "town"], route8: [78, 12], prime: [102, 12, "town"],
 };
-const REGION_LINKS = [["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
+const REGION_LINKS = [["cave", "route5"], ["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
   "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea", "icecave"], ["route3", "hollow"], ["route4", "cave"]];
 // the outdoor area you're in (indoors counts as the town or route outside)
 function regionHere() { let id = world.id; for (let i = 0; i < 4 && MAPS[id] && MAPS[id].interior && MAPS[id].out; i++) id = MAPS[id].out.map; return id; }
@@ -1128,6 +1128,8 @@ function stepEvent() {
     await say("*CLICK* You stepped on a switch. Somewhere, a gate swung open!");
     save();
   };
+  const wp = (m.warps || []).find((w) => w.x === p.x && w.y === p.y); // ladders and holes between maps
+  if (wp) return () => warp(wp.to, wp.tx, wp.ty, wp.dir || "down");
   const door = world.doors.find((b) => b.door.x === p.x && b.door.y === p.y);
   if (door && door.to) {
     const inn = MAPS[door.to];

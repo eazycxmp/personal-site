@@ -113,6 +113,11 @@ odd/even, halves, dozens, or one number at 35:1) and blackjack (4 decks, dealer 
 3:2, double on your first two cards, no splits). The Prize Clerk trades coins for Sweet Candy, Sweet Sand,
 Level Treats, Mega Potions, a Master Ball, or a Lv 10 copy of either starter you didn't pick.
 
+**Tunnels:** Glimmer Cave tunnels west and comes out on Route 5's east side, past a boulder you need
+STRENGTH (Shade Badge) to move, so it's a shortcut, not a way to skip the 4th gym. The Ice Cave has a back
+room with a ladder up to a hole on the glacier's top tier beside Pharavion (maps can now have `warps`:
+step-on ladders and holes between maps).
+
 **The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice monsters
 (Eskipup, Chillimp, Tweesher, Waysprite, Demosnow), an ice hermit, and a sheet of ice you slide across
 to reach a Sweet Candy (every spot on the ice can slide back out).

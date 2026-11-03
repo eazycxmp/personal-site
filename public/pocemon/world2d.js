@@ -146,6 +146,12 @@ window.World2D = (() => {
       tile(g, "nat", Wf[0] + 7, Wf[1] + 3, mx * TS, my * TS);
       for (let yy = my - 1; yy >= 0; yy--) { g.fillStyle = "#141c28"; g.fillRect(mx * TS, yy * TS, TS, TS); }
     }
+    // ladders and holes that lead to another map
+    for (const w of m.warps || []) {
+      const Wf = FAM[th.wall || th.raise];
+      if (w.look === "ladder") tile(g, "nat", Wf[0] + 3, Wf[1] + 3, w.x * TS, w.y * TS);
+      else tile(g, "nat", Wf[0] + 7, Wf[1] + 3, w.x * TS, w.y * TS);
+    }
     // icy and rocky shores: a stone rim on the water's edge; ice floes drift on open water
     if (th.shore) {
       const isWet = (a, b) => { const t = at(m, a, b); return t === null || t === "~"; };
