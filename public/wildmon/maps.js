@@ -272,27 +272,51 @@
   W.frostsea = outdoor({
     name: "Frost Sea", w: 40, h: 30, music: "route", bg: "beach", frost: true, rate: 0.12,
     ops: [
-      ["~", 2, 2, 36, 26], [".", 0, 14, 6, 7], ["=", 0, 17, 5, 2],
+      ["~", 2, 2, 36, 26],
+      // the snowy west shore, with pines and a trail down to the water
+      [".", 0, 12, 8, 11], ["=", 0, 17, 6, 2], ["T", 5, 12, 3, 2], ["T", 6, 21, 2, 2], [",", 2, 13, 3, 3], [",", 2, 20, 3, 2],
+      // three floes out on the water
       [".", 10, 4, 6, 5], [",", 11, 5, 4, 3],
-      [".", 12, 19, 7, 6], [",", 13, 20, 5, 4],
+      [".", 12, 19, 7, 6], [",", 13, 20, 5, 4], ["T", 17, 19, 2, 2],
       [".", 22, 12, 5, 4], [",", 23, 13, 3, 2],
-      [".", 27, 2, 11, 10], [",", 29, 7, 3, 2], [",", 33, 2, 3, 2],
+      // the glacier, its frosty meadow, and the cliff the ice cave opens into
+      [".", 27, 2, 11, 10], [",", 29, 7, 3, 2], [",", 33, 2, 3, 2], [".", 28, 0, 4, 2],
     ],
-    // tier 1 of the glacier, tier 2 above it, and an ice step up to each
-    raise: [[28, 2, 10, 8, 1], [32, 2, 6, 4, 2], [30, 10, 1, 1, 0.5], [34, 6, 1, 1, 1.5]],
-    exits: [{ edge: "w", at: 17, w: 2, to: "tide" }],
-    signs: [{ x: 3, y: 15, text: "FROST SEA\nSurf out to the floes.\nThe glacier lies northeast." }],
+    // tier 1 of the glacier, tier 2 above it, an ice step up to each; the cave mouth sits in a taller ice cliff
+    raise: [[28, 2, 10, 8, 1], [32, 2, 6, 4, 2], [30, 10, 1, 1, 0.5], [34, 6, 1, 1, 1.5], [28, 0, 1, 2, 2], [31, 0, 1, 2, 2], [29, 0, 2, 2, 1]],
+    mouths: [[29, 1], [30, 1]],
+    exits: [{ edge: "w", at: 17, w: 2, to: "tide" }, { edge: "n", at: 29, w: 2, to: "icecave", narrow: true }],
+    signs: [{ x: 3, y: 15, text: "FROST SEA\nSurf out to the floes.\nThe glacier lies northeast." }, { x: 27, y: 3, text: "ICE CAVE\nIn the glacier's north face.\nMind the slippery floor!" }],
     legends: [{ id: "legend_pharavion", slug: "pharavion", lv: 32, x: 35, y: 3 }],
     items: [{ id: "item_floe_balls", x: 15, y: 4, item: "great_ball", n: 3 }, { id: "item_glacier_treat", x: 37, y: 9, item: "level_treat", n: 1 }],
     npcs: [
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
-        talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top."] },
-      trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 19, dir: "left", sight: 3, name: "Ice Diver Juno",
+        talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top, and baby ice monsters hide in the cave."] },
+      trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
         team: [["fribbit", 18], ["bigfin", 19]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
         team: [["houndice", 19], ["crustagu", 19], ["heronquak", 20]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
       trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
         team: [["snowrilla", 21], ["hectapod", 20], ["eaglace", 21]], intro: "Only the strong reach the top of this glacier!", lose: "Go on up. Mind the edge." }),
+    ],
+    encounters: [],
+  });
+  // The Ice Cave, inside the glacier: a frozen hall, a pool, and a sheet of ice you slide across to reach its treasure.
+  W.icecave = outdoor({
+    name: "Ice Cave", w: 24, h: 26, music: "mystery", bg: "cave", frost: true, walls: "ice", rate: 0.1,
+    ops: [
+      ["T", 0, 0, 24, 26],
+      [".", 11, 19, 2, 7], [".", 3, 13, 18, 7], [",", 4, 14, 4, 3], [",", 15, 17, 4, 2], ["~", 15, 14, 3, 2],
+      [".", 11, 12, 2, 1], [".", 17, 12, 1, 1], ["I", 6, 4, 12, 8], [".", 10, 2, 4, 2],
+      ["R", 11, 6, 2, 1], ["R", 13, 4, 1, 1], ["R", 13, 11, 1, 1], ["R", 3, 13, 1, 1], ["R", 20, 19, 1, 1], ["R", 9, 18, 1, 1],
+    ],
+    exits: [{ edge: "s", at: 11, w: 2, to: "frostsea", narrow: true }],
+    signs: [{ x: 10, y: 21, text: "ICE CAVE\nOn the ice you slide until\nsomething stops you." }],
+    items: [{ id: "item_icecave_candy", x: 11, y: 2, item: "exp_candy", n: 1 }, { id: "item_icecave_berry", x: 19, y: 13, item: "berry_frost", n: 1 },
+      { id: "item_icecave_treat", x: 4, y: 18, item: "level_treat", n: 1 }],
+    npcs: [
+      trainer({ id: "ic_skier", outfit: "sailor", sprite: "ninja", x: 7, y: 17, dir: "right", sight: 3, name: "Ice Hermit Yuki",
+        team: [["demosnow", 20], ["chillimp", 21], ["lucifice", 22]], intro: "Few find this cave. Fewer leave it warm!", lose: "The ice favours you today." }),
     ],
     encounters: [],
   });
@@ -468,10 +492,9 @@
 
   const center = (town) => interior({
     name: town + " Healing Center", w: 10, h: 9, music: "chill", wall: "cream", floor: "tile",
-    ops: [["C", 2, 4, 6, 1]], decor: [[2, 1, "poster"], [7, 1, "board"]],
-    npcs: [
+    ops: [["C", 2, 4, 5, 1], ["Q", 8, 3, 2, 1]], decor: [[2, 1, "poster"], [7, 1, "board"]],
+    npcs: [ // the Nurse heals; the PC in the corner stores monsters
       { sprite: "nurse", x: 4, y: 3, dir: "down", name: "Nurse", role: "heal" },
-      { sprite: "scientist", x: 6, y: 3, dir: "down", name: "Box Clerk", role: "box" },
     ],
   });
   const mart = (town) => interior({
@@ -764,6 +787,10 @@
     ["houndice", 3], ["heronquak", 3], ["angesnow", 2], ["seraphice", 2], ["snowrilla", 2], ["eaglace", 1]]),
     lv(15, 20, [["fribbit", 3], ["bigfin", 3], ["bedoo", 2], ["hectapod", 2], ["crustagu", 2], ["tornicane", 1], ["gupphire", 1]]),
     lv(17, 21, [["lucifice", 2]])); // the ice devil only skates out at night
+  area("icecave", "Ice Cave", lv(17, 22, [ // the babies of the ice families shelter in here
+    ["eskipup", 3], ["chillimp", 3], ["tweesher", 3], ["waysprite", 2], ["demosnow", 2], ["houndice", 1]]),
+    lv(17, 21, [["tadcool", 3], ["fribbit", 1]]),
+    lv(19, 23, [["lucifice", 2], ["demosnow", 3]]));
   // Past Shade Hollow the wild ones are mostly already evolved.
   area("route5", "Thornwood Wilds", lv(31, 36, [ // ancient overgrown forest: wood, venom and birds
     ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],
@@ -904,7 +931,7 @@
     "..............",
     "..............",
     "..............",
-  ], [[2, 12, "right", 4], [8, 8, "down", 3], [6, 3, "down", 0]], { gateCol: 0xff6020 });
+  ], [[2, 12, "right", 4], [8, 8, "right", 3], [6, 3, "down", 0]], { gateCol: 0xff6020 });
   puzzle("ironhold_gym", [ // polished steel: slide across it
     "..............",
     "PPPPPP.PPPPPPP",

@@ -59,7 +59,6 @@ function resize() {
   ctx.imageSmoothingEnabled = false;
   const scr = document.getElementById("screen"), w = Math.round(VW * fit), h = Math.round(VH * fit);
   scr.style.width = w + "px"; scr.style.height = h + "px";
-  if (window.World3D) World3D.resize(w, h);
 }
 addEventListener("resize", resize);
 resize();
@@ -81,14 +80,14 @@ function unlockAudio() { HouseDJ.unlock(); }
 function toggleMute() { muted = !muted; HouseDJ.setMuted(muted); }
 
 function npcSpritesUsed() {
-  const s = new Set(["adventurer"]);
+  const s = new Set(["adventurer", "heroine"]);
   for (const m of Object.values(MAPS)) for (const n of m.npcs || []) s.add(n.sprite);
   return [...s];
 }
 async function loadAssets(progress) {
   const jobs = [
     ["tiles", "assets/tiles/Basic_Buch_Tiles_Compiled.png"], ["buildings", "assets/tiles/core_buildings.png"],
-    ["floors", "assets/tiles/floorsandwalls.png"], ["sign", "assets/obj/sign.png"],
+    ["floors", "assets/tiles/floorsandwalls.png"], ["sign", "assets/obj/sign.png"], ["tuxeball", "assets/obj/tuxeball.png"],
     ["portrait_player", "assets/portrait/adventurer.png"],
   ];
   for (const b of Object.values(BG_FOR)) jobs.push(["bg_" + b, `assets/bg/${b}.png`]);
@@ -103,7 +102,7 @@ async function loadAssets(progress) {
   let done = 0;
   await Promise.all(jobs.map(([k, s]) => loadImg(k, s).then(() => progress(++done / jobs.length / 2))));
   await HouseDJ.load("assets/drums/");
-  await World3D.load("assets/models/", (k) => progress(0.5 + k / 2));
+  await World2D.load("assets/tiles/", (k) => progress(0.5 + k / 2));
   await document.fonts.load("8px PS");
 }
 
@@ -494,8 +493,6 @@ function partyAlive() { return S.party.filter((m) => m.hp > 0); }
 // ---------------------------------------------------------------- player & rival looks
 // You pick boy/girl and red/blue/green; your rival is always the opposite gender in a contrasting colour.
 const RIVAL_COLOR = { red: "green", green: "red", blue: "gold" };
-// you and your rival are realistic people (Quaternius); everyone else uses the Kenney mini figures
-const MODEL_FOR = { player: { boy: "qn:male", girl: "qn:female" }, rival: { boy: "qn:male", girl: "qn:female" } };
 const myLook = () => S.look || { gender: "boy", color: "red" };
 function rivalLook() { const l = myLook(); return { gender: l.gender === "boy" ? "girl" : "boy", color: RIVAL_COLOR[l.color] }; }
 const rivalName = () => (rivalLook().gender === "boy" ? "Rival Kai" : "Rival Mia");
@@ -509,10 +506,12 @@ const SPRITE_RECOLOR = { // groups of palette colours -> theme colour, shading k
 };
 const THEME_2D = { red: [216, 58, 48], blue: [48, 96, 216], green: [47, 154, 72], gold: [224, 160, 32] };
 const portraitCache = {};
-function lookPortrait(look) {
-  const sheet = look.gender === "boy" ? "adventurer" : "heroine", key = sheet + look.color;
+// the walking sprite gets the same recolour as the portrait
+const lookSheet = (look) => lookPortrait(look, "npc_");
+function lookPortrait(look, kind = "portrait_") {
+  const sheet = look.gender === "boy" ? "adventurer" : "heroine", key = kind + sheet + look.color;
   if (portraitCache[key]) return portraitCache[key];
-  const img = IMG["portrait_" + sheet], groups = SPRITE_RECOLOR[sheet], to = THEME_2D[look.color];
+  const img = IMG[kind + sheet], groups = SPRITE_RECOLOR[sheet], to = THEME_2D[look.color];
   const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
   const x = c.getContext("2d"); x.drawImage(img, 0, 0);
   const d = x.getImageData(0, 0, c.width, c.height), px = d.data;
@@ -630,7 +629,7 @@ function loadMap(id, x, y, dir) {
       for (const d of n.aside) { o.x += DIRS[d][0]; o.y += DIRS[d][1]; }
       o.fx = o.x * T; o.fy = o.y * T; o.dir = "left";
     }
-    if (n.rival) { const rl = rivalLook(); o.name = rivalName(); o.model = MODEL_FOR.rival[rl.gender]; o.outfit = rl.color; }
+    if (n.rival) { const rl = rivalLook(); o.name = rivalName(); o.sheet = lookSheet(rl); }
     return o;
   });
   // solid footprint of buildings
@@ -654,8 +653,8 @@ function loadMap(id, x, y, dir) {
   if (m.sleeper && !S.flags[m.sleeper.id]) world.statues.push({ ...m.sleeper, kind: "sleeper" });
   for (const st of world.statues) for (const [x, y] of st.tiles) world.solid.add(x + "," + y);
   music(areaMusic(m));
-  World3D.build(m, BUILDINGS);
-  World3D.snapYaw(p.angle);
+  World2D.build(m, BUILDINGS);
+  World2D.snapYaw(p.angle);
   if (prevId !== id) worldScene.banner = { name: m.cave ? (world.flash ? `${monName(world.flash)} used FLASH!` : "It's pitch black...") : m.theme ? `${m.name}: ${m.theme}` : m.name, t: NOW };
 }
 
@@ -672,7 +671,7 @@ function heightAt(x, y) {
 }
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
-  if (t === null || "T~FWCbkoRHPgj".includes(t)) return true;
+  if (t === null || "T~FWCbkoRHPgjQ".includes(t)) return true;
   if (world.solid.has(x + "," + y)) return true;
   if (npcAt(x, y)) return true;
   if (!ignorePlayer && world.player.x === x && world.player.y === y) return true;
@@ -780,7 +779,7 @@ async function fieldAction(x, y) {
   await say(`${monName(mon)} used ${f.move}! It ${f.done}!`);
   world.map.grid[y][x] = ".";
   S.flags[`field_${world.id}_${x}_${y}`] = true;
-  World3D.build(world.map, BUILDINGS); World3D.snapYaw(world.player.angle);
+  World2D.build(world.map, BUILDINGS); World2D.snapYaw(world.player.angle);
   save();
 }
 // Walking into a bush, cracked rock or boulder explains it (once per visit), so nobody has to guess to press Z.
@@ -803,12 +802,12 @@ function pressSwitch(m, n) {
 // Where each area sits on the map panel (towns, routes, and side areas), and how they join up.
 const REGION = {
   sprout: [14, 140, "town"], route1: [14, 124], ember: [14, 108, "town"], route2: [34, 108], tide: [54, 108, "town"],
-  frostsea: [90, 112, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
+  frostsea: [90, 112, "side"], icecave: [90, 96, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
   cave: [34, 60, "side"], shade: [14, 76, "town"], route5: [14, 60], verdance: [14, 44, "town"], route6: [34, 44],
   cinder: [54, 44, "town"], route7: [54, 28], ironhold: [54, 12, "town"], route8: [78, 12], prime: [102, 12, "town"],
 };
 const REGION_LINKS = [["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
-  "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea"], ["route3", "hollow"], ["route4", "cave"]];
+  "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea", "icecave"], ["route3", "hollow"], ["route4", "cave"]];
 // the outdoor area you're in (indoors counts as the town or route outside)
 function regionHere() { let id = world.id; for (let i = 0; i < 4 && MAPS[id] && MAPS[id].interior && MAPS[id].out; i++) id = MAPS[id].out.map; return id; }
 // species found in an area, and how many of them you've caught
@@ -1091,7 +1090,7 @@ async function faceDir(dir) {
 // is a tile on another map solid? (tiles, building footprints, NPCs, signs)
 function blockedAt(id, x, y) {
   const m = MAPS[id];
-  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgj".includes(m.grid[y][x])) return true;
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgjQ".includes(m.grid[y][x])) return true;
   for (const b of m.buildings || []) { const B = BUILDINGS[b.type]; if (x >= b.x && x < b.x + B.tw && y >= b.y && y < b.y + B.th) return true; }
   return (m.npcs || []).some((n) => n.x === x && n.y === y) || (m.signs || []).some((s2) => s2.x === x && s2.y === y);
 }
@@ -1114,7 +1113,7 @@ function stepEvent() {
   if (sw === "1" || sw === "2") return async () => {
     S.flags[`sw_${world.id}_${sw}`] = true;
     pressSwitch(m, sw);
-    World3D.build(m, BUILDINGS); World3D.snapYaw(p.angle);
+    World2D.build(m, BUILDINGS); World2D.snapYaw(p.angle);
     await say("*CLICK* You stepped on a switch. Somewhere, a gate swung open!");
     save();
   };
@@ -1282,6 +1281,7 @@ async function interact() {
     // they turn to face you exactly, and you face them
     n.faceYaw = Math.atan2(look.dx, look.dz);
     p.angle = Math.atan2(-look.dx, -look.dz); p.dir = dirFromAngle(p.angle); p.speed = 0;
+    if (!n.walking) n.dir = OPP[p.dir];
     await talkTo(n);
     if (n.kind !== "trainer") { n.dir = n.def.dir; n.faceYaw = null; }
     return;
@@ -1290,6 +1290,7 @@ async function interact() {
   let x = p.x + dx, y = p.y + dy;
   if (tileAt(x, y) === "~" && !p.surfing) { await waterAction(x, y); return; }
   if (FIELD[tileAt(x, y)]) { await fieldAction(x, y); return; }
+  if (tileAt(x, y) === "Q") { await boxMenu(); return; } // the PC
   if (tileAt(x, y) === "C") { x += dx; y += dy; }
   const n = npcAt(x, y);
   if (n) {
@@ -1389,7 +1390,7 @@ async function shop() {
 
 async function boxMenu() {
   for (;;) {
-    const c = await choose(["DEPOSIT", "WITHDRAW", "DONE"], { prompt: `Box Clerk: Your box holds ${S.box.length} monsters.` });
+    const c = await choose(["DEPOSIT", "WITHDRAW", "DONE"], { prompt: `You booted up the PC. Your box holds ${S.box.length} monsters.` });
     if (c === 0) {
       if (S.party.length <= 1) { await say("You can't deposit your last monster!"); continue; }
       const i = await partyScreen("pick", "Deposit which monster?");
@@ -2823,11 +2824,10 @@ function areaMusic(m = world.map) {
 }
 
 // ---------------------------------------------------------------- world scene
-// UP walks forward, DOWN backs up, LEFT/RIGHT steer, SHIFT sprints. Speed and turning ease
-// in and out so movement feels smooth.
-const WALK_SPEED = 3.2, RUN_SPEED = 5.6, TURN_SPEED = 2.9;
+// The arrows walk in that direction (top-down, like the classic handhelds); SHIFT runs.
+const WALK_SPEED = 3.6, RUN_SPEED = 6.4;
 const worldScene = {
-  opaque: true, world3d: true, turnVel: 0,
+  opaque: true, overworld: true,
   update(dt) {
     const wasNight = isNight(), wasRain = weatherNow();
     S.time += dt;
@@ -2839,11 +2839,12 @@ const worldScene = {
     if (wasRain !== weatherNow() && !world.busy) this.banner = { name: weatherNow() ? "It started to rain..." : "The rain stopped.", t: NOW };
     const p = world.player;
     for (const n of world.npcs) if (!n.walking) { n.fx = n.x * T; n.fy = n.y * T; }
-    if (world.busy) { p.speed *= Math.max(0, 1 - dt * 12); this.turnVel = 0; return; }
+    if (world.busy) { p.speed = 0; return; }
     if (consume("a")) { p.speed = 0; runScript(interact); return; }
     if (consume("b")) { p.speed = 0; runScript(startMenu); return; }
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
+    const tapped = ["up", "down", "left", "right"].find((k) => pressed[k]);
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
     if (p.slide) { // sliding: no steering until you stop
       const x0 = p.px, z0 = p.pz, n = 3;
@@ -2851,26 +2852,29 @@ const worldScene = {
       if ((p.px === x0 && p.pz === z0) || tileAt(p.x, p.y) !== "I") { p.slide = null; p.px = p.x + 0.5; p.pz = p.y + 0.5; }
       return;
     }
-    const turn = (held.left ? 1 : 0) - (held.right ? 1 : 0);
-    this.turnVel += (turn * TURN_SPEED - this.turnVel) * Math.min(1, dt * 12);
-    p.angle += this.turnVel * dt;
-    const fwd = (held.up ? 1 : 0) - (held.down ? 0.55 : 0);
-    const target = fwd * (held.run && fwd > 0 ? RUN_SPEED : WALK_SPEED);
-    p.speed += (target - p.speed) * Math.min(1, dt * (target ? 9 : 14));
-    if (Math.abs(p.speed) < 0.02) p.speed = 0;
-    p.dir = dirFromAngle(p.angle);
+    // the arrow last pressed wins; a quick tap toward a new direction only turns you to face it
+    if (tapped) this.lastDir = tapped;
+    const dir = held[this.lastDir] ? this.lastDir : ["up", "down", "left", "right"].find((k) => held[k]);
+    if (tapped && tapped !== p.dir && !p.speed) this.turnHold = 0.09;
+    this.turnHold = Math.max(0, (this.turnHold || 0) - dt);
+    if (dir) { p.dir = dir; p.angle = ANGLE[dir]; }
+    const target = dir && !this.turnHold ? (held.run ? RUN_SPEED : WALK_SPEED) : 0;
+    p.speed = target ? p.speed + (target - p.speed) * Math.min(1, dt * 14) : 0;
     if (p.speed) {
+      const [vx, vz] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
+      // drift onto the middle of the row or column you're walking along, so corridors and doors line up
+      const k = Math.min(1, dt * 10);
+      if (vx) p.pz += (p.y + 0.5 - p.pz) * k; else p.px += (p.x + 0.5 - p.px) * k;
       const step = p.speed * dt;
-      // sub-step so fast movement never skips a tile
-      const n = Math.ceil(Math.abs(step) / 0.2);
-      for (let i = 0; i < n && !world.busy; i++) movePlayer(-Math.sin(p.angle) * step / n, -Math.cos(p.angle) * step / n);
+      const n = Math.ceil(Math.abs(step) / 0.2); // sub-step so fast movement never skips a tile
+      for (let i = 0; i < n && !world.busy; i++) movePlayer(vx * step / n, vz * step / n);
     }
   },
   draw() {
     drawMinimap();
     if (world.bubble) {
       const n = world.bubble;
-      const s = World3D.project(n.fx / T, n.fy / T, 1.9);
+      const s = World2D.project(n.fx / T, n.fy / T, 1.9);
       if (s) { box(s.x - 7, s.y - 14, 14, 15, "#fff"); text("!", s.x - 3, s.y - 10, "#e03020", null); }
     }
     if (this.banner && NOW - this.banner.t < 2.2) {
@@ -2879,18 +2883,19 @@ const worldScene = {
       text(this.banner.name, 12, -20 + 30 * k);
     }
   },
-  render3d(dt) {
+  renderWorld(dt) {
     const m = world.map;
     const solid = (x, y) => {
       if (x < 0 || y < 0 || x >= m.w || y >= m.h) return !!m.interior;
       return m.grid[y][x] === "W" || m.grid[y][x] === "T" || world.solid.has(x + "," + y) || world.doors.some((b) => b.door.x === x && b.door.y === y);
     };
     const look = myLook();
-    const p3 = world.player; // ease up and down the glacier steps
+    const p3 = world.player;
     p3.ground = (p3.ground || 0) + (heightAt(p3.x, p3.y) - (p3.ground || 0)) * Math.min(1, dt * 10);
-    World3D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior, solid,
+    const mon = p3.mount && p3.mount.replace("*", "");
+    World2D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior,
       daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash, weather: weatherNow(),
-      pickups: (world.pickups || []).map((it) => ({ id: it.id, x: it.x, y: it.y, img: IMG["item_" + ITEMS[it.item].icon] })), look: { model: MODEL_FOR.player[look.gender], outfit: look.color } }, dt, NOW);
+      pickups: world.pickups || [], playerSheet: lookSheet(look), mountImg: mon ? IMG["mon_" + mon] : null }, dt, NOW);
   },
 };
 
@@ -2944,8 +2949,8 @@ function step(dt) {
   for (let i = scenes.length - 1; i >= 0; i--) if (scenes[i].opaque) { start = i; break; }
   ctx.clearRect(0, 0, VW, VH);
   const base = scenes[start];
-  if (base && base.world3d) base.render3d(dt);
-  else if (base && !base.world3d) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VW, VH); }
+  if (base && base.overworld) base.renderWorld(dt);
+  else if (base && !base.overworld) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, VW, VH); }
   for (let i = start; i < scenes.length; i++) scenes[i].draw();
   drawWarpFx();
   if (fade > 0) { ctx.fillStyle = `rgba(0,0,0,${fade})`; ctx.fillRect(0, 0, VW, VH); }
@@ -2961,7 +2966,7 @@ async function boot() {
   requestAnimationFrame(frame);
   await loadAssets((k) => { loading.k = k; });
   pop(loading);
-  World3D.init(document.getElementById("screen"), IMG);
+  World2D.init(document.getElementById("screen"), IMG);
   resize();
   prepWorld();
   const saved = loadSave();
@@ -2979,7 +2984,7 @@ async function boot() {
       await wait(0.4);
       await say("Prof. Oakley: Welcome to my lab! The world is full of wild monsters, so first you need a partner of your own.");
       await professor();
-      await say("CONTROLS: UP walks forward, LEFT and RIGHT turn, DOWN turns around. Z talks, X opens the menu, SHIFT runs.");
+      await say("CONTROLS: the arrow keys walk. Z talks and picks things up, X opens the menu, SHIFT runs.");
     });
   }
 }

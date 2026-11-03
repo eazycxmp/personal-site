@@ -10,7 +10,6 @@
   body { display: flex; align-items: center; justify-content: center; flex-direction: column; font-family: "PS", monospace; }
   #screen { position: relative; box-shadow: 0 0 0 4px #283828, 0 10px 40px rgba(0,0,0,.6); background: #000; }
   #screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; display: block; }
-  #screen canvas#world3d { image-rendering: auto; }
   #help { color: #8aa88a; font-size: 9px; margin-top: 12px; text-align: center; line-height: 1.8; }
   /* phone controls: a thumb joystick (diagonals walk + steer) and A / B / RUN */
   #pad { display: none; }
@@ -41,7 +40,7 @@
   <div id="stick"><div id="knob"></div></div>
   <div id="btns"><div class="btn" id="bB">B</div><div class="btn" id="bA">A</div><div class="btn" id="bRun">RUN</div></div>
 </div>
-<div id="help">UP walk · DOWN back up · LEFT/RIGHT steer · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · F fly · T teleport · M mute</div>
+<div id="help">ARROWS walk · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · F fly · T teleport · M mute</div>
 <script>
 // Phone controls: they press the same keys the keyboard does, so the game needs no special cases.
 (() => {
@@ -82,16 +81,13 @@
   });
 })();
 </script>
-<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
-<script type="module">
-  import * as THREE from "three";
-  import { GLTFLoader } from "./vendor/jsm/loaders/GLTFLoader.js";
-  import * as SkeletonUtils from "./vendor/jsm/utils/SkeletonUtils.js";
-  window.THREE = THREE; window.GLTFLoader = GLTFLoader; window.SkeletonUtils = SkeletonUtils;
-  // classic game scripts expect the globals above, so load them in order afterwards
-  for (const src of ["data.js", "maps.js", "music.js", "world3d.js", "game.js"]) {
-    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + Date.now(); s.onload = res; s.onerror = rej; document.body.appendChild(s); });
-  }
+<script>
+  // the game scripts share globals, so load them in order
+  (async () => {
+    for (const src of ["data.js", "maps.js", "music.js", "world2d.js", "game.js"]) {
+      await new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + Date.now(); s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+    }
+  })();
 </script>
 </body>
 </html>

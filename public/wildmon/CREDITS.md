@@ -1,6 +1,6 @@
 # Wildmon
 
-A 3D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
+A top-down 2D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
 fight trainers, beat 7 gyms and the Prime Gym, then challenge the Champion.
 
 ## Play
@@ -14,9 +14,7 @@ samples can load.)
 
 | Key | Action |
 |---|---|
-| UP | walk forward (hold SHIFT to sprint) |
-| LEFT / RIGHT | steer |
-| DOWN | back up |
+| Arrows | walk (hold SHIFT to run); a quick tap just turns to face that way |
 | Z / Enter / Space | talk, confirm |
 | X / Esc | menu, back |
 | F | fly (after the Volt Badge, with a Sky monster) |
@@ -24,7 +22,7 @@ samples can load.)
 | M | mute music |
 
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
-(and your rival) are realistic, motion-captured 3D people wearing that colour (older
+(and your rival) are Tuxemon's boy or girl walking sprite recoloured to that outfit (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
 blue → gold). The Water starter is Kroki, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
 battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team.
@@ -56,10 +54,9 @@ facing, from any angle, and they turn to face you.
 **Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
 SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor). After you surf back to shore you hop fully onto land, so you never get stuck at the water's edge.
 With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
-your monster's real sprite turned into a 3D voxel model.
+your monster's real sprite, with you riding on top.
 
-**Phones:** on a touch screen the game fills the width and shows a thumb joystick (diagonals walk and
-steer at once) plus A, B and a RUN toggle. In landscape the controls sit either side of the screen. They
+**Phones:** on a touch screen the game fills the width and shows a thumb joystick plus A, B and a RUN toggle. In landscape the controls sit either side of the screen. They
 send the same key presses as a keyboard, so nothing else changes.
 
 **Day and night:** one real minute is one in-game hour (a new game starts at 8am; night is 8pm–5am).
@@ -98,9 +95,15 @@ Type icons sit beside monster names in battle, the party, the Dex and info pages
 **Your attacks rarely miss:** your monsters miss a quarter as often as a move's listed accuracy
 (an 80% move hits 95% of the time); foes use the listed accuracy (`PLAYER_MISS_SCALE` in game.js).
 
-**Everyone is a realistic person** (Quaternius base characters): trainers wear their area's uniform,
-nurses, professors, clerks and guards have fixed looks, and townsfolk get varied hair, skin and
-clothes, seeded by who they are so they look the same every visit.
+**The world is 2D, drawn from Tuxemon's 16px tilesets** (`game/world2d.js`): grass, sand, stone, snow
+and ice ground with matching cliffs and stairs, big forest trees whose tops you walk behind, Tuxemon
+buildings and NPC walking sprites. Each kind of place has its own look: snowy pines and icy shores in
+the Frost Sea, ash-dark stone around Cinder, autumn trees near Prime City, palms by the beach, rock walls
+in caves. Healing Centers have a Nurse to heal and a PC in the corner for depositing and withdrawing monsters.
+
+**The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice monsters
+(Eskipup, Chillimp, Tweesher, Waysprite, Demosnow), an ice hermit, and a sheet of ice you slide across
+to reach a Sweet Candy (every spot on the ice can slide back out).
 
 **Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
 the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's
@@ -208,7 +211,6 @@ Generated live by `game/music.js`, with a track for each place:
 ```bash
 python tools/build_data.py      # Tuxemon DB in .tmp/db -> game/data.js + asset manifest
 python tools/fetch_assets.py    # downloads every asset in the manifest (validates file types)
-python tools/install_models.py  # downloads Kenney 3D packs and installs the models the game uses
 node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired exits, sightlines
 ```
 
@@ -223,12 +225,15 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
   [fluid-music/open-drums](https://github.com/fluid-music/open-drums) (originally machines.hyperreal.org).
   The 909 set is free to copy and distribute unmodified and **not for profit**; see
   `game/assets/drums/909/TR909SET.TXT`. The 808 set has no restrictions; see `TR808.TXT`.
-- **3D models** (trees, grass, flowers, rocks, fences, buildings, animated characters): Kenney's
-  Nature Kit, Mini Characters, City Kit (Commercial / Suburban) and Fantasy Town Kit, all CC0
-  ([kenney.nl](https://kenney.nl)). Installed by `tools/install_models.py`; licenses in `game/assets/models/*/License.txt`.
-- **Realistic player and rival:** "Universal Base Characters" and "Universal Animation Library" by
-  Quaternius ([quaternius.com](https://quaternius.com)), CC0. Files in `game/assets/models/qn/`
-  (copied from the Build Your Empire conversion: `qn_male.glb`, `qn_female.glb`, `qn_anims.glb`, skin textures).
-- **three.js** (MIT), vendored in `game/vendor/`.
+- **Overworld tilesets** (`game/assets/tiles/`), all from Tuxemon's `mods/tuxemon/gfx/tilesets`
+  (see Tuxemon's ATTRIBUTIONS.md):
+  - `nature.png` and `water.png` ("Core Outdoor Nature" / "Core Outdoor Water") and `outdoor.png`
+    ("Core Outdoor") by rubberduck, based on tiles by Buch (commissioned by luke83, with changes by luke83
+    and Past the Future), George_, luke83, PastTheFuture and Midi's Kyrodian Legends tileset;
+    CC BY-SA 4.0 (parts CC BY 3.0 / 4.0).
+  - `Basic_Buch_Tiles_Compiled.png` by Buch, commissioned by luke83, changes by luke83 and Past the Future; CC BY 3.0.
+  - `interior.png` ("Interior Tiles") by ArMM1998; public domain (CC0).
+  - `electronics.png` ("Electronics Tileset") by Mike Bramson; CC BY-SA 4.0.
+- The old 3D version (Kenney and Quaternius models, three.js) is kept outside the game in `legacy3d/`.
 
 Because of the CC BY-SA art and the not-for-profit 909 samples, keep this project free and credited.
