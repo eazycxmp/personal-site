@@ -30,7 +30,10 @@ battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, 
 **Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Pocemon's Steel, Dark and
 Psychic, plus a new Dragon type with its own Dragon Claw and Dragon Breath. The type chart is Pocemon's
 own and kept simple: every type hits 2–3 types hard (x2) and 2–3 weakly (x0.5), and is weak to 2–3, with no
-immunities (`node tools/check_chart.js` checks it). The starters each have 3
+immunities (`node tools/check_chart.js` checks it). Every pocemon shows and fights as one type (its first in Tuxemon's data); where the data
+has a second type it is only a faint touch, nudging damage x1.1 or x0.9 (`typeEff` in game.js). All the game's
+text calls them pocemon (`tools/rename_word.js` swaps the word inside string literals only; the save key keeps
+its old name so saves still load). The starters each have 3
 forms, except the Water starter, which has 4 (Kroki → Krokivip at 14 → Leviadile at 23 → Golnagi at 30); every other family has 2 or 3 (fixed seed in
 `tools/build_data.py`), with one-of-a-kind species paired up by type. The Pocedex (menu → DEX)
 has each species' lore and where it's found; a green dot marks species living in the area you're in,

@@ -1,6 +1,11 @@
 "use strict";
 // Pocemon: a monster-catching RPG built on Tuxemon's open art.
 const D = window.GAME_DATA;
+// One type per pocemon: its first. A second type in the data only nudges damage a little (see typeEff).
+function singleTypes(data) {
+  for (const m of Object.values(data.monsters)) if (m.types.length > 1) { m.subtype = m.types[1]; m.types = [m.types[0]]; }
+}
+singleTypes(D);
 const MAPS = window.WORLD.maps;
 const BUILDINGS = window.WORLD.BUILDINGS;
 const T = 16, VW = 240, VH = 160;
@@ -12,8 +17,8 @@ const ITEMS = {
   potion: { name: "Potion", price: 200, heal: 30, icon: "potion", desc: "Restores 30 HP." },
   super_potion: { name: "Super Potion", price: 600, heal: 80, icon: "super_potion", desc: "Restores 80 HP." },
   egg: { name: "Egg", key: true, icon: "ancient_egg", desc: "From the Day Care. It hatches as you walk." },
-  revive: { name: "Revive", price: 1000, revive: true, icon: "revive", desc: "Revives a fainted monster." },
-  tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild monsters." },
+  revive: { name: "Revive", price: 1000, revive: true, icon: "revive", desc: "Revives a fainted pocemon." },
+  tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild pocemon." },
   great_ball: { name: "Great Ball", price: 600, ball: 1.8, icon: "great_ball", desc: "A better chance to catch." },
   mega_potion: { name: "Mega Potion", price: 1500, heal: 200, icon: "mega_potion", desc: "Restores 200 HP." },
   full_heal: { name: "Full Heal", price: 400, cure: true, icon: "full_heal", desc: "Cures sleep, paralysis, burns and poison." },
@@ -26,12 +31,12 @@ const ITEMS = {
     "berry_" + t, { name: t[0].toUpperCase() + t.slice(1) + " Berry", price: 1500, hold: true, boost: t, minBadges: 2, icon: "berry_" + t,
       desc: `Held: its ${t.toUpperCase()} moves do 20% more damage.` }])),
   // prizes and rewards (not sold)
-  master_ball: { name: "Master Ball", ball: 255, icon: "master_ball", desc: "Catches any monster, every time." },
-  sweet_sand: { name: "Sweet Sand", lure: 150, icon: "sweet_sand", desc: "For 150 steps: more monsters, rarer ones and shinies." },
-  level_treat: { name: "Level Treat", treat: true, icon: "level_treat", desc: "A monster that eats it gains a level." },
+  master_ball: { name: "Master Ball", ball: 255, icon: "master_ball", desc: "Catches any pocemon, every time." },
+  sweet_sand: { name: "Sweet Sand", lure: 150, icon: "sweet_sand", desc: "For 150 steps: more pocemon, rarer ones and shinies." },
+  level_treat: { name: "Level Treat", treat: true, icon: "level_treat", desc: "A pocemon that eats it gains a level." },
   // key items: kept forever, used from the bag or automatically
   fishing_rod: { name: "Fishing Rod", key: true, icon: "fishing_rod", desc: "Face water and press Z to fish." },
-  lucky_bamboo: { name: "Lucky Bamboo", key: true, icon: "lucky_bamboo", desc: "Shiny monsters appear 3x as often." },
+  lucky_bamboo: { name: "Lucky Bamboo", key: true, icon: "lucky_bamboo", desc: "Shiny pocemon appear 3x as often." },
   toy_bear: { name: "Toy Bear", key: true, icon: "toy_bear", desc: "A well-loved teddy. Someone misses it." },
   ancient_egg: { name: "Ancient Egg", key: true, icon: "ancient_egg", desc: "Warm to the touch. Bring it to Prof. Oakley." },
   flute: { name: "Old Flute", key: true, icon: "flute", desc: "A wooden flute from Hollowmere." },
@@ -232,10 +237,10 @@ function moveFacts(m, id, foe, compact) {
   lines.push(...fx);
   if (M.fx && (M.fx.self || M.fx.foe)) lines.push("Each stage: +1 = x1.5, +2 = x2, -1 = x0.67");
   if (foe) {
-    const eff = typeMult(M.type, D.monsters[foe.slug].types);
+    const eff = typeEff(M.type, foe.slug);
     if (!M.power) { if (M.fx && M.fx.inflict && foe.status) lines.push(`${monName(foe)} already has a status: fails`); return lines; }
     const share = foe.hp > 0 ? calcDamage(m, foe, id, false).dmg / foe.hp : 0;
-    const vs = eff >= 2 ? `SUPER x${eff}` : eff < 1 ? `WEAK x${eff}` : "NORMAL x1";
+    const vs = eff >= 1.5 ? "SUPER x2" : eff <= 0.6 ? "WEAK x0.5" : "NORMAL x1"; // a hidden second type only nudges it
     lines.push(eff === 0 ? `NO EFFECT on ${monName(foe)}` : `${vs}: ` + (share >= 1 ? "can KO it" : `~${Math.max(1, Math.round(share * 100))}% of its HP`));
   }
   return lines;
@@ -462,6 +467,13 @@ function makeMon(slug, level) {
 }
 const monName = (m) => D.monsters[m.slug].name;
 function healMon(m) { m.hp = m.maxhp; m.status = null; for (const mv of m.moves) mv.pp = D.moves[mv.id].pp; }
+// how hard a move lands on a pocemon: its type's full matchup, nudged x1.1 / x0.9 by a hidden second type
+function typeEff(moveType, slug) {
+  const m = D.monsters[slug], k = typeMult(moveType, m.types);
+  if (!m.subtype) return k;
+  const v = typeMult(moveType, [m.subtype]);
+  return k * (v > 1 ? 1.1 : v < 1 ? 0.9 : 1);
+}
 function typeMult(moveType, defTypes) {
   let k = 1;
   for (const t of defTypes) k *= (D.chart[moveType] && D.chart[moveType][t]) ?? 1;
@@ -478,11 +490,11 @@ const STATUS_TAG = { burn: "BRN", poison: "PSN", sleep: "SLP", para: "PAR" };
 const STAT_NAME = { melee: "MELEE", armour: "ARMOUR", ranged: "RANGED", dodge: "DODGE", speed: "SPEED" };
 function calcDamage(att, def, moveId, roll = true) {
   const mv = D.moves[moveId];
-  if (!mv.power) return { dmg: 0, eff: typeMult(mv.type, D.monsters[def.slug].types), crit: false };
+  if (!mv.power) return { dmg: 0, eff: typeEff(mv.type, def.slug), crit: false };
   const A = statOf(att, mv.phys ? "melee" : "ranged");
   const Df = statOf(def, mv.phys ? "armour" : "dodge");
   const stab = (D.monsters[att.slug].types.includes(mv.type) ? 1.5 : 1) * (att.item && ITEMS[att.item] && ITEMS[att.item].boost === mv.type ? 1.2 : 1);
-  const eff = typeMult(mv.type, D.monsters[def.slug].types);
+  const eff = typeEff(mv.type, def.slug);
   const crit = roll && Math.random() < 1 / 16 ? 1.5 : 1;
   const base = ((2 * att.level / 5 + 2) * mv.power * A / Df) / 50 + 2;
   const r = roll ? 0.85 + Math.random() * 0.15 : 0.92;
@@ -752,9 +764,9 @@ async function collect(it) {
 }
 async function trySurf(tx, ty) {
   const p = world.player;
-  if (!S.badges.includes("Tide Badge")) { await say("The water is deep blue. A Water monster could carry you across... once you earn the TIDE BADGE."); return; }
+  if (!S.badges.includes("Tide Badge")) { await say("The water is deep blue. A Water pocemon could carry you across... once you earn the TIDE BADGE."); return; }
   const m = rider("water");
-  if (!m) { await say("None of your monsters can swim. Catch a WATER-type monster to ride across water."); return; }
+  if (!m) { await say("None of your pocemon can swim. Catch a WATER-type pocemon to ride across water."); return; }
   if (!(await yesNo(`The water is calm. Ride ${monName(m)} across it?`))) return;
   p.mount = mountKey(m); p.surfing = true;
   const x0 = p.px, z0 = p.pz;
@@ -771,7 +783,7 @@ async function fieldAction(x, y) {
   const f = FIELD[tileAt(x, y)];
   const mon = S.party.find((m) => m.hp > 0 && f.types.some((t) => D.monsters[m.slug].types.includes(t)));
   if (!S.badges.includes(f.badge) || !mon) {
-    const need = [!S.badges.includes(f.badge) && `the ${f.badge.toUpperCase()}`, !mon && `a ${f.types.join(" or ").toUpperCase()} monster in your team`].filter(Boolean);
+    const need = [!S.badges.includes(f.badge) && `the ${f.badge.toUpperCase()}`, !mon && `a ${f.types.join(" or ").toUpperCase()} pocemon in your team`].filter(Boolean);
     await say(`${f.what} It could be cleared with ${f.move}. You need ${need.join(" and ")}.`);
     return;
   }
@@ -905,7 +917,6 @@ function typeGuide(start) {
         text("WEAK TO", 8, y + 2, "#c03020", null); y = chips(ts.filter((a2) => mult(a2, t) > 1), 82, y, 234);
         text("TOUGH VS", 8, y + 2, "#2a6090", null); y = chips(ts.filter((a2) => mult(a2, t) < 1), 82, y, 234);
         this.bottom = y;
-        if (y <= 146) text("Two types: x2 and x2 make x4", 8, 146, "#909090", null);
       },
     });
   });
@@ -925,9 +936,9 @@ let warpFx = 0;
 // Teleport unlocks with the Shade Badge, or early by returning Old Whisper's flute in Hollowmere.
 const canTeleport = () => S.badges.includes("Shade Badge") || !!S.flags.q_flute_done;
 async function teleportMenu() {
-  if (!canTeleport()) { await say("Your monsters don't know how to TELEPORT yet. Earn the SHADE BADGE, or help someone in the ghost town west of Route 3."); return; }
+  if (!canTeleport()) { await say("Your pocemon don't know how to TELEPORT yet. Earn the SHADE BADGE, or help someone in the ghost town west of Route 3."); return; }
   const m = rider("psychic");
-  if (!m) { await say("You need a PSYCHIC-type monster in your party to teleport."); return; }
+  if (!m) { await say("You need a PSYCHIC-type pocemon in your party to teleport."); return; }
   const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
   const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { x: 120, y: 4, w: 116, // the map shows where each town is
     extra: (k) => drawRegion(0, 0, towns[k]) });
@@ -957,9 +968,9 @@ function drawWarpFx() {
 
 async function flyMenu() {
   const p = world.player;
-  if (!S.badges.includes("Volt Badge")) { await say("Your monsters can't carry you through the sky yet. Earn the VOLT BADGE first."); return; }
+  if (!S.badges.includes("Volt Badge")) { await say("Your pocemon can't carry you through the sky yet. Earn the VOLT BADGE first."); return; }
   const m = rider("sky");
-  if (!m) { await say("You need a SKY-type monster in your party to fly."); return; }
+  if (!m) { await say("You need a SKY-type pocemon in your party to fly."); return; }
   if (world.map.interior) { await say("You can't fly indoors! Head outside first."); return; }
   const towns = FLY_TOWNS.filter((id) => S.flags["visited_" + id] || id === world.id);
   const i = await choose(towns.map((id) => MAPS[id].name).concat(["CANCEL"]), { x: 120, y: 4, w: 116, // the map shows where each town is
@@ -1279,7 +1290,7 @@ async function trainerEncounter(n, spotted) {
     n.defeated = true; S.flags[n.id] = true;
     await say(`${n.name}: ${n.win}`);
     S.party.forEach(healMon);
-    await say("Prof. Oakley healed your monsters.");
+    await say("Prof. Oakley healed your pocemon.");
     save();
     return;
   }
@@ -1297,9 +1308,9 @@ async function trainerEncounter(n, spotted) {
     if (n.badge && !S.badges.includes(n.badge)) {
       S.badges.push(n.badge);
       await say(`You received the ${n.badge.toUpperCase()}!`);
-      if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER monster can carry you across water. Face the water and press Z to SURF!");
-      if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY monster can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
-      if (n.badge === "Shade Badge" && !S.flags.q_flute_done) await say("With the SHADE BADGE, a PSYCHIC monster can TELEPORT you to any town you've visited, even from indoors. Press T!");
+      if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER pocemon can carry you across water. Face the water and press Z to SURF!");
+      if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY pocemon can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
+      if (n.badge === "Shade Badge" && !S.flags.q_flute_done) await say("With the SHADE BADGE, a PSYCHIC pocemon can TELEPORT you to any town you've visited, even from indoors. Press T!");
       const left = BADGES.length - S.badges.length;
       await say(left ? `Badges: ${S.badges.length}/${BADGES.length}. ${left} more to challenge the Champion!` : "You have all 8 badges!\nThe Champion's Hall in Prime\nCity is now open to you!");
     }
@@ -1320,7 +1331,7 @@ function rivalSlug() {
 
 async function championEnding() {
   await say("Congratulations! You have defeated\nthe Champion and conquered every\ngym in the land!");
-  await say(`Monsters caught: ${Object.keys(S.caught).length}/${Object.keys(D.monsters).length}.\nThere are many more out there.\nKeep exploring, Champion!`);
+  await say(`Pocemon caught: ${Object.keys(S.caught).length}/${Object.keys(D.monsters).length}.\nThere are many more out there.\nKeep exploring, Champion!`);
 }
 
 // ---------------------------------------------------------------- interactions
@@ -1403,7 +1414,7 @@ async function statueEncounter(st) {
 
 async function talkTo(n) {
   if (n.kind === "trainer") {
-    if (!n.defeated && !partyAlive().length) return say(`${n.name}: Come back when you have monsters that can battle!`);
+    if (!n.defeated && !partyAlive().length) return say(`${n.name}: Come back when you have pocemon that can battle!`);
     if (!n.defeated && !readyFor(n)) {
       const ok = await yesNo(`${n.name}'s strongest is Lv ${trainerLevel(n)}. Yours is Lv ${topLevel()} (Lv ${trainerLevel(n) + READY_MARGIN} recommended). Battle anyway?`);
       if (!ok) return say(`${n.name}: Train up in the tall grass and come back!`);
@@ -1436,7 +1447,7 @@ async function talkTo(n) {
 }
 
 async function healAt(n) {
-  await say(n.healText || "Welcome to the Healing Center!\nWe'll restore your monsters to\nfull health.");
+  await say(n.healText || "Welcome to the Healing Center!\nWe'll restore your pocemon to\nfull health.");
   await fadeTo(0.6, 0.3);
   await wait(0.6);
   S.party.forEach(healMon);
@@ -1444,7 +1455,7 @@ async function healAt(n) {
   const p = world.player;
   S.lastHeal = { map: world.id, x: p.x, y: p.y };
   save();
-  await say("Your monsters are fully healed!\n(Game saved.)");
+  await say("Your pocemon are fully healed!\n(Game saved.)");
 }
 
 async function shop() {
@@ -1471,10 +1482,10 @@ async function shop() {
 
 async function boxMenu() {
   for (;;) {
-    const c = await choose(["DEPOSIT", "WITHDRAW", "DONE"], { prompt: `You booted up the PC. Your box holds ${S.box.length} monsters.` });
+    const c = await choose(["DEPOSIT", "WITHDRAW", "DONE"], { prompt: `You booted up the PC. Your box holds ${S.box.length} pocemon.` });
     if (c === 0) {
-      if (S.party.length <= 1) { await say("You can't deposit your last monster!"); continue; }
-      const i = await partyScreen("pick", "Deposit which monster?");
+      if (S.party.length <= 1) { await say("You can't deposit your last pocemon!"); continue; }
+      const i = await partyScreen("pick", "Deposit which pocemon?");
       if (i >= 0) { const [m] = S.party.splice(i, 1); S.box.push(m); await say(`${monName(m)} was sent to the box.`); }
     } else if (c === 1) {
       if (!S.box.length) { await say("Your box is empty."); continue; }
@@ -1526,11 +1537,11 @@ async function questTalk(n) {
       delete S.bag.flute; S.flags.q_flute_done = true;
       S.bag.level_treat = (S.bag.level_treat || 0) + 3;
       await say(`${who}: His flute... I never thought I'd hold it again.`);
-      await say(`${who}: Take these. He baked them for his monsters every winter.`);
+      await say(`${who}: Take these. He baked them for his pocemon every winter.`);
       await say("You received 3 LEVEL TREATS!");
       if (!S.badges.includes("Shade Badge")) {
-        await say(`${who}: And one more thing. He taught his monsters to step between places with a song. Let me teach yours.`);
-        await say("Your PSYCHIC monsters can now TELEPORT to any town you've visited! Press T, or choose TELEPORT in the menu.");
+        await say(`${who}: And one more thing. He taught his pocemon to step between places with a song. Let me teach yours.`);
+        await say("Your PSYCHIC pocemon can now TELEPORT to any town you've visited! Press T, or choose TELEPORT in the menu.");
       }
       return save();
     }
@@ -1588,10 +1599,10 @@ async function dayCare(n) {
     await say(`You got ${monName(m)} back${gain ? `, now Lv ${m.level}` : ""}!`);
     save(); return;
   }
-  await say(`${who}: Welcome to the DAY CARE! Leave a monster with me and it grows as you walk. Sometimes we even find an EGG!`);
-  if (S.party.length < 2) { await say(`${who}: You'll need at least two monsters, dear. You can't travel alone!`); return; }
-  if (!(await yesNo("Leave a monster at the Day Care?"))) return;
-  const i = await partyScreen("pick", "Leave which monster?");
+  await say(`${who}: Welcome to the DAY CARE! Leave a pocemon with me and it grows as you walk. Sometimes we even find an EGG!`);
+  if (S.party.length < 2) { await say(`${who}: You'll need at least two pocemon, dear. You can't travel alone!`); return; }
+  if (!(await yesNo("Leave a pocemon at the Day Care?"))) return;
+  const i = await partyScreen("pick", "Leave which pocemon?");
   if (i < 0) return;
   const [m] = S.party.splice(i, 1);
   S.daycare = { mon: m, steps: 0, eggs: 0 };
@@ -1626,7 +1637,7 @@ async function questLog() {
 }
 async function angler(n) {
   if (!S.bag.fishing_rod) {
-    await say(`${n.name}: You've got that trainer look. Ever tried fishing? Some monsters only live under the water.`);
+    await say(`${n.name}: You've got that trainer look. Ever tried fishing? Some pocemon only live under the water.`);
     S.bag.fishing_rod = 1;
     await say("You received the FISHING ROD!");
     await say(`${n.name}: Face any water and press Z to cast. Different waters, different catches!`);
@@ -1698,8 +1709,8 @@ async function momTalk(n) {
     "There are 8 GYMS. First Ember City (Rock), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow).",
     "Past Shade Hollow come Verdance (Wood), Cinder Peak (Fire) and Ironhold (Steel). Last of all is the PRIME GYM in Prime City, full of dragons.",
     "With all 8 badges you can enter the Champion's Hall in Prime City. Guards won't let you through some roads until you have enough badges.",
-    "Tall grass is full of wild monsters. Every route has its own kinds, and they get tougher the farther you go.",
-    "Some monsters only come out at NIGHT. Watch the clock in the corner and go back to the grass after dark.",
+    "Tall grass is full of wild pocemon. Every route has its own kinds, and they get tougher the farther you go.",
+    "Some pocemon only come out at NIGHT. Watch the clock in the corner and go back to the grass after dark.",
     "Trainers on the routes will wait until you're a bit stronger, so train in the grass before you take them on.",
     "Use type matchups! Water beats Fire, Fire beats Wood, Wood beats Water and Earth... the little icons next to each name show their types.",
     "When your team is hurt, any Healing Center will patch them up for free. Or come home and I'll take care of them.",
@@ -1719,14 +1730,14 @@ async function momTalk(n) {
 
 async function professor(n) {
   if (!S.starter) {
-    await say("Prof. Oakley: Ah, there you are!\nToday you begin your journey as a\nmonster trainer!");
-    await say("Prof. Oakley: Choose one of these\nthree monsters as your partner.");
+    await say("Prof. Oakley: Ah, there you are!\nToday you begin your journey as a\npocemon trainer!");
+    await say("Prof. Oakley: Choose one of these\nthree pocemon as your partner.");
     const slug = await starterSelect();
     S.starter = slug;
     const m = makeMon(slug, 5);
     addMon(m);
     await say(`You received ${monName(m)}!`);
-    await say("Prof. Oakley: Take these too!\nTuxeballs catch wild monsters,\nand Potions heal them.");
+    await say("Prof. Oakley: Take these too!\nTuxeballs catch wild pocemon,\nand Potions heal them.");
     await say("Prof. Oakley: Before you set off, go home and see your mom. She has a lot to tell you about the road ahead!");
     S.flags.go_see_mom = true;
     const rival = world.npcs.find((x) => x.id === "rival_lab");
@@ -1741,7 +1752,7 @@ async function professor(n) {
   }
   if (S.bag.ancient_egg) await hatchEgg();
   const c = Object.keys(S.caught).length;
-  await say(`Prof. Oakley: You've caught ${c} kinds of monsters!`);
+  await say(`Prof. Oakley: You've caught ${c} kinds of pocemon!`);
   for (const [need, item, n, label] of DEX_REWARDS) {
     if (c < need || S.flags["dex_" + need]) continue;
     S.flags["dex_" + need] = true;
@@ -1875,7 +1886,7 @@ function partyScreen(mode, prompt) {
           if (m.status) text(STATUS_TAG[m.status] || "PSN", 76, y + 12, "#c04020", null);
         });
         box(0, 134, VW, 26);
-        text(prompt || (mode === "view" ? "Choose a monster." : "Choose a monster."), 10, 143);
+        text(prompt || (mode === "view" ? "Choose a pocemon." : "Choose a pocemon."), 10, 143);
       },
     });
   });
@@ -1928,7 +1939,7 @@ function drawLore(slug, known = true, banner = null, shiny = false) {
     text(lines[0], 102, 17 + i * 19, "#303030", null);
   });
   box(2, 108, 236, 50);
-  const desc = known ? d.desc || "Little is known about this monster." : "You haven't seen this monster yet.";
+  const desc = known ? d.desc || "Little is known about this pocemon." : "You haven't seen this pocemon yet.";
   // long entries page through 3 lines at a time
   const per = banner ? 2 : 3, top = banner ? 127 : 115;
   if (banner) { ctx.fillStyle = "#fff0a0"; ctx.fillRect(6, 111, 228, 13); text(banner, 10, 113, "#a05000", null); }
@@ -1941,7 +1952,7 @@ function drawLore(slug, known = true, banner = null, shiny = false) {
 async function holdMenu(m) {
   const held = Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && ITEMS[k].hold);
   const opts = [...held.map((k) => `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), ...(m.item ? ["TAKE BACK"] : []), "CANCEL"];
-  if (!held.length && !m.item) { await say("You have no items a monster can hold. Marts sell APPLES, ELIXIRS and BERRIES."); return; }
+  if (!held.length && !m.item) { await say("You have no items a pocemon can hold. Marts sell APPLES, ELIXIRS and BERRIES."); return; }
   const i = await choose(opts, { x: 70, y: 2, w: 166, extra: (k) => {
     const key = held[k] || (k === held.length && m.item ? m.item : null);
     if (key) { box(0, 112, VW, 48); wrap(ITEMS[key].desc, VW - 24).slice(0, 3).forEach((l, j) => text(l, 10, 120 + j * 12)); }
@@ -1976,7 +1987,7 @@ function summary(m) {
         box(96, 2, 142, 104);
         const rows = [["LEVEL", m.level], ["HP", `${m.hp}/${m.maxhp}`], ["MELEE", m.melee], ["ARMOUR", m.armour],
           ["RANGED", m.ranged], ["DODGE", m.dodge], ["SPEED", m.speed], ["NEXT LV", Math.max(0, expFor(m.level + 1) - m.exp)]];
-        rows.forEach(([k, v], i) => { text(k, 104, 9 + i * 12); text(String(v), 180, 9 + i * 12); });
+        rows.forEach(([k, v], i) => { text(k, 104, 8 + i * 11); text(String(v), 180, 8 + i * 11); });
         box(2, 108, 236, 50);
         m.moves.forEach((mv, i) => {
           const M = D.moves[mv.id];
@@ -2081,16 +2092,16 @@ async function useItemOutside() {
   const key = await bagScreen(false);
   if (!key) return;
   const it = ITEMS[key];
-  if (it.ball) { await say("You can only throw that in battle at a wild monster!"); return; }
+  if (it.ball) { await say("You can only throw that in battle at a wild pocemon!"); return; }
   if (key === "fishing_rod") { await say("Stand facing the water and press Z to fish."); return; }
   if (it.key) { await say(it.desc); return; }
   if (it.lure) {
     if (S.lure > 0) { await say(`The Sweet Sand is still working (${S.lure} steps left).`); return; }
     S.bag[key]--; S.lure = it.lure;
-    await say("You scattered the SWEET SAND. Wild monsters will be drawn out for a while!");
+    await say("You scattered the SWEET SAND. Wild pocemon will be drawn out for a while!");
     return;
   }
-  const i = await partyScreen("pick", `Use ${it.name} on which monster?`);
+  const i = await partyScreen("pick", `Use ${it.name} on which pocemon?`);
   if (i < 0) return;
   if (it.treat) { await levelTreat(S.party[i]); return; }
   const msg = applyItem(key, S.party[i]);
@@ -2138,7 +2149,7 @@ async function startMenu() {
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
     if (pick === "TELEPORT") { await teleportMenu(); return; }
-    if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any monsters yet."); }
+    if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any pocemon yet."); }
     else if (pick === "DEX") await monsterLog();
     else if (pick === "MAP") await regionMap();
     else if (pick === "TYPES") await typeGuide();
@@ -2213,13 +2224,13 @@ async function battleIntroWipe() {
 }
 
 async function blackout() {
-  await say("You have no monsters left that\ncan fight! You blacked out...");
+  await say("You have no pocemon left that\ncan fight! You blacked out...");
   S.money = Math.floor(S.money / 2);
   S.party.forEach(healMon);
   const h = S.lastHeal;
   music(null);
   await warp(h.map, h.x, h.y, "up");
-  await say("You rushed back to safety and\nyour monsters were healed. You\ndropped half your money.");
+  await say("You rushed back to safety and\nyour pocemon were healed. You\ndropped half your money.");
   save();
 }
 
@@ -2546,19 +2557,19 @@ class Battle {
         if (!key) continue;
         const it = ITEMS[key];
         if (it.ball) {
-          if (this.trainer) { await this.msg("You can't catch a trainer's monster!"); continue; }
+          if (this.trainer) { await this.msg("You can't catch a trainer's pocemon!"); continue; }
           return { type: "item", key };
         }
-        const t = await partyScreen("pick", `Use ${it.name} on which monster?`);
+        const t = await partyScreen("pick", `Use ${it.name} on which pocemon?`);
         if (t < 0) continue;
         const m = S.party[t];
         if ((it.revive && m.hp > 0) || (it.heal && (m.hp <= 0 || m.hp >= m.maxhp)) || (it.cure && (!m.status || m.hp <= 0))) { await this.msg("It won't have any effect."); continue; }
         return { type: "item", key, target: t };
       } else if (c === 2) {
-        const i = await partyScreen("switch", "Switch to which monster?");
+        const i = await partyScreen("switch", "Switch to which pocemon?");
         if (i < 0) continue;
         if (S.party[i] === this.p) { await this.msg(`${monName(this.p)} is already out!`); continue; }
-        if (S.party[i].hp <= 0) { await this.msg("That monster has fainted!"); continue; }
+        if (S.party[i].hp <= 0) { await this.msg("That pocemon has fainted!"); continue; }
         return { type: "switch", idx: i };
       } else if (c === 3) return { type: "run" };
     }
@@ -2631,10 +2642,10 @@ class Battle {
     const from = def.hp;
     def.hp = Math.max(0, def.hp - r.dmg);
     await tween(0.5, (k) => { const v = from + (def.hp - from) * k; if (mine) this.eHp = v; else this.pHp = v; });
-    if (r.crit || r.eff > 1) { this.shake = 6; await wait(0.25); this.shake = 0; }
+    if (r.crit || r.eff >= 1.5) { this.shake = 6; await wait(0.25); this.shake = 0; }
     if (r.crit) await this.msg("A critical hit!");
-    if (r.eff > 1) await this.msg("It's super effective!");
-    else if (r.eff < 1) await this.msg("It's not very effective...");
+    if (r.eff >= 1.5) await this.msg("It's super effective!");
+    else if (r.eff <= 0.6) await this.msg("It's not very effective...");
     if (moveId === "struggle") {
       const recoil = Math.max(1, Math.floor(att.maxhp / 8));
       att.hp = Math.max(0, att.hp - recoil);
@@ -2744,7 +2755,7 @@ class Battle {
       this.participants.delete(this.p);
       if (!partyAlive().length) return "lose";
       let i;
-      do { i = await partyScreen("forced", "Choose the next monster."); } while (S.party[i].hp <= 0);
+      do { i = await partyScreen("forced", "Choose the next pocemon."); } while (S.party[i].hp <= 0);
       await this.sendPlayer(S.party[i]);
     }
     return null;
@@ -3066,7 +3077,7 @@ async function boot() {
   if (!S.starter) {
     runScript(async () => {
       await wait(0.4);
-      await say("Prof. Oakley: Welcome to my lab! The world is full of wild monsters, so first you need a partner of your own.");
+      await say("Prof. Oakley: Welcome to my lab! The world is full of wild pocemon, so first you need a partner of your own.");
       await professor();
       await say("CONTROLS: the arrow keys walk. Z talks and picks things up, X opens the menu, SHIFT runs.");
     });

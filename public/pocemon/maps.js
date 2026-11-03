@@ -61,7 +61,7 @@
     signs: [{ x: 13, y: 9, text: "SPROUT TOWN\nWhere every journey begins." }],
     npcs: [
       { sprite: "picnicker", x: 9, y: 13, dir: "down", name: "Kid",
-        talk: ["The tall grass up north is full\nof wild monsters!", "Walk through it and one might\njump out at you!"] },
+        talk: ["The tall grass up north is full\nof wild pocemon!", "Walk through it and one might\njump out at you!"] },
     ],
   });
 
@@ -77,7 +77,7 @@
     signs: [{ x: 12, y: 37, text: "ROUTE 1\nNorth: Ember City" }],
     npcs: [
       trainer({ id: "r1_pic", outfit: "ranger", sprite: "catgirl_green", x: 8, y: 19, dir: "right", name: "Ranger Lia",
-        team: [["katapill", 5], ["stonifly", 5]], intro: "I patrol these woods. Let's see how you treat your monsters!", lose: "You've got a ranger's instincts." }),
+        team: [["katapill", 5], ["stonifly", 5]], intro: "I patrol these woods. Let's see how you treat your pocemon!", lose: "You've got a ranger's instincts." }),
       trainer({ id: "r1_cool", outfit: "ranger", sprite: "adventurer_green", x: 14, y: 3, dir: "left", name: "Ranger Rex",
         team: [["banling", 6], ["rockitten", 7]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
     ],
@@ -103,12 +103,12 @@
     ],
     gates: [{ x: 27, y: 11, w: 1, h: 2, badges: 1, block: "e", text: "GUARD: The road east is rough.\nCome back with the Rock Badge!" }],
     signs: [{ x: 14, y: 13, text: "EMBER CITY\nGym Leader: BRACK\n\"Solid as bedrock.\"" },
-      { x: 9, y: 18, text: "DAY CARE\nWe raise your monsters\nwhile you walk!" }],
+      { x: 9, y: 18, text: "DAY CARE\nWe raise your pocemon\nwhile you walk!" }],
     npcs: [
       { sprite: "soldier", x: 27, y: 10, dir: "down", name: "Guard",
         talk: ["Only trainers with the Rock Badge\nmay pass east."] },
       { sprite: "granny", x: 10, y: 16, dir: "left", name: "Granny",
-        talk: ["Brack's monsters are EARTH type.", "FIRE and VENOM moves don't hurt\nthem much, dear. Try WATER or\nWOOD!"] },
+        talk: ["Brack's pocemon are EARTH type.", "FIRE and VENOM moves don't hurt\nthem much, dear. Try WATER or\nWOOD!"] },
     ],
   });
 
@@ -131,7 +131,7 @@
       trainer({ id: "r2_ten", outfit: "ranger", sprite: "monk_green", x: 28, y: 6, dir: "down", sight: 3, name: "Ranger Tia",
         team: [["merlicun", 9], ["trapsnap", 9]], intro: "These moths only come out at dusk. Want to meet them?", lose: "Fluttered away..." }),
       trainer({ id: "r2_flo", outfit: "ranger", sprite: "woodnymph", x: 38, y: 12, dir: "up", name: "Forest Keeper Ivy",
-        team: [["rosarin", 10], ["banling", 9], ["slichen", 10]], intro: "The forest speaks through my monsters!", lose: "The forest is at peace with you." }),
+        team: [["rosarin", 10], ["banling", 9], ["slichen", 10]], intro: "The forest speaks through my pocemon!", lose: "The forest is at peace with you." }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -160,9 +160,9 @@
         talk: ["Two badges, then you may pass\nnorth to Route 3."] },
       { sprite: "fisher", x: 3, y: 18, dir: "down", name: "Old Angler", role: "rod" },
       { sprite: "beachcomber", x: 10, y: 15, dir: "down", name: "Beachcomber",
-        talk: ["Marina's WATER monsters hate\nWOOD and LIGHTNING attacks!",
-          "See that island out at sea? With the TIDE BADGE, a Water monster can carry you there.",
-          "Go east along the pier to reach the FROST SEA. Water and ice monsters live out on the floes!"] },
+        talk: ["Marina's WATER pocemon hate\nWOOD and LIGHTNING attacks!",
+          "See that island out at sea? With the TIDE BADGE, a Water pocemon can carry you there.",
+          "Go east along the pier to reach the FROST SEA. Water and ice pocemon live out on the floes!"] },
       trainer({ id: "sea_hermit", outfit: "sailor", sprite: "riverboatcaptain", x: 14, y: 23, dir: "down", sight: 0, name: "Sea Hermit",
         team: [["manosting", 15], ["gupphish", 16], ["spirain", 17]],
         intro: "Few ever reach my shrine. Show me the strength that carried you here!", lose: "The sea chose well. Rare creatures hide in the shrine grass." }),
@@ -190,7 +190,7 @@
       trainer({ id: "r3_ninja", outfit: "ranger", sprite: "dragonrider_green", x: 6, y: 32, dir: "right", sight: 5, name: "Mountain Ranger Kaz",
         team: [["katapill", 13], ["foxfire", 14]], intro: "Mountain rangers move unseen. Surprise!", lose: "You spotted me after all." }),
       trainer({ id: "r3_sci", outfit: "ranger", sprite: "miner_green", x: 15, y: 20, dir: "left", sight: 5, name: "Mountain Ranger Ohm",
-        team: [["pawsand", 14], ["grintot", 14], ["stonifly", 13]], intro: "I guard the high trail. Rock-solid monsters only!", lose: "Crumbled like a landslide." }),
+        team: [["pawsand", 14], ["grintot", 14], ["stonifly", 13]], intro: "I guard the high trail. Rock-solid pocemon only!", lose: "Crumbled like a landslide." }),
       trainer({ id: "r3_goth", outfit: "ranger", sprite: "disciple_green", x: 6, y: 11, dir: "right", sight: 5, name: "Mountain Ranger Raven",
         team: [["turnipper", 15], ["banling", 15], ["toufigel", 15]], intro: "The pines whisper of a strong trainer...", lose: "The whispers were right." }),
     ],
@@ -218,9 +218,9 @@
     npcs: [
       { sprite: "soldier", x: 3, y: 10, dir: "down", name: "Guard", talk: ["Three badges to head west."] },
       { sprite: "cooldude", x: 15, y: 17, dir: "left", name: "Dude",
-        talk: ["Volta's LIGHTNING monsters can't\nstand EARTH attacks!"] },
+        talk: ["Volta's LIGHTNING pocemon can't\nstand EARTH attacks!"] },
       { sprite: "fashionista", x: 10, y: 18, dir: "left", name: "High Roller",
-        talk: ["The GAME CORNER never sleeps! Slots, roulette, blackjack...", "Win enough coins and they'll trade you a whole starter monster!"] },
+        talk: ["The GAME CORNER never sleeps! Slots, roulette, blackjack...", "Win enough coins and they'll trade you a whole starter pocemon!"] },
     ],
   });
 
@@ -266,7 +266,7 @@
       { sprite: "soldier", x: 16, y: 3, dir: "down", name: "Guard",
         talk: ["Four badges to head north.", "Four more gyms lie beyond, and the PRIME GYM waits at the very end."] },
       { sprite: "magician", x: 9, y: 22, dir: "up", name: "Mystic",
-        talk: ["Morrow's DARK monsters...", "...they say PSYCHIC and HEROIC\npower shines through darkness."] },
+        talk: ["Morrow's DARK pocemon...", "...they say VENOM and HEROIC\npower cuts through darkness."] },
     ],
   });
 
@@ -295,9 +295,9 @@
     items: [{ id: "item_floe_balls", x: 15, y: 4, item: "great_ball", n: 3 }, { id: "item_glacier_treat", x: 37, y: 9, item: "level_treat", n: 1 }],
     npcs: [
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
-        talk: ["Brr! The floes out there are full of WATER and FROST monsters.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top, and baby ice monsters hide in the cave."] },
+        talk: ["Brr! The floes out there are full of WATER and FROST pocemon.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top, and baby ice pocemon hide in the cave."] },
       trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
-        team: [["fribbit", 17], ["bigfin", 18]], intro: "The cold keeps my monsters sharp!", lose: "Brr... I need a warm drink." }),
+        team: [["fribbit", 17], ["bigfin", 18]], intro: "The cold keeps my pocemon sharp!", lose: "Brr... I need a warm drink." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
         team: [["houndice", 18], ["crustagu", 18], ["heronquak", 19]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
       trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
@@ -336,7 +336,7 @@
     signs: [{ x: 12, y: 41, text: "ROUTE 5 - THORNWOOD WILDS\nNorth: Verdance" }],
     npcs: [
       trainer({ id: "r5_a", outfit: "ranger", sprite: "woodnymph", x: 8, y: 36, dir: "right", sight: 4, name: "Druid Wren",
-        team: [["dandylion", 25], ["legko", 26]], intro: "The old trees chose my monsters. Let's see yours!", lose: "The forest bows to you." }),
+        team: [["dandylion", 25], ["legko", 26]], intro: "The old trees chose my pocemon. Let's see yours!", lose: "The forest bows to you." }),
       trainer({ id: "r5_b", outfit: "ranger", sprite: "monk_green", x: 13, y: 22, dir: "left", sight: 4, name: "Druid Bram",
         team: [["stegofor", 26], ["tumblebee", 26], ["spycozeus", 27]], intro: "Thorns and stings, that's my style!", lose: "Pricked my pride." }),
       trainer({ id: "rival_r5", rival: true, leaveTo: "verdance", sprite: "adventurer", x: 12, y: 6, dir: "left", sight: 3, name: "$rival",
@@ -371,7 +371,7 @@
     ops: [["f", 15, 15, 4, 3], ["T", 24, 15, 4, 6], ["~", 19, 15, 3, 2]],
     signs: [{ x: 14, y: 13, text: "VERDANCE\nGym Leader: FERN\n\"Roots run deep.\"" }],
     npcs: [{ sprite: "florist", x: 10, y: 15, dir: "left", name: "Gardener",
-      talk: ["Fern grows WOOD monsters.", "FIRE, SKY and FROST attacks wilt them fast!"] }],
+      talk: ["Fern grows WOOD pocemon.", "FIRE, SKY and FROST attacks wilt them fast!"] }],
   }, ["s", "route5"], ["e", "route6"], 5, "GUARD: The Ashfall Trail is scorching.\nYou need 5 badges!");
 
   // ---------------- Route 6: Ashfall Trail (Verdance -> Cinder Peak) ----------------
@@ -399,7 +399,7 @@
     ops: [["T", 22, 14, 6, 6], ["T", 26, 2, 2, 2]],
     signs: [{ x: 14, y: 13, text: "CINDER PEAK\nGym Leader: BLAZE\n\"Burn bright.\"" }],
     npcs: [{ sprite: "cooldude", x: 9, y: 16, dir: "right", name: "Hiker",
-      talk: ["Blaze's FIRE monsters hate WATER and EARTH attacks.", "Bring something that swims!"] }],
+      talk: ["Blaze's FIRE pocemon hate WATER and EARTH attacks.", "Bring something that swims!"] }],
   }, ["w", "route6"], ["n", "route7"], 6, "GUARD: Rustline Road is for trainers\nwith 6 badges!");
 
   // ---------------- Route 7: Rustline Road (Cinder Peak -> Ironhold) ----------------
@@ -427,7 +427,7 @@
     ops: [["T", 24, 15, 4, 6], ["F", 15, 18, 6, 1]],
     signs: [{ x: 14, y: 13, text: "IRONHOLD\nGym Leader: FORGE\n\"Nothing bends.\"" }],
     npcs: [{ sprite: "scientist", x: 10, y: 16, dir: "left", name: "Smith",
-      talk: ["Forge's STEEL monsters shrug off most hits.", "FIRE and EARTH attacks melt right through them!"] }],
+      talk: ["Forge's STEEL pocemon shrug off most hits.", "FIRE and EARTH attacks melt right through them!"] }],
   }, ["s", "route7"], ["e", "route8"], 7, "GUARD: Victory Ridge is for trainers\nwith 7 badges!");
 
   // ---------------- Route 8: Victory Ridge (Ironhold -> Prime City) ----------------
@@ -471,7 +471,7 @@
     npcs: [
       { sprite: "soldier", x: 17, y: 14, dir: "down", name: "Guard", talk: ["Beyond here is the Champion.\nYou need all 8 badges."] },
       { sprite: "granny", x: 10, y: 19, dir: "up", name: "Old Champion",
-        talk: ["Drake of the PRIME GYM trains DRAGONS, the mightiest monsters of all.", "Dragons fear FROST attacks and other dragons. Steel stands up to them."] },
+        talk: ["Drake of the PRIME GYM trains DRAGONS, the mightiest pocemon of all.", "Dragons fear FROST attacks and other dragons. Steel stands up to them."] },
     ],
   });
 
@@ -511,7 +511,7 @@
   });
 
   W.home = house("Your House", { sprite: "homemaker", x: 3, y: 4, dir: "down", name: "Mom", role: "heal",
-    healText: "Mom: You look tired, sweetie.\nLet your monsters rest a bit!" });
+    healText: "Mom: You look tired, sweetie.\nLet your pocemon rest a bit!" });
   W.sprout_house = house("Neighbor's House", { sprite: "heroine", x: 4, y: 4, dir: "down", name: "Neighbor",
     talk: ["Press X or ESC to open your menu.", "You can SAVE there, check your\nPARTY, and use items in your BAG."] });
   W.lab = interior({
@@ -525,13 +525,13 @@
 
   W.ember_center = center("Ember"); W.ember_mart = mart("Ember");
   W.ember_house = house("Day Care", { sprite: "miner", x: 2, y: 4, dir: "down", name: "Miner",
-    talk: ["Hold SHIFT to run.", "My aunt runs the DAY CARE. Leave a monster with her and it grows while you walk!"] });
+    talk: ["Hold SHIFT to run.", "My aunt runs the DAY CARE. Leave a pocemon with her and it grows while you walk!"] });
   W.ember_house.npcs.push({ sprite: "granny", x: 5, y: 3, dir: "down", name: "Day Care Lady", role: "daycare" });
   W.ember_house2 = house("House", { sprite: "fashionista", x: 4, y: 5, dir: "left", name: "Fashionista",
-    talk: ["Monsters evolve when they reach\ncertain levels.", "Keep battling and you'll see!"] });
+    talk: ["Pocemon evolve when they reach\ncertain levels.", "Keep battling and you'll see!"] });
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
   W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
-    talk: ["Weaken a wild monster before you\nthrow a Tuxeball.", "It's much easier to catch!"] });
+    talk: ["Weaken a wild pocemon before you\nthrow a Tuxeball.", "It's much easier to catch!"] });
   // Volt City's Game Corner: slots along the back wall, a roulette wheel and a blackjack table, and two clerks.
   W.volt_casino = interior({
     name: "Volt Game Corner", w: 16, h: 12, music: "funky", wall: "wood", floor: "carpet",
@@ -549,7 +549,7 @@
   });
   W.volt_center = center("Volt"); W.volt_mart = mart("Volt");
   W.volt_house = house("House", { sprite: "catgirl", x: 4, y: 4, dir: "down", name: "Kat", role: "bell",
-    talk: ["Moves of the same type as the\nmonster using them hit harder!"] });
+    talk: ["Moves of the same type as the\npocemon using them hit harder!"] });
   W.shade_center = center("Shade"); W.shade_mart = mart("Shade");
 
   // ---------------- Hollowmere (ghost town, side path west of Route 3) ----------------
@@ -600,7 +600,7 @@
       team: [["stonifly", 6], ["scarlant", 6]], intro: "Rocks never lose!", lose: "...Except today." }),
     trainer({ id: "g1_leader", outfit: "miner", sprite: "miner", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Brack", leader: 1,
       team: [["shull", 9], ["imbrickcile", 10], ["grintot", 10], ["pawsand", 11]],
-      intro: "I'm Brack, the Ember Gym Leader!\nMy EARTH monsters are hard as\nstone. Show me what you've got!",
+      intro: "I'm Brack, the Ember Gym Leader!\nMy EARTH pocemon are hard as\nstone. Show me what you've got!",
       lose: "You cracked my defense!\nTake the ROCK BADGE!", badge: "Rock Badge" }),
   ], "funky", "funkboss");
   W.tide_gym = gym("Tide Gym", "blue", [
@@ -620,7 +620,7 @@
       team: [["joulraton", 18], ["boltnu", 18]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
     trainer({ id: "g3_leader", outfit: "engineer", sprite: "scientist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Volta", leader: 3,
       team: [["incandesfin", 19], ["exclawvate", 20], ["medushock", 21], ["ouroboutlet", 22]],
-      intro: "I'm Volta! My LIGHTNING monsters\nstrike before you can blink!",
+      intro: "I'm Volta! My LIGHTNING pocemon\nstrike before you can blink!",
       lose: "Grounded at last!\nThe VOLT BADGE is yours!", badge: "Volt Badge" }),
   ], "route", "boss");
   W.shade_gym = gym("Shade Gym", "cream", [
@@ -630,7 +630,7 @@
       team: [["noctalo", 23], ["babysnitch", 23]], intro: "I foresaw this battle. And your defeat!", lose: "I... didn't see that coming." }),
     trainer({ id: "g4_leader", outfit: "occult", sprite: "magician", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Morrow", leader: 4,
       team: [["brumi", 25], ["yiinaang", 26], ["baddrscratch", 27], ["lendos", 28]],
-      intro: "I am Morrow. In the dark, all\nmonsters are equal... except mine.",
+      intro: "I am Morrow. In the dark, all\npocemon are equal... except mine.",
       lose: "The light wins today.\nTake the SHADE BADGE.", badge: "Shade Badge" }),
   ], "mystery", "darkboss");
   // The Champion's Hall: four Elite chambers in a row, then the Champion. Each Elite stands in the doorway to the
@@ -648,10 +648,10 @@
     npcs: [
       elite({ id: "elite1", sprite: "witch", x: 6, y: 25, name: "Elite Glacia",
         team: [["eaglace", 43], ["lucifice", 43], ["seraphice", 44], ["snowrilla", 45]],
-        intro: "Welcome to the Elite Four. I am\nGlacia. Let my FROST monsters\nchill you to the bone!", lose: "Brr... Go on. Three more wait." }),
+        intro: "Welcome to the Elite Four. I am\nGlacia. Let my FROST pocemon\nchill you to the bone!", lose: "Brr... Go on. Three more wait." }),
       elite({ id: "elite2", sprite: "magician", x: 6, y: 19, name: "Elite Lumina",
         team: [["angrito", 44], ["mystikapi", 45], ["apeoro", 45], ["statursus", 46]],
-        intro: "I am Lumina. My PSYCHIC monsters\nalready know how this ends.", lose: "I didn't foresee THAT. Pass." }),
+        intro: "I am Lumina. My PSYCHIC pocemon\nalready know how this ends.", lose: "I didn't foresee THAT. Pass." }),
       elite({ id: "elite3", sprite: "goth", x: 6, y: 13, name: "Elite Nox",
         team: [["bewhich", 45], ["dracune", 45], ["banvengeance", 46], ["loliferno", 46], ["hoarseshoo", 47]],
         intro: "Nox. DARK and VENOM. Nobody\nleaves my chamber unhurt.", lose: "Hmph. The last Elite is no joke." }),
@@ -684,7 +684,7 @@
       team: [["bamboon", 28], ["brachifor", 28]], intro: "Slow and steady, like the trees.", lose: "Timber!" }),
     trainer({ id: "g5_leader", outfit: "ranger", sprite: "florist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Fern", leader: 5,
       team: [["toxiris", 29], ["beenstalker", 30], ["wendigger", 30], ["volcoli", 31], ["moloch", 32]],
-      intro: "I'm Fern. My WOOD monsters have\nroots older than this town.\nLet's grow!",
+      intro: "I'm Fern. My WOOD pocemon have\nroots older than this town.\nLet's grow!",
       lose: "You cut right through!\nThe LEAF BADGE is yours.", badge: "Leaf Badge" }),
   ], "chill", "funkboss");
   W.cinder_gym = gym("Cinder Gym", "cream", [
@@ -704,7 +704,7 @@
       team: [["uf0", 40], ["angrito", 40]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
     trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
       team: [["sphake", 41], ["gastronium", 42], ["tigrock", 42], ["hydrone", 43], ["lightmare", 44]],
-      intro: "I'm Forge. My STEEL monsters\ndon't dent. Hit them with all\nyou've got!",
+      intro: "I'm Forge. My STEEL pocemon\ndon't dent. Hit them with all\nyou've got!",
       lose: "You bent steel!\nThe IRON BADGE is yours.", badge: "Iron Badge" }),
   ], "route", "boss");
   W.prime_gym = gym("Prime Gym", "blue", [
