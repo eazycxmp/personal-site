@@ -182,6 +182,10 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Badge guards:** every town's way onward has a guard. Try to walk past without enough badges and they
+get a "!" over their head, walk over, tell you how many you need, walk you back a couple of steps and
+return to their post (Ember 1, Tide 2, Volt 3, Shade 4, Verdance 5, Cinder 6, Ironhold 7, Prime City 8).
+
 **Level curve (Nov 2):** every step goes up about 5 levels, and the wild monsters before each gym top out
 2–3 below its leader. Leaders' aces: 10, 15, 20, 25, 30, 35, 40, 45; the Elite Four 42–45 and the
 Champion 47. Routes 5–8 run 22–27, 27–32, 32–37, 37–42. With the playtest bot, every gym is won first try

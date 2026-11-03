@@ -989,7 +989,7 @@ function exitAt(edge, x, y) {
 function gateAt(x, y, moveDir) {
   for (const g of world.map.gates || []) {
     const shut = g.requires ? !S.flags[g.requires] : g.flag ? !!S.flags[g.needFlag] && !S.flags[g.flag] : S.badges.length < g.badges;
-    if (moveDir === g.block && x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h && shut) return g;
+    if (moveDir === (EDGE_DIR[g.block] || g.block) && x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h && shut) return g;
   }
   return null;
 }
@@ -1009,7 +1009,7 @@ function freeAt(nx, nz, moveDir) {
       }
       const g = gateAt(tx, ty, moveDir);
       if (g) {
-        if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => say(g.text)); }
+        if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => (g.badges != null && gateGuard(g) ? guardStop(g) : say(g.text))); }
         return false;
       }
       if (p.surfing && tileAt(tx, ty) === "~" && !npcAt(tx, ty) && heightAt(tx, ty) === heightAt(p.x, p.y)) continue;
@@ -1187,6 +1187,65 @@ async function walkNpc(n, dir, dur = 0.22) {
   n.x += dx; n.y += dy; n.walking = false;
 }
 
+// Shortest open path for an NPC to any of the goal tiles ("x,y" strings): a list of directions, or null.
+function npcPath(n, goals) {
+  const start = n.x + "," + n.y, prev = new Map([[start, null]]), q = [[n.x, n.y]];
+  if (goals.includes(start)) return [];
+  while (q.length) {
+    const [x, y] = q.shift();
+    for (const d of ["up", "down", "left", "right"]) {
+      const [dx, dy] = DIRS[d], k = (x + dx) + "," + (y + dy);
+      if (prev.has(k) || blocked(x + dx, y + dy)) continue;
+      prev.set(k, [x + "," + y, d]); q.push([x + dx, y + dy]);
+      if (goals.includes(k)) {
+        const steps = [];
+        for (let c = k; prev.get(c); c = prev.get(c)[0]) steps.unshift(prev.get(c)[1]);
+        return steps;
+      }
+    }
+  }
+  return null;
+}
+// the guard posted at a badge gate: the nearest guard within a few tiles of it
+function gateGuard(g) {
+  const near = world.npcs.filter((n) => /guard/i.test(n.name) && Math.abs(n.x - g.x) + Math.abs(n.y - g.y) <= 6);
+  return near.sort((a, b) => Math.abs(a.x - g.x) + Math.abs(a.y - g.y) - (Math.abs(b.x - g.x) + Math.abs(b.y - g.y)))[0];
+}
+// Not enough badges: the guard spots you ("!"), walks over, tells you why, walks you back a couple of steps
+// from the gate, then returns to their post.
+async function guardStop(g) {
+  const p = world.player, n = gateGuard(g);
+  p.speed = 0;
+  world.bubble = n; await wait(0.6); world.bubble = null;
+  const beside = ["up", "down", "left", "right"].map((d) => [p.x + DIRS[d][0], p.y + DIRS[d][1]]).filter(([x, y]) => !blocked(x, y) || (x === n.x && y === n.y)).map((t) => t.join(","));
+  for (const d of npcPath(n, beside) || []) await walkNpc(n, d, 0.16);
+  const toGuard = Math.abs(n.x - p.x) > Math.abs(n.y - p.y) ? (n.x > p.x ? "right" : "left") : n.y > p.y ? "down" : "up";
+  await faceDir(toGuard); n.dir = OPP[toGuard];
+  await say(`${n.name}: ${g.text.replace(/^GUARD:\s*/, "")}`);
+  // back the way you came, the guard walking with you
+  const into = EDGE_DIR[g.block] || g.block, back = OPP[into], [bx, by] = DIRS[back];
+  for (let i = 0; i < 2; i++) {
+    if (blocked(p.x + bx, p.y + by, true) && !(npcAt(p.x + bx, p.y + by) === n)) break;
+    const gx = n.x + bx, gy = n.y + by, guardFollows = !blocked(gx, gy) || (gx === p.x && gy === p.y);
+    if (npcAt(p.x + bx, p.y + by) === n) { // the guard is in the way: they step aside first
+      const side = ["up", "down", "left", "right"].find((d) => d !== into && d !== back && !blocked(n.x + DIRS[d][0], n.y + DIRS[d][1]));
+      if (!side) break;
+      await walkNpc(n, side, 0.16);
+    }
+    const x0 = p.px, z0 = p.pz;
+    p.dir = OPP[back]; p.angle = ANGLE[OPP[back]]; // keep facing the guard while backing up
+    await Promise.all([
+      tween(0.28, (k) => { p.px = x0 + bx * k; p.pz = z0 + by * k; }),
+      guardFollows ? walkNpc(n, back, 0.28) : Promise.resolve(),
+    ]);
+    p.x += bx; p.y += by; p.px = p.x + 0.5; p.pz = p.y + 0.5;
+  }
+  p.dir = back; p.angle = ANGLE[back];
+  // back to the post
+  for (const d of npcPath(n, [n.def.x + "," + n.def.y]) || []) await walkNpc(n, d, 0.16);
+  n.dir = n.def.dir;
+}
+
 // After a battle the rival heads off toward the next town (or out of the door): the shortest open path to
 // that exit, a quick walk, and they're gone until the next meeting.
 async function walkAway(n) {
@@ -1195,19 +1254,8 @@ async function walkAway(n) {
   if (to === "door") { for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.grid[y][x] === "X") goals.push(x + "," + y); }
   else { const e = (m.exits || []).find((x) => x.to === to); if (e) for (let i = 0; i < e.w; i++) goals.push(exitTile(m, e, i).join(",")); }
   if (!goals.length) return;
-  const start = n.x + "," + n.y, prev = new Map([[start, null]]), q = [[n.x, n.y]];
-  let end = null;
-  while (q.length && !end) {
-    const [x, y] = q.shift();
-    for (const d of ["up", "down", "left", "right"]) {
-      const [dx, dy] = DIRS[d], k = (x + dx) + "," + (y + dy);
-      if (prev.has(k) || blocked(x + dx, y + dy)) continue;
-      prev.set(k, [x + "," + y, d]); q.push([x + dx, y + dy]);
-      if (goals.includes(k)) { end = k; break; }
-    }
-  }
-  const steps = [];
-  for (let k = end; k && prev.get(k); k = prev.get(k)[0]) steps.unshift(prev.get(k)[1]);
+  const steps = npcPath(n, goals), end = !!steps;
+  if (!steps) return;
   for (const d of steps) await walkNpc(n, d, 0.14);
   if (end) await walkNpc(n, steps[steps.length - 1] || "down", 0.14); // one more step, off the edge or out the door
   world.npcs = world.npcs.filter((x) => x !== n);
