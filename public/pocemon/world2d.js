@@ -7,7 +7,7 @@ window.World2D = (() => {
   let map = null, ground = null, over = null, waterTiles = [], cam = { x: 0, y: 0 };
 
   // ------------------------------------------------------------ sheets and tiles
-  const SHEETS = { nat: "nature", out: "outdoor", int: "interior", elec: "electronics", wat: "water" };
+  const SHEETS = { nat: "nature", out: "outdoor", int: "interior", elec: "electronics", wat: "water", mod: "modern", set: "setpieces" };
   async function load(base, progress) {
     const keys = Object.entries(SHEETS);
     let done = 0;
@@ -215,7 +215,8 @@ window.World2D = (() => {
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       const ch = m.grid[y][x], X = x * TS, Y = y * TS;
       if (ch === "W") { tile(g, "floors", W[0], W[1] + (!isW(x, y - 1) ? 0 : !isW(x, y + 1) ? 2 : 1), X, Y); continue; }
-      tile(g, "floors", Fl[0], Fl[1] + (m.floor === "tile" || m.floor === "gray" ? 0 : (y & 1)), X, Y);
+      if (m.floor === "carpet") tile(g, "mod", 1, 60, X, Y); // casino red carpet
+      else tile(g, "floors", Fl[0], Fl[1] + (m.floor === "tile" || m.floor === "gray" ? 0 : (y & 1)), X, Y);
       if (ch === "I") { const P = FAM.ice; tile(g, "nat", P[0] + (x & 1), P[1] + (y & 1), X, Y); }
       else if (ch === "C") { const l = at(m, x - 1, y) === "C", r = at(m, x + 1, y) === "C"; tile(g, "int", !l ? 6 : !r ? 8 : 7, 9, X, Y); }
       else if (ch === "R") tile(g, "nat", 42, 4, X, Y);
@@ -230,7 +231,30 @@ window.World2D = (() => {
         g.fillStyle = ch === "g" ? "rgba(224,160,32,0.45)" : "rgba(48,160,224,0.45)"; g.fillRect(X, Y, TS, TS);
       } else if (ch === "t") tile(g, "int", 9, 9, X, Y);
       else if (ch === "Q") tile(g, "elec", at(m, x - 1, y) === "Q" ? 1 : 0, 0, X, Y); // PC: monitor, then tower
+      else if (ch === "S") tile(g, "set", 14 + (x & 1), 2, X, Y); // slot machines
     }
+    // Game Corner: a fancy rug between the tables, green-felt tables, stools at the slots
+    if (m.floor === "carpet") g.drawImage(sheet("mod"), 9 * TS, 55 * TS, 4 * TS, 4 * TS, 6 * TS, 5 * TS, 4 * TS, 4 * TS);
+    const tables = {};
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      const ch = m.grid[y][x];
+      if ((ch === "O" || ch === "K") && !tables[ch]) tables[ch] = [x, y, x, y];
+      if (tables[ch]) { const t = tables[ch]; t[2] = Math.max(t[2], x); t[3] = Math.max(t[3], y); }
+    }
+    for (const [ch, [x0, y0, x1, y1]] of Object.entries(tables)) {
+      const X = x0 * TS, Y = y0 * TS, w = (x1 - x0 + 1) * TS, h = (y1 - y0 + 1) * TS;
+      g.fillStyle = "#4a2a14"; g.fillRect(X, Y + 2, w, h);
+      g.drawImage(sheet("mod"), 3 * TS, 56 * TS, 3 * TS, 3 * TS, X + 1, Y + 1, w - 2, h - 4);
+      if (ch === "O") { // the roulette wheel at the table's end
+        const cx = X + w - 9, cy = Y + h / 2 - 1;
+        g.fillStyle = "#6a3a14"; g.beginPath(); g.arc(cx, cy, 7, 0, 7); g.fill();
+        for (let i = 0; i < 12; i++) { g.fillStyle = i % 2 ? "#c82020" : "#202020"; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 6, i * Math.PI / 6, (i + 1) * Math.PI / 6); g.fill(); }
+        g.fillStyle = "#c8a050"; g.beginPath(); g.arc(cx, cy, 2.5, 0, 7); g.fill();
+      } else { // cards laid out on the blackjack felt
+        for (let i = 0; i < 3; i++) { g.fillStyle = "#202020"; g.fillRect(X + 8 + i * 10, Y + 8, 8, 11); g.fillStyle = i === 1 ? "#2850b8" : "#fbfbf6"; g.fillRect(X + 9 + i * 10, Y + 9, 6, 9); }
+      }
+    }
+    for (const [sx, sy] of m.stools || []) tile(g, "set", 5 + (sx % 4), 12, sx * TS, sy * TS);
     for (const [rx, ry] of m.rugs || []) g.drawImage(IMG.floors, 5 * TS, 0, 3 * TS, 3 * TS, rx * TS, ry * TS, 3 * TS, 3 * TS);
     for (const [dx, dy, kind] of m.decor || []) tile(g, "floors", kind === "poster" ? 2 : 3, 1, dx * TS, dy * TS);
     // a couple of plants so rooms aren't bare
@@ -289,7 +313,7 @@ window.World2D = (() => {
     for (const it of st.pickups || []) things.push({ y: it.y + 0.5, draw: () => {
       const sx = it.x * TS - cam.x, sy = it.y * TS - cam.y;
       ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(sx + 4, sy + 12, 8, 2);
-      if (IMG.tuxeball) ctx.drawImage(IMG.tuxeball, 0, 0, 16, 16, sx, sy - 2 + Math.round(Math.sin(now * 3 + it.x) * 1), 16, 16);
+      if (IMG.tuxeball) ctx.drawImage(IMG.tuxeball, 0, 16, 16, 16, sx, sy - 2 + Math.round(Math.sin(now * 3 + it.x) * 1), 16, 16);
     } });
     for (const s of st.statues || []) things.push({ y: s.tiles[0][1] + 0.9, draw: () => {
       const im = IMG["mon_" + s.slug]; if (!im) return;

@@ -14,6 +14,7 @@
     lab:    { src: [579, 448, 107, 190], tw: 7, th: 12, door: 3 },
     hall:   { src: [579, 255, 138, 177], tw: 9, th: 12, door: 4 },
     tower:  { src: [320, 80, 80, 64], tw: 5, th: 4, door: 2 },
+    casino: { src: [480, 80, 80, 64], tw: 5, th: 4, door: 2 },
   };
 
   function outdoor(def) {
@@ -201,7 +202,7 @@
   W.volt = outdoor({
     name: "Volt City", w: 30, h: 24, music: "wild", bg: "grass",
     ops: [
-      ["=", 12, 8, 2, 16], ["=", 0, 11, 28, 2], ["=", 13, 20, 11, 1], ["f", 2, 15, 4, 3],
+      ["=", 12, 8, 2, 16], ["=", 0, 11, 28, 2], ["=", 13, 20, 11, 1], ["f", 2, 15, 2, 3], ["=", 7, 19, 1, 1], ["=", 8, 19, 4, 1],
       ["T", 26, 14, 2, 8], ["T", 2, 2, 2, 6],
     ],
     exits: [{ edge: "s", at: 12, w: 2, to: "route3" }, { edge: "w", at: 11, w: 2, to: "route4" }],
@@ -210,6 +211,7 @@
       { type: "mart", x: 9, y: 3, to: "volt_mart" },
       { type: "gym", x: 17, y: 2, to: "volt_gym" },
       { type: "house", x: 18, y: 14, to: "volt_house" },
+      { type: "casino", x: 5, y: 15, to: "volt_casino" },
     ],
     gates: [{ x: 2, y: 11, w: 1, h: 2, badges: 3, block: "w", text: "GUARD: Shade Hollow is dangerous.\nYou need 3 badges!" }],
     signs: [{ x: 14, y: 14, text: "VOLT CITY\nGym Leader: VOLTA\n\"Shockingly fast.\"" }],
@@ -217,6 +219,8 @@
       { sprite: "soldier", x: 3, y: 10, dir: "down", name: "Guard", talk: ["Three badges to head west."] },
       { sprite: "cooldude", x: 15, y: 17, dir: "left", name: "Dude",
         talk: ["Volta's LIGHTNING monsters can't\nstand EARTH attacks!"] },
+      { sprite: "fashionista", x: 10, y: 18, dir: "left", name: "High Roller",
+        talk: ["The GAME CORNER never sleeps! Slots, roulette, blackjack...", "Win enough coins and they'll trade you a whole starter monster!"] },
     ],
   });
 
@@ -528,6 +532,21 @@
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
   W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
     talk: ["Weaken a wild monster before you\nthrow a Tuxeball.", "It's much easier to catch!"] });
+  // Volt City's Game Corner: slots along the back wall, a roulette wheel and a blackjack table, and two clerks.
+  W.volt_casino = interior({
+    name: "Volt Game Corner", w: 16, h: 12, music: "funky", wall: "wood", floor: "carpet",
+    ops: [["S", 1, 3, 6, 1], ["S", 9, 3, 6, 1], ["O", 2, 6, 3, 2], ["K", 11, 6, 3, 2], ["C", 1, 9, 1, 2], ["C", 14, 9, 1, 2]],
+    stools: [[1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4], [9, 4], [10, 4], [11, 4], [12, 4], [13, 4], [14, 4]],
+    lamps: [[3, 1], [7, 1], [12, 1]],
+    npcs: [
+      { sprite: "shopkeeper", x: 0, y: 9, dir: "right", name: "Coin Clerk", role: "coins" },
+      { sprite: "magician", x: 15, y: 9, dir: "left", name: "Prize Clerk", role: "prizes" },
+      { sprite: "fashionista", x: 3, y: 5, dir: "down", name: "Croupier", role: "roulette" },
+      { sprite: "cooldude", x: 12, y: 5, dir: "down", name: "Dealer", role: "blackjack" },
+      { sprite: "granny", x: 2, y: 4, dir: "up", name: "Lucky Granny", talk: ["Three sevens on the middle line pays a hundred times your bet!", "A berry on the first reel always gives your bet back, dearie."] },
+      { sprite: "goth", x: 13, y: 4, dir: "up", name: "Gambler", talk: ["I'm due a jackpot. Any spin now..."] },
+    ],
+  });
   W.volt_center = center("Volt"); W.volt_mart = mart("Volt");
   W.volt_house = house("House", { sprite: "catgirl", x: 4, y: 4, dir: "down", name: "Kat", role: "bell",
     talk: ["Moves of the same type as the\nmonster using them hit harder!"] });

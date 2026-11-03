@@ -671,7 +671,7 @@ function heightAt(x, y) {
 }
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
-  if (t === null || "T~FWCbkoRHPgjQ".includes(t)) return true;
+  if (t === null || "T~FWCbkoRHPgjQSOK".includes(t)) return true;
   if (world.solid.has(x + "," + y)) return true;
   if (npcAt(x, y)) return true;
   if (!ignorePlayer && world.player.x === x && world.player.y === y) return true;
@@ -1090,7 +1090,7 @@ async function faceDir(dir) {
 // is a tile on another map solid? (tiles, building footprints, NPCs, signs)
 function blockedAt(id, x, y) {
   const m = MAPS[id];
-  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgjQ".includes(m.grid[y][x])) return true;
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgjQSOK".includes(m.grid[y][x])) return true;
   for (const b of m.buildings || []) { const B = BUILDINGS[b.type]; if (x >= b.x && x < b.x + B.tw && y >= b.y && y < b.y + B.th) return true; }
   return (m.npcs || []).some((n) => n.x === x && n.y === y) || (m.signs || []).some((s2) => s2.x === x && s2.y === y);
 }
@@ -1291,6 +1291,8 @@ async function interact() {
   if (tileAt(x, y) === "~" && !p.surfing) { await waterAction(x, y); return; }
   if (FIELD[tileAt(x, y)]) { await fieldAction(x, y); return; }
   if (tileAt(x, y) === "Q") { await boxMenu(); return; } // the PC
+  const game = { S: slotMachine, O: roulette, K: blackjack }[tileAt(x, y)]; // Game Corner machines and tables
+  if (game) { if (tileAt(x, y) === "S" ? await needCoins(1) : true) await game(); return; }
   if (tileAt(x, y) === "C") { x += dx; y += dy; }
   const n = npcAt(x, y);
   if (n) {
@@ -1350,6 +1352,10 @@ async function talkTo(n) {
   if (n.role === "shop") return shop();
   if (n.role === "daycare") return dayCare(n);
   if (n.role === "box") return boxMenu();
+  if (n.role === "coins") return coinClerk();
+  if (n.role === "prizes") return prizeClerk();
+  if (n.role === "roulette") { await say("Croupier: Place your bets!"); return roulette(); }
+  if (n.role === "blackjack") { await say("Dealer: Care for a hand of blackjack?"); return blackjack(); }
   if (n.role === "prof") return professor(n);
   for (const line of n.talk || []) await say(`${n.name}: ${line}`);
 }

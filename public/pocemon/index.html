@@ -84,7 +84,7 @@
 <script>
   // the game scripts share globals, so load them in order
   (async () => {
-    for (const src of ["data.js", "maps.js", "music.js", "world2d.js", "game.js"]) {
+    for (const src of ["data.js", "maps.js", "music.js", "world2d.js", "game.js", "casino.js"]) {
       await new Promise((res, rej) => { const s = document.createElement("script"); s.src = src + "?v=" + Date.now(); s.onload = res; s.onerror = rej; document.body.appendChild(s); });
     }
   })();

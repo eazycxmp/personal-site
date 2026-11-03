@@ -101,6 +101,14 @@ buildings and NPC walking sprites. Each kind of place has its own look: snowy pi
 the Frost Sea, ash-dark stone around Cinder, autumn trees near Prime City, palms by the beach, rock walls
 in caves. Healing Centers have a Nurse to heal and a PC in the corner for depositing and withdrawing monsters.
 
+**The Game Corner** in Volt City (the building with the lightning sign): buy coins from the Coin Clerk
+(50 for $1000, 500 for $10000; max 9999), play the slots (bet 1-3, Z starts and stops each reel; only the
+middle line pays: 777 x100, BAR x30, monsters x15, balls x8, berries x5, two 7s x5, a berry on reel 1 gives
+your bet back; 95.2% return, checked exactly by `node tools/slot_odds.js`), single-zero roulette (colours,
+odd/even, halves, dozens, or one number at 35:1) and blackjack (4 decks, dealer stands on 17, blackjack pays
+3:2, double on your first two cards, no splits). The Prize Clerk trades coins for Sweet Candy, Sweet Sand,
+Level Treats, Mega Potions, a Master Ball, or a Lv 10 copy of either starter you didn't pick.
+
 **The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice monsters
 (Eskipup, Chillimp, Tweesher, Waysprite, Demosnow), an ice hermit, and a sheet of ice you slide across
 to reach a Sweet Candy (every spot on the ice can slide back out).
@@ -234,6 +242,11 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
   - `Basic_Buch_Tiles_Compiled.png` by Buch, commissioned by luke83, changes by luke83 and Past the Future; CC BY 3.0.
   - `interior.png` ("Interior Tiles") by ArMM1998; public domain (CC0).
   - `electronics.png` ("Electronics Tileset") by Mike Bramson; CC BY-SA 4.0.
+  - `modern.png` ("Modern Interiors" by LimeZu, as included in Tuxemon); CC BY. Used for the Game Corner's
+    carpet, rug and felt.
+  - `setpieces.png` ("Core Set Pieces", Tuxemon; based on works by Kelvin Shadewing (XYG Open Source License),
+    Mike Bramson (CC BY-SA 4.0), Keith Karnage, ArMM1998 and Redshrike). Used for the slot machines and stools.
+- The roulette wheel, playing cards and the little wheel and cards on the tables are drawn in code.
 - The old 3D version (Kenney and Quaternius models, three.js) is kept outside the game in `legacy3d/`.
 
 Because of the CC BY-SA art and the not-for-profit 909 samples, keep this project free and credited.
