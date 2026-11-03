@@ -1178,13 +1178,39 @@ function trainerSees(n) {
   return false;
 }
 
-async function walkNpc(n, dir) {
+async function walkNpc(n, dir, dur = 0.22) {
   n.dir = dir;
   const [dx, dy] = DIRS[dir];
   const sx = n.x * T, sy = n.y * T;
   n.walking = true;
-  await tween(0.22, (k) => { n.fx = sx + dx * T * k; n.fy = sy + dy * T * k; });
+  await tween(dur, (k) => { n.fx = sx + dx * T * k; n.fy = sy + dy * T * k; });
   n.x += dx; n.y += dy; n.walking = false;
+}
+
+// After a battle the rival heads off toward the next town (or out of the door): the shortest open path to
+// that exit, a quick walk, and they're gone until the next meeting.
+async function walkAway(n) {
+  const m = world.map, to = n.def.leaveTo;
+  const goals = [];
+  if (to === "door") { for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.grid[y][x] === "X") goals.push(x + "," + y); }
+  else { const e = (m.exits || []).find((x) => x.to === to); if (e) for (let i = 0; i < e.w; i++) goals.push(exitTile(m, e, i).join(",")); }
+  if (!goals.length) return;
+  const start = n.x + "," + n.y, prev = new Map([[start, null]]), q = [[n.x, n.y]];
+  let end = null;
+  while (q.length && !end) {
+    const [x, y] = q.shift();
+    for (const d of ["up", "down", "left", "right"]) {
+      const [dx, dy] = DIRS[d], k = (x + dx) + "," + (y + dy);
+      if (prev.has(k) || blocked(x + dx, y + dy)) continue;
+      prev.set(k, [x + "," + y, d]); q.push([x + dx, y + dy]);
+      if (goals.includes(k)) { end = k; break; }
+    }
+  }
+  const steps = [];
+  for (let k = end; k && prev.get(k); k = prev.get(k)[0]) steps.unshift(prev.get(k)[1]);
+  for (const d of steps) await walkNpc(n, d, 0.14);
+  if (end) await walkNpc(n, steps[steps.length - 1] || "down", 0.14); // one more step, off the edge or out the door
+  world.npcs = world.npcs.filter((x) => x !== n);
 }
 
 async function trainerEncounter(n, spotted) {
@@ -1213,6 +1239,7 @@ async function trainerEncounter(n, spotted) {
     n.defeated = true;
     S.flags[n.id] = true;
     await say(`${n.name}: ${n.lose}`);
+    if (n.rival && n.def.leaveTo) await walkAway(n);
     if (n.aside) { // back to the doorway (they walk up to you when they spot you), then out of the way
       while (n.y !== n.def.y) await walkNpc(n, n.y > n.def.y ? "up" : "down");
       while (n.x !== n.def.x) await walkNpc(n, n.x > n.def.x ? "left" : "right");
@@ -1658,6 +1685,7 @@ async function professor(n) {
     if (rival) {
       await say(`${rival.name}: Hey, that's my pick... no wait, I'll take ${D.monsters[rivalStarter()].name}! It beats yours anyway!`);
       await trainerEncounter(rival, false);
+      if (world.npcs.includes(rival)) await walkAway(rival);
       world.npcs = world.npcs.filter((x) => x !== rival);
     }
     save();

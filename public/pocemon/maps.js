@@ -123,7 +123,7 @@
     exits: [{ edge: "w", at: 8, w: 2, to: "ember" }, { edge: "e", at: 8, w: 2, to: "tide" }],
     signs: [{ x: 4, y: 7, text: "ROUTE 2\nEast: Tide Harbor" }],
     npcs: [
-      trainer({ id: "rival_r2", rival: true, sprite: "adventurer", x: 6, y: 7, dir: "down", sight: 2, name: "$rival",
+      trainer({ id: "rival_r2", rival: true, leaveTo: "tide", sprite: "adventurer", x: 6, y: 7, dir: "down", sight: 2, name: "$rival",
         team: [["$rivalstarter", 12], ["seirein", 11]],
         intro: "There you are! I beat the Ember Gym too. Time for a rematch!", lose: "Argh! Fine, I'm heading to Tide Harbor. Don't fall behind!" }),
       trainer({ id: "r2_fish", outfit: "ranger", sprite: "rogue_green", x: 19, y: 11, dir: "up", sight: 3, name: "Ranger Gil",
@@ -184,7 +184,7 @@
     // a giant sleeps across the side path; ring the WAKE BELL to rouse it
     sleeper: { id: "sleeper_r3", slug: "coaldiak", lv: 30, tiles: [[1, 20], [1, 21], [2, 20], [2, 21]] },
     npcs: [
-      trainer({ id: "rival_r3", rival: true, sprite: "adventurer", x: 12, y: 3, dir: "left", sight: 3, name: "$rival",
+      trainer({ id: "rival_r3", rival: true, leaveTo: "volt", sprite: "adventurer", x: 12, y: 3, dir: "left", sight: 3, name: "$rival",
         team: [["$rivalstarter", 20], ["spirain", 19], ["banling", 19]],
         intro: "Volt City is just ahead. Let's see who's ready for the Volt Gym!", lose: "You're getting really strong... I'll see you at the top!" }),
       trainer({ id: "r3_ninja", outfit: "ranger", sprite: "dragonrider_green", x: 6, y: 32, dir: "right", sight: 5, name: "Mountain Ranger Kaz",
@@ -339,7 +339,7 @@
         team: [["dandylion", 31], ["legko", 32]], intro: "The old trees chose my monsters. Let's see yours!", lose: "The forest bows to you." }),
       trainer({ id: "r5_b", outfit: "ranger", sprite: "monk_green", x: 13, y: 22, dir: "left", sight: 4, name: "Druid Bram",
         team: [["stegofor", 32], ["tumblebee", 32], ["spycozeus", 33]], intro: "Thorns and stings, that's my style!", lose: "Pricked my pride." }),
-      trainer({ id: "rival_r5", rival: true, sprite: "adventurer", x: 12, y: 6, dir: "left", sight: 3, name: "$rival",
+      trainer({ id: "rival_r5", rival: true, leaveTo: "verdance", sprite: "adventurer", x: 12, y: 6, dir: "left", sight: 3, name: "$rival",
         team: [["$rivalstarter", 35], ["spirain", 33], ["banling", 33], ["seirein", 34]],
         intro: "Four badges each! But the next four are the real test. Show me!", lose: "Ugh! See you at Verdance... I'm not done!" }),
     ],
@@ -444,7 +444,7 @@
         team: [["bricgard", 46], ["strella", 46], ["glombroc", 47]], intro: "Only the best walk Victory Ridge.", lose: "You really are one of the best." }),
       trainer({ id: "r8_b", outfit: "royal", sprite: "dragonrider", x: 24, y: 7, dir: "down", sight: 3, name: "Ace Trainer Vesper",
         team: [["gryfix", 47], ["myrmison", 47], ["miaownolith", 48]], intro: "The Prime Gym is close. Prove you belong!", lose: "You belong." }),
-      trainer({ id: "rival_r8", rival: true, sprite: "adventurer", x: 38, y: 10, dir: "up", sight: 3, name: "$rival",
+      trainer({ id: "rival_r8", rival: true, leaveTo: "prime", sprite: "adventurer", x: 38, y: 10, dir: "up", sight: 3, name: "$rival",
         team: [["$rivalstarter", 50], ["spirain", 47], ["banling", 47], ["seirein", 48], ["metesaur", 48], ["komoduel", 49]],
         intro: "Seven badges! This is our last battle before the Prime Gym. All or nothing!",
         lose: "...You're the real deal. Go win that Prime Badge. I'll be cheering." }),
@@ -518,7 +518,7 @@
     name: "Professor's Lab", w: 12, h: 10, music: "chill", wall: "blue", floor: "tile",
     ops: [["C", 1, 3, 3, 1], ["C", 8, 3, 3, 1]], decor: [[3, 1, "board"], [8, 1, "poster"]],
     npcs: [{ sprite: "professor", x: 5, y: 4, dir: "down", name: "Prof. Oakley", role: "prof" },
-      trainer({ id: "rival_lab", rival: true, practice: true, sprite: "adventurer", x: 7, y: 5, dir: "left", sight: 0, name: "$rival",
+      trainer({ id: "rival_lab", rival: true, leaveTo: "door", practice: true, sprite: "adventurer", x: 7, y: 5, dir: "left", sight: 0, name: "$rival",
         team: [["$rivalstarter", 4]], intro: "Wait! I picked my partner too. Let's see whose is stronger!",
         lose: "Not bad... but I'll get stronger. See you out there!", win: "Ha! I win! Better train up before we meet again!" })],
   });

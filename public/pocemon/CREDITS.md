@@ -25,7 +25,7 @@ samples can load.)
 (and your rival) are Tuxemon's boy or girl walking sprite recoloured to that outfit (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
 blue → gold). The Water starter is Kroki, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
-battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team.
+battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team. After each battle they walk off toward the next town.
 
 **Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Pocemon's Steel, Dark and
 Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
