@@ -28,8 +28,9 @@ blue → gold). The Water starter is Kroki, a small upright baby croc. The rival
 battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team. After each battle they walk off toward the next town.
 
 **Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Pocemon's Steel, Dark and
-Psychic (same matchups), plus a new Dragon type (weak to Frost and Dragon, resisted by Steel, shrugs
-off Fire/Water/Wood/Lightning) with its own Dragon Claw and Dragon Breath. The starters each have 3
+Psychic, plus a new Dragon type with its own Dragon Claw and Dragon Breath. The type chart is Pocemon's
+own and kept simple: every type hits 2–3 types hard (x2) and 2–3 weakly (x0.5), and is weak to 2–3, with no
+immunities (`node tools/check_chart.js` checks it). The starters each have 3
 forms, except the Water starter, which has 4 (Kroki → Krokivip at 14 → Leviadile at 23 → Golnagi at 30); every other family has 2 or 3 (fixed seed in
 `tools/build_data.py`), with one-of-a-kind species paired up by type. The Pocedex (menu → DEX)
 has each species' lore and where it's found; a green dot marks species living in the area you're in,
@@ -142,6 +143,23 @@ moves, from 2 badges). Icons are Tuxemon's own item art. Long menus (the mart) s
 **Type guide:** TYPES in the menu shows, for each of the 14 types, what its moves are strong and weak against
 and what it is weak to or tough against. Frost is weak to Fire and Heroic.
 
+| Type | Strong vs | Weak vs | Weak to |
+|---|---|---|---|
+| Normal | Sky, Venom | Earth, Steel | Venom, Heroic |
+| Fire | Wood, Frost, Steel | Water, Earth, Dragon | Water, Earth |
+| Water | Fire, Earth | Wood, Dragon | Wood, Lightning |
+| Wood | Water, Earth | Fire, Sky, Venom | Fire, Frost, Sky |
+| Earth | Fire, Lightning, Steel | Wood, Sky | Water, Wood, Steel |
+| Lightning | Water, Sky | Earth, Dragon | Earth, Dragon |
+| Frost | Wood, Sky, Dragon | Water, Steel | Fire, Heroic |
+| Sky | Wood, Heroic | Lightning, Frost | Normal, Lightning, Frost |
+| Venom | Normal, Dark | Earth, Psychic | Normal, Dark, Psychic |
+| Heroic | Normal, Frost, Dark | Sky, Psychic | Sky, Psychic |
+| Steel | Earth, Psychic | Fire, Water | Fire, Earth |
+| Dark | Venom, Psychic | Normal, Heroic | Venom, Heroic |
+| Psychic | Venom, Heroic | Steel, Dark | Steel, Dark |
+| Dragon | Lightning, Dragon | Frost, Steel | Frost, Dragon |
+
 **Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Rock Badge + a Wood monster)
 clears the orange thorn bushes, ROCK SMASH (Volt Badge + an Earth or Steel monster) breaks cracked rocks, STRENGTH (Shade Badge +
 an Earth, Heroic or Normal monster) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
@@ -186,10 +204,10 @@ colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' o
 get a "!" over their head, walk over, tell you how many you need, walk you back a couple of steps and
 return to their post (Ember 1, Tide 2, Volt 3, Shade 4, Verdance 5, Cinder 6, Ironhold 7, Prime City 8).
 
-**Level curve (Nov 2):** every step goes up about 5 levels, and the wild monsters before each gym top out
-2–3 below its leader. Leaders' aces: 10, 15, 20, 25, 30, 35, 40, 45; the Elite Four 42–45 and the
-Champion 47. Routes 5–8 run 22–27, 27–32, 32–37, 37–42. With the playtest bot, every gym is won first try
-33–100% of the time (median 0–5 extra battles) and the Hall 33–47%. Running from wild battles starts at
+**Level curve (Nov 2):** wild areas step up about 5 levels at a time; trainers sit about 10% above that.
+Leaders' aces: 11, 17, 22, 28, 32, 38, 44, 48; the Elite Four 45–48 and the Champion 50. Routes 5–8 run
+22–27, 27–32, 32–37, 37–42. With the playtest bot (30 runs per starter), gyms are won first try about
+17–90% of the time (usually 0–15 extra battles of training) and the Hall 27–50%. Running from wild battles starts at
 80% and gets 25% likelier with every try.
 
 **Difficulty is tuned with a playtest bot:** `node tools/playtest_curve.js` plays the whole game with each
