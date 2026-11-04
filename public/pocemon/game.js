@@ -18,7 +18,7 @@ const ITEMS = {
   super_potion: { name: "Super Potion", price: 600, heal: 80, icon: "super_potion", desc: "Restores 80 HP." },
   egg: { name: "Egg", key: true, icon: "ancient_egg", desc: "From the Day Care. It hatches as you walk." },
   revive: { name: "Revive", price: 1000, revive: true, icon: "revive", desc: "Revives a fainted pocemon." },
-  tuxeball: { name: "Tuxeball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild pocemon." },
+  tuxeball: { name: "Poceball", price: 200, ball: 1, icon: "tuxeball", desc: "Catches wild pocemon." },
   great_ball: { name: "Great Ball", price: 600, ball: 1.8, icon: "great_ball", desc: "A better chance to catch." },
   mega_potion: { name: "Mega Potion", price: 1500, heal: 200, icon: "mega_potion", desc: "Restores 200 HP." },
   full_heal: { name: "Full Heal", price: 400, cure: true, icon: "full_heal", desc: "Cures sleep, paralysis, burns and poison." },
@@ -1739,7 +1739,7 @@ async function professor(n) {
     const m = makeMon(slug, 5);
     addMon(m);
     await say(`You received ${monName(m)}!`);
-    await say("Prof. Oakley: Take these too!\nTuxeballs catch wild pocemon,\nand Potions heal them.");
+    await say("Prof. Oakley: Take these too!\nPoceballs catch wild pocemon,\nand Potions heal them.");
     await say("Prof. Oakley: Before you set off, go home and see your mom. She has a lot to tell you about the road ahead!");
     S.flags.go_see_mom = true;
     const rival = world.npcs.find((x) => x.id === "rival_lab");
@@ -3013,7 +3013,6 @@ function titleScene(hasSave) {
         ctx.font = "24px PS"; ctx.textBaseline = "top";
         ctx.fillStyle = "#203010"; ctx.fillText("POCEMON", 39, 11);
         ctx.fillStyle = "#f8d848"; ctx.fillText("POCEMON", 36, 8);
-        text("Art: Tuxemon project (CC)", 8, 150, "#d8e8c8", "#203010");
       },
     });
     const items = hasSave ? ["CONTINUE", "NEW GAME"] : ["NEW GAME"];

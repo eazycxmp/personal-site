@@ -1,6 +1,6 @@
 # Pocemon
 
-A top-down 2D monster-catching RPG in the browser: pick a starter, battle wild monsters in the tall grass,
+A top-down 2D pocemon-catching RPG in the browser: pick a starter, battle wild pocemon in the tall grass,
 fight trainers, beat 7 gyms and the Prime Gym, then challenge the Champion.
 
 ## Play
@@ -17,8 +17,8 @@ samples can load.)
 | Arrows | walk (hold SHIFT to run); a quick tap just turns to face that way |
 | Z / Enter / Space | talk, confirm |
 | X / Esc | menu, back |
-| F | fly (after the Volt Badge, with a Sky monster) |
-| T | teleport to a visited town (with a Psychic monster, once you have the Shade Badge or have returned Old Whisper's flute) |
+| F | fly (after the Volt Badge, with a Sky pocemon) |
+| T | teleport to a visited town (with a Psychic pocemon, once you have the Shade Badge or have returned Old Whisper's flute) |
 | M | mute music |
 
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
@@ -43,22 +43,22 @@ with a HERE seen/total count. New species are announced the first time you meet 
 routes): Route 1 Greenwood Trail (Lv 3–6: bugs, birds, burrowers), Route 2 Duskwood (Lv 7–12: plants,
 moths, bats, poisons), Route 3 Frostridge Pass (Lv 12–17: rock, ice, fire), Route 4 Starfall Woods
 (Lv 16–22: metal, cosmic, storm, dragons), Hollowmere ghost town (Lv 16–21). Wild picks never repeat a
-species you met in the last few encounters, unlogged species turn up twice as often, and wild monsters
+species you met in the last few encounters, unlogged species turn up twice as often, and wild pocemon
 well past their evolution level appear already evolved. Tables live in the "Wild areas" section of
 `game/maps.js`.
 
 **Hollowmere, legendaries and the sleeping giant.** A side path west off Route 3 leads to Hollowmere,
-an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type monsters in the grass). A giant
+an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type pocemon in the grass). A giant
 COALDIAK sleeps across that path: Kat in Volt City gives you the WAKE BELL to rouse it (then battle
 it). Three legendaries wait in the world, one each: PRIMORDIA at Hollowmere's Shrine of Origins,
 PHARAVION on top of the glacier in the Frost Sea, and KERNEL in a clearing on Route 4. Walk up and
 press Z; catch or beat one and it's gone for good. You can talk to anyone you're near and roughly
 facing, from any angle, and they turn to face you.
 
-**Riding your monsters.** With the Tide Badge and a Water monster, face the water and press Z to
-SURF: you stand on a surfboard with your monster riding up front (water has its own wild monsters, and a Sea Shrine island sits off Tide Harbor). After you surf back to shore you hop fully onto land, so you never get stuck at the water's edge.
-With the Volt Badge and a Sky monster, press F to FLY to any town you've visited. The mount is
-your monster's real sprite, with you riding on top.
+**Riding your pocemon.** With the Tide Badge and a Water pocemon, face the water and press Z to
+SURF: you stand on a surfboard with your pocemon riding up front (water has its own wild pocemon, and a Sea Shrine island sits off Tide Harbor). After you surf back to shore you hop fully onto land, so you never get stuck at the water's edge.
+With the Volt Badge and a Sky pocemon, press F to FLY to any town you've visited. The mount is
+your pocemon's real sprite, with you riding on top.
 
 **Phones:** on a touch screen the game fills the width and shows a thumb joystick plus A, B and a RUN toggle. In landscape the controls sit either side of the screen. They
 send the same key presses as a keyboard, so nothing else changes.
@@ -66,22 +66,22 @@ send the same key presses as a keyboard, so nothing else changes.
 **Day and night:** one real minute is one in-game hour (a new game starts at 8am; night is 8pm–5am).
 The sky, sun and fog fade through an orange dusk into a blue night with stars, the clock sits by the
 minimap, routes switch to the mysterious track and towns to the chill one. Every wild area has
-night-only monsters (bats and moths in Duskwood, snow demons on Frostridge, stargazers in Starfall).
+night-only pocemon (bats and moths in Duskwood, snow demons on Frostridge, stargazers in Starfall).
 
 **Mom** sends you off after you get your starter: the town exit stays shut until you visit her, and she
-explains the gyms, badges, wild areas, night monsters, type matchups, healing and the Dex, then gives
+explains the gyms, badges, wild areas, night pocemon, type matchups, healing and the Dex, then gives
 5 Potions and $1000.
 
 **Dex rewards:** Prof. Oakley hands out prizes at 10/25/50/75/100 kinds caught (Great Balls, Sweet Sand,
 the Lucky Bamboo shiny charm, Level Treats, a Master Ball) and tells you the next goal.
 
-**Shiny monsters:** 1 in 200 wild monsters (x3 with Lucky Bamboo, x2 under Sweet Sand) use a
+**Shiny pocemon:** 1 in 200 wild pocemon (x3 with Lucky Bamboo, x2 under Sweet Sand) use a
 hue-rotated copy of their sprite, sparkle when they appear, and get a gold star in battle, the party
 and the Dex.
 
 **Fishing and Glimmer Cave:** the Old Angler in Tide Harbor gives a Fishing Rod; face any water and press
 Z (you can pick FISH or SURF). Glimmer Cave, up a side path north of Route 4, is pitch dark until a
-Lightning or Fire monster plus the Volt Badge lights it with FLASH; wild monsters live on every floor
+Lightning or Fire pocemon plus the Volt Badge lights it with FLASH; wild pocemon live on every floor
 tile there.
 
 **After the Champion:** the Battle Tower in Shade Hollow (Champions only) runs win streaks against
@@ -92,22 +92,22 @@ the cave's deepest chamber once you're Champion and have caught the other three.
 Prof. Oakley (it hatches into a shiny), and recover Old Whisper's flute in Hollowmere.
 
 **Catching:** after a catch a congrats fanfare plays (the `caught` track in music.js) and the
-monster's Dex page opens with a "CAUGHT!" banner; Z returns you to the exact spot you were standing.
-Type icons sit beside monster names in battle, the party, the Dex and info pages. Every monster has
+pocemon's Dex page opens with a "CAUGHT!" banner; Z returns you to the exact spot you were standing.
+Type icons sit beside pocemon names in battle, the party, the Dex and info pages. Every pocemon has
 1 or 2 types.
 
-**Your attacks rarely miss:** your monsters miss a quarter as often as a move's listed accuracy
+**Your attacks rarely miss:** your pocemon miss a quarter as often as a move's listed accuracy
 (an 80% move hits 95% of the time); foes use the listed accuracy (`PLAYER_MISS_SCALE` in game.js).
 
 **The world is 2D, drawn from Tuxemon's 16px tilesets** (`game/world2d.js`): grass, sand, stone, snow
 and ice ground with matching cliffs and stairs, big forest trees whose tops you walk behind, Tuxemon
 buildings and NPC walking sprites. Each kind of place has its own look: snowy pines and icy shores in
 the Frost Sea, ash-dark stone around Cinder, autumn trees near Prime City, palms by the beach, rock walls
-in caves. Healing Centers have a Nurse to heal and a PC in the corner for depositing and withdrawing monsters.
+in caves. Healing Centers have a Nurse to heal and a PC in the corner for depositing and withdrawing pocemon.
 
 **The Game Corner** in Volt City (the building with the lightning sign): buy coins from the Coin Clerk
 (50 for $1000, 500 for $10000; max 9999), play the slots (bet 1-3, Z starts and stops each reel; only the
-middle line pays: 777 x100, BAR x30, monsters x15, balls x8, berries x5, two 7s x5, a berry on reel 1 gives
+middle line pays: 777 x100, BAR x30, pocemon x15, balls x8, berries x5, two 7s x5, a berry on reel 1 gives
 your bet back; 95.2% return, checked exactly by `node tools/slot_odds.js`), single-zero roulette (colours,
 odd/even, halves, dozens, or one number at 35:1) and blackjack (4 decks, dealer stands on 17, blackjack pays
 3:2, double on your first two cards, no splits). The Prize Clerk trades coins for Sweet Candy, Sweet Sand,
@@ -118,13 +118,13 @@ STRENGTH (Shade Badge) to move, so it's a shortcut, not a way to skip the 4th gy
 room with a ladder up to a hole on the glacier's top tier beside Pharavion (maps can now have `warps`:
 step-on ladders and holes between maps).
 
-**The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice monsters
+**The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice pocemon
 (Eskipup, Chillimp, Tweesher, Waysprite, Demosnow), an ice hermit, and a sheet of ice you slide across
 to reach a Sweet Candy (every spot on the ice can slide back out).
 
 **Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
 the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's
-Hall. Route trainers only ambush once your team is 3 levels above their strongest monster.
+Hall. Route trainers only ambush once your team is 3 levels above their strongest pocemon.
 
 ## World
 
@@ -133,14 +133,14 @@ Sprout Town → Route 1 → **Ember City** (Rock gym, Earth) → Route 2 → **T
 → Route 5 Thornwood Wilds → **Verdance** (Leaf gym, Wood) → Route 6 Ashfall Trail → **Cinder Peak** (Blaze gym, Fire)
 → Route 7 Rustline Road → **Ironhold** (Iron gym, Steel) → Route 8 Victory Ridge → **Prime City** (the PRIME GYM:
 dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count (8 badges for the Hall).
-Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest monsters go 13, 18, 25,
+Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest pocemon go 13, 18, 25,
 31, 38, 42, 48, 53, and the Champion tops out at 55. The trainer card shows all 8 badges.
 
-**Support moves, stages and statuses:** every monster learns two moves for its first type (tools/build_data.py
+**Support moves, stages and statuses:** every pocemon learns two moves for its first type (tools/build_data.py
 `SUPPORT_MOVES` / `SUPPORT_BY_TYPE`): stat raisers (Flex, Focus, Stone Skin, Mist Veil, Tailwind), drops (Snarl,
 Acid Spit, Mud Shot), heals (Photosynth, Regenerate, Second Wind), SLEEP (Lullaby, Spore Cloud: skips 1-3 turns),
 PARALYSIS (Static Jolt: half speed, 1 in 4 turns lost) and strike-first attacks (Quick Strike, Ice Shard,
-Shadow Sneak). Stat stages: +1 = x1.5, +2 = x2, -1 = x0.67 (capped at +-4), reset when a monster leaves the
+Shadow Sneak). Stat stages: +1 = x1.5, +2 = x2, -1 = x0.67 (capped at +-4), reset when a pocemon leaves the
 field. Foes use support moves when they make sense (heal when low, sleep you when you have no status...).
 Status chips (BRN PSN SLP PAR) sit just outside the HP boxes. FULL HEAL ($400) cures any status.
 
@@ -168,9 +168,9 @@ and what it is weak to or tough against. Frost is weak to Fire and Heroic.
 | Psychic | Venom, Heroic | Steel, Dark | Steel, Dark |
 | Dragon | Lightning, Dragon | Frost, Steel | Frost, Dragon |
 
-**Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Rock Badge + a Wood monster)
-clears the orange thorn bushes, ROCK SMASH (Volt Badge + an Earth or Steel monster) breaks cracked rocks, STRENGTH (Shade Badge +
-an Earth, Heroic or Normal monster) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
+**Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Rock Badge + a Wood pocemon)
+clears the orange thorn bushes, ROCK SMASH (Volt Badge + an Earth or Steel pocemon) breaks cracked rocks, STRENGTH (Shade Badge +
+an Earth, Heroic or Normal pocemon) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
 a good item (Great Balls, berries, Level Treats, Sweet Candy, Elixirs); cleared obstacles stay cleared.
 
 **Gym puzzles:** every gym is a 14x18 puzzle room: Ember a boulder maze, Tide a slippery wet floor (you slide
@@ -186,25 +186,25 @@ and steps aside once beaten; no healing between fights, only your items.
 
 **Weather:** afternoon rain (13:00-17:00) on Route 2 and at Tide Harbor, snow on Frostridge Pass and the Frost
 Sea, falling ash on the Ashfall Trail. Rain and ash grey the sky; the clock shows RAIN / SNOW / ASH; a banner
-says when rain starts and stops. Some monsters only show up in that weather (the Dex marks them).
+says when rain starts and stops. Some pocemon only show up in that weather (the Dex marks them).
 
-**Day Care and eggs:** in Ember City. A monster left there gains a level every 150 steps you walk (never past
-your strongest monster; $100 a level). Every 400 steps it also leaves an EGG of its species' first form
+**Day Care and eggs:** in Ember City. A pocemon left there gains a level every 150 steps you walk (never past
+your strongest pocemon; $100 a level). Every 400 steps it also leaves an EGG of its species' first form
 (carry up to 3); eggs hatch after 250 more steps at Lv 5, with double the shiny odds.
 
 **Region map:** MAP in the menu shows every town, route and side area. Browse them to see each one's name and
-how many of its wild monsters you've caught; a gold star marks an area you've caught everything in. Fly and
+how many of its wild pocemon you've caught; a gold star marks an area you've caught everything in. Fly and
 Teleport show the same map with the highlighted town.
 
-**Move cards:** when a monster wants to learn a move, and when you highlight a move in battle, a card
+**Move cards:** when a pocemon wants to learn a move, and when you highlight a move in battle, a card
 shows its type, MELEE or RANGED (which stats it pits: MELEE vs ARMOUR, RANGED vs DODGE), power, the real
 chance it hits for your side, PP, its burn/poison chance (burned or poisoned foes lose 1/8 HP a turn),
-and a gold x1.5 chip when it matches the monster's type. In battle it also says how it does against the
+and a gold x1.5 chip when it matches the pocemon's type. In battle it also says how it does against the
 foe in front of you (SUPER x2, WEAK x0.5, NO EFFECT) and about how much of its HP one hit takes, using
 the game's own damage formula. Before forgetting a move you see the new move and each old one side by side.
 Level Treats now let you swap moves too.
 
-**Evolution is sculpting:** the monster hardens into clay, sags into a lump on a potter's wheel, gets
+**Evolution is sculpting:** the pocemon hardens into clay, sags into a lump on a potter's wheel, gets
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
@@ -233,10 +233,10 @@ Tuned so a natural player wins most gyms within one or two tries (25–60% first
 of grinding at the median). Doing the side areas makes the middle gyms easy (80–90%).
 
 **Frost Sea (side route):** east along Tide Harbor's pier. Surf between ice floes with frosty tall grass
-(water and ice monsters, Lv 13–18, plus an ice devil at night). A glacier rises in the northeast: maps
+(water and ice pocemon, Lv 13–18, plus an ice devil at night). A glacier rises in the northeast: maps
 can now raise tiles (`raise: [[x, y, w, h, height]]`), and you can only step up or down half a tier at a
 time, so you climb its two tiers by the ice steps. Pharavion (Lv 32) waits on the top tier. Tide Harbor
-itself got easier (water Lv 7–11, island grass Lv 10–15). 208 monsters in 85 families, 135 moves, 14 types.
+itself got easier (water Lv 7–11, island grass Lv 10–15). 208 pocemon in 85 families, 135 moves, 14 types.
 
 ## Music
 
@@ -263,9 +263,9 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
 
 ## Credits
 
-- **Monster, character, tile, building, battle-background art and the font** come from the
+- **Pocemon, character, tile, building, battle-background art and the font** come from the
   [Tuxemon](https://github.com/Tuxemon/Tuxemon) project (art mostly CC BY-SA; code GPLv3; font
-  Press Start 2P under the SIL OFL, see `game/assets/fonts/OFL.txt`). Monster stats, moves and type
+  Press Start 2P under the SIL OFL, see `game/assets/fonts/OFL.txt`). Pocemon stats, moves and type
   chart are adapted from Tuxemon's database. Type icons are Tuxemon's element icons
   (`game/assets/types`; Dragon uses the Aether icon on a purple chip, since Tuxemon has no Dragon).
 - **Drum samples:** Roland TR-909 and TR-808 recordings from

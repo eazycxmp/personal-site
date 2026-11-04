@@ -10,7 +10,7 @@ const GAMES = [
   {
     slug: "pocemon",
     title: "Pocemon",
-    tag: "2D · Monster Catching",
+    tag: "2D · Pocemon Catching",
     body: "Walk into the tall grass to battle and catch over 200 strange creatures, from djinns and ghost flames to ice devils and cosmic dragons. Train a team, beat eight gyms, climb a glacier for a sea-god, then take on the Champion, all to a live drum & bass soundtrack.",
     released: "Oct 2026",
   },

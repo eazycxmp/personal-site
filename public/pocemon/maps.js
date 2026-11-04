@@ -537,7 +537,7 @@
     talk: ["Pocemon evolve when they reach\ncertain levels.", "Keep battling and you'll see!"] });
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
   W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
-    talk: ["Weaken a wild pocemon before you\nthrow a Tuxeball.", "It's much easier to catch!"] });
+    talk: ["Weaken a wild pocemon before you\nthrow a Poceball.", "It's much easier to catch!"] });
   // Volt City's Game Corner: slots along the back wall, a roulette wheel and a blackjack table, and two clerks.
   W.volt_casino = interior({
     name: "Volt Game Corner", w: 16, h: 12, music: "funky", wall: "wood", floor: "carpet",

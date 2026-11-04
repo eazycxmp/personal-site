@@ -20,11 +20,11 @@ export default function PocemonPage() {
           </Link>
           <h1 className="serif-display text-[44px] md:text-[56px] leading-[1.05] mt-6 mb-4">Pocemon</h1>
           <p className="text-[14px] text-[var(--color-muted)] max-w-2xl leading-relaxed">
-            A top-down monster-catching adventure. Pick a starter, walk into the tall grass to battle and catch
+            A top-down pocemon-catching adventure. Pick a starter, walk into the tall grass to battle and catch
             over 200 strange creatures, beat eight gyms and challenge the Champion, all to a live drum &amp; bass
             soundtrack. The arrow keys walk, SHIFT runs, Z talks and confirms, X opens the menu.
-            Click the game first so it gets your keyboard. Art from the open-source Tuxemon project;
-            credits are in the game folder.
+            Click the game first so it gets your keyboard.{" "}
+            <a href="/pocemon/CREDITS.md" className="underline">Art credits</a>.
           </p>
         </div>
       </main>
