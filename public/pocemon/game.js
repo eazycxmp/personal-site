@@ -2209,7 +2209,7 @@ async function runBattle(opts) {
   let res;
   try { res = await B.run(); } finally { pop(B); for (const m of S.party) delete m.st; }
   if (res === "lose" && opts.practice) { music(areaMusic()); return res; }
-  if (res === "lose") { await blackout(); return res; }
+  if (res === "lose") { await blackout(!!t); return res; }
   await evolveCheck();
   music(areaMusic());
   return res;
@@ -2225,14 +2225,15 @@ async function battleIntroWipe() {
   pop(s);
 }
 
-async function blackout() {
+// Losing to a trainer costs half your money; losing to a wild pocemon costs nothing.
+async function blackout(toTrainer) {
   await say("You have no pocemon left that\ncan fight! You blacked out...");
-  S.money = Math.floor(S.money / 2);
+  if (toTrainer) S.money = Math.floor(S.money / 2);
   S.party.forEach(healMon);
   const h = S.lastHeal;
   music(null);
   await warp(h.map, h.x, h.y, "up");
-  await say("You rushed back to safety and\nyour pocemon were healed. You\ndropped half your money.");
+  await say(`You rushed back to safety and\nyour pocemon were healed.${toTrainer ? " You paid half your money to the winner." : ""}`);
   save();
 }
 
