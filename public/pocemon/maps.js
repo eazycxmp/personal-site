@@ -77,9 +77,9 @@
     signs: [{ x: 12, y: 37, text: "ROUTE 1\nNorth: Ember City" }],
     npcs: [
       trainer({ id: "r1_pic", outfit: "ranger", sprite: "catgirl_green", x: 8, y: 19, dir: "right", name: "Ranger Lia",
-        team: [["katapill", 5], ["stonifly", 5]], intro: "I patrol these woods. Let's see how you treat your pocemon!", lose: "You've got a ranger's instincts." }),
+        team: [["katapill", 3], ["stonifly", 4]], intro: "I patrol these woods. Let's see how you treat your pocemon!", lose: "You've got a ranger's instincts." }),
       trainer({ id: "r1_cool", outfit: "ranger", sprite: "adventurer_green", x: 14, y: 3, dir: "left", name: "Ranger Rex",
-        team: [["banling", 6], ["rockitten", 7]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
+        team: [["aardorn", 4], ["rockitten", 5]], intro: "Halt! Every trainer on my trail gets tested!", lose: "Trail's yours. Stay on the path!" }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -840,7 +840,7 @@
     trainer({ id: "g1_t2", outfit: "miner", sprite: "miner_green", x: 9, y: 6, dir: "left", sight: 5, name: "Hiker Dale",
       team: [["stonifly", 6], ["scarlant", 6]], intro: "Rocks never lose!", lose: "...Except today." }),
     trainer({ id: "g1_leader", outfit: "miner", sprite: "miner", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Brack", leader: 1,
-      team: [["shull", 9], ["imbrickcile", 10], ["grintot", 10], ["pawsand", 11]],
+      team: [["shull", 8], ["grintot", 9], ["pawsand", 10]],
       intro: "I'm Brack, the Ember Gym Leader!\nMy EARTH pocemon are hard as\nstone. Show me what you've got!",
       lose: "You cracked my defense!\nTake the ROCK BADGE!", badge: "Rock Badge" }),
   ], "funky", "funkboss");
@@ -1010,12 +1010,12 @@
     W[id].theme = theme; if (land) W[id].encounters = land; if (water) W[id].water = water; if (night) W[id].night = night;
   };
   const lv = (lo, hi, list) => list.map(([s, w]) => [s, lo, hi, w]);
-  area("route1", "Greenwood Trail", lv(3, 6, [ // first steps: bugs, birds and burrowers
-    ["dandicub", 3], ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
+  area("route1", "Greenwood Trail", lv(2, 4, [ // first steps: bugs, birds and burrowers, gentle on a new starter
+    ["katapill", 3], ["scarlant", 3], ["chickadee", 3], ["pipis", 2], ["snaki", 2],
     ["nut", 2], ["stonifly", 2], ["cataspike", 2], ["aardorn", 1], ["squabbit", 1]]), null,
-    lv(4, 6, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
+    lv(3, 5, [["memnomnom", 3], ["rosarin", 2], ["fordin", 1]])); // night bloomers and a hungry night grazer
   area("route2", "Duskwood", lv(7, 12, [ // deep forest at dusk: plants, moths, bats, poisons
-    ["banling", 3], ["turnipper", 3], ["slichen", 2], ["lambert", 2], ["budaye", 2],
+    ["banling", 3], ["turnipper", 3], ["dandicub", 2], ["slichen", 2], ["lambert", 2], ["budaye", 2],
     ["tumbleworm", 2], ["poinchin", 2], ["trapsnap", 1], ["hatchling", 1]]),
     lv(7, 11, [["nostray", 2], ["squink", 2], ["fluoresfin", 1]]),
     lv(8, 12, [["noctula", 3], ["fluttaflap", 3], ["vamporm", 2], ["eyenemy", 2], ["cateye", 1], ["merlicun", 1]])); // bats, moths, eyes in the dark

@@ -24,7 +24,7 @@ samples can load.)
 **Your trainer.** A new game starts by choosing boy or girl and a red, blue or green outfit; you
 (and your rival) are Tuxemon's boy or girl walking sprite recoloured to that outfit (older
 saves are asked once). Your rival is always the opposite gender in a contrasting colour (red ↔ green,
-blue → gold). The Water starter is Kroki, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
+blue → gold). The Water starter is Rillet, a small upright baby croc. The rival picks the starter that beats yours, challenges you in the lab (a practice
 battle with no blackout), again on Route 2, Route 3, Route 5 and Victory Ridge, and their ace ends up in the Champion's team. After each battle they walk off toward the next town.
 
 **Types and families.** 14 types: Tuxemon's Metal, Shadow and Cosmic are Pocemon's Steel, Dark and
@@ -34,7 +34,7 @@ immunities (`node tools/check_chart.js` checks it). Every pocemon shows and figh
 has a second type it is only a faint touch, nudging damage x1.1 or x0.9 (`typeEff` in game.js). All the game's
 text calls them pocemon (`tools/rename_word.js` swaps the word inside string literals only; the save key keeps
 its old name so saves still load). The starters each have 3
-forms, except the Water starter, which has 4 (Kroki → Krokivip at 14 → Leviadile at 23 → Golnagi at 30); every other family has 2 or 3 (fixed seed in
+forms, except the Water starter, which has 4 (Rillet → Rillfang at 14 → Tidewyrm at 23 → Aurelune at 30); every other family has 2 or 3 (fixed seed in
 `tools/build_data.py`), with one-of-a-kind species paired up by type. The Pocedex (menu → DEX)
 has each species' lore and where it's found; a green dot marks species living in the area you're in,
 with a HERE seen/total count. New species are announced the first time you meet them.
@@ -49,9 +49,9 @@ well past their evolution level appear already evolved. Tables live in the "Wild
 
 **Hollowmere, legendaries and the sleeping giant.** A side path west off Route 3 leads to Hollowmere,
 an abandoned ghost town (fog, dead trees, ghost trainers, ghost-type pocemon in the grass). A giant
-COALDIAK sleeps across that path: Kat in Volt City gives you the WAKE BELL to rouse it (then battle
+ASHKODIAK sleeps across that path: Kat in Volt City gives you the WAKE BELL to rouse it (then battle
 it). Three legendaries wait in the world, one each: PRIMORDIA at Hollowmere's Shrine of Origins,
-PHARAVION on top of the glacier in the Frost Sea, and KERNEL in a clearing on Route 4. Walk up and
+PHARAVION on top of the glacier in the Frost Sea, and OMNICORE in a clearing on Route 4. Walk up and
 press Z; catch or beat one and it's gone for good. You can talk to anyone you're near and roughly
 facing, from any angle, and they turn to face you.
 
@@ -85,7 +85,7 @@ Lightning or Fire pocemon plus the Volt Badge lights it with FLASH; wild pocemon
 tile there.
 
 **After the Champion:** the Battle Tower in Shade Hollow (Champions only) runs win streaks against
-random Lv 40–70 teams for Tower Points, spent at the Prize Clerk. ASUDOPT, a 4th legendary, appears in
+random Lv 40–70 teams for Tower Points, spent at the Prize Clerk. AURORINE, a 4th legendary, appears in
 the cave's deepest chamber once you're Champion and have caught the other three.
 
 **Side quests** (menu → QUESTS): find Little Pia's teddy on Route 2, carry Dr. Fenn's ancient egg to
@@ -119,7 +119,7 @@ room with a ladder up to a hole on the glacier's top tier beside Pharavion (maps
 step-on ladders and holes between maps).
 
 **The Ice Cave** opens in the Frost Sea glacier's north face: a frozen hall with baby ice pocemon
-(Eskipup, Chillimp, Tweesher, Waysprite, Demosnow), an ice hermit, and a sheet of ice you slide across
+(Snowpup, Frostkin, Halcylet, Driftwisp, Sinflake), an ice hermit, and a sheet of ice you slide across
 to reach a Sweet Candy (every spot on the ice can slide back out).
 
 **Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
@@ -218,7 +218,7 @@ colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' o
 PHARAVION (Lv 30) is on the summit of GLACIER PEAK: from the Ice Cave's back room, past a STRENGTH boulder, climb
 four tiers of ice cliff (foothills, a 9-slide ice field, a ridge with a cracked rock, a high corridor). PRIMORDIA
 (Lv 36) is at the altar of the SHRINE OF ORIGINS north of Hollowmere (a guard lets you in at 5 badges): a lava wing
-and an ice-slide wing each end in a switch, and both seals must break. KERNEL (Lv 42) is in the basin of STARFALL
+and an ice-slide wing each end in a switch, and both seals must break. OMNICORE (Lv 42) is in the basin of STARFALL
 CRATER south of Route 4 (6 badges): climb the rim and go round, past meteors and a cracked rock. Maps can be drawn
 as rows (`drawn()` in maps.js, heights 0-4 with a-d for the half-step stairs), and `tools/validate_world.js` plays
 out every outdoor puzzle (slides, switches, tiers, field moves), checks each legendary and item can be reached and
@@ -252,6 +252,19 @@ half your money; losing to a wild pocemon costs nothing.
 **Badge guards:** every town's way onward has a guard. Try to walk past without enough badges and they
 get a "!" over their head, walk over, tell you how many you need, walk you back a couple of steps and
 return to their post (Ember 1, Tide 2, Volt 3, Shade 4, Verdance 5, Cinder 6, Ironhold 7, Prime City 8).
+
+**Names and nicknames:** every pocemon has a Pocemon name of its own (each family shares a root: Fernkin →
+Ivyclimb → Zephyrfern; Rillet → Rillfang → Tidewyrm → Aurelune). They live in `tools/names.json` and
+`tools/rename_species.js` writes them into the names and descriptions; slugs stay Tuxemon's so saves keep
+working. You can nickname a pocemon (up to 10 letters) after catching or hatching it, when you get your
+starter, or any time from PARTY > NICKNAME: pick letters with the arrows and Z, or just type. It keeps the
+nickname when it evolves.
+
+**A gentle start (Nov 6):** Route 1's wild pocemon are Lv 2-4 and Rangers Lia and Rex use Lv 3-5, Leader Brack
+has three pocemon (ace Lv 10), and strong moves (power 80+) are only learned from Lv 14 (`tools/tune_moves.js`),
+so Route 1 no longer throws power-90 moves at a Lv 5 starter. Measured with a lone Lv 5 starter: Route 1
+wild battles won 92-100% (before: 38-77% against Lv 5-6), and the playtest bot still has later gyms where
+they were.
 
 **Level curve (Nov 2):** wild areas step up about 5 levels at a time; trainers sit about 10% above that.
 Leaders' aces: 11, 17, 22, 28, 32, 38, 44, 48; the Elite Four 45–48 and the Champion 50. Routes 5–8 run

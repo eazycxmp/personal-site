@@ -477,7 +477,8 @@ function makeMon(slug, level) {
   m.moves = known.slice(-4).map((id) => ({ id, pp: D.moves[id].pp }));
   return m;
 }
-const monName = (m) => D.monsters[m.slug].name;
+const monName = (m) => m.nick || D.monsters[m.slug].name; // a nickname you gave it, else its kind's name
+const NICK_MAX = 10;
 function healMon(m) { m.hp = m.maxhp; m.status = null; for (const mv of m.moves) mv.pp = D.moves[mv.id].pp; }
 // how hard a move lands on a pocemon: its type's full matchup, nudged x1.1 / x0.9 by a hidden second type
 function typeEff(moveType, slug) {
@@ -1746,6 +1747,7 @@ async function hatchDayCareEgg(e) {
   const where = addMon(m);
   if (m.shiny) { S.shinyCaught = S.shinyCaught || {}; S.shinyCaught[m.slug] = true; }
   await say(`It hatched into ${m.shiny ? "a SHINY " : ""}${monName(m).toUpperCase()}!${where === "box" ? " (Sent to the box.)" : ""}`);
+  await offerNickname(m);
   save();
 }
 async function hatchEgg() {
@@ -1866,6 +1868,7 @@ async function professor(n) {
     const m = makeMon(slug, 5);
     addMon(m);
     await say(`You received ${monName(m)}!`);
+    await offerNickname(m);
     await say("Prof. Oakley: Take these too!\nPoceballs catch wild pocemon,\nand Potions heal them.");
     await say("Prof. Oakley: Before you set off, go home and see your mom. She has a lot to tell you about the road ahead!");
     S.flags.go_see_mom = true;
@@ -2004,10 +2007,11 @@ function partyScreen(mode, prompt) {
       },
       async sub() {
         const m = S.party[this.i];
-        const c = await choose(["SUMMARY", "MAKE LEAD", "ITEM", "CANCEL"], { x: 150, y: 86 });
+        const c = await choose(["SUMMARY", "MAKE LEAD", "ITEM", "NICKNAME", "CANCEL"], { x: 150, y: 72 });
         if (c === 0) await summary(m);
         if (c === 1 && this.i > 0) { S.party.splice(this.i, 1); S.party.unshift(m); this.i = 0; }
         if (c === 2) await holdMenu(m);
+        if (c === 3) await renameMon(m);
       },
       draw() {
         ctx.fillStyle = "#4878a8"; ctx.fillRect(0, 0, VW, VH);
@@ -2119,8 +2123,9 @@ function summary(m) {
         box(2, 2, 92, 104, "#c8e0f0");
         drawMon(m.slug, "front", 16, 22, 1, 1, m.shiny);
         if (m.shiny) { drawStar(8, 96); text("SHINY", 15, 95, "#a07000", null); }
-        text(d.name, 8, 8);
-        nameIcons(m.slug, d.name, 8, 8, 91);
+        text(monName(m), 8, 8);
+        nameIcons(m.slug, monName(m), 8, 8, 91);
+        if (m.nick) text(d.name, 8, 18, "#607080", null);
         let tx = 8;
         for (const t of d.types) tx += typeTag(t, tx, 90) + 2;
         box(96, 2, 142, 104);
@@ -2141,6 +2146,94 @@ function summary(m) {
       },
     });
   });
+}
+
+// Naming screen: a letter grid (arrows + Z, so it works with the on-screen buttons) that also takes typing
+// from a keyboard. Resolves to the new name, "" to go back to the kind's own name, or null if cancelled.
+function nameEntry(m) {
+  const kind = D.monsters[m.slug].name;
+  const rows = ["ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz", "-'.!?&"];
+  const cells = [];
+  rows.forEach((r, j) => [...r].forEach((ch, i) => cells.push({ ch, x: 14 + i * 17, y: 50 + j * 15, w: 14 })));
+  cells.push({ act: "space", label: "SPACE", x: 116, y: 110, w: 44 }, { act: "del", label: "DEL", x: 164, y: 110, w: 30 },
+    { act: "ok", label: "OK", x: 198, y: 110, w: 28 });
+  return new Promise((res) => {
+    let name = m.nick || "", i = 0;
+    const done = (v) => { removeEventListener("keydown", onKey, true); pop(sc); res(v); };
+    const add = (ch) => { if (name.length < NICK_MAX) { name += ch; sfx("cursor", 0.5); } };
+    const del = () => { name = name.slice(0, -1); sfx("back", 0.5); };
+    const finish = () => { sfx("confirm", 0.7); done(name.trim()); };
+    // keyboard typing: letters, space and punctuation go into the name and never reach the game's controls
+    function onKey(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length === 1 && /[A-Za-z0-9 '.!?&-]/.test(e.key)) { e.preventDefault(); e.stopImmediatePropagation(); add(e.key); }
+      else if (e.key === "Backspace") { e.preventDefault(); e.stopImmediatePropagation(); del(); }
+      else if (e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); finish(); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); done(null); }
+    }
+    addEventListener("keydown", onKey, true);
+    const move = (dx, dy) => { // the nearest cell in that direction
+      const c = cells[i], cx = c.x + c.w / 2, cy = c.y;
+      let best = -1, bd = 1e9;
+      cells.forEach((o, k) => {
+        if (k === i) return;
+        const ox = o.x + o.w / 2, oy = o.y;
+        if (dx && (Math.sign(ox - cx) !== dx || Math.abs(oy - cy) > 2)) return;
+        if (dy && Math.sign(oy - cy) !== dy) return;
+        const d = dx ? Math.abs(ox - cx) : Math.abs(oy - cy) * 4 + Math.abs(ox - cx);
+        if (d < bd) { bd = d; best = k; }
+      });
+      if (best < 0) { // wrap round
+        const same = cells.map((o, k) => [o, k]).filter(([o]) => (dx ? Math.abs(o.y - cy) <= 2 : true));
+        if (dx) best = (dx > 0 ? same[0] : same[same.length - 1])[1];
+        else best = cells.reduce((b, o, k) => (Math.abs(o.x + o.w / 2 - cx) < Math.abs(cells[b].x + cells[b].w / 2 - cx) && (dy > 0 ? o.y < cells[b].y || b === i : o.y > cells[b].y || b === i) ? k : b), i);
+      }
+      i = best; sfx("cursor", 0.35);
+    };
+    const sc = push({
+      opaque: true,
+      update() {
+        if (consume("up")) move(0, -1); if (consume("down")) move(0, 1);
+        if (consume("left")) move(-1, 0); if (consume("right")) move(1, 0);
+        if (consume("b")) { if (name) del(); else done(null); }
+        if (consume("a")) { const c = cells[i]; if (c.ch) add(c.ch); else if (c.act === "space") add(" "); else if (c.act === "del") del(); else finish(); }
+      },
+      draw() {
+        ctx.fillStyle = "#e8e0c8"; ctx.fillRect(0, 0, VW, VH);
+        box(4, 4, 232, 40, "#f8f8f0");
+        drawMonIcon(m.slug, 10, 10, m.shiny);
+        text(`Name your ${kind}`, 34, 10, "#606060", null);
+        const shown = name || "";
+        text(shown, 34, 24);
+        const cw = textW(shown);
+        if (Math.floor(NOW * 3) % 2 && name.length < NICK_MAX) { ctx.fillStyle = "#303030"; ctx.fillRect(34 + cw + 1, 32, 6, 1); }
+        text(`${name.length}/${NICK_MAX}`, 206, 24, "#909090", null);
+        box(4, 44, 232, 86, "#f8f8f0");
+        cells.forEach((c, k) => {
+          if (k === i) { ctx.fillStyle = "#fff0a0"; ctx.fillRect(c.x - 2, c.y - 2, c.w, 12); ctx.fillStyle = "#c09020"; ctx.fillRect(c.x - 2, c.y + 9, c.w, 1); }
+          const label = c.ch || c.label;
+          text(label, c.x + (c.w - 4 - textW(label)) / 2, c.y, c.act === "ok" ? "#2a7030" : "#303030", null);
+        });
+        box(0, 132, VW, 28);
+        text("Z pick   X delete", 8, 138, "#505050", null);
+        text("Blank = " + kind, 8, 148, "#808080", null);
+      },
+    });
+  });
+}
+// ask whether to nickname a pocemon you just got, and name it
+async function offerNickname(m) {
+  if (!(await yesNo(`Give ${monName(m)} a nickname?`))) return;
+  await renameMon(m);
+}
+async function renameMon(m) {
+  const v = await nameEntry(m);
+  if (v === null) return;
+  const before = monName(m);
+  m.nick = v && v !== D.monsters[m.slug].name ? v : undefined;
+  if (!m.nick) delete m.nick;
+  if (monName(m) !== before) await say(m.nick ? `${before} is now called ${m.nick}!` : `${before} goes by ${monName(m)} again.`);
+  save();
 }
 
 // After a catch: the new monster's Dex page with a congrats banner. Z/X closes and you're back where you were.
@@ -2487,7 +2580,7 @@ async function evolveScene(m, to) {
       if (this.flash) { ctx.fillStyle = `rgba(255,255,255,${this.flash})`; ctx.fillRect(0, 0, VW, VH); }
     },
   });
-  await say(`What? ${D.monsters[from].name} is evolving!`);
+  await say(`What? ${m.nick || D.monsters[from].name} is evolving!`);
   await tween(0.9, (k) => { sc.k = k; });
   sc.phase = "melt"; await tween(1.4, (k) => { sc.k = k * 1.3; });
   sc.phase = "knead"; await tween(1.6, (k) => { sc.knead = k * 2.2; });
@@ -2498,7 +2591,7 @@ async function evolveScene(m, to) {
   for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, v = 0.6 + Math.random() * 1.6; sparks.push({ x: OX + 32, y: OY + 36, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.8, life: 1 }); }
   await tween(0.25, (k) => { sc.flash = 0.7 * (1 - k); });
   S.caught[to] = true; S.seen[to] = true;
-  await say(`Congratulations! ${D.monsters[from].name} evolved into ${D.monsters[to].name}!`);
+  await say(`Congratulations! ${m.nick || D.monsters[from].name} evolved into ${D.monsters[to].name}!`);
   pop(sc);
 }
 
@@ -2996,6 +3089,7 @@ class Battle {
       this.ball = null;
       if (where === "box") await this.msg(`Your party is full. ${monName(e)} was sent to the box.`);
       await caughtInfo(e, first);
+      await offerNickname(e);
       return "caught";
     }
     this.ball = null;
