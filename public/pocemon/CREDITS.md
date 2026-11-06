@@ -122,7 +122,7 @@ step-on ladders and holes between maps).
 (Snowpup, Frostkin, Halcylet, Driftwisp, Sinflake), an ice hermit, and a sheet of ice you slide across
 to reach a Sweet Candy (every spot on the ice can slide back out).
 
-**Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
+**Trainers are themed by area:** forest rangers on the routes, gardeners in the Ember Gym (wood and normal), sailors in
 the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's
 Hall. Route trainers only ambush once your team is 3 levels above their strongest pocemon.
 Many trainers have a specific job you can see: swimmers out in the water off Tide Harbor and the Frost
@@ -174,7 +174,7 @@ and what it is weak to or tough against. Frost is weak to Fire and Heroic.
 | Psychic | Venom, Heroic | Steel, Dark | Steel, Dark |
 | Dragon | Lightning, Dragon | Frost, Steel | Frost, Dragon |
 
-**Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Rock Badge + a Wood pocemon)
+**Moves outside battle:** walk into an obstacle (or face it and press Z). CUT (Grove Badge + a Wood pocemon)
 clears the orange thorn bushes, ROCK SMASH (Volt Badge + an Earth or Steel pocemon) breaks cracked rocks, STRENGTH (Shade Badge +
 an Earth, Heroic or Normal pocemon) shoves big boulders aside. Each guards a hidden nook on Routes 1-8 with
 a good item (Great Balls, berries, Level Treats, Sweet Candy, Elixirs); cleared obstacles stay cleared.
@@ -237,7 +237,7 @@ faints), every move has its sound, and catching, levelling up, healing, finding 
 the Game Corner all have theirs. M mutes music and sounds together.
 
 **Your lead pocemon follows you** a step behind, along the path you walked (not while you surf, fly or
-ride). **Riding:** after the Rock Badge, the Ranch Hand in Ember City gives you a RIDE PASS: press R (or RIDE in
+ride). **Riding:** after the Grove Badge, the Ranch Hand in Ember City gives you a RIDE PASS: press R (or RIDE in
 the menu) to ride your lead pocemon outdoors at about twice walking speed; you stay on across maps and hop off
 indoors, in caves and when you surf. **Completing the Pocedex** (all 212 kinds) earns a diploma from Prof. Oakley,
 a gold star on your trainer card, and the LUCKY HORSESHOE (shinies twice as often again).
@@ -260,8 +260,8 @@ working. You can nickname a pocemon (up to 10 letters) after catching or hatchin
 starter, or any time from PARTY > NICKNAME: pick letters with the arrows and Z, or just type. It keeps the
 nickname when it evolves.
 
-**A gentle start (Nov 6):** Route 1's wild pocemon are Lv 2-4 and Rangers Lia and Rex use Lv 3-5, Leader Brack
-has three pocemon (ace Lv 10), and strong moves (power 80+) are only learned from Lv 14 (`tools/tune_moves.js`),
+**A gentle start (Nov 6):** Route 1's wild pocemon are Lv 2-4 and Rangers Lia and Rex use Lv 3-5, Leader Hazel
+(wood and normal; ace Lv 8), and strong moves (power 80+) are only learned from Lv 14 (`tools/tune_moves.js`),
 so Route 1 no longer throws power-90 moves at a Lv 5 starter. Measured with a lone Lv 5 starter: Route 1
 wild battles won 92-100% (before: 38-77% against Lv 5-6), and the playtest bot still has later gyms where
 they were.

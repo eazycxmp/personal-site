@@ -101,15 +101,15 @@
       { type: "house", x: 4, y: 13, to: "ember_house" },
       { type: "house2", x: 20, y: 15, to: "ember_house2" },
     ],
-    gates: [{ x: 27, y: 11, w: 1, h: 2, badges: 1, block: "e", text: "GUARD: The road east is rough.\nCome back with the Rock Badge!" }],
+    gates: [{ x: 27, y: 11, w: 1, h: 2, badges: 1, block: "e", text: "GUARD: The road east is rough.\nCome back with the Grove Badge!" }],
     signs: [{ x: 14, y: 13, text: "EMBER CITY\nGym Leader: BRACK\n\"Solid as bedrock.\"" },
       { x: 9, y: 18, text: "DAY CARE\nWe raise your pocemon\nwhile you walk!" }],
     npcs: [
       { sprite: "fisher", x: 16, y: 14, dir: "down", name: "Ranch Hand", role: "saddle" },
       { sprite: "soldier", x: 27, y: 10, dir: "down", name: "Guard",
-        talk: ["Only trainers with the Rock Badge\nmay pass east."] },
+        talk: ["Only trainers with the Grove Badge\nmay pass east."] },
       { sprite: "granny", x: 10, y: 16, dir: "left", name: "Granny",
-        talk: ["Brack's pocemon are EARTH type.", "FIRE and VENOM moves don't hurt\nthem much, dear. Try WATER or\nWOOD!"] },
+        talk: ["Hazel's pocemon are WOOD and\nNORMAL type.", "FIRE, FROST or SKY moves wilt her\nWOOD ones, dear. HEROIC and VENOM\nmoves rattle NORMAL ones!"] },
     ],
   });
 
@@ -835,14 +835,14 @@
   });
 
   W.ember_gym = gym("Ember Gym", "cream", [
-    trainer({ id: "g1_t1", outfit: "miner", sprite: "miner", x: 2, y: 9, dir: "right", sight: 5, name: "Miner Tobin",
-      team: [["rockitten", 7]], intro: "Brack trains us hard. Ready?", lose: "Hmm. Solid." }),
-    trainer({ id: "g1_t2", outfit: "miner", sprite: "miner_green", x: 9, y: 6, dir: "left", sight: 5, name: "Hiker Dale",
-      team: [["stonifly", 6], ["scarlant", 6]], intro: "Rocks never lose!", lose: "...Except today." }),
-    trainer({ id: "g1_leader", outfit: "miner", sprite: "miner", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Brack", leader: 1,
-      team: [["shull", 8], ["grintot", 9], ["pawsand", 10]],
-      intro: "I'm Brack, the Ember Gym Leader!\nMy EARTH pocemon are hard as\nstone. Show me what you've got!",
-      lose: "You cracked my defense!\nTake the ROCK BADGE!", badge: "Rock Badge" }),
+    trainer({ id: "g1_t1", sprite: "picnicker", x: 2, y: 9, dir: "right", sight: 5, name: "Picnicker Rosie",
+      team: [["chickadee", 6]], intro: "Hazel says every garden needs a little chirping!", lose: "Aww, my picnic's ruined." }),
+    trainer({ id: "g1_t2", sprite: "florist_brown", x: 9, y: 6, dir: "left", sight: 5, name: "Gardener Poppy",
+      team: [["lambert", 6], ["aardorn", 6]], intro: "Mind the flowerbeds! Now, let's battle!", lose: "You've got a green thumb for battling." }),
+    trainer({ id: "g1_leader", sprite: "florist_rose", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Hazel", leader: 1,
+      team: [["snaki", 7], ["slichen", 8], ["aardorn", 8]],
+      intro: "I'm Hazel, the Ember Gym Leader!\nMy WOOD and NORMAL pocemon grow\nstrong and steady. Let's see yours!",
+      lose: "What a bloom! You've earned\nthe GROVE BADGE!", badge: "Grove Badge" }),
   ], "funky", "funkboss");
   W.tide_gym = gym("Tide Gym", "blue", [
     trainer({ id: "g2_t1", outfit: "sailor", sprite: "beachcomber_blue", x: 2, y: 9, dir: "right", sight: 5, name: "Surfer Kai",

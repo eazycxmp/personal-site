@@ -583,6 +583,7 @@ function migrateSave(st) {
   st.box = (st.box || []).map(fix).filter(Boolean);
   for (const k of Object.keys(st.bag || {})) if (!ITEMS[k]) delete st.bag[k];
   if (!MAPS[st.map]) Object.assign(st, { map: "lab", x: 5, y: 6, dir: "up" });
+  st.badges = (st.badges || []).map((b) => (b === "Rock Badge" ? "Grove Badge" : b)); // the first gym became a wood/normal gym
   return st;
 }
 function addMon(m) {
@@ -772,8 +773,8 @@ async function toggleRide() {
 }
 async function ranchHand(n) {
   if (S.bag.saddle) { await say(`${n.name}: How's the riding going? Press R anywhere outdoors to hop on!`); return; }
-  if (!S.badges.includes("Rock Badge")) { await say(`${n.name}: I teach trainers to ride their pocemon. Beat Brack at the Ember Gym and I'll give you a RIDE PASS!`); return; }
-  await say(`${n.name}: That's the ROCK BADGE! Here's your RIDE PASS. Your lead pocemon will carry you twice as fast.`);
+  if (!S.badges.includes("Grove Badge")) { await say(`${n.name}: I teach trainers to ride their pocemon. Beat Hazel at the Ember Gym and I'll give you a RIDE PASS!`); return; }
+  await say(`${n.name}: That's the GROVE BADGE! Here's your RIDE PASS. Your lead pocemon will carry you twice as fast.`);
   S.bag.saddle = 1; save();
   await say(`You received the RIDE PASS! ${ITEMS.saddle.desc}`);
 }
@@ -839,7 +840,7 @@ async function trySurf(tx, ty) {
 }
 // Moves used outside battle: face the obstacle and press Z. Each needs a badge and a monster of the right type.
 const FIELD = {
-  b: { move: "CUT", badge: "Rock Badge", types: ["wood"], what: "A thorny bush blocks the way.", done: "cut the bush down" },
+  b: { move: "CUT", badge: "Grove Badge", types: ["wood"], what: "A thorny bush blocks the way.", done: "cut the bush down" },
   k: { move: "ROCK SMASH", badge: "Volt Badge", types: ["earth", "steel"], what: "A cracked boulder blocks the way.", done: "smashed the rock to bits" },
   o: { move: "STRENGTH", badge: "Shade Badge", types: ["earth", "heroic", "normal"], what: "A huge boulder blocks the way.", done: "shoved the boulder aside" },
 };
@@ -988,7 +989,7 @@ function typeGuide(start) {
 }
 const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
 // every gym badge in order, with the monster shown for it on the trainer card
-const BADGES = [["Rock Badge", "selket"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
+const BADGES = [["Grove Badge", "dandylion"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
   ["Leaf Badge", "moloch"], ["Blaze Badge", "eruptibus"], ["Iron Badge", "lightmare"], ["Prime Badge", "golnagi"]];
 function landingSpot(id) {
   const m = MAPS[id];
