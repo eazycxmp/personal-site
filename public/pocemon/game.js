@@ -698,7 +698,7 @@ function heightAt(x, y) {
 }
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
-  if (t === null || "T~FWCbkoRHPgjQSOK".includes(t)) return true;
+  if (t === null || "T~FWCbkoRHPgjQSOKLUp".includes(t)) return true;
   if (world.solid.has(x + "," + y)) return true;
   if (npcAt(x, y)) return true;
   if (!ignorePlayer && world.player.x === x && world.player.y === y) return true;
@@ -1166,7 +1166,7 @@ async function faceDir(dir) {
 // is a tile on another map solid? (tiles, building footprints, NPCs, signs)
 function blockedAt(id, x, y) {
   const m = MAPS[id];
-  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgjQSOK".includes(m.grid[y][x])) return true;
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h || "T~FWCbkoRHPgjQSOKLUp".includes(m.grid[y][x])) return true;
   for (const b of m.buildings || []) { const B = BUILDINGS[b.type]; if (x >= b.x && x < b.x + B.tw && y >= b.y && y < b.y + B.th) return true; }
   return (m.npcs || []).some((n) => n.x === x && n.y === y) || (m.signs || []).some((s2) => s2.x === x && s2.y === y);
 }

@@ -4,7 +4,7 @@
 // other things you can walk behind, drawn over people). People, items and weather are drawn every frame.
 window.World2D = (() => {
   const TS = 16;
-  let map = null, ground = null, over = null, waterTiles = [], cam = { x: 0, y: 0 };
+  let map = null, ground = null, over = null, waterTiles = [], lavaTiles = [], cam = { x: 0, y: 0 };
 
   // ------------------------------------------------------------ sheets and tiles
   const SHEETS = { nat: "nature", out: "outdoor", int: "interior", elec: "electronics", wat: "water", mod: "modern", set: "setpieces" };
@@ -45,6 +45,36 @@ window.World2D = (() => {
     if (m.bg === "beach") return { ground: "teal", path: "sandpatch", tree: "round", raise: "sand", grass: [25, 33], palms: true };
     return { ground: "teal", path: "sandpatch", tree: m.bg === "forest" ? "pine" : "round", raise: "teal", grass: [25, 33] };
   }
+  let lavaCanvas = null;
+  function lavaTile() {
+    if (lavaCanvas) return lavaCanvas;
+    lavaCanvas = document.createElement("canvas"); lavaCanvas.width = lavaCanvas.height = TS;
+    const c = lavaCanvas.getContext("2d");
+    c.drawImage(IMG.tiles, 3 * TS, 4 * TS, TS, TS, 0, 0, TS, TS);
+    const d = c.getImageData(0, 0, TS, TS), px = d.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const l = (px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / 255;
+      const [r, g, b] = l < 0.28 ? [176, 38, 10] : l < 0.45 ? [236, 92, 18] : l < 0.62 ? [255, 146, 36] : [255, 214, 90];
+      px[i] = r; px[i + 1] = g; px[i + 2] = b;
+    }
+    c.putImageData(d, 0, 0);
+    return lavaCanvas;
+  }
+  // a copy of one tile with some pixels changed (cached): fn(r, g, b, a) returns [r, g, b, a] or null to keep it
+  const recolored = {};
+  function recolor(key, k, c, r, fn) {
+    if (recolored[key]) return recolored[key];
+    const cv = document.createElement("canvas"); cv.width = cv.height = TS;
+    const x = cv.getContext("2d"); x.drawImage(sheet(k), c * TS, r * TS, TS, TS, 0, 0, TS, TS);
+    const d = x.getImageData(0, 0, TS, TS), px = d.data;
+    for (let i = 0; i < px.length; i += 4) { const o = fn(px[i], px[i + 1], px[i + 2], px[i + 3]); if (o) [px[i], px[i + 1], px[i + 2], px[i + 3]] = o; }
+    x.putImageData(d, 0, 0);
+    return (recolored[key] = cv);
+  }
+  // the stone rim from the water sheet, with its blue water line turned into glowing lava
+  const lavaRim = (c, r) => recolor(`lavarim${c},${r}`, "wat", c, r, (R, G, B, A) => (A && B > R + 25 ? [255, 120 + (B > 200 ? 60 : 0), 30, A] : null));
+  // the palm's base tile without the patch of grass painted under it
+  const palmBase = () => recolor("palm", "out", 26, 38, (R, G, B, A) => (A && G > R + 20 && G > B - 10 && G > 110 ? [0, 0, 0, 0] : null));
   const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967296; };
 
   // ------------------------------------------------------------ build a map
@@ -54,7 +84,7 @@ window.World2D = (() => {
     over = document.createElement("canvas"); over.width = m.w * TS; over.height = m.h * TS;
     const g = ground.getContext("2d"), o = over.getContext("2d");
     g.imageSmoothingEnabled = o.imageSmoothingEnabled = false;
-    waterTiles = [];
+    waterTiles = []; lavaTiles = [];
     if (m.interior) buildInterior(m, g, o);
     else buildOutdoor(m, g, o, BUILDINGS);
   }
@@ -74,7 +104,11 @@ window.World2D = (() => {
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       const ch = m.grid[y][x], X = x * TS, Y = y * TS;
       tile(g, "nat", F[0] + (x & 1), F[1] + (y & 1), X, Y);
-      if (ch === "=") {
+      if (ch === ":") tile(g, "buch", 3, 1, X, Y); // beach sand
+      else if (ch === "D") { tile(g, "buch", 3, 4, X, Y); waterTiles.push([x, y]); tile(g, "floors", 1, 3 + (y & 1), X + 2, Y, 0.75, 1); } // pier planks over water
+      else if (ch === "L") { lavaTiles.push([x, y]); g.drawImage(lavaTile(), X, Y); }
+      else if (ch === "p") { /* palm: drawn with the trees */ }
+      else if (ch === "=") {
         if (th.path === "sandpatch") tile(g, "buch", 3, 1, X, Y);
         else { const P = FAM[th.path]; tile(g, "nat", P[0] + (x & 1), P[1] + (y & 1), X, Y); }
       } else if (ch === "~") {
@@ -97,7 +131,7 @@ window.World2D = (() => {
     // Sand and water edges live on the grass beside them (Tuxemon's 3x3 sets): pick the piece from where the
     // path or water is around each grass tile.
     const rimOn = (kind, set) => {
-      const is = (a, b) => at(m, a, b) === kind;
+      const is = (a, b) => kind.includes(at(m, a, b));
       for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
         if (!".,f".includes(m.grid[y][x]) || hOf(m, x, y)) continue;
         const N = is(x, y - 1), S2 = is(x, y + 1), W = is(x - 1, y), E = is(x + 1, y);
@@ -116,14 +150,14 @@ window.World2D = (() => {
         if (t === ",") tile(g, "out", th.grass[0], th.grass[1], x * TS, y * TS);
       }
     };
-    if (th.path === "sandpatch") rimOn("=", [2, 0]);
+    if (th.path === "sandpatch") rimOn("=:", [2, 0]);
     if (th.ground !== "snow" && th.ground !== "stone") rimOn("~", [2, 3]);
     // raised ground: cliffs edge wherever the neighbour is lower; half steps are stairs
     if (m.heights) {
       const R = FAM[th.raise];
       for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
         const h = hOf(m, x, y);
-        if (!h || m.grid[y][x] === "~") continue;
+        if (!h || "~L".includes(m.grid[y][x])) continue;
         const X = x * TS, Y = y * TS;
         if (h % 1) { tile(g, "nat", R[0] + 3, R[1] + 3, X, Y); continue; }
         const [c, r] = piece((a, b) => a < 0 || b < 0 || a >= m.w || b >= m.h || hOf(m, a, b) >= h, x, y);
@@ -156,6 +190,18 @@ window.World2D = (() => {
     if (th.shore) {
       const isWet = (a, b) => { const t = at(m, a, b); return t === null || t === "~"; };
       for (const [x, y] of waterTiles) { const [c, r] = piece(isWet, x, y); if (c !== 1 || r !== 1) tile(g, "wat", 15 + c, 1 + r, x * TS, y * TS); }
+    }
+    if (lavaTiles.length) { // a rocky rim where lava meets the ground
+      const isLava = (a2, b2) => { const t = at(m, a2, b2); return t === null || t === "L"; };
+      for (const [x, y] of lavaTiles) { const [c, r] = piece(isLava, x, y); if (c !== 1 || r !== 1) g.drawImage(lavaRim(15 + c, 1 + r), x * TS, y * TS); }
+    }
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.grid[y][x] === "p") { g.drawImage(palmBase(), x * TS, y * TS); tile(o, "out", 26, 37, x * TS, (y - 1) * TS); }
+    // beach umbrellas with a lounge chair (LimeZu "Modern Interiors"): 3x3, the pole on the anchor tile; the canopy overhangs you
+    const UMB = [[1, 144], [1, 147], [13, 147], [5, 147]];
+    for (const [ux, uy, v] of m.umbrellas || []) {
+      const [c, r] = UMB[v % UMB.length], X = (ux - 1) * TS, Y = (uy - 2) * TS;
+      g.drawImage(sheet("mod"), c * TS, (r + 2) * TS, 3 * TS, TS, X, Y + 2 * TS, 3 * TS, TS);
+      o.drawImage(sheet("mod"), c * TS, r * TS, 3 * TS, 2 * TS, X, Y, 3 * TS, 2 * TS);
     }
     if (th.floes) for (const [x, y] of waterTiles) {
       if (hash(x * 3, y * 5) < 0.025 && [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]].every(([a, b]) => isWetOpen(m, x + a, y + b)))
@@ -313,6 +359,14 @@ window.World2D = (() => {
       const sx = x * TS - cam.x, sy = y * TS - cam.y;
       if (sx < -TS || sy < -TS || sx > VW || sy > VH) continue;
       if (((x * 7 + y * 13 + sh) % 9) === 0) ctx.fillRect(sx + 4 + ((sh + x) % 6), sy + 6 + ((y + sh) % 5), 5, 1);
+    }
+    for (const [x, y] of lavaTiles) { // lava: a slow pulse, bright flecks, and embers drifting up
+      const sx = x * TS - cam.x, sy = y * TS - cam.y;
+      if (sx < -TS || sy < -TS * 2 || sx > VW || sy > VH) continue;
+      ctx.fillStyle = `rgba(255,190,60,${(0.16 + 0.12 * Math.sin(now * 2 + x * 0.7 + y)).toFixed(3)})`; ctx.fillRect(sx, sy, TS, TS);
+      if (((x * 5 + y * 11 + sh) % 7) === 0) { ctx.fillStyle = "rgba(255,240,150,0.8)"; ctx.fillRect(sx + 3 + ((sh + y) % 9), sy + 4 + ((x + sh) % 8), 2, 1); }
+      const e = (now * 0.6 + hash(x, y)) % 1;
+      if (hash(y, x) < 0.25) { ctx.fillStyle = `rgba(255,${120 + Math.floor(100 * (1 - e))},40,${(1 - e).toFixed(2)})`; ctx.fillRect(sx + 4 + Math.floor(hash(x, y) * 8), sy + 8 - Math.floor(e * 22), 1, 1); }
     }
     // everything that stands up, back to front
     const things = [];

@@ -208,6 +208,12 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Volcano and beach:** Cinder Peak has a two-tier volcano east of town with a lava crater and a lava river, under
+a permanent ash haze; Route 6 has lava where its pond and a stand of pines were. Lava (tile `L`) is solid and
+glows, with embers drifting up; it's Tuxemon's water tile recoloured, with the stone shore rim tinted to match.
+Tide Harbor has a sandy beach (`:`) along the shore with palms (`p`), beach umbrellas and lounge chairs (`U`, LimeZu
+art) and a wooden pier (`D`) out over the water.
+
 **Sound:** menus click, every pocemon calls out with its own cry when it enters battle (and a lower one when it
 faints), every move has its sound, and catching, levelling up, healing, finding items, field moves, ladders and
 the Game Corner all have theirs. M mutes music and sounds together.

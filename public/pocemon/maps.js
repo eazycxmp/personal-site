@@ -144,7 +144,12 @@
     ops: [
       ["~", 0, 19, 30, 11], [".", 11, 23, 7, 4], [",", 12, 24, 5, 2], ["=", 0, 18, 30, 1], ["=", 0, 7, 28, 2], ["=", 26, 0, 2, 18],
       ["=", 7, 17, 23, 1], ["f", 12, 11, 3, 3], ["T", 12, 2, 2, 4],
+      // the beach: a strip of sand along the shore, palms, umbrellas, and a wooden pier out to sea
+      [":", 0, 19, 30, 2], ["p", 1, 19, 1, 1], ["p", 19, 19, 1, 1], ["p", 28, 20, 1, 1],
+      ["U", 5, 19, 1, 1], ["U", 10, 19, 1, 1], ["U", 15, 20, 1, 1], ["U", 25, 19, 1, 1],
+      ["D", 22, 21, 2, 6],
     ],
+    umbrellas: [[5, 19, 0], [10, 19, 1], [15, 20, 2], [25, 19, 3]],
     exits: [{ edge: "w", at: 7, w: 2, to: "route2" }, { edge: "n", at: 26, w: 2, to: "route3" },
       { edge: "e", at: 17, w: 2, to: "frostsea" }],
     buildings: [
@@ -386,7 +391,7 @@
     name: "Route 6", w: 44, h: 18, music: "route", bg: "forest", look: "ash",
     ops: [
       ["=", 0, 8, 44, 2], [",", 4, 2, 9, 6], [",", 6, 11, 10, 5], [",", 20, 2, 8, 5], [",", 22, 11, 9, 5], [",", 34, 3, 7, 12],
-      ["T", 15, 2, 4, 4], ["T", 32, 11, 2, 5], ["~", 17, 12, 3, 3],
+      ["T", 15, 2, 4, 4], ["L", 32, 11, 2, 5], ["L", 17, 12, 3, 3], // lava where the pond and the pines were
     ],
     exits: [{ edge: "w", at: 8, w: 2, to: "verdance" }, { edge: "e", at: 8, w: 2, to: "cinder" }],
     signs: [{ x: 3, y: 7, text: "ROUTE 6 - ASHFALL TRAIL\nEast: Cinder Peak" }],
@@ -403,7 +408,9 @@
 
   // ---------------- Cinder Peak (Gym 6: Fire) ----------------
   W.cinder = town({ id: "cinder", name: "Cinder Peak", music: "funky", bg: "forest", look: "ash",
-    ops: [["T", 22, 14, 6, 6], ["T", 26, 2, 2, 2]],
+    // the peak itself: a two-tier volcano east of town with a lava crater and a lava river down its face
+    ops: [[".", 22, 13, 7, 9], ["L", 24, 15, 2, 7], ["T", 26, 2, 2, 2]],
+    raise: [[22, 13, 6, 8, 1], [23, 14, 4, 5, 2]],
     signs: [{ x: 14, y: 13, text: "CINDER PEAK\nGym Leader: BLAZE\n\"Burn bright.\"" }],
     npcs: [{ sprite: "cooldude", x: 9, y: 16, dir: "right", name: "Hiker",
       talk: ["Blaze's FIRE pocemon hate WATER and EARTH attacks.", "Bring something that swims!"] }],
@@ -848,6 +855,7 @@
   W.route3.weather = { kind: "snow", mons: [["houndice", 13, 17, 2]] };
   W.frostsea.weather = { kind: "snow" };
   W.route6.weather = { kind: "ash", mons: [["eruptibus", 28, 32, 1]] };
+  W.cinder.weather = { kind: "ash" }; // the volcano always smoulders
 
   // ---------------- Gym puzzles ----------------
   // Each gym is a 14x18 room: 3 rows of wall, 14 rows of puzzle (y 3-16), the exit at the bottom (x 6-7).
