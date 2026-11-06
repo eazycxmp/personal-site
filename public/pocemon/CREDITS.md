@@ -253,6 +253,12 @@ half your money; losing to a wild pocemon costs nothing.
 get a "!" over their head, walk over, tell you how many you need, walk you back a couple of steps and
 return to their post (Ember 1, Tide 2, Volt 3, Shade 4, Verdance 5, Cinder 6, Ironhold 7, Prime City 8).
 
+**Phones:** tap anywhere on the map to walk there (along the shortest open path, at running speed); tap a
+person, sign, item or obstacle to walk up and talk to it or use it; tap a building to walk in its door; tap
+the end of a path at a map's edge to walk on. Tap to advance text, tap a menu option to pick it, tap a
+pocemon in the party list, tap letters when naming. The pad has the stick, A, B, RUN and RIDE (the pad
+buttons also answer a mouse). A tap works like A on every other screen.
+
 **Names and nicknames:** every pocemon has a Pocemon name of its own (each family shares a root: Fernkin →
 Ivyclimb → Zephyrfern; Rillet → Rillfang → Tidewyrm → Aurelune). They live in `tools/names.json` and
 `tools/rename_species.js` writes them into the names and descriptions; slugs stay Tuxemon's so saves keep

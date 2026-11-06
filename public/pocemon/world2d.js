@@ -449,5 +449,7 @@ window.World2D = (() => {
   }
   // where a tile-space point lands on screen (for the "!" bubble over someone)
   function project(x, y, h = 0) { return { x: x * TS - cam.x + 8, y: y * TS - cam.y - 8 - h * 4 }; }
-  return { load, init() {}, build, render, project, resize() {}, snapYaw() {}, themeOf, TS };
+  // which tile a point on the screen (game pixels) is over, for tap-to-walk
+  function toTile(sx, sy) { return { x: Math.floor((sx + cam.x) / TS), y: Math.floor((sy + cam.y) / TS) }; }
+  return { load, init() {}, build, render, project, toTile, resize() {}, snapYaw() {}, themeOf, TS };
 })();

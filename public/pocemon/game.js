@@ -70,6 +70,19 @@ function resize() {
 addEventListener("resize", resize);
 resize();
 
+// Taps and clicks on the screen, in game pixels. Screens that understand taps (menus, the party list, the
+// naming grid, the world for tap-to-walk) set taps: true and read them with consumeTap(); on any other screen
+// a tap works like pressing A, so dialogue and info pages advance with a tap.
+let tapQ = null;
+cv.addEventListener("pointerdown", (e) => {
+  const r = cv.getBoundingClientRect();
+  tapQ = { x: (e.clientX - r.left) / r.width * VW, y: (e.clientY - r.top) / r.height * VH };
+  e.preventDefault();
+  unlockAudio();
+});
+function consumeTap() { const t = tapQ; tapQ = null; return t; }
+const inRect = (t, x, y, w, h) => t && t.x >= x && t.x < x + w && t.y >= y && t.y < y + h;
+
 // ---------------------------------------------------------------- assets
 const IMG = {};
 function loadImg(key, src) {
@@ -419,10 +432,22 @@ function choose(items, o = {}) {
     const x = o.x ?? VW - w;
     const y = o.y ?? (o.prompt ? 112 - h : VH - h);
     push({
-      i: o.start || 0, opened: NOW, top: 0,
+      i: o.start || 0, opened: NOW, top: 0, taps: true,
       update() {
         // a press made while mashing through the text before this menu appeared doesn't pick anything
-        if (NOW - this.opened < 0.25) { consume("a"); consume("b"); }
+        if (NOW - this.opened < 0.25) { consume("a"); consume("b"); consumeTap(); }
+        const tap = consumeTap();
+        if (tap) { // tap an option to pick it; a tap on the text box below just moves things along like A
+          const k = labels.findIndex((l, k) => {
+            if (cols === 1 && (k < this.top || k >= this.top + rows)) return false;
+            const cx = x + 14 + (k % cols) * colW, cy = y + 6 + (Math.floor(k / cols) - (cols === 1 ? this.top : 0)) * rowH;
+            return inRect(tap, cx - 12, cy - 3, colW + 2, rowH);
+          });
+          if (k >= 0 && !(items[k] && items[k].disabled)) { this.i = k; if (o.onMove) o.onMove(k); sfx("confirm", 0.5); pop(this); res(k); return; }
+          if (k < 0 && !inRect(tap, x, y, w, h) && cols === 1 && allRows > rows) { // scroll a long list by tapping above/below it
+            if (tap.y < y) this.i = Math.max(0, this.i - rows); else if (tap.y > y + h) this.i = Math.min(items.length - 1, this.i + rows);
+          }
+        }
         const r = Math.floor(this.i / cols), c = this.i % cols;
         const was = this.i;
         if (consume("up") && r > 0) this.i -= cols;
@@ -1994,10 +2019,15 @@ function partyScreen(mode, prompt) {
   // mode: "view" | "pick" | "switch" (battle) | "forced" (battle, after faint)
   return new Promise((res) => {
     push({
-      opaque: true, i: 0, busy: false,
+      opaque: true, i: 0, busy: false, taps: true,
       update() {
         if (this.busy) return;
         const n = S.party.length;
+        const tap = consumeTap();
+        if (tap) { // tap a pocemon to choose it, or the bar at the bottom to go back
+          const k = S.party.findIndex((m, k) => inRect(tap, 4, 2 + k * 22, 232, 22));
+          if (k >= 0) { this.i = k; pressed.a = true; } else if (tap.y > 134 && mode !== "forced") pressed.b = true;
+        }
         if (consume("up")) this.i = (this.i + n - 1) % n;
         if (consume("down")) this.i = (this.i + 1) % n;
         if (consume("b") && mode !== "forced") { pop(this); res(-1); return; }
@@ -2192,8 +2222,10 @@ function nameEntry(m) {
       i = best; sfx("cursor", 0.35);
     };
     const sc = push({
-      opaque: true,
+      opaque: true, taps: true,
       update() {
+        const tap = consumeTap();
+        if (tap) { const k = cells.findIndex((c) => inRect(tap, c.x - 3, c.y - 3, c.w + 2, 14)); if (k >= 0) { i = k; pressed.a = true; } }
         if (consume("up")) move(0, -1); if (consume("down")) move(0, 1);
         if (consume("left")) move(-1, 0); if (consume("right")) move(1, 0);
         if (consume("b")) { if (name) del(); else done(null); }
@@ -2216,7 +2248,7 @@ function nameEntry(m) {
           text(label, c.x + (c.w - 4 - textW(label)) / 2, c.y, c.act === "ok" ? "#2a7030" : "#303030", null);
         });
         box(0, 132, VW, 28);
-        text("Z pick   X delete", 8, 138, "#505050", null);
+        text(document.body.classList.contains("touch") ? "Tap letters, then OK" : "Z pick   X delete", 8, 138, "#505050", null);
         text("Blank = " + kind, 8, 148, "#808080", null);
       },
     });
@@ -3191,8 +3223,100 @@ function areaMusic(m = world.map) {
 // ---------------------------------------------------------------- world scene
 // The arrows walk in that direction (top-down, like the classic handhelds); SHIFT runs.
 const WALK_SPEED = 3.6, RUN_SPEED = 6.4, RIDE_SPEED = 8.5;
+
+// ---------------------------------------------------------------- tap to walk
+// Tap a spot and you walk there along the shortest open path. Tap a person, sign, item ball, obstacle or the
+// water and you walk up to it and interact; tap a building and you walk in its door; tap the end of a path
+// at the map's edge and you walk on to the next area. Any arrow key or stick push takes back control.
+const STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+function canStepTo(x, y, nx, ny, dir) {
+  const m = world.map, p = world.player;
+  if (nx < 0 || ny < 0 || nx >= m.w || ny >= m.h) return false;
+  if (Math.abs(heightAt(nx, ny) - heightAt(x, y)) > 0.5) return false;
+  const t = tileAt(nx, ny);
+  if (t === "I") return false; // ice slides you; steer those yourself
+  if (gateAt(nx, ny, dir)) return false;
+  if (p.surfing && t === "~" && !npcAt(nx, ny)) return true;
+  return !blocked(nx, ny, true);
+}
+// shortest path (list of tiles, not counting where you stand) to any goal tile, or null
+function pathTo(goals) {
+  const p = world.player, start = p.x + "," + p.y, want = new Set(goals.map(([x, y]) => x + "," + y));
+  if (want.has(start)) return [];
+  const prev = new Map([[start, null]]), q = [[p.x, p.y]];
+  for (let h = 0; h < q.length && h < 6000; h++) {
+    const [x, y] = q[h];
+    for (const d of ["up", "down", "left", "right"]) {
+      const nx = x + STEP[d][0], ny = y + STEP[d][1], k = nx + "," + ny;
+      if (prev.has(k) || !canStepTo(x, y, nx, ny, d)) continue;
+      prev.set(k, x + "," + y); q.push([nx, ny]);
+      if (want.has(k)) {
+        const out = [];
+        for (let c = k; c && c !== start; c = prev.get(c)) out.unshift(c.split(",").map(Number));
+        return out;
+      }
+    }
+  }
+  return null;
+}
+function tapWalk(tap) {
+  const p = world.player, m = world.map;
+  let { x: tx, y: ty } = World2D.toTile(tap.x, tap.y);
+  tx = clamp(tx, 0, m.w - 1); ty = clamp(ty, 0, m.h - 1);
+  if (tx === p.x && ty === p.y) { world.route = null; runScript(interact); return; } // tap yourself: look at what's ahead
+  const b = world.doors.find((d) => { const B = BUILDINGS[d.type]; return tx >= d.x && tx < d.x + B.tw && ty >= d.y && ty < d.y + B.th; });
+  let goals, face = null, act = null;
+  if (b) { goals = [[b.door.x, b.door.y]]; face = "up"; act = "push"; }
+  else if (!blocked(tx, ty, true) && tileAt(tx, ty) !== "~" && tileAt(tx, ty) !== "I") {
+    goals = [[tx, ty]];
+    const edge = tx === 0 ? "left" : tx === m.w - 1 ? "right" : ty === 0 ? "up" : ty === m.h - 1 ? "down" : null;
+    if (edge && exitAt({ left: "w", right: "e", up: "n", down: "s" }[edge], tx, ty)) { face = edge; act = "push"; }
+  } else { // something you can't stand on: walk next to it (or across a counter from it), face it, press A
+    goals = []; const faceOf = {};
+    for (const d of ["up", "down", "left", "right"]) {
+      const [dx, dy] = STEP[d];
+      for (const k of [1, 2]) {
+        const gx = tx - dx * k, gy = ty - dy * k;
+        if (k === 2 && tileAt(tx - dx, ty - dy) !== "C") continue;
+        goals.push([gx, gy]); faceOf[gx + "," + gy] = d;
+      }
+    }
+    const path = pathTo(goals);
+    if (!path) { world.route = null; return; }
+    const end = path.length ? path[path.length - 1] : [p.x, p.y];
+    world.route = { steps: path, face: faceOf[end[0] + "," + end[1]], act: "talk", stuck: 0 };
+    return;
+  }
+  const path = pathTo(goals);
+  world.route = path ? { steps: path, face, act, stuck: 0 } : null;
+  if (!path) sfx("back", 0.3);
+}
+// the direction tap-to-walk wants this frame (or null), finishing the trip when it arrives
+function routeDir(dt) {
+  const r = world.route, p = world.player;
+  if (!r) return null;
+  if (r.push != null) { r.push -= dt; if (r.push <= 0) { world.route = null; return null; } return r.face; }
+  while (r.steps.length && r.steps[0][0] === p.x && r.steps[0][1] === p.y) r.steps.shift();
+  if (!r.steps.length) {
+    if (r.face && Math.hypot(p.px - (p.x + 0.5), p.pz - (p.y + 0.5)) > 0.2 && r.act !== "push") { // settle on the tile
+      const dx = p.x + 0.5 - p.px, dz = p.y + 0.5 - p.pz;
+      return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? "right" : "left") : (dz > 0 ? "down" : "up");
+    }
+    if (r.act === "push") { r.push = 0.6; return r.face; }
+    world.route = null;
+    if (r.face) { p.dir = r.face; p.angle = ANGLE[r.face]; }
+    if (r.act === "talk") runScript(interact);
+    return null;
+  }
+  const [nx, ny] = r.steps[0];
+  if (Math.abs(nx - p.x) + Math.abs(ny - p.y) !== 1) { world.route = null; return null; } // knocked off course
+  // stuck against something (an NPC walked into the way): give up after a moment
+  r.stuck = p.speed < 0.5 ? r.stuck + dt : 0;
+  if (r.stuck > 0.8) { world.route = null; return null; }
+  return nx > p.x ? "right" : nx < p.x ? "left" : ny > p.y ? "down" : "up";
+}
 const worldScene = {
-  opaque: true, overworld: true,
+  opaque: true, overworld: true, taps: true,
   update(dt) {
     const wasNight = isNight(), wasRain = weatherNow();
     S.time += dt;
@@ -3204,8 +3328,10 @@ const worldScene = {
     if (wasRain !== weatherNow() && !world.busy) this.banner = { name: weatherNow() ? "It started to rain..." : "The rain stopped.", t: NOW };
     const p = world.player;
     for (const n of world.npcs) if (!n.walking) { n.fx = n.x * T; n.fy = n.y * T; }
-    if (world.busy) { p.speed = 0; return; }
-    if (consume("a")) { p.speed = 0; runScript(interact); return; }
+    if (world.busy) { p.speed = 0; consumeTap(); world.route = null; return; }
+    const tap = consumeTap();
+    if (tap) tapWalk(tap);
+    if (consume("a")) { p.speed = 0; world.route = null; runScript(interact); return; }
     if (consume("b")) { p.speed = 0; runScript(startMenu); return; }
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
@@ -3220,11 +3346,14 @@ const worldScene = {
     }
     // the arrow last pressed wins; a quick tap toward a new direction only turns you to face it
     if (tapped) this.lastDir = tapped;
-    const dir = held[this.lastDir] ? this.lastDir : ["up", "down", "left", "right"].find((k) => held[k]);
+    let dir = held[this.lastDir] ? this.lastDir : ["up", "down", "left", "right"].find((k) => held[k]);
+    if (dir || tapped) world.route = null; // the stick or arrows take over from tap-to-walk
+    const auto = !dir && world.route ? routeDir(dt) : null;
+    if (auto) dir = auto;
     if (tapped && tapped !== p.dir && !p.speed) this.turnHold = 0.09;
     this.turnHold = Math.max(0, (this.turnHold || 0) - dt);
     if (dir) { p.dir = dir; p.angle = ANGLE[dir]; }
-    const target = dir && !this.turnHold ? (p.riding ? RIDE_SPEED : held.run ? RUN_SPEED : WALK_SPEED) : 0;
+    const target = dir && !this.turnHold ? (p.riding ? RIDE_SPEED : held.run || auto ? RUN_SPEED : WALK_SPEED) : 0;
     p.speed = target ? p.speed + (target - p.speed) * Math.min(1, dt * 14) : 0;
     if (p.speed) {
       const [vx, vz] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
@@ -3310,7 +3439,9 @@ function step(dt) {
   NOW += dt;
   updateTweens(dt);
   const top = scenes[scenes.length - 1];
+  if (tapQ && !(top && top.taps)) { tapQ = null; pressed.a = true; held.a = false; }
   if (top && top.update) top.update(dt);
+  if (top && top.taps) tapQ = null; // a tap is for this frame only
   for (const k in pressed) pressed[k] = false;
   let start = 0;
   for (let i = scenes.length - 1; i >= 0; i--) if (scenes[i].opaque) { start = i; break; }

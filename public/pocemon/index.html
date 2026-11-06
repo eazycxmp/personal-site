@@ -30,7 +30,8 @@
   #bA.down { transform: translateY(-12px); }
   #bB { background: #2f5fd0; grid-column: 1; grid-row: 1; transform: translateY(14px); }
   #bB.down { transform: translateY(16px); }
-  #bRun { grid-column: 1 / 3; grid-row: 2; width: 110px; height: 36px; border-radius: 18px; background: #3a4a3a; font-size: 10px; }
+  #bRun, #bRide { grid-row: 2; width: 66px; height: 36px; border-radius: 18px; background: #3a4a3a; font-size: 10px; }
+  #bRun { grid-column: 1; } #bRide { grid-column: 2; }
   #bRun.on { background: #e0a020; color: #201000; }
 </style>
 </head>
@@ -38,9 +39,9 @@
 <div id="screen"><canvas id="game" width="720" height="480"></canvas></div>
 <div id="pad">
   <div id="stick"><div id="knob"></div></div>
-  <div id="btns"><div class="btn" id="bB">B</div><div class="btn" id="bA">A</div><div class="btn" id="bRun">RUN</div></div>
+  <div id="btns"><div class="btn" id="bB">B</div><div class="btn" id="bA">A</div><div class="btn" id="bRun">RUN</div><div class="btn" id="bRide">RIDE</div></div>
 </div>
-<div id="help">ARROWS walk · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · F fly · R ride · T teleport · M mute</div>
+<div id="help">TAP or ARROWS walk · Z/ENTER/SPACE talk &amp; confirm · X/ESC menu &amp; back · SHIFT run · F fly · R ride · T teleport · M mute</div>
 <script>
 // Phone controls: they press the same keys the keyboard does, so the game needs no special cases.
 (() => {
@@ -70,14 +71,18 @@
     stick.addEventListener("touchmove", (e) => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === sid) aim(t); }, { passive: false });
     const end = (e) => { for (const t of e.changedTouches) if (t.identifier === sid) { sid = null; aim(null); } };
     stick.addEventListener("touchend", end); stick.addEventListener("touchcancel", end);
-    for (const [id, code] of [["bA", "KeyZ"], ["bB", "KeyX"]]) {
+    for (const [id, code] of [["bA", "KeyZ"], ["bB", "KeyX"], ["bRide", "KeyR"]]) {
       const b = document.getElementById(id);
       b.addEventListener("touchstart", (e) => { e.preventDefault(); b.classList.add("down"); key(code, true); }, { passive: false });
       const up = (e) => { e.preventDefault(); b.classList.remove("down"); key(code, false); };
       b.addEventListener("touchend", up); b.addEventListener("touchcancel", up);
+      // mouse or pen too (a touch already cancelled its own mouse events with preventDefault)
+      b.addEventListener("mousedown", (e) => { e.preventDefault(); b.classList.add("down"); key(code, true); });
+      b.addEventListener("mouseup", up); b.addEventListener("mouseleave", (e) => { if (b.classList.contains("down")) up(e); });
     }
     const run = document.getElementById("bRun"); let running = false;
-    run.addEventListener("touchstart", (e) => { e.preventDefault(); running = !running; run.classList.toggle("on", running); key("ShiftLeft", running); }, { passive: false });
+    const toggleRun = (e) => { e.preventDefault(); running = !running; run.classList.toggle("on", running); key("ShiftLeft", running); };
+    run.addEventListener("touchstart", toggleRun, { passive: false }); run.addEventListener("mousedown", toggleRun);
   });
 })();
 </script>
