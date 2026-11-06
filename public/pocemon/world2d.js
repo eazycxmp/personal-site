@@ -35,6 +35,8 @@ window.World2D = (() => {
   };
   // look of each kind of place
   function themeOf(m) {
+    if (m.walls === "stone") return { ground: "dirt", path: "stone", wall: "stone", raise: "stone", grass: [27, 33], tint: "rgba(90,40,20,0.12)", shore: true };
+    if (m.look === "crater") return { ground: "stone", path: "dirt", tree: "darkpine", raise: "stone", grass: [25, 33], tint: "rgba(40,20,90,0.22)", shore: true };
     if (m.walls === "ice") return { ground: "snow", path: "ice", wall: "ice", raise: "ice", grass: [26, 33], tint: "rgba(80,140,220,0.12)", shore: true };
     if (m.cave) return { ground: "dirt", path: "stone", wall: "stone", raise: "stone", grass: [25, 33], shore: true };
     if (m.frost) return { ground: "snow", path: "ice", tree: "snowpine", raise: "ice", grass: [26, 33], shore: true, floes: true };
@@ -119,6 +121,13 @@ window.World2D = (() => {
       } else if (ch === "f") {
         const fl = [[59, 0], [59, 3], [59, 6], [59, 9], [59, 12]][Math.floor(hash(x, y) * 5)];
         tile(g, "nat", fl[0] + Math.floor(hash(y, x) * 4), fl[1], X, Y);
+      } else if (ch === "1" || ch === "2" || ch === "y") { // floor switches (the Shrine of Origins)
+        g.fillStyle = "#3a3430"; g.fillRect(X + 2, Y + 2, 12, 12);
+        g.fillStyle = ch === "y" ? "#606060" : ch === "1" ? "#e05020" : "#30a0e0"; g.fillRect(X + 3, Y + 3, 10, 10);
+        g.fillStyle = "rgba(255,255,255,0.4)"; g.fillRect(X + 4, Y + 4, 8, 3);
+      } else if (ch === "g" || ch === "j") { // the seals they break
+        tile(g, "out", 22, 27, X, Y);
+        g.fillStyle = ch === "g" ? "rgba(224,80,32,0.5)" : "rgba(48,160,224,0.5)"; g.fillRect(X, Y, TS, TS);
       } else if (ch === "I") {
         const P = FAM.ice; tile(g, "nat", P[0] + (x & 1), P[1] + (y & 1), X, Y);
       } else if (ch === "R") {

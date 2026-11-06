@@ -208,6 +208,18 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Legendary adventures:** each legendary waits at the end of its own place, gated so you arrive near its level.
+PHARAVION (Lv 30) is on the summit of GLACIER PEAK: from the Ice Cave's back room, past a STRENGTH boulder, climb
+four tiers of ice cliff (foothills, a 9-slide ice field, a ridge with a cracked rock, a high corridor). PRIMORDIA
+(Lv 36) is at the altar of the SHRINE OF ORIGINS north of Hollowmere (a guard lets you in at 5 badges): a lava wing
+and an ice-slide wing each end in a switch, and both seals must break. KERNEL (Lv 42) is in the basin of STARFALL
+CRATER south of Route 4 (6 badges): climb the rim and go round, past meteors and a cracked rock. Maps can be drawn
+as rows (`drawn()` in maps.js, heights 0-4 with a-d for the half-step stairs), and `tools/validate_world.js` plays
+out every outdoor puzzle (slides, switches, tiers, field moves), checks each legendary and item can be reached and
+that no spot traps you. **Wild pocemon** come in the form their level has earned (each family starts from its first
+form and only evolves past its evolution level), so final forms no longer turn up in early grass; their babies
+still come from Day Care eggs.
+
 **Volcano and beach:** Cinder Peak has a two-tier volcano east of town with a lava crater and a lava river, under
 a permanent ash haze; Route 6 has lava where its pond and a stand of pines were. Lava (tile `L`) is solid and
 glows, with embers drifting up; it's Tuxemon's water tile recoloured, with the stone shore rim tinted to match.
@@ -255,7 +267,7 @@ of grinding at the median). Doing the side areas makes the middle gyms easy (80�
 **Frost Sea (side route):** east along Tide Harbor's pier. Surf between ice floes with frosty tall grass
 (water and ice pocemon, Lv 13–18, plus an ice devil at night). A glacier rises in the northeast: maps
 can now raise tiles (`raise: [[x, y, w, h, height]]`), and you can only step up or down half a tier at a
-time, so you climb its two tiers by the ice steps. Pharavion (Lv 32) waits on the top tier. Tide Harbor
+time, so you climb its two tiers by the ice steps. Pharavion has since moved up to Glacier Peak. Tide Harbor
 itself got easier (water Lv 7–11, island grass Lv 10–15). 208 pocemon in 85 families, 135 moves, 14 types.
 
 ## Music

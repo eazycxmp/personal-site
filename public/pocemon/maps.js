@@ -238,8 +238,10 @@
       [",", 32, 10, 8, 6], ["T", 18, 2, 6, 4], ["~", 26, 3, 3, 3], ["f", 40, 3, 2, 3],
       ["=", 24, 0, 2, 8], // side path north to Glimmer Cave
     ],
-    exits: [{ edge: "e", at: 8, w: 2, to: "volt" }, { edge: "w", at: 8, w: 2, to: "shade" }, { edge: "n", at: 24, w: 2, to: "cave" }],
+    exits: [{ edge: "e", at: 8, w: 2, to: "volt" }, { edge: "w", at: 8, w: 2, to: "shade" }, { edge: "n", at: 24, w: 2, to: "cave" }, { edge: "s", at: 40, w: 2, to: "crater" }],
+    gates: [{ x: 40, y: 15, w: 2, h: 1, badges: 6, block: "s", text: "GUARD: Starfall Crater is too dangerous.\nCome back with 6 badges!" }],
     npcs: [
+      { sprite: "soldier", x: 39, y: 15, dir: "right", name: "Crater Guard", talk: ["The crater to the south is full of strong pocemon. 6 badges, or no entry."] },
       trainer({ id: "r4_knight", outfit: "nightranger", sprite: "adventurer_green", x: 35, y: 6, dir: "down", sight: 3, name: "Night Ranger Gareth",
         team: [["furnursus", 19], ["metesaur", 20]], intro: "Nobody crosses the dark woods without a ranger's say-so!", lose: "Go on, but watch the shadows." }),
       trainer({ id: "r4_drag", outfit: "nightranger", sprite: "dragonrider_green", x: 22, y: 12, dir: "up", sight: 4, name: "Night Ranger Sol",
@@ -298,11 +300,10 @@
     warps: [{ x: 37, y: 2, to: "icecave", tx: 20, ty: 3, dir: "down", look: "hole" }], // the ice cave's back way up
     exits: [{ edge: "w", at: 17, w: 2, to: "tide" }, { edge: "n", at: 29, w: 2, to: "icecave", narrow: true }],
     signs: [{ x: 3, y: 15, text: "FROST SEA\nSurf out to the floes.\nThe glacier lies northeast." }, { x: 27, y: 3, text: "ICE CAVE\nIn the glacier's north face.\nMind the slippery floor!" }],
-    legends: [{ id: "legend_pharavion", slug: "pharavion", lv: 32, x: 35, y: 3 }],
     items: [{ id: "item_floe_balls", x: 15, y: 4, item: "great_ball", n: 3 }, { id: "item_glacier_treat", x: 37, y: 9, item: "level_treat", n: 1 }],
     npcs: [
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
-        talk: ["Brr! The floes out there are full of WATER and FROST pocemon.", "Climb the glacier by its ice steps. Some say a sea-god sleeps on top, and baby ice pocemon hide in the cave."] },
+        talk: ["Brr! The floes out there are full of WATER and FROST pocemon.", "Climb the glacier by its ice steps. Baby ice pocemon hide in the cave, and they say a sea-god sleeps on the peak high above it."] },
       trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
         team: [["fribbit", 17], ["bigfin", 18]], intro: "The cold keeps my pocemon sharp!", lose: "Brr... I need a warm drink." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
@@ -320,10 +321,12 @@
       [".", 11, 19, 2, 7], [".", 3, 13, 18, 7], [",", 4, 14, 4, 3], [",", 15, 17, 4, 2], ["~", 15, 14, 3, 2],
       [".", 11, 12, 2, 1], [".", 17, 12, 1, 1], ["I", 6, 4, 12, 8], [".", 10, 2, 4, 2],
       [".", 19, 2, 3, 4], [".", 19, 6, 1, 7], // the back room, with a ladder up to the glacier top
+      ["o", 21, 3, 1, 1], // and a boulder (STRENGTH) in front of the climb to Glacier Peak
       ["R", 11, 6, 2, 1], ["R", 13, 4, 1, 1], ["R", 13, 11, 1, 1], ["R", 3, 13, 1, 1], ["R", 20, 19, 1, 1], ["R", 9, 18, 1, 1],
     ],
     exits: [{ edge: "s", at: 11, w: 2, to: "frostsea", narrow: true }],
-    warps: [{ x: 20, y: 2, to: "frostsea", tx: 37, ty: 3, dir: "down", look: "ladder" }],
+    warps: [{ x: 20, y: 2, to: "frostsea", tx: 37, ty: 3, dir: "down", look: "ladder" },
+      { x: 21, y: 2, to: "glacierpeak", tx: 12, ty: 27, dir: "up", look: "ladder" }],
     signs: [{ x: 10, y: 21, text: "ICE CAVE\nOn the ice you slide until\nsomething stops you." }],
     items: [{ id: "item_icecave_candy", x: 11, y: 2, item: "exp_candy", n: 1 }, { id: "item_icecave_berry", x: 19, y: 13, item: "berry_frost", n: 1 },
       { id: "item_icecave_treat", x: 4, y: 18, item: "level_treat", n: 1 },
@@ -546,6 +549,212 @@
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
   W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
     talk: ["Weaken a wild pocemon before you\nthrow a Poceball.", "It's much easier to catch!"] });
+  // ---------------- The legendaries' adventures ----------------
+  // Each legendary waits at the end of its own place, gated so you arrive about its level: Glacier Peak above
+  // the Ice Cave (STRENGTH, 4 badges), the Shrine of Origins in Hollowmere (5 badges), and Starfall Crater off
+  // Route 4 (6 badges). Drawn as rows: tiles, and heights 0-4 with a-d as the half-step stairs between tiers.
+  function drawn(def, rows, hrows) {
+    def.w = rows[0].length; def.h = rows.length;
+    def.grid = rows.map((r) => r.split(""));
+    if (hrows) def.heights = hrows.map((r) => r.split("").map((c) => ("abcd".includes(c) ? "abcd".indexOf(c) + 0.5 : +c)));
+    return def;
+  }
+  const PEAK_ROWS = [
+    "TTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTT.......TTTTTTTTTT",
+    "TTTTTTTTT.......TTTTTTTTTT",
+    "TTTTTTTTTT...TTTTTTTTTTTTT",
+    "TTT....o......TTTTTTTTTTTT",
+    "TTT..TTTTTTTTTTTTTTTTTTTTT",
+    "TTT..TTTTTTTTTTTTTTTTTTTTT",
+    "TTT..TTTTTTTTTTT.TTTTTTTTT",
+    "TTT.......,,,,,,,,,....TTT",
+    "TTTTTTTTTTTTTTTTTTTTT.TTTT",
+    "TTT...TTTTTTTTTTTTTTT.TTTT",
+    "TTT,,.TTTTTTTTTTTTTT.k.TTT",
+    "TTT,,.TTTTTTTTTTTTTT...TTT",
+    "TTT...TTTTTT.TTTTTTT...TTT",
+    "TTT.....,,,,,,,,,......TTT",
+    "TTT.....,,,,,,,,,......TTT",
+    "TTTTT.TTTTTTTTTTTTTTTTTTTT",
+    "TTTTI.IIIIRIIIIIIRIIIRTTTT",
+    "TTTTIIIRIIIIIIRIIIIIIITTTT",
+    "TTTTIIIIIIIIIIIRIIIIIITTTT",
+    "TTTTIIIIIIIIIIIIRIIIIITTTT",
+    "TTTTIRIIIIIIIIIIIIIIRITTTT",
+    "TTTTIRIRIIIIIRIIIIIR.ITTTT",
+    "TTTTTTTTTTTTTTTTTTTT.TTTTT",
+    "TT......................TT",
+    "TT............,,,,,,,,..TT",
+    "TT.,,,,.......,,,,,,,,..TT",
+    "TT.,,,,.................TT",
+    "TT......................TT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTT",
+  ];
+  const PEAK_HEIGHTS = [
+    "00000000000000000000000000",
+    "00000000044444440000000000",
+    "00000000044444440000000000",
+    "000333333333d3333333333000",
+    "00033333333333333333333000",
+    "00033333333333333333333000",
+    "00033333333333333333333000",
+    "00033333333333333333333000",
+    "00033333333333333333333000",
+    "000000000000000000000c0000",
+    "00022222222222222222222000",
+    "00022222222222222222222000",
+    "00022222222222222222222000",
+    "00022222222222222222222000",
+    "00022222222222222222222000",
+    "00022222222222222222222000",
+    "00000b00000000000000000000",
+    "00001111111111111111110000",
+    "00001111111111111111110000",
+    "00001111111111111111110000",
+    "00001111111111111111110000",
+    "00001111111111111111110000",
+    "00001111111111111111110000",
+    "00000000000000000000a00000",
+    "00000000000000000000000000",
+    "00000000000000000000000000",
+    "00000000000000000000000000",
+    "00000000000000000000000000",
+    "00000000000000000000000000",
+    "00000000000000000000000000",
+  ];
+  const SHRINE_ROWS = [
+    "TTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTT......TTTTTTTTT",
+    "TTTTTTTTT......TTTTTTTTT",
+    "TTTTTTTTT......TTTTTTTTT",
+    "TTLLLLLLLL....TTTTTTTTTT",
+    "TTL1LLLLLLT..TIRIIRI2ITT",
+    "TTL.LLLLLLT..TIIIIIIIITT",
+    "TTL..LLLLLT..TIRIIIIIITT",
+    "TTLL.LLLLLTjjTIIIIRIIITT",
+    "TTLL.LLLLLT..TIIIIIRIRTT",
+    "TTLL.....LT..TRIIIIIIRTT",
+    "TTLLLLLL.LTggTIRIIRIIITT",
+    "TTLLLLLL.LT..TIIIIIIRITT",
+    "TTL......LT..TIIIIIIIITT",
+    "TTL.LLLLLLT..TIIRIRIIITT",
+    "TTL.LLLLLLT..TIIIIIIIRTT",
+    "TTL....LLLT..TIIIIIIIITT",
+    "TTLLLL.LLLT..TRIIIIIIITT",
+    "TTLLLL.LLLT..TIRI.IIIITT",
+    "TTTTTT.TTTT..TTTT.TTTTTT",
+    "TTTT................TTTT",
+    "TTTT................TTTT",
+    "TTTT,,,..........,,,TTTT",
+    "TTTT,,,..........,,,TTTT",
+    "TTTT................TTTT",
+    "TTTTTTTTTTT..TTTTTTTTTTT",
+    "TTTTTTTTTTT..TTTTTTTTTTT",
+  ];
+  const CRATER_ROWS = [
+    "TTTTTTTTTTTTT..TTTTTTTTTTTTTTT",
+    "TTTTTTTTTTTTT..TTTTTTTTTTTTTTT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,...................R..TT",
+    "TT..........................TT",
+    "TT..........................TT",
+    "TT..........................TT",
+    "TT..........................TT",
+    "TT..............R...........TT",
+    "TT.........R................TT",
+    "TT....RkR............RRR....TT",
+    "TT..........................TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,............R.....,,,,TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,..................,,,,TT",
+    "TT,,,,.,,,,.............,,,,TT",
+    "TT......................,,,,TT",
+    "TT......................,,,,TT",
+    "TT..........................TT",
+    "TT..........................TT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+  ];
+  const CRATER_HEIGHTS = [
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "00000011111111a111111111000000",
+    "000000111111111111111111000000",
+    "000000111111111111111111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111000000000000111000000",
+    "000000111111111a11111111000000",
+    "000000111111111111111111000000",
+    "000000111111111111111111000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+    "000000000000000000000000000000",
+  ];
+
+
+  W.glacierpeak = drawn({
+    name: "Glacier Peak", music: "mystery", bg: "beach", frost: true, walls: "ice", rate: 0.1,
+    exits: [],
+    warps: [{ x: 12, y: 28, to: "icecave", tx: 21, ty: 4, dir: "down", look: "ladder" }],
+    signs: [{ x: 10, y: 27, text: "GLACIER PEAK\nFour tiers of ice. The sea-god\nwaits at the very top." }],
+    legends: [{ id: "legend_pharavion", slug: "pharavion", lv: 30, x: 12, y: 1 }],
+    items: [{ id: "item_peak_balls", x: 3, y: 24, item: "great_ball", n: 3 }, { id: "item_peak_treat", x: 3, y: 11, item: "level_treat", n: 1 },
+      { id: "item_peak_berry", x: 22, y: 8, item: "berry_frost", n: 1 }, { id: "item_peak_candy", x: 15, y: 1, item: "exp_candy", n: 1 }],
+    npcs: [
+      trainer({ id: "gp_climber", outfit: "miner", sprite: "miner_green", x: 12, y: 13, dir: "down", sight: 2, name: "Ice Climber Brynn",
+        team: [["houndice", 26], ["heronquak", 26], ["snowrilla", 28]], intro: "You climbed the ice field? Then you can handle me!", lose: "The peak is yours to climb." }),
+      trainer({ id: "gp_hermit", outfit: "occult", sprite: "monk", x: 16, y: 7, dir: "down", sight: 1, name: "Peak Hermit Olaf",
+        team: [["seraphice", 28], ["lucifice", 28], ["eaglace", 29]], intro: "Few reach this ridge. None pass me unchallenged.", lose: "Go. The sea-god is just above." }),
+    ],
+    encounters: [],
+  }, PEAK_ROWS, PEAK_HEIGHTS);
+  W.shrine = drawn({
+    name: "Shrine of Origins", music: "mystery", bg: "cave", walls: "stone", rate: 0.08,
+    exits: [{ edge: "s", at: 11, w: 2, to: "hollow", narrow: true }],
+    signs: [{ x: 10, y: 21, text: "SHRINE OF ORIGINS\nFire to the west, ice to the east.\nBoth seals must break." }],
+    legends: [{ id: "legend_primordia", slug: "primordia", lv: 36, x: 11, y: 2 }],
+    items: [{ id: "item_shrine_fire", x: 8, y: 14, item: "berry_fire", n: 1 }, { id: "item_shrine_treat", x: 13, y: 3, item: "level_treat", n: 2 }],
+    npcs: [
+      trainer({ id: "sh_monk", outfit: "occult", sprite: "monk_green", x: 19, y: 22, dir: "left", sight: 3, name: "Shrine Monk Ezo",
+        team: [["foxfire", 32], ["chillimp", 32], ["ignibus", 33]], intro: "Fire and ice made the first pocemon. Show me both!", lose: "The seals may yet answer you." }),
+    ],
+    encounters: [],
+  }, SHRINE_ROWS);
+  W.crater = drawn({
+    name: "Starfall Crater", music: "mystery", bg: "forest", look: "crater", rate: 0.1,
+    exits: [{ edge: "n", at: 13, w: 2, to: "route4", narrow: true }],
+    signs: [{ x: 12, y: 3, text: "STARFALL CRATER\nClimb the rim and go round.\nSomething fell here from the stars." }],
+    legends: [{ id: "legend_kernel", slug: "kernel", lv: 42, x: 14, y: 13 }],
+    items: [{ id: "item_crater_ball", x: 26, y: 3, item: "great_ball", n: 5 }, { id: "item_crater_candy", x: 10, y: 16, item: "exp_candy", n: 1, behind: "k" },
+      { id: "item_crater_treat", x: 22, y: 19, item: "level_treat", n: 2, behind: "k" }],
+    npcs: [
+      trainer({ id: "cr_astro", outfit: "engineer", sprite: "scientist", x: 6, y: 15, dir: "right", sight: 2, name: "Stargazer Vela",
+        team: [["merlicun", 38], ["cateye", 38], ["wrougon", 39]], intro: "The stars fell here, and so did you!", lose: "Truly, a shooting star." }),
+      trainer({ id: "cr_ranger", outfit: "ranger", sprite: "rogue", x: 9, y: 4, dir: "down", sight: 3, name: "Crater Ranger Kip",
+        team: [["virware", 37], ["uneye", 38]], intro: "Only the strong are let into the crater!", lose: "Go on. Mind the meteors." }),
+    ],
+    encounters: [],
+  }, CRATER_ROWS, CRATER_HEIGHTS);
+
   // Volt City's Game Corner: slots along the back wall, a roulette wheel and a blackjack table, and two clerks.
   W.volt_casino = interior({
     name: "Volt Game Corner", w: 16, h: 12, music: "funky", wall: "wood", floor: "carpet",
@@ -574,15 +783,16 @@
       [",", 2, 2, 6, 7], [",", 22, 14, 6, 5], [",", 2, 14, 5, 4], [",", 18, 2, 8, 4],
       ["F", 7, 10, 3, 1], ["F", 17, 9, 4, 1], ["F", 3, 19, 2, 1], ["T", 25, 7, 3, 4], ["~", 9, 15, 3, 2],
     ],
-    exits: [{ edge: "e", at: 20, w: 2, to: "route3", narrow: true }],
+    exits: [{ edge: "e", at: 20, w: 2, to: "route3", narrow: true }, { edge: "n", at: 15, w: 2, to: "shrine" }],
+    gates: [{ x: 15, y: 2, w: 2, h: 1, badges: 5, block: "n", text: "GUARD: The Shrine of Origins is sealed\nto trainers with fewer than 5 badges!" }],
     buildings: [
       { type: "house", x: 8, y: 3, to: "hollow_house" },
       { type: "house2", x: 17, y: 14, to: "hollow_house2" },
     ],
     signs: [{ x: 16, y: 18, text: "HOLLOWMERE\nNobody has lived here\nfor a hundred years." },
       { x: 16, y: 7, text: "SHRINE OF ORIGINS\nSomething ancient sleeps\nin these ruins." }],
-    legends: [{ id: "legend_primordia", slug: "primordia", lv: 40, x: 15, y: 3 }],
     npcs: [
+      { sprite: "monk", x: 17, y: 2, dir: "left", name: "Shrine Guard", talk: ["The Shrine of Origins is sealed. Come back with 5 badges."] },
       trainer({ id: "hollow_t1", outfit: "occult", sprite: "goth", x: 12, y: 13, dir: "down", sight: 3, name: "Lost Soul Mara",
         team: [["seirein", 17], ["ghosteeth", 18]], intro: "You can see me...? Then stay. Forever.", lose: "I... remember now. I was a trainer too." }),
       trainer({ id: "hollow_t2", outfit: "occult", sprite: "magician", x: 21, y: 11, dir: "left", sight: 4, name: "Phantom Ike",
@@ -601,7 +811,6 @@
   W.hollow_house.wall = W.hollow_house2.wall = "wood";
 
   // legendaries
-  W.route4.legends = [{ id: "legend_kernel", slug: "kernel", lv: 45, x: 41, y: 12 }];
 
   const gym = (name, wall, npcs, music, fight) => interior({
     name, w: 12, h: 14, music, fight, wall, floor: "gray", gym: true, rugs: [[4, 4], [4, 8]], npcs,
@@ -825,6 +1034,12 @@
     ["eskipup", 3], ["chillimp", 3], ["tweesher", 3], ["waysprite", 2], ["demosnow", 2], ["houndice", 1]]),
     lv(14, 18, [["tadcool", 3], ["fribbit", 1]]),
     lv(16, 20, [["lucifice", 2], ["demosnow", 3]]));
+  area("glacierpeak", "Glacier Peak", lv(24, 29, [["chillimp", 3], ["eskipup", 3], ["waysprite", 2], ["tweesher", 2], ["demosnow", 2]]),
+    null, lv(26, 30, [["demosnow", 3], ["eskipup", 1]]));
+  area("shrine", "Shrine of Origins", lv(30, 35, [["foxfire", 3], ["cardiling", 2], ["hissiorite", 2], ["furnursus", 2], ["chillimp", 2], ["eskipup", 2]]),
+    null, lv(32, 36, [["bursa", 2], ["demosnow", 2]]));
+  area("crater", "Starfall Crater", lv(36, 41, [["eyenemy", 3], ["merlicun", 3], ["cateye", 2], ["grimachin", 2], ["wrougon", 2], ["virware", 1], ["uneye", 1]]),
+    null, lv(37, 42, [["hoarse", 2], ["uneye", 2]]));
   // Past Shade Hollow the wild ones are mostly already evolved.
   area("route5", "Thornwood Wilds", lv(22, 27, [ // ancient overgrown forest: wood, venom and birds
     ["dandylion", 3], ["legko", 3], ["ninjasmine", 2], ["bamboon", 2], ["spycozeus", 2], ["stegofor", 2], ["brachifor", 2],

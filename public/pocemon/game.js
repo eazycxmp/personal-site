@@ -878,11 +878,11 @@ function pressSwitch(m, n) {
 // Where each area sits on the map panel (towns, routes, and side areas), and how they join up.
 const REGION = {
   sprout: [14, 140, "town"], route1: [14, 124], ember: [14, 108, "town"], route2: [34, 108], tide: [54, 108, "town"],
-  frostsea: [90, 112, "side"], icecave: [90, 96, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
+  frostsea: [90, 112, "side"], icecave: [90, 96, "side"], glacierpeak: [90, 80, "side"], shrine: [14, 92, "side"], crater: [74, 84, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
   cave: [34, 60, "side"], shade: [14, 76, "town"], route5: [14, 60], verdance: [14, 44, "town"], route6: [34, 44],
   cinder: [54, 44, "town"], route7: [54, 28], ironhold: [54, 12, "town"], route8: [78, 12], prime: [102, 12, "town"],
 };
-const REGION_LINKS = [["cave", "route5"], ["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
+const REGION_LINKS = [["cave", "route5"], ["icecave", "glacierpeak"], ["hollow", "shrine"], ["route4", "crater"], ["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
   "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea", "icecave"], ["route3", "hollow"], ["route4", "cave"]];
 // the outdoor area you're in (indoors counts as the town or route outside)
 function regionHere() { let id = world.id; for (let i = 0; i < 4 && MAPS[id] && MAPS[id].interior && MAPS[id].out; i++) id = MAPS[id].out.map; return id; }
@@ -1185,7 +1185,7 @@ function crossExit(e, i) {
 function stepEvent() {
   const p = world.player, m = world.map;
   if (m.interior && tileAt(p.x, p.y) === "X") return () => warp(m.out.map, m.out.x, m.out.y + (blockedAt(m.out.map, m.out.x, m.out.y + 1) ? 0 : 1), "down");
-  const sw = m.interior && tileAt(p.x, p.y);
+  const sw = tileAt(p.x, p.y); // floor switches, indoors (gyms) and out (the Shrine of Origins)
   if (sw === "1" || sw === "2") return async () => {
     S.flags[`sw_${world.id}_${sw}`] = true;
     pressSwitch(m, sw);
@@ -1228,7 +1228,11 @@ function pickWild(table) {
   return pick;
 }
 // a wild monster well past its evolution level has already evolved
+// Wild pocemon come in the form their level has earned: start from the family's first form and evolve
+// only past each evolution level, so a final form never turns up in the grass before it could exist.
+const BASE_OF = {};
 function wildForm(slug, lv) {
+  slug = BASE_OF[slug] || (BASE_OF[slug] = baseForm(slug));
   while (D.monsters[slug].evo && lv >= D.monsters[slug].evo[0] + 2) slug = D.monsters[slug].evo[1];
   return slug;
 }
