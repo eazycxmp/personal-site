@@ -1255,10 +1255,12 @@ function trainerSees(n) {
   for (let k = 1; k <= n.sight; k++) {
     const x = n.x + dx * k, y = n.y + dy * k;
     if (p.x === x && p.y === y) return true;
-    if (blocked(x, y, true)) return false;
+    if (blocked(x, y, true) && !(n.swim && openWater(x, y))) return false;
   }
   return false;
 }
+// a swimmer trainer looks and swims across open water (not onto land, not through other swimmers)
+function openWater(x, y) { return tileAt(x, y) === "~" && !npcAt(x, y); }
 
 async function walkNpc(n, dir, dur = 0.22) {
   n.dir = dir;
@@ -1350,7 +1352,8 @@ async function trainerEncounter(n, spotted) {
     await wait(0.6);
     world.bubble = null;
     const [dx, dy] = DIRS[n.dir];
-    while (Math.abs(n.x - p.x) + Math.abs(n.y - p.y) > 1 && !blocked(n.x + dx, n.y + dy)) await walkNpc(n, n.dir);
+    const canStep = () => n.swim ? openWater(n.x + dx, n.y + dy) : !blocked(n.x + dx, n.y + dy);
+    while (Math.abs(n.x - p.x) + Math.abs(n.y - p.y) > 1 && canStep()) await walkNpc(n, n.dir);
     await faceDir(OPP[n.dir]);
   }
   await say(`${n.name}: ${n.intro}`);

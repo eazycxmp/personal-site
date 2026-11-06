@@ -125,6 +125,12 @@ to reach a Sweet Candy (every spot on the ice can slide back out).
 **Trainers are themed by area:** forest rangers on the routes, miners in the Ember Gym, sailors in
 the Tide Gym, engineers in the Volt Gym, occultists in the Shade Gym, royal guards in the Champion's
 Hall. Route trainers only ambush once your team is 3 levels above their strongest pocemon.
+Many trainers have a specific job you can see: swimmers out in the water off Tide Harbor and the Frost
+Sea (they bob in the waves, spot you across open water and swim up to the pier or shore to battle), a
+fisherman at the end of the pier, firefighters watching the lava on Route 6 (fighting fire with water
+pocemon), linemen and electricians on Route 4 and in the Volt Gym, and steelworkers toward Ironhold.
+Their walking sprites and battle portraits are Tuxemon's (`NPC_SPRITES` and `PORTRAIT_FROM` in
+`tools/build_data.py`); the swimmer ripple is drawn in code.
 
 ## World
 

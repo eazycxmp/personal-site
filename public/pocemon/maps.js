@@ -172,6 +172,14 @@
       trainer({ id: "sea_hermit", outfit: "sailor", sprite: "riverboatcaptain", x: 14, y: 23, dir: "down", sight: 0, name: "Sea Hermit",
         team: [["manosting", 15], ["gupphish", 16], ["spirain", 17]],
         intro: "Few ever reach my shrine. Show me the strength that carried you here!", lose: "The sea chose well. Rare creatures hide in the shrine grass." }),
+      trainer({ id: "tide_swim1", swim: true, sprite: "swimmer_red", x: 5, y: 21, dir: "up", sight: 1, name: "Swimmer Coral",
+        team: [["tadcool", 12], ["squink", 13]], intro: "Last one in is a slow Squink! Battle me from the shore!", lose: "Glub... I swallowed half the sea." }),
+      trainer({ id: "tide_swim2", swim: true, sprite: "swimmer_green", x: 19, y: 25, dir: "right", sight: 3, name: "Swimmer Finn",
+        team: [["nostray", 13], ["fribbit", 13]], intro: "I swim laps round this pier all day. Time for a break... a battle break!", lose: "Cramp! I'm floating back." }),
+      trainer({ id: "tide_swim3", swim: true, sprite: "swimmer_orange", x: 26, y: 23, dir: "left", sight: 3, name: "Swimmer Pearl",
+        team: [["bedoo", 13], ["crustagu", 14]], intro: "Hey, pier walker! Think you can beat a real swimmer?", lose: "Wiped out by a land-lubber!" }),
+      trainer({ id: "tide_fisher", sprite: "fisher_fiery", x: 23, y: 26, dir: "up", sight: 3, name: "Fisherman Hal",
+        team: [["gupphish", 12], ["bigfin", 13], ["squink", 13]], intro: "You scared the fish off! Now you owe me a battle.", lose: "The one that got away... again." }),
     ],
     rate: 0.15,
     encounters: [["medushock", 10, 14, 2], ["manosting", 10, 14, 2], ["spirain", 10, 13, 2], ["mingdyn", 12, 15, 1], ["gupphish", 10, 14, 2]],
@@ -248,6 +256,10 @@
         team: [["chloragon", 20], ["devidin", 19], ["metesaur", 20]], intro: "My dragons hunt at night. Ready?", lose: "Even dragons rest." }),
       trainer({ id: "r4_witch", outfit: "nightranger", sprite: "rogue_green", x: 9, y: 6, dir: "down", sight: 3, name: "Night Ranger Morgana",
         team: [["babysnitch", 20], ["hoarse", 21], ["demosnow", 20]], intro: "Strange things live in these woods. I keep them in line!", lose: "You'd make a fine night ranger." }),
+      trainer({ id: "r4_lineman", sprite: "overseer", x: 16, y: 12, dir: "right", sight: 3, name: "Lineman Sparky",
+        team: [["joulraton", 19], ["fluoresfin", 20]], intro: "I keep Volt City's power running. Want a jolt?", lose: "Power cut! I'll go reset the breaker." }),
+      trainer({ id: "r4_electric", sprite: "miner_yellow", x: 29, y: 4, dir: "down", sight: 3, name: "Electrician Nova",
+        team: [["tetrchimp", 19], ["pythwire", 20], ["fancair", 20]], intro: "Careful, these wires are live. So are my pocemon!", lose: "Grounded..." }),
     ],
     rate: 0.12,
     encounters: [], // see "Wild areas" below
@@ -304,8 +316,10 @@
     npcs: [
       { sprite: "fisher", x: 4, y: 19, dir: "right", name: "Ice Fisher",
         talk: ["Brr! The floes out there are full of WATER and FROST pocemon.", "Climb the glacier by its ice steps. Baby ice pocemon hide in the cave, and they say a sea-god sleeps on the peak high above it."] },
-      trainer({ id: "fs_diver", outfit: "sailor", sprite: "swimmer_blue", x: 18, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
+      trainer({ id: "fs_diver", swim: true, sprite: "swimmer_alt", x: 20, y: 22, dir: "left", sight: 3, name: "Ice Diver Juno",
         team: [["fribbit", 17], ["bigfin", 18]], intro: "The cold keeps my pocemon sharp!", lose: "Brr... I need a warm drink." }),
+      trainer({ id: "fs_polar", swim: true, sprite: "swimmer_red", x: 17, y: 6, dir: "left", sight: 2, name: "Polar Swimmer Sven",
+        team: [["eskipup", 18], ["tadcool", 18], ["chillimp", 19]], intro: "Ice water is good for you! Want to find out?", lose: "Okay... my toes are blue now." }),
       trainer({ id: "fs_skater", outfit: "sailor", sprite: "tennisplayer", x: 24, y: 15, dir: "up", sight: 3, name: "Skater Nell",
         team: [["houndice", 18], ["crustagu", 18], ["heronquak", 19]], intro: "Watch me glide! Then watch me win!", lose: "Slipped up!" }),
       trainer({ id: "fs_climber", outfit: "miner", sprite: "miner_green", x: 31, y: 9, dir: "down", sight: 2, name: "Glacier Climber Odo",
@@ -399,12 +413,16 @@
     exits: [{ edge: "w", at: 8, w: 2, to: "verdance" }, { edge: "e", at: 8, w: 2, to: "cinder" }],
     signs: [{ x: 3, y: 7, text: "ROUTE 6 - ASHFALL TRAIL\nEast: Cinder Peak" }],
     npcs: [
-      trainer({ id: "r6_a", outfit: "miner", sprite: "firefighter", x: 10, y: 7, dir: "down", sight: 3, name: "Fire Watcher Pyro",
+      trainer({ id: "r6_a", sprite: "firefighter", x: 10, y: 7, dir: "down", sight: 3, name: "Firefighter Pyro",
         team: [["cardiwing", 30], ["grinflare", 31]], intro: "Hot ash, hotter battles!", lose: "Extinguished..." }),
       trainer({ id: "r6_b", outfit: "miner", sprite: "miner", x: 26, y: 10, dir: "up", sight: 3, name: "Ash Miner Cole",
         team: [["rockat", 31], ["selmatek", 31], ["cocrune", 32]], intro: "I dig in the ash for rare ore. And rare fights!", lose: "Struck out." }),
       trainer({ id: "r6_c", outfit: "miner", sprite: "magician_fiery", x: 38, y: 7, dir: "left", sight: 4, name: "Fire Dancer Sola",
         team: [["solight", 32], ["urcheedle", 32], ["cobarett", 33]], intro: "Dance with the flames!", lose: "My flame flickers out." }),
+      trainer({ id: "r6_fire1", sprite: "firefighter", x: 21, y: 13, dir: "down", sight: 2, name: "Firefighter Hank",
+        team: [["crustagu", 31], ["shnark", 32]], intro: "Lava's spreading again. Good thing I fight fire with WATER!", lose: "Hose is empty. Nice battling." }),
+      trainer({ id: "r6_fire2", sprite: "firefighter", x: 36, y: 15, dir: "up", sight: 3, name: "Firefighter Rosa",
+        team: [["golnagi", 31], ["gupphire", 32], ["tornicane", 32]], intro: "Stand back from the lava, kid! ...After our battle.", lose: "You put out my fire. Respect." }),
     ],
     rate: 0.12, encounters: [],
   });
@@ -431,7 +449,7 @@
     npcs: [
       trainer({ id: "r7_a", outfit: "engineer", sprite: "scientist_black", x: 8, y: 36, dir: "right", sight: 4, name: "Mechanic Rusty",
         team: [["puparmor", 36], ["weavifly", 37]], intro: "Every bolt tightened. Let's battle!", lose: "Loose screw somewhere..." }),
-      trainer({ id: "r7_b", outfit: "engineer", sprite: "firefighter", x: 13, y: 24, dir: "left", sight: 4, name: "Engineer Tess",
+      trainer({ id: "r7_b", outfit: "engineer", sprite: "miner_blue", x: 13, y: 24, dir: "left", sight: 4, name: "Steelworker Tess",
         team: [["windeye", 37], ["arthrobolt", 37], ["trojerror", 38]], intro: "My machines don't feel pain. Do yours?", lose: "System failure!" }),
       trainer({ id: "r7_c", outfit: "occult", sprite: "magician", x: 8, y: 6, dir: "right", sight: 4, name: "Psychic Lumen",
         team: [["eyesore", 38], ["masknake", 38], ["mystikapi", 39]], intro: "I saw you coming from miles away.", lose: "I did not see THAT coming." }),
@@ -547,7 +565,7 @@
   W.ember_house2 = house("House", { sprite: "fashionista", x: 4, y: 5, dir: "left", name: "Fashionista",
     talk: ["Pocemon evolve when they reach\ncertain levels.", "Keep battling and you'll see!"] });
   W.tide_center = center("Tide"); W.tide_mart = mart("Tide");
-  W.tide_house = house("House", { sprite: "swimmer", x: 3, y: 4, dir: "down", name: "Swimmer",
+  W.tide_house = house("House", { sprite: "beachcomber_gray", x: 3, y: 4, dir: "down", name: "Swimmer",
     talk: ["Weaken a wild pocemon before you\nthrow a Poceball.", "It's much easier to catch!"] });
   // ---------------- The legendaries' adventures ----------------
   // Each legendary waits at the end of its own place, gated so you arrive about its level: Glacier Peak above
@@ -827,19 +845,19 @@
       lose: "You cracked my defense!\nTake the ROCK BADGE!", badge: "Rock Badge" }),
   ], "funky", "funkboss");
   W.tide_gym = gym("Tide Gym", "blue", [
-    trainer({ id: "g2_t1", outfit: "sailor", sprite: "swimmer_blue", x: 2, y: 9, dir: "right", sight: 5, name: "Sailor Kai",
+    trainer({ id: "g2_t1", outfit: "sailor", sprite: "beachcomber_blue", x: 2, y: 9, dir: "right", sight: 5, name: "Surfer Kai",
       team: [["nostray", 12], ["lesmagu", 12]], intro: "Ahoy! Ready to get soaked?", lose: "Washed overboard!" }),
     trainer({ id: "g2_t2", outfit: "sailor", sprite: "riverboatcaptain", x: 9, y: 6, dir: "left", sight: 5, name: "Captain Moe",
       team: [["jelillow", 13], ["spirain", 13]], intro: "All hands on deck! Battle stations!", lose: "Abandon ship!" }),
-    trainer({ id: "g2_leader", outfit: "sailor", sprite: "swimmer", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Marina", leader: 2,
+    trainer({ id: "g2_leader", outfit: "sailor", sprite: "christie", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Marina", leader: 2,
       team: [["squink", 14], ["spirain", 15], ["gupphish", 16], ["shnark", 17]],
       intro: "Welcome to Tide Gym! I'm Marina.\nThe sea is calm... until it isn't!",
       lose: "Swept away! You've earned\nthe TIDE BADGE!", badge: "Tide Badge" }),
   ], "funky", "funkboss");
   W.volt_gym = gym("Volt Gym", "green", [
-    trainer({ id: "g3_t1", outfit: "engineer", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Engineer Watt",
+    trainer({ id: "g3_t1", outfit: "engineer", sprite: "overseer", x: 2, y: 9, dir: "right", sight: 5, name: "Lineman Watt",
       team: [["chromeye", 17], ["fluoresfin", 17]], intro: "Feel the voltage!", lose: "Short circuit!" }),
-    trainer({ id: "g3_t2", outfit: "engineer", sprite: "scientist_black", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Zia",
+    trainer({ id: "g3_t2", outfit: "engineer", sprite: "miner_yellow", x: 9, y: 6, dir: "left", sight: 5, name: "Electrician Zia",
       team: [["joulraton", 18], ["boltnu", 18]], intro: "My circuits are faster than lightning!", lose: "Blew a fuse..." }),
     trainer({ id: "g3_leader", outfit: "engineer", sprite: "scientist", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Volta", leader: 3,
       team: [["incandesfin", 19], ["exclawvate", 20], ["medushock", 21], ["ouroboutlet", 22]],
@@ -911,7 +929,7 @@
       lose: "You cut right through!\nThe LEAF BADGE is yours.", badge: "Leaf Badge" }),
   ], "chill", "funkboss");
   W.cinder_gym = gym("Cinder Gym", "cream", [
-    trainer({ id: "g6_t1", outfit: "miner", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Stoker Ash",
+    trainer({ id: "g6_t1", outfit: "miner", sprite: "firefighter", x: 2, y: 9, dir: "right", sight: 5, name: "Firefighter Ash",
       team: [["vulpyre", 33], ["shelagu", 33]], intro: "Feel the heat!", lose: "Cooled off..." }),
     trainer({ id: "g6_t2", outfit: "miner", sprite: "magician_fiery", x: 9, y: 6, dir: "left", sight: 5, name: "Fire Eater Kip",
       team: [["flambear", 34], ["potturney", 34]], intro: "I eat fire for breakfast!", lose: "Heartburn..." }),
@@ -923,7 +941,7 @@
   W.ironhold_gym = gym("Ironhold Gym", "blue", [
     trainer({ id: "g7_t1", outfit: "engineer", sprite: "scientist_black", x: 2, y: 9, dir: "right", sight: 5, name: "Welder Max",
       team: [["bolt", 39], ["katacoon", 39]], intro: "Sparks will fly!", lose: "Burnt out." }),
-    trainer({ id: "g7_t2", outfit: "engineer", sprite: "firefighter", x: 9, y: 6, dir: "left", sight: 5, name: "Engineer Dot",
+    trainer({ id: "g7_t2", outfit: "engineer", sprite: "miner_blue", x: 9, y: 6, dir: "left", sight: 5, name: "Steelworker Dot",
       team: [["uf0", 40], ["angrito", 40]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
     trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
       team: [["sphake", 41], ["gastronium", 42], ["tigrock", 42], ["hydrone", 43], ["lightmare", 44]],

@@ -330,6 +330,19 @@ window.World2D = (() => {
     const f = moving ? [0, 1, 2, 1][Math.floor(now * 8) % 4] : 1;
     ctx.drawImage(sh, f * 16, (ROW[dir] || 0) * 32, 16, 32, Math.round(x), Math.round(y - 17 + bob), 16, 32);
   }
+  // a trainer out in the water: Tuxemon's swimmer sheets are already a capped head with goggles at the surface,
+  // so draw the whole frame bobbing, with a ripple ring at the waterline (the figure's bottom edge, frame row 28)
+  function drawSwimmer(sh, dir, x, y, now) {
+    if (!sh) return;
+    const bob = Math.round(Math.sin(now * 3 + x * 0.1));
+    x = Math.round(x); y = Math.round(y);
+    ctx.drawImage(sh, 16, (ROW[dir] || 0) * 32, 16, 32, x, y - 17 + bob, 16, 32);
+    const r = Math.floor(now * 2) % 2;
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.fillRect(x - r, y + 10, 4, 1); ctx.fillRect(x + 12 + r, y + 10, 4, 1);
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillRect(x + 3, y + 12, 10, 1);
+  }
   const dirOf = (a) => { const s = -Math.sin(a), c = -Math.cos(a); return Math.abs(s) > Math.abs(c) ? (s > 0 ? "right" : "left") : c > 0 ? "down" : "up"; };
 
   // ------------------------------------------------------------ weather
@@ -392,7 +405,9 @@ window.World2D = (() => {
     for (const n of st.npcs || []) {
       if (n.hidden) continue;
       const fx = n.fx != null ? n.fx / TS : n.x, fy = n.fy != null ? n.fy / TS : n.y;
-      things.push({ y: fy + 0.5, draw: () => drawPerson(n.sheet || IMG["npc_" + n.sprite], n.dir || "down", !!n.walking, fx * TS - cam.x, fy * TS - cam.y, now) });
+      const sheet = n.sheet || IMG["npc_" + n.sprite], sx = fx * TS - cam.x, sy = fy * TS - cam.y;
+      const wet = n.swim && (map.grid[Math.round(fy)] || [])[Math.round(fx)] === "~";
+      things.push({ y: fy + 0.5, draw: () => wet ? drawSwimmer(sheet, n.dir || "down", sx, sy, now) : drawPerson(sheet, n.dir || "down", !!n.walking, sx, sy, now) });
     }
     const f = st.follower;
     if (f) things.push({ y: f.z - 0.01, draw: () => { // your lead pocemon, a step behind you
