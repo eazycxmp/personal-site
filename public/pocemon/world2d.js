@@ -331,6 +331,14 @@ window.World2D = (() => {
       const fx = n.fx != null ? n.fx / TS : n.x, fy = n.fy != null ? n.fy / TS : n.y;
       things.push({ y: fy + 0.5, draw: () => drawPerson(n.sheet || IMG["npc_" + n.sprite], n.dir || "down", !!n.walking, fx * TS - cam.x, fy * TS - cam.y, now) });
     }
+    const f = st.follower;
+    if (f) things.push({ y: f.z - 0.01, draw: () => { // your lead pocemon, a step behind you
+      const sx = Math.round(f.x * TS - cam.x), sy = Math.round(f.z * TS - cam.y), hop = f.moving ? -Math.abs(Math.sin(now * 10)) * 2 : 0;
+      ctx.fillStyle = "rgba(0,0,0,0.22)"; ctx.fillRect(sx - 6, sy + 4, 12, 3);
+      ctx.save(); ctx.translate(sx, 0); if (f.right) ctx.scale(-1, 1); // the icons face left; flip when heading right
+      drawMonIcon(f.slug, -12, sy - 18 + hop, f.shiny);
+      ctx.restore();
+    } });
     things.push({ y: p.pz, draw: () => {
       const sx = p.px * TS - cam.x - 8, sy = p.pz * TS - cam.y - 8, dir = p.dir || dirOf(p.angle);
       if (p.mount && st.mountImg) { // surfing or flying: ride on top of your monster

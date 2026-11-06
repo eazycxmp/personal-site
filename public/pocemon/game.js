@@ -37,6 +37,8 @@ const ITEMS = {
   // key items: kept forever, used from the bag or automatically
   fishing_rod: { name: "Fishing Rod", key: true, icon: "fishing_rod", desc: "Face water and press Z to fish." },
   lucky_bamboo: { name: "Lucky Bamboo", key: true, icon: "lucky_bamboo", desc: "Shiny pocemon appear 3x as often." },
+  saddle: { name: "Ride Pass", key: true, icon: "gold_pass", desc: "Press R (or RIDE in the menu) to ride your lead pocemon outdoors, twice as fast as walking." },
+  lucky_horseshoe: { name: "Lucky Horseshoe", key: true, icon: "horseshoe", desc: "The reward for a complete Pocedex: shiny pocemon appear twice as often again." },
   toy_bear: { name: "Toy Bear", key: true, icon: "toy_bear", desc: "A well-loved teddy. Someone misses it." },
   ancient_egg: { name: "Ancient Egg", key: true, icon: "ancient_egg", desc: "Warm to the touch. Bring it to Prof. Oakley." },
   flute: { name: "Old Flute", key: true, icon: "flute", desc: "A wooden flute from Hollowmere." },
@@ -117,7 +119,7 @@ const KEYMAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right",
   KeyZ: "a", Enter: "a", Space: "a", KeyX: "b", Escape: "b", Backspace: "b",
-  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly", KeyT: "teleport",
+  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly", KeyT: "teleport", KeyR: "ride",
 };
 addEventListener("keydown", (e) => {
   const k = KEYMAP[e.code];
@@ -338,7 +340,7 @@ function shinyImg(slug) {
   return (IMG[key] = c);
 }
 function rollShiny() {
-  const odds = SHINY_ODDS / ((S.bag.lucky_bamboo ? 3 : 1) * (S.lure > 0 ? 2 : 1));
+  const odds = SHINY_ODDS / ((S.bag.lucky_bamboo ? 3 : 1) * (S.bag.lucky_horseshoe ? 2 : 1) * (S.lure > 0 ? 2 : 1));
   return Math.random() < 1 / odds;
 }
 function wildMon(slug, lv) { const m = makeMon(slug, lv); if (rollShiny()) m.shiny = true; return m; }
@@ -635,6 +637,9 @@ function loadMap(id, x, y, dir) {
   S.map = id;
   const p = world.player;
   placePlayer(x, y, dir || p.dir);
+  remount();
+  const [bx, by] = DIRS[OPP[p.dir]]; // the follower starts a step behind you
+  world.trail = [[p.px + bx, p.pz + by], [p.px, p.pz]];
   world.npcs = (m.npcs || []).filter((n) => !(n.rival && S.flags[n.id])).map((n, i) => {
     const o = { ...n, def: n, key: id + "_" + i, fx: n.x * T, fy: n.y * T, defeated: !!(n.id && S.flags[n.id]) };
     if (o.defeated && n.aside) { // beaten Elites stand clear of their doorway
@@ -712,7 +717,54 @@ function placePlayer(x, y, dir) {
   const p = world.player;
   p.x = x; p.y = y; p.px = x + 0.5; p.pz = y + 0.5;
   p.dir = dir; p.angle = ANGLE[dir]; p.speed = 0;
-  p.mount = null; p.surfing = false; p.alt = 0; p.slide = null;
+  p.mount = null; p.surfing = false; p.alt = 0; p.slide = null; p.riding = false;
+}
+// Your lead pocemon follows a step behind you along the path you walked.
+function followerMon() {
+  const p = world.player, m = S.party.find((x) => x.hp > 0);
+  if (!m || p.mount || p.surfing || p.alt) return null;
+  const spot = followerSpot();
+  return spot && { slug: m.slug, shiny: m.shiny, x: spot[0], z: spot[1], right: spot[2], moving: Math.abs(p.speed) > 0.05 };
+}
+function trackTrail() {
+  const p = world.player, tr = world.trail || (world.trail = [[p.px, p.pz]]), last = tr[tr.length - 1];
+  if (Math.hypot(p.px - last[0], p.pz - last[1]) > 0.05) { tr.push([p.px, p.pz]); if (tr.length > 60) tr.shift(); }
+}
+function followerSpot() {
+  const p = world.player, tr = world.trail || [];
+  let px = p.px, pz = p.pz, left = 0.95;
+  for (let i = tr.length - 1; i >= 0; i--) { // walk back along the trail a little under one tile
+    const [x, z] = tr[i], d = Math.hypot(x - px, z - pz);
+    if (d >= left) { const k = left / d; return [px + (x - px) * k, pz + (z - pz) * k, x < px]; }
+    left -= d; px = x; pz = z;
+  }
+  return tr.length ? [tr[0][0], tr[0][1], false] : null;
+}
+// The Ride Pass (item key "saddle"): ride your lead pocemon on land outdoors (not in caves). You stay mounted across routes and
+// towns, and get off by yourself indoors, in caves, or when you surf or fly.
+const canRideHere = (m = world.map) => !m.interior && !m.cave && !m.walls;
+const rideMon = () => S.party.find((m) => m.hp > 0);
+function remount() {
+  const p = world.player, m = rideMon();
+  if (S.riding && S.bag.saddle && m && canRideHere() && !p.surfing) { p.riding = true; p.mount = mountKey(m); }
+}
+async function toggleRide() {
+  const p = world.player;
+  if (!S.bag.saddle) { await say("You don't have anything to ride with yet."); return; }
+  if (p.riding) { S.riding = false; p.riding = false; p.mount = null; return; }
+  if (p.surfing) { await say("You're already riding the waves!"); return; }
+  if (!canRideHere()) { await say("There's no room to ride here. Try outdoors."); return; }
+  const m = rideMon();
+  if (!m) { await say("None of your pocemon can carry you right now."); return; }
+  S.riding = true; remount();
+  await say(`You hopped on ${monName(m)}'s back!`, { auto: 0.8 });
+}
+async function ranchHand(n) {
+  if (S.bag.saddle) { await say(`${n.name}: How's the riding going? Press R anywhere outdoors to hop on!`); return; }
+  if (!S.badges.includes("Rock Badge")) { await say(`${n.name}: I teach trainers to ride their pocemon. Beat Brack at the Ember Gym and I'll give you a RIDE PASS!`); return; }
+  await say(`${n.name}: That's the ROCK BADGE! Here's your RIDE PASS. Your lead pocemon will carry you twice as fast.`);
+  S.bag.saddle = 1; save();
+  await say(`You received the RIDE PASS! ${ITEMS.saddle.desc}`);
 }
 
 // ---------------------------------------------------------------- riding: Surf and Fly
@@ -768,7 +820,7 @@ async function trySurf(tx, ty) {
   const m = rider("water");
   if (!m) { await say("None of your pocemon can swim. Catch a WATER-type pocemon to ride across water."); return; }
   if (!(await yesNo(`The water is calm. Ride ${monName(m)} across it?`))) return;
-  p.mount = mountKey(m); p.surfing = true;
+  p.mount = mountKey(m); p.riding = false; p.surfing = true;
   const x0 = p.px, z0 = p.pz;
   await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
   p.x = tx; p.y = ty;
@@ -1071,6 +1123,7 @@ function movePlayer(dx, dz) {
     if (p.surfing && tileAt(tx, ty) !== "~") {
       // hop fully onto the shore: stopping at its edge would leave you overlapping water you can no longer cross
       p.surfing = false; p.mount = null; p.speed = 0;
+      remount();
       const x0 = p.px, z0 = p.pz;
       runScript(async () => {
         await tween(0.2, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
@@ -1440,6 +1493,7 @@ async function talkTo(n) {
   if (n.role === "shop") return shop();
   if (n.role === "daycare") return dayCare(n);
   if (n.role === "box") return boxMenu();
+  if (n.role === "saddle") return ranchHand(n);
   if (n.role === "coins") return coinClerk();
   if (n.role === "prizes") return prizeClerk();
   if (n.role === "roulette") { await say("Croupier: Place your bets!"); return roulette(); }
@@ -1814,9 +1868,19 @@ async function professor(n) {
     await say(`Prof. Oakley: ${need} kinds! That deserves a prize. Here, take ${label}!`);
     await say(`You received ${label}!${ITEMS[item].key ? " " + ITEMS[item].desc : ""}`);
   }
+  const total = Object.keys(D.monsters).length;
+  if (c >= total && !S.flags.dex_all) { // every kind caught: the diploma and the horseshoe
+    S.flags.dex_all = true;
+    S.bag.lucky_horseshoe = 1;
+    await say(`Prof. Oakley: ALL ${total} kinds?! You've completed the Pocedex! This calls for a diploma.`);
+    await diploma();
+    await say("Prof. Oakley: And take my LUCKY HORSESHOE. Shiny pocemon will turn up twice as often for you!");
+    await say(`You received the LUCKY HORSESHOE! ${ITEMS.lucky_horseshoe.desc}`);
+  }
   const next = DEX_REWARDS.find(([need]) => !S.flags["dex_" + need]);
   if (next) await say(`Prof. Oakley: Catch ${next[0]} kinds and I'll give you ${next[3]}. That's ${next[0] - c} more!`);
-  else await say("Prof. Oakley: You've earned every prize I have. Truly a master trainer!");
+  else if (S.flags.dex_all) await say("Prof. Oakley: A complete Pocedex. You're the finest trainer I've ever met!");
+  else await say(`Prof. Oakley: You've earned every prize but one. Catch all ${total} kinds for the last!`);
   S.party.forEach(healMon);
   await say("Prof. Oakley: Let me heal your team, too. All better!");
   save();
@@ -2199,9 +2263,11 @@ async function startMenu() {
   for (;;) {
     const opts = ["PARTY", "DEX", "BAG", "MAP", "TYPES", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
+    if (S.bag.saddle && canRideHere()) opts.splice(3, 0, world.player.riding ? "GET OFF" : "RIDE");
     if (rider("psychic") && canTeleport()) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
+    if (pick === "RIDE" || pick === "GET OFF") { await toggleRide(); return; }
     if (pick === "TELEPORT") { await teleportMenu(); return; }
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any pocemon yet."); }
     else if (pick === "DEX") await monsterLog();
@@ -2214,6 +2280,26 @@ async function startMenu() {
     else if (pick && pick.startsWith("MUSIC")) toggleMute();
     else return;
   }
+}
+// The Pocedex diploma: a framed certificate with your name stand-in, the count, and a gold seal.
+function diploma() {
+  return new Promise((res) => {
+    const t0 = NOW;
+    push({
+      opaque: true,
+      update() { if (NOW - t0 > 0.6 && (consume("a") || consume("b"))) { pop(this); res(); } },
+      draw() {
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        box(10, 8, 220, 144, "#fbf3dc");
+        ctx.strokeStyle = "#b08a30"; ctx.lineWidth = 2; ctx.strokeRect(16, 14, 208, 132);
+        ctx.font = "16px PS"; ctx.textBaseline = "top"; ctx.fillStyle = "#806020"; ctx.fillText("DIPLOMA", 64, 24); ctx.font = "8px PS";
+        ["This certifies that you", `caught all ${Object.keys(D.monsters).length} kinds of`, "pocemon and completed", "the POCEDEX."].forEach((l, i) => text(l, 120 - textW(l) / 2, 50 + i * 12));
+        text("Prof. Oakley", 30, 120, "#606060", null);
+        ctx.drawImage(lookPortrait(myLook()), 64, 0, 64, 64, 150, 96, 40, 40);
+        for (let k = 0; k < 5; k++) drawStar(186 + Math.cos(NOW * 2 + k * 1.26) * 12, 112 + Math.sin(NOW * 2 + k * 1.26) * 12, k % 2 ? "#fff" : "#ffd030");
+      },
+    });
+  });
 }
 function trainerCard() {
   return new Promise((res) => {
@@ -2230,6 +2316,7 @@ function trainerCard() {
           ["SEEN", Object.keys(S.seen).length], ["TIME", `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`]];
         rows.forEach(([k, v], i) => { text(k, 16, 34 + i * 14); text(String(v), 80, 34 + i * 14); });
         text(`BADGES ${S.badges.length}/${BADGES.length}`, 16, 100);
+        if (S.flags.dex_all) { drawStar(150, 102, "#ffd030"); text("POCEDEX COMPLETE", 158, 100, "#a07000", null); }
         BADGES.forEach(([b, mon], i) => { // one icon per gym; faded until you earn it
           ctx.globalAlpha = S.badges.includes(b) ? 1 : 0.2;
           drawMonIcon(mon, 12 + i * 27, 116);
@@ -2978,7 +3065,7 @@ function areaMusic(m = world.map) {
 
 // ---------------------------------------------------------------- world scene
 // The arrows walk in that direction (top-down, like the classic handhelds); SHIFT runs.
-const WALK_SPEED = 3.6, RUN_SPEED = 6.4;
+const WALK_SPEED = 3.6, RUN_SPEED = 6.4, RIDE_SPEED = 8.5;
 const worldScene = {
   opaque: true, overworld: true,
   update(dt) {
@@ -2997,6 +3084,7 @@ const worldScene = {
     if (consume("b")) { p.speed = 0; runScript(startMenu); return; }
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
+    if (consume("ride")) { p.speed = 0; runScript(toggleRide); return; }
     const tapped = ["up", "down", "left", "right"].find((k) => pressed[k]);
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
     if (p.slide) { // sliding: no steering until you stop
@@ -3011,7 +3099,7 @@ const worldScene = {
     if (tapped && tapped !== p.dir && !p.speed) this.turnHold = 0.09;
     this.turnHold = Math.max(0, (this.turnHold || 0) - dt);
     if (dir) { p.dir = dir; p.angle = ANGLE[dir]; }
-    const target = dir && !this.turnHold ? (held.run ? RUN_SPEED : WALK_SPEED) : 0;
+    const target = dir && !this.turnHold ? (p.riding ? RIDE_SPEED : held.run ? RUN_SPEED : WALK_SPEED) : 0;
     p.speed = target ? p.speed + (target - p.speed) * Math.min(1, dt * 14) : 0;
     if (p.speed) {
       const [vx, vz] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
@@ -3022,6 +3110,7 @@ const worldScene = {
       const n = Math.ceil(Math.abs(step) / 0.2); // sub-step so fast movement never skips a tile
       for (let i = 0; i < n && !world.busy; i++) movePlayer(vx * step / n, vz * step / n);
     }
+    trackTrail();
   },
   draw() {
     drawMinimap();
@@ -3048,7 +3137,8 @@ const worldScene = {
     const mon = p3.mount && p3.mount.replace("*", "");
     World2D.render({ player: world.player, npcs: world.npcs, statues: world.statues, interior: !!m.interior,
       daylight: m.cave ? 1 : daylight(), hour: hourNow(), cave: !!m.cave, flash: !!world.flash, weather: weatherNow(),
-      pickups: world.pickups || [], playerSheet: lookSheet(look), mountImg: mon ? IMG["mon_" + mon] : null }, dt, NOW);
+      pickups: world.pickups || [], playerSheet: lookSheet(look), mountImg: mon ? IMG["mon_" + mon] : null,
+      follower: followerMon() }, dt, NOW);
   },
 };
 
@@ -3129,7 +3219,7 @@ async function boot() {
   loadMap(S.map, S.x, S.y, S.dir);
   if (tileAt(S.x, S.y) === "~") {
     const m = rider("water");
-    if (m) { world.player.mount = mountKey(m); world.player.surfing = true; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
+    if (m) { world.player.mount = mountKey(m); world.player.surfing = true; world.player.riding = false; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
   }
   if (!S.starter) {
     runScript(async () => {

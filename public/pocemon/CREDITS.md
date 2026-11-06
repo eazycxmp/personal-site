@@ -208,6 +208,12 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Your lead pocemon follows you** a step behind, along the path you walked (not while you surf, fly or
+ride). **Riding:** after the Rock Badge, the Ranch Hand in Ember City gives you a RIDE PASS: press R (or RIDE in
+the menu) to ride your lead pocemon outdoors at about twice walking speed; you stay on across maps and hop off
+indoors, in caves and when you surf. **Completing the Pocedex** (all 212 kinds) earns a diploma from Prof. Oakley,
+a gold star on your trainer card, and the LUCKY HORSESHOE (shinies twice as often again).
+
 **Already caught?** In a wild battle, a small Poceball next to the wild pocemon's name box means you already
 own that kind. **The PC box** shows your stored pocemon as a grid of pictures: move the arrow with the arrow
 keys and the side panel shows that one's picture, name, level and type; Z withdraws it.
@@ -285,6 +291,7 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
   - `Basic_Buch_Tiles_Compiled.png` by Buch, commissioned by luke83, changes by luke83 and Past the Future; CC BY 3.0.
   - `interior.png` ("Interior Tiles") by ArMM1998; public domain (CC0).
   - `electronics.png` ("Electronics Tileset") by Mike Bramson; CC BY-SA 4.0.
+  - Item icons `horseshoe.png` and `gold_pass.png` are Tuxemon's own item art.
   - `modern.png` ("Modern Interiors" by LimeZu, as included in Tuxemon); CC BY. Used for the Game Corner's
     carpet, rug and felt.
   - `setpieces.png` ("Core Set Pieces", Tuxemon; based on works by Kelvin Shadewing (XYG Open Source License),

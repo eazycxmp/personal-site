@@ -105,6 +105,7 @@
     signs: [{ x: 14, y: 13, text: "EMBER CITY\nGym Leader: BRACK\n\"Solid as bedrock.\"" },
       { x: 9, y: 18, text: "DAY CARE\nWe raise your pocemon\nwhile you walk!" }],
     npcs: [
+      { sprite: "fisher", x: 16, y: 14, dir: "down", name: "Ranch Hand", role: "saddle" },
       { sprite: "soldier", x: 27, y: 10, dir: "down", name: "Guard",
         talk: ["Only trainers with the Rock Badge\nmay pass east."] },
       { sprite: "granny", x: 10, y: 16, dir: "left", name: "Granny",
