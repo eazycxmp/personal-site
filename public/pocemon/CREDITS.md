@@ -208,6 +208,10 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Already caught?** In a wild battle, a small Poceball next to the wild pocemon's name box means you already
+own that kind. **The PC box** shows your stored pocemon as a grid of pictures: move the arrow with the arrow
+keys and the side panel shows that one's picture, name, level and type; Z withdraws it.
+
 **Blacking out:** you're taken back to your last Healing Center with your team healed. Losing to a trainer costs
 half your money; losing to a wild pocemon costs nothing.
 

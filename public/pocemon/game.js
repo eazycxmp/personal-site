@@ -1482,6 +1482,58 @@ async function shop() {
   await say("Clerk: Come again!");
 }
 
+// The PC box as a grid of pocemon: arrows move the cursor, the panel shows who it's on (picture, name, level,
+// type), Z picks, X backs out. Returns the box index or -1.
+function boxScreen(title) {
+  const COLS = 6, ROWS = 5, CELL = 24, X0 = 6, Y0 = 20;
+  return new Promise((res) => {
+    push({
+      opaque: true, i: 0, top: 0, opened: NOW,
+      update() {
+        if (NOW - this.opened < 0.25) { consume("a"); consume("b"); }
+        const n = S.box.length;
+        if (consume("left") && this.i % COLS > 0) this.i--;
+        if (consume("right") && this.i % COLS < COLS - 1 && this.i + 1 < n) this.i++;
+        if (consume("up") && this.i >= COLS) this.i -= COLS;
+        if (consume("down") && this.i + COLS < n) this.i += COLS;
+        const row = Math.floor(this.i / COLS);
+        this.top = clamp(this.top, row - ROWS + 1, row);
+        if (consume("a")) { pop(this); res(this.i); }
+        else if (consume("b")) { pop(this); res(-1); }
+      },
+      draw() {
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        text(`PC BOX  ${S.box.length} POCEMON`, 6, 5, "#fff", "#102030");
+        box(2, 16, 152, 128);
+        S.box.forEach((m, k) => {
+          const r = Math.floor(k / COLS) - this.top, c = k % COLS;
+          if (r < 0 || r >= ROWS) return;
+          const x = X0 + c * CELL, y = Y0 + r * CELL;
+          if (k === this.i) { ctx.fillStyle = "#f0d890"; ctx.fillRect(x, y, CELL, CELL); }
+          drawMonIcon(m.slug, x, y, m.shiny);
+        });
+        const rows = Math.ceil(S.box.length / COLS);
+        if (this.top > 0) { ctx.fillStyle = "#6890b0"; ctx.fillRect(146, 20, 5, 2); }
+        if (this.top + ROWS < rows) { ctx.fillStyle = "#6890b0"; ctx.fillRect(146, 138, 5, 2); }
+        const m = S.box[this.i];
+        if (m) { // the arrow, and who it's on
+          const r = Math.floor(this.i / COLS) - this.top, c = this.i % COLS;
+          const ax = X0 + c * CELL + 8, ay = Y0 + r * CELL - 2 + (Math.floor(NOW * 3) % 2); // a bobbing arrow pointing down at it
+          ctx.fillStyle = "#e04030"; for (let k = 0; k < 4; k++) ctx.fillRect(ax + k, ay + k, 8 - k * 2, 1);
+          box(156, 16, 82, 128);
+          drawMon(m.slug, "front", 165, 20, 1, 1, m.shiny);
+          text(monName(m).slice(0, 9), 161, 86);
+          text(`Lv${m.level}`, 161, 98, "#606060", null);
+          typeIcon(D.monsters[m.slug].types[0], 161, 110);
+          typeTag(D.monsters[m.slug].types[0], 175, 111);
+          if (m.item) text(ITEMS[m.item].name.slice(0, 9), 161, 128, "#806020", null);
+        }
+        box(0, 146, VW, 14, "#f8f0d8");
+        text(`${title}   Z: TAKE   X: BACK`, 6, 149);
+      },
+    });
+  });
+}
 async function boxMenu() {
   for (;;) {
     const c = await choose(["DEPOSIT", "WITHDRAW", "DONE"], { prompt: `You booted up the PC. Your box holds ${S.box.length} pocemon.` });
@@ -1492,7 +1544,7 @@ async function boxMenu() {
     } else if (c === 1) {
       if (!S.box.length) { await say("Your box is empty."); continue; }
       if (S.party.length >= 6) { await say("Your party is full!"); continue; }
-      const i = await choose(S.box.map((m) => `${monName(m)} Lv${m.level}`), { x: 60, y: 4, w: 176 });
+      const i = await boxScreen("WITHDRAW");
       if (i >= 0) { const [m] = S.box.splice(i, 1); healMon(m); S.party.push(m); await say(`${monName(m)} joined your party!`); }
     } else break;
   }
@@ -2441,6 +2493,9 @@ class Battle {
     const icw = typeIcons(m.slug, x + 6, y + 16);
     text("HP", x + 9 + icw, y + 17, "#e08030", null);
     hpBar(x + 25 + icw, y + 18, 77 - icw, hp / m.maxhp);
+    if (!mine && !this.trainer && S.caught[m.slug] && IMG.tuxeball) { // you already own this kind: a Poceball beside its box
+      ctx.drawImage(IMG.tuxeball, 0, 16, 16, 16, x + 114, y + 3, 12, 12);
+    }
     if (m.status) { // a coloured chip just outside the box: below the foe's, above yours
       const tag = STATUS_TAG[m.status] || "PSN", cy = mine ? y - 11 : y + h + 1;
       ctx.fillStyle = { burn: "#d04820", poison: "#8a3aa8", sleep: "#707888", para: "#c8a018" }[m.status] || "#c04020";
