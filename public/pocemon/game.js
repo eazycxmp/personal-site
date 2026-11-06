@@ -85,6 +85,14 @@ let curMusic = null, muted = false;
 function music(name) { curMusic = name; HouseDJ.play(name); }
 function unlockAudio() { HouseDJ.unlock(); }
 function toggleMute() { muted = !muted; HouseDJ.setMuted(muted); }
+// Sound effects (Tuxemon's sound library, see sfx.js): interface sounds by name, each pocemon's own cries,
+// and each move's sound.
+const sfx = (k, vol = 0.7, rate = 1) => window.SFX && HouseDJ.sfx(SFX.ui[k] || k, vol, rate);
+function cry(slug, faint) {
+  const c = window.SFX && SFX.cry[slug], n = c && (faint ? c[1] || c[0] : c[0]);
+  if (n) HouseDJ.sfx(n, 0.8, faint ? 0.85 : 1);
+}
+function moveSfx(id) { if (window.SFX) HouseDJ.sfx(SFX.move[id] || SFX.ui.hit, 0.7); }
 
 function npcSpritesUsed() {
   const s = new Set(["adventurer", "heroine"]);
@@ -416,16 +424,18 @@ function choose(items, o = {}) {
         // a press made while mashing through the text before this menu appeared doesn't pick anything
         if (NOW - this.opened < 0.25) { consume("a"); consume("b"); }
         const r = Math.floor(this.i / cols), c = this.i % cols;
+        const was = this.i;
         if (consume("up") && r > 0) this.i -= cols;
         if (consume("down") && this.i + cols < items.length) this.i += cols;
         if (consume("left") && c > 0) this.i--;
         if (consume("right") && c < cols - 1 && this.i + 1 < items.length) this.i++;
+        if (this.i !== was) sfx("cursor", 0.35);
         if (o.onMove) o.onMove(this.i);
         if (consume("a")) {
           const it = items[this.i];
           if (it && it.disabled) return;
-          pop(this); res(this.i);
-        } else if (consume("b") && o.cancel !== false) { pop(this); res(-1); }
+          sfx("confirm", 0.5); pop(this); res(this.i);
+        } else if (consume("b") && o.cancel !== false) { sfx("back", 0.5); pop(this); res(-1); }
       },
       draw() {
         if (o.prompt) { box(0, 112, VW, 48); wrap(o.prompt, o.promptW || VW - 24).slice(0, 3).forEach((l, i) => text(l, 10, 120 + i * 12)); }
@@ -811,6 +821,7 @@ async function collect(it) {
   world.pickups = world.pickups.filter((x) => x !== it);
   const n = it.n || 1;
   S.bag[it.item] = (S.bag[it.item] || 0) + n;
+  sfx("coin", 0.6);
   await say(`You found ${n > 1 ? n + " " : ""}${ITEMS[it.item].name.toUpperCase()}${n > 1 ? "S" : ""}!`);
   save();
 }
@@ -841,6 +852,7 @@ async function fieldAction(x, y) {
   }
   if (!(await yesNo(`${f.what} Use ${f.move}?`))) return;
   await say(`${monName(mon)} used ${f.move}! It ${f.done}!`);
+  sfx("crumble", 0.8);
   world.map.grid[y][x] = ".";
   S.flags[`field_${world.id}_${x}_${y}`] = true;
   World2D.build(world.map, BUILDINGS); World2D.snapYaw(world.player.angle);
@@ -1182,7 +1194,7 @@ function stepEvent() {
     save();
   };
   const wp = (m.warps || []).find((w) => w.x === p.x && w.y === p.y); // ladders and holes between maps
-  if (wp) return () => warp(wp.to, wp.tx, wp.ty, wp.dir || "down");
+  if (wp) return () => { sfx("climb"); return warp(wp.to, wp.tx, wp.ty, wp.dir || "down"); };
   const door = world.doors.find((b) => b.door.x === p.x && b.door.y === p.y);
   if (door && door.to) {
     const inn = MAPS[door.to];
@@ -1505,6 +1517,7 @@ async function talkTo(n) {
 async function healAt(n) {
   await say(n.healText || "Welcome to the Healing Center!\nWe'll restore your pocemon to\nfull health.");
   await fadeTo(0.6, 0.3);
+  sfx("heal", 0.8);
   await wait(0.6);
   S.party.forEach(healMon);
   await fadeTo(0, 0.3);
@@ -1551,6 +1564,7 @@ function boxScreen(title) {
         if (consume("up") && this.i >= COLS) this.i -= COLS;
         if (consume("down") && this.i + COLS < n) this.i += COLS;
         const row = Math.floor(this.i / COLS);
+        if (this.i !== this.last) { if (this.last != null) sfx("cursor", 0.35); this.last = this.i; }
         this.top = clamp(this.top, row - ROWS + 1, row);
         if (consume("a")) { pop(this); res(this.i); }
         else if (consume("b")) { pop(this); res(-1); }
@@ -2610,6 +2624,7 @@ class Battle {
       this.showEBox = true;
       const isNew = !S.seen[this.e.slug];
       if (this.e.shiny) { this.sparkle = { t: NOW, x: this.eX + 32, y: this.eY + 36 }; S.shinySeen = S.shinySeen || {}; S.shinySeen[this.e.slug] = true; }
+      cry(this.e.slug);
       await this.msg(this.legendary ? `The legendary ${monName(this.e).toUpperCase()} appeared!` : `A wild ${monName(this.e)} appeared!`);
       if (this.e.shiny) await this.msg("Whoa! Its colors are different... it's a SHINY!");
       if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Pocedex.`); }
@@ -2668,6 +2683,7 @@ class Battle {
     this.eHp = this.e.hp;
     S.seen[this.e.slug] = true;
     await this.msg(`${this.trainer.name} sent out ${monName(this.e)}!`);
+    cry(this.e.slug);
     await tween(0.3, (k) => { this.eScale = k; });
     this.showEBox = true;
   }
@@ -2678,6 +2694,7 @@ class Battle {
     this.participants.add(m);
     this.pVis = true; this.pScale = 0; this.pAlpha = 1;
     await this.msg(`Go! ${monName(m)}!`);
+    cry(m.slug);
     await tween(0.3, (k) => { this.pScale = k; });
     this.showPBox = true;
   }
@@ -2771,6 +2788,7 @@ class Battle {
     // lunge
     await tween(0.12, (k) => { if (mine) this.pX = 20 + 14 * k; else this.eX = 148 - 14 * k; });
     await tween(0.12, (k) => { if (mine) this.pX = 34 - 14 * k; else this.eX = 134 + 14 * k; });
+    moveSfx(moveId);
     await this.playFx(M, mine);
     if (!M.power) { await this.applyFx(att, def, fx, mine, who, dn); return; }
     let r;
@@ -2871,6 +2889,7 @@ class Battle {
     if (this.e.hp <= 0) {
       await tween(0.35, (k) => { this.eY = 6 + 50 * k; this.eAlpha = 1 - k; });
       this.eVis = false; this.showEBox = false; this.eY = 6; this.eAlpha = 1;
+      cry(this.e.slug, true);
       await this.msg(`${this.wild ? "Wild" : "Foe"} ${monName(this.e)} fainted!`);
       const stage = D.monsters[this.e.slug].stage;
       const EXP_RATE = 1.6; // faster leveling (requested)
@@ -2896,6 +2915,7 @@ class Battle {
     if (this.p.hp <= 0) {
       await tween(0.35, (k) => { this.pY = 46 + 50 * k; this.pAlpha = 1 - k; });
       this.pVis = false; this.showPBox = false; this.pY = 46; this.pAlpha = 1;
+      cry(this.p.slug, true);
       await this.msg(`${monName(this.p)} fainted!`);
       this.participants.delete(this.p);
       if (!partyAlive().length) return "lose";
@@ -2920,6 +2940,7 @@ class Battle {
         m.level++;
         calcStats(m);
         if (active) { this.pHp = m.hp; this.pExp = m.exp; }
+        sfx("ding", 0.6, 1.25);
         await this.msg(`${monName(m)} grew to Lv ${m.level}!`);
         await this.learnMoves(m);
       }
@@ -2935,6 +2956,7 @@ class Battle {
   async throwBall(key = "tuxeball") {
     S.bag[key]--;
     this.ballKey = key;
+    sfx("throw");
     await this.msg(`You threw a ${ITEMS[key].name}!`);
     this.ball = { x: 40, y: 100, r: 0 };
     await tween(0.6, (k) => {
@@ -2961,6 +2983,7 @@ class Battle {
       const first = !S.caught[e.slug];
       if (e.shiny) { S.shinyCaught = S.shinyCaught || {}; S.shinyCaught[e.slug] = true; }
       music("caught");
+      sfx("ding", 0.8);
       await this.msg(`Gotcha! ${monName(e)} was caught!`);
       const where = addMon(e);
       this.ball = null;

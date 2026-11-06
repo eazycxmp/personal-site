@@ -208,6 +208,10 @@ Level Treats now let you swap moves too.
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full
 colour with a sparkle burst (`evolveScene` in game.js, built from the sprites' own pixels).
 
+**Sound:** menus click, every pocemon calls out with its own cry when it enters battle (and a lower one when it
+faints), every move has its sound, and catching, levelling up, healing, finding items, field moves, ladders and
+the Game Corner all have theirs. M mutes music and sounds together.
+
 **Your lead pocemon follows you** a step behind, along the path you walked (not while you surf, fly or
 ride). **Riding:** after the Rock Badge, the Ranch Hand in Ember City gives you a RIDE PASS: press R (or RIDE in
 the menu) to ride your lead pocemon outdoors at about twice walking speed; you stay on across maps and hop off
@@ -278,6 +282,16 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
   Press Start 2P under the SIL OFL, see `game/assets/fonts/OFL.txt`). Pocemon stats, moves and type
   chart are adapted from Tuxemon's database. Type icons are Tuxemon's element icons
   (`game/assets/types`; Dragon uses the Aether icon on a purple chip, since Tuxemon has no Dragon).
+- **Sound effects** (`game/assets/sfx`, built by `tools/build_sfx.py`, mapped in `game/sfx.js`): Tuxemon's sound
+  library, converted to AAC. Every pocemon's battle and faint cry and each move's sound follow Tuxemon's own data.
+  From Tuxemon's ATTRIBUTIONS: "Alien Animal Sounds" by wubitog (CC0); "sf3-sfx-menu-select" by broumbroum
+  (CC BY 3.0); "Click" by NenadSimic (CC0); Kelvin Shadewing's Soundpacks Vol. 1-3 (CC BY 3.0,
+  kelvinshadewing.net); "Tux Sound" by Hyperdriveguy (CC BY 3.0, from "magellanic penguin" by soundbytez);
+  "Ship Bell", "Temple Bell" and "Japanese Temple Bell Small" by Mike Koenig (CC BY 3.0); "splash-1" by FreqMan
+  (CC BY 4.0); cat sounds by Steffcaffrey (CC0); creature sounds by josepharaoh99 (CC0); Superpowers Asset Packs
+  sounds (CC0); rubberduck's sound packs (CC0); "Echo-gurgle-whoosh 1" by Arthur (CC BY-SA 3.0); "Foom_0" and
+  "Growl1" by Bart K (CC BY 3.0); "Ice" by bart (CC0); "ghost_1" by The Berklee College of Music (CC BY 3.0);
+  "Insekt" by Tim Mortimer (CC BY 3.0); "coinecho" by NenadSimic (CC BY 3.0).
 - **Drum samples:** Roland TR-909 and TR-808 recordings from
   [fluid-music/open-drums](https://github.com/fluid-music/open-drums) (originally machines.hyperreal.org).
   The 909 set is free to copy and distribute unmodified and **not for profit**; see

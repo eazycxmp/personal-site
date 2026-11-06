@@ -14,7 +14,8 @@
 //   darkboss - dark techno, 132 BPM (Shade leader fight)
 // Cymbals are mixed low on purpose (see CYMBAL).
 window.HouseDJ = (function () {
-  let ac = null, master = null, noise = null, curve = null, meter = null, muted = false;
+  let ac = null, master = null, noise = null, curve = null, meter = null, muted = false, sfxBus = null;
+  const SFXBUF = {}; // sound effects, decoded on first use
   const decks = [];
   const S = {};
   let wanted = null;
@@ -43,6 +44,7 @@ window.HouseDJ = (function () {
     const guard = ac.createWaveShaper();
     const gc = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; gc[i] = Math.max(-0.98, Math.min(0.98, x)); }
     guard.curve = gc;
+    sfxBus = ac.createGain(); sfxBus.gain.value = muted ? 0 : 0.9; sfxBus.connect(limiter);
     master.connect(comp); comp.connect(limiter); limiter.connect(trim); trim.connect(guard); guard.connect(ac.destination);
     meter = ac.createAnalyser(); meter.fftSize = 2048; guard.connect(meter);
     noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
@@ -438,9 +440,21 @@ window.HouseDJ = (function () {
     decks.push(dk);
   }
 
+  // a one-shot sound effect from assets/sfx (name without extension); vol 0-1, rate changes the pitch
+  function sfx(name, vol = 0.7, rate = 1) {
+    if (!name || !ac || muted) return;
+    if (!SFXBUF[name]) SFXBUF[name] = fetch(`assets/sfx/${name}.m4a`).then((r) => r.arrayBuffer()).then((b) => ac.decodeAudioData(b)).catch(() => null);
+    SFXBUF[name].then((buf) => {
+      if (!buf || muted) return;
+      const s = ac.createBufferSource(), g = ac.createGain();
+      s.buffer = buf; s.playbackRate.value = rate; g.gain.value = vol;
+      s.connect(g); g.connect(sfxBus); s.start();
+    });
+  }
   return {
     load,
     play,
+    sfx,
     unlock() {
       init();
       const go = () => { if (wanted) { const w = wanted; wanted = null; play(w); } };
@@ -449,6 +463,7 @@ window.HouseDJ = (function () {
     setMuted(m) {
       muted = m;
       if (master) master.gain.setTargetAtTime(m ? 0 : 0.5, ac.currentTime, 0.05);
+      if (sfxBus) sfxBus.gain.setTargetAtTime(m ? 0 : 0.9, ac.currentTime, 0.05);
     },
     get current() { const l = decks.filter((d) => !d.dead); return l.length ? l[l.length - 1].name : null; },
     get state() { return ac ? ac.state : "none"; },

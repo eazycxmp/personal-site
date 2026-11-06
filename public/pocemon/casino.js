@@ -132,13 +132,13 @@ function slotMachine() {
           }
         } else if (this.state === "spin") {
           if (consume("a") && this.stops < 3) {
-            const r = reels[this.stops++];
+            const r = reels[this.stops++]; sfx("spin", 0.35);
             r.stopAt = Math.floor(Math.random() * L); // where it lands is pure chance
           }
           if (this.stops === 3 && reels.every((r) => !r.spinning)) {
             const line = reels.map((r) => r.strip[Math.round(r.pos) % L]);
             this.win = slotPay(line) * this.bet;
-            if (this.win) { addCoins(this.win); this.flash = 1.5; this.msg = line.join("") === "777" ? `JACKPOT! +${this.win}` : `WIN! +${this.win} coins`; }
+            if (this.win) { addCoins(this.win); this.flash = 1.5; sfx("coin", 0.7); this.msg = line.join("") === "777" ? `JACKPOT! +${this.win}` : `WIN! +${this.win} coins`; }
             else this.msg = "No luck. Z to spin again";
             this.state = "idle"; save();
           }
@@ -238,9 +238,10 @@ async function roulette() {
     if (!bet) { if (!coins()) { await say("You're out of coins!"); return; } continue; }
     addCoins(-bet);
     const result = Math.floor(Math.random() * 37);
+    sfx("spin", 0.4);
     await spinWheel(result);
     const col = result === 0 ? "GREEN" : REDS.has(result) ? "RED" : "BLACK";
-    if (wins(result)) { addCoins(bet * (pays + 1)); await say(`${result} ${col}! You win ${bet * pays} coins!`); }
+    if (wins(result)) { sfx("coin", 0.7); addCoins(bet * (pays + 1)); await say(`${result} ${col}! You win ${bet * pays} coins!`); }
     else await say(`${result} ${col}. The house wins this time.`);
     save();
     if (!coins() || !(await yesNo("Play again?"))) return;
