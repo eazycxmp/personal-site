@@ -78,6 +78,9 @@ cv.addEventListener("pointerdown", (e) => {
   const r = cv.getBoundingClientRect();
   tapQ = { x: (e.clientX - r.left) / r.width * VW, y: (e.clientY - r.top) / r.height * VH };
   e.preventDefault();
+  // preventDefault also stops the click from focusing this page, and on espencampbell.com the game sits in an
+  // iframe, so without this the keyboard would stay with the outer page
+  window.focus();
   unlockAudio();
 });
 function consumeTap() { const t = tapQ; tapQ = null; return t; }

@@ -77,11 +77,11 @@
       const up = (e) => { e.preventDefault(); b.classList.remove("down"); key(code, false); };
       b.addEventListener("touchend", up); b.addEventListener("touchcancel", up);
       // mouse or pen too (a touch already cancelled its own mouse events with preventDefault)
-      b.addEventListener("mousedown", (e) => { e.preventDefault(); b.classList.add("down"); key(code, true); });
+      b.addEventListener("mousedown", (e) => { e.preventDefault(); window.focus(); b.classList.add("down"); key(code, true); });
       b.addEventListener("mouseup", up); b.addEventListener("mouseleave", (e) => { if (b.classList.contains("down")) up(e); });
     }
     const run = document.getElementById("bRun"); let running = false;
-    const toggleRun = (e) => { e.preventDefault(); running = !running; run.classList.toggle("on", running); key("ShiftLeft", running); };
+    const toggleRun = (e) => { e.preventDefault(); window.focus(); running = !running; run.classList.toggle("on", running); key("ShiftLeft", running); };
     run.addEventListener("touchstart", toggleRun, { passive: false }); run.addEventListener("mousedown", toggleRun);
   });
 })();
