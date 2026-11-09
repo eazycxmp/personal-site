@@ -1089,6 +1089,46 @@
     ],
   });
 
+  // ---------------- The bike adventure: Spoke's Bike Shop and the Road Hogs biker gang ----------------
+  // The Road Hogs stole four boxes of parts from Spoke's Bike Shop in Volt City. Three bikers ride the roads of
+  // Routes 2, 3 and 4 with a box each (part: true), and their boss holds the last one in the gang's hideout on
+  // Route 4. Bring all four back and Spoke builds you a BICYCLE. More bikers ride the later roads.
+  W.volt.buildings.push({ type: "hut2", x: 7, y: 7, to: "bike_shop" });
+  W.bike_shop = house("Bike Shop", { sprite: "postboy", x: 3, y: 4, dir: "down", name: "Spoke", quest: "bike" });
+  W.bike_shop.wall = "wood";
+  W.route4.buildings = (W.route4.buildings || []).concat({ type: "house2", x: 37, y: 2, to: "hideout" });
+  W.hideout = interior({
+    name: "Road Hog Hideout", w: 10, h: 10, music: "wild", wall: "wood", floor: "gray",
+    ops: [["C", 0, 7, 7, 1], ["C", 3, 4, 7, 1]], decor: [[2, 1, "poster"], [7, 1, "board"]],
+    npcs: [
+      trainer({ id: "hog_grunt1", sprite: "rogue_red", x: 8, y: 8, dir: "left", sight: 3, name: "Road Hog Dex",
+        team: [["pythwire", 21], ["grintot", 21]], intro: "Nobody walks into the Hog Den! Nobody!", lose: "Boss is gonna be mad..." }),
+      trainer({ id: "hog_grunt2", sprite: "xerogrunt", x: 1, y: 5, dir: "right", sight: 3, name: "Road Hog Tasha",
+        team: [["fancair", 21], ["selket", 22]], intro: "You lost, kid? This is Road Hog turf!", lose: "Okay, okay! He's right up there." }),
+      trainer({ id: "hog_boss", part: true, sprite: "maniac", x: 5, y: 3, dir: "down", sight: 0, name: "Hog Boss Brutus",
+        team: [["sludgehog", 22], ["devidin", 23], ["komodraw", 24]],
+        intro: "So you're the one knocking over my riders. Those parts are Road Hog property now!",
+        lose: "Bah! Fine! Take the box and get outta my den!" }),
+    ],
+  });
+  const hog = (map, o) => W[map].npcs.push(trainer(Object.assign({ part: true }, o)));
+  hog("route2", { id: "hog_r2", sprite: "xerogrunt", x: 24, y: 8, dir: "left", sight: 4, name: "Road Hog Vince",
+    team: [["poinchin", 16], ["tumbleworm", 17]], intro: "VROOOM! This road belongs to the Road Hogs!", lose: "My engine stalled..." });
+  hog("route3", { id: "hog_r3", sprite: "rogue_red", x: 10, y: 26, dir: "down", sight: 3, name: "Road Hog Rita",
+    team: [["hissiorite", 18], ["pawsand", 18], ["flacono", 19]], intro: "Out of my lane! Road Hogs ride first!", lose: "Wiped out on the ice..." });
+  hog("route4", { id: "hog_r4", sprite: "rogue", x: 20, y: 9, dir: "right", sight: 4, name: "Road Hog Gus",
+    team: [["boltnu", 20], ["joulraton", 21]], intro: "Hand over your pocemon, or race me for 'em!", lose: "Flat tire. Totally flat." });
+  // bikers out on the later roads
+  const biker = (map, o) => W[map].npcs.push(trainer(o));
+  biker("route5", { id: "biker_r5", sprite: "rogue_green", x: 11, y: 30, dir: "up", sight: 4, name: "Biker Moss",
+    team: [["legko", 27], ["corvix", 28]], intro: "I ride these woods every day. Let's see what you've got!", lose: "Pedals to the metal... and still lost." });
+  biker("route6", { id: "biker_r6", sprite: "xerogrunt", x: 22, y: 9, dir: "left", sight: 4, name: "Biker Cinder",
+    team: [["cobarett", 31], ["rockat", 32]], intro: "Hot road, hot tires, hot battle!", lose: "My tires melted." });
+  biker("route7", { id: "biker_r7", sprite: "rogue_red", x: 10, y: 16, dir: "down", sight: 4, name: "Biker Chrome",
+    team: [["arthrobolt", 36], ["puparmor", 37]], intro: "Rustline Road is a racetrack, and I'm the champ!", lose: "Lapped by a walker..." });
+  biker("route8", { id: "biker_r8", sprite: "rogue", x: 18, y: 8, dir: "right", sight: 4, name: "Biker Ace",
+    team: [["bricgard", 41], ["gryfix", 42]], intro: "Victory Ridge is the last stretch. Think you can keep up?", lose: "You'd make a great biker." });
+
   // ---------------- Side quests ----------------
   // quest: { id, ...} drives talk in game.js (questTalk); items appear once the quest is started.
   W.ember.npcs.push({ sprite: "picnicker", x: 14, y: 12, dir: "down", name: "Little Pia", quest: "teddy" });
@@ -1398,7 +1438,7 @@
   hide("route1", [[19,35],[19,18],[2,34]]);
   hide("route2", [[12,4],[37,3],[6,13]]);
   hide("route3", [[17,32],[12,6],[5,39]]);
-  hide("route4", [[10,2],[40,3],[29,12]]);
+  hide("route4", [[10,2],[29,12],[14,15]]);
   hide("route5", [[19,7],[5,27],[16,29]]);
   hide("route6", [[11,12],[36,2],[37,12]]);
   hide("route7", [[2,32],[17,11],[4,6]]);

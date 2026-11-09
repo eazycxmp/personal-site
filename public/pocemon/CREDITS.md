@@ -277,6 +277,15 @@ lantern gives you the ITEMFINDER. Once you've been, FLY can take you there.
 legendary, each shown as one of Tuxemon's gems (grey until earned, with your progress toward it). They pop up
 the moment you earn one; an older save gets the ones it has already earned in one quiet note.
 
+**The bike adventure** (menu: QUESTS): the ROAD HOGS biker gang cleaned out SPOKE's Bike Shop in Volt City (the
+orange-roofed workshop by the main road). Three Road Hogs ride the roads of Routes 2, 3 and 4 (Lv 16-21), and
+their boss, HOG BOSS BRUTUS, waits with two riders in the gang's hideout, the dark wooden house at Route 4's
+east end (Lv 21-24). Each one you beat hands back a box of BIKE PARTS (the bag shows how many of 4), and you can
+beat them before or after talking to Spoke. Bring all four back and Spoke builds you a BICYCLE; until the bike's
+art is in (`VEHICLE_READY` in `game/game.js`), he thanks you and asks you to come back soon, and your boxes are
+kept. More bikers ride the roads of Routes 5-8 (Lv 27-42), standing on the road and battling whoever comes by.
+The bikers are Tuxemon's grunt, rogue and maniac characters (Tuxemon has no one on a bike).
+
 **Marts look like stores:** drink fridges along the back wall, two aisles of stocked shelves, a rack of goods by
 the door, a till on the counter, and a shopper with a Repel tip. Marts sell REPEL and ESCAPE KEY too.
 
@@ -393,6 +402,8 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
     (`repel.png`, Tuxemon's petrified_dung), ESCAPE KEY (escape_key), EXP SHARE (xp_transmitter), ITEMFINDER
     (`itemfinder.png`, the drone), SAFARI BALL (tuxeball_park), Safari bait (banana) and rock (flintstone).
   - The 28 medals (`game/assets/medals/`) are Tuxemon's gem item icons (7 colours, 4 cuts).
+  - BIKE PARTS (`parts_box.png`) is Tuxemon's box item icon. Spoke and the Road Hogs use Tuxemon's postboy,
+    xerogrunt, rogue_red and maniac characters (walking sprites and portraits).
   - Coral Isle's lighthouse and huts are from Tuxemon's `core_buildings.png` (the lighthouse is the same picture
     as the Champion's Hall in Prime City; it's the only lighthouse in the sheet).
   - The car (parked, not in play yet; `game/assets/obj/car.png`, "Car, Black" from Tuxemon's tilesets) is by isaiah658, from

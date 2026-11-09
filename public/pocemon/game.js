@@ -45,6 +45,7 @@ const ITEMS = {
   toy_bear: { name: "Toy Bear", key: true, icon: "toy_bear", desc: "A well-loved teddy. Someone misses it." },
   ancient_egg: { name: "Ancient Egg", key: true, icon: "ancient_egg", desc: "Warm to the touch. Bring it to Prof. Oakley." },
   flute: { name: "Old Flute", key: true, icon: "flute", desc: "A wooden flute from Hollowmere." },
+  bike_parts: { name: "Bike Parts", key: true, icon: "parts_box", desc: "Boxes of parts the Road Hogs stole from Spoke's Bike Shop in Volt City. He needs all 4." },
   repel: { name: "Repel", price: 350, repel: 100, icon: "repel", desc: "For 100 steps, wild pocemon weaker than your lead keep away." },
   escape_key: { name: "Escape Key", price: 550, escape: true, icon: "escape_key", desc: "In a cave or dungeon: warps you straight back outside." },
   exp_share: { name: "Exp Share", key: true, icon: "exp_share", desc: "Use it to switch it ON or OFF. While ON, pocemon that sat out a win get half EXP." },
@@ -1442,6 +1443,7 @@ async function trainerEncounter(n, spotted) {
     n.defeated = true;
     S.flags[n.id] = true;
     await say(`${n.name}: ${n.lose}`);
+    if (n.part) await hogPart(n);
     if (n.rival && n.def.leaveTo) await walkAway(n);
     if (n.aside) { // back to the doorway (they walk up to you when they spot you), then out of the way
       while (n.y !== n.def.y) await walkNpc(n, n.y > n.def.y ? "up" : "down");
@@ -1714,6 +1716,7 @@ const QUESTS = {
   teddy: { name: "Pia's lost teddy", where: "Little Pia, Ember City" },
   egg: { name: "The ancient egg", where: "Dr. Fenn, Volt City" },
   flute: { name: "Old Whisper's flute", where: "Old Whisper, Hollowmere" },
+  bike: { name: "Spoke's stolen bike parts", where: "Spoke, Volt City Bike Shop" },
 };
 const questState = (q) => (S.flags["q_" + q + "_done"] ? "done" : S.flags["q_" + q + "_started"] ? "active" : "new");
 async function questTalk(n) {
@@ -1737,6 +1740,31 @@ async function questTalk(n) {
     await say(`${who}: You're from Sprout Town? Wonderful! We dug up this EGG in the old mine and it's starting to move.`);
     await say("You received the ANCIENT EGG!");
     return say(`${who}: Prof. Oakley will know what to do. Take it to his lab!`);
+  }
+  if (q === "bike") {
+    const got = S.bag.bike_parts || 0;
+    if (st === "done") return say(`${who}: How's the BICYCLE riding? Those Road Hogs won't be bothering anyone now!`);
+    if (got >= 4) {
+      if (!VEHICLE_READY) { // the bike's art isn't in yet: the parts stay with you and Spoke builds it then
+        S.flags.q_bike_started = true;
+        await say(`${who}: All FOUR boxes! You actually got them back from the Road Hogs!`);
+        return say(`${who}: Building a bike from scratch takes time, though. Hang on to the parts and come back soon!`);
+      }
+      delete S.bag.bike_parts; S.flags.q_bike_done = true; S.bag.bicycle = 1;
+      await say(`${who}: All FOUR boxes! You got them all back from the Road Hogs!`);
+      await say(`${who}: Give me a minute... *clank* *whirr* *ding ding!*`);
+      sfx("bell", 0.7);
+      await say(`You received a BICYCLE! ${(ITEMS.bicycle || {}).desc || ""}`);
+      return save();
+    }
+    if (st === "new") {
+      S.flags.q_bike_started = true;
+      await say(`${who}: Welcome to my Bike Shop... or what's left of it. The ROAD HOGS biker gang cleaned me out!`);
+      await say(`${who}: They took four boxes of parts. Three of their riders were last seen on the roads of ROUTES 2, 3 and 4.`);
+      await say(`${who}: Their boss holes up in a hideout on ROUTE 4. Get my parts back and I'll build you a BICYCLE of your own!`);
+      return save();
+    }
+    return say(`${who}: You've got ${got} of the 4 boxes. The Road Hogs ride ROUTES 2, 3 and 4, and their boss hides out on ROUTE 4.`);
   }
   if (q === "flute") {
     if (st === "done") return say(`${who}: When I play his flute at night, the shrine glows. Thank you, child.`);
@@ -2398,7 +2426,7 @@ function bagScreen(inBattle) {
     const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat || ITEMS[k].hold || ITEMS[k].repel || ITEMS[k].escape || ITEMS[k].safari)));
     const ks = keys();
     if (!ks.length) { say("Your bag is empty.").then(() => res(null)); return; }
-    choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name + (k === "exp_share" ? (S.expShare ? " (ON)" : " (OFF)") : "") : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
+    choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name + (k === "exp_share" ? (S.expShare ? " (ON)" : " (OFF)") : k === "bike_parts" ? ` x${S.bag[k]}/4` : "") : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
       x: 50, y: 4, w: 186, extra: (i) => {
         box(0, 112, VW, 48);
         const it = ITEMS[ks[i]];
@@ -2616,6 +2644,20 @@ async function headbutt() {
   }
   if (r < 0.68) { S.bag.apple = (S.bag.apple || 0) + 1; await say("An APPLE dropped into your hands!"); save(); return; }
   await say("...Only a few leaves fluttered down.");
+}
+
+// A beaten Road Hog hands back one of the boxes they stole from Spoke.
+async function hogPart(n) {
+  if (S.flags["part_" + n.id]) return;
+  S.flags["part_" + n.id] = true;
+  S.bag.bike_parts = (S.bag.bike_parts || 0) + 1;
+  await say(`${n.name}: Fine, take it! It's just a box of bike parts we swiped from Spoke's shop in Volt City.`);
+  sfx("coin", 0.6);
+  const got = S.bag.bike_parts;
+  await say(`You got a box of BIKE PARTS! (${got}/4)`);
+  if (got >= 4) await say("That's all four boxes! Take them back to SPOKE at the Bike Shop in Volt City.");
+  else if (!S.flags.q_bike_started) await say("Spoke's Bike Shop is in VOLT CITY. Maybe he'd like these back.");
+  save();
 }
 
 // ---------------------------------------------------------------- the Safari Zone
