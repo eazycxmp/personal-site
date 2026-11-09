@@ -208,7 +208,8 @@ chance it hits for your side, PP, its burn/poison chance (burned or poisoned foe
 and a gold x1.5 chip when it matches the pocemon's type. In battle it also says how it does against the
 foe in front of you (SUPER x2, WEAK x0.5, NO EFFECT) and about how much of its HP one hit takes, using
 the game's own damage formula. Before forgetting a move you see the new move and each old one side by side.
-Level Treats now let you swap moves too.
+Level Treats now let you swap moves too. Every attack's card also lists, from the type chart, what its type is STRONG against (x2, in green) and
+WEAK against (x0.5, in red).
 
 **Evolution is sculpting:** the pocemon hardens into clay, sags into a lump on a potter's wheel, gets
 kneaded by two palms, and is pulled back up, bottom first, into its new form, which is glazed into full

@@ -270,6 +270,7 @@ function moveFacts(m, id, foe, compact) {
   const fx = fxFacts(M);
   if (compact) return [M.power ? (M.phys ? "MELEE vs ARMOUR" : "RANGED vs DODGE") + (st ? ", " + st.replace(" to ", " ") : fx.length ? ", " + fx[0] : "") : fx[0]];
   if (M.power) lines.push(M.phys ? "Its MELEE vs their ARMOUR" : "Its RANGED vs their DODGE");
+  if (M.power) lines.push(...typeMatchups(M.type));
   if (st) lines.push(st + ": -1/8 HP a turn");
   lines.push(...fx);
   if (M.fx && (M.fx.self || M.fx.foe)) lines.push("Each stage: +1 = x1.5, +2 = x2, -1 = x0.67");
@@ -282,9 +283,15 @@ function moveFacts(m, id, foe, compact) {
   }
   return lines;
 }
+// What a move's type hits hard (x2) and what shrugs it off (x0.5), straight from the type chart.
+function typeMatchups(type) {
+  const row = D.chart[type] || {}, names = (f) => Object.keys(row).filter((t) => f(row[t])).map((t) => t.toUpperCase()).join(",");
+  const strong = names((v) => v > 1), weak = names((v) => v < 1);
+  return [`STRONG: ${strong || "nothing"}`, `WEAK: ${weak || "nothing"}`];
+}
 const CARD_W = 236;
 function moveCardH(m, id, { foe = null, title = null, compact = false } = {}) {
-  return 34 + (title ? 10 : 0) + moveFacts(m, id, foe, compact).reduce((n, l) => n + wrap(l, CARD_W - 14).length, 0) * 10;
+  return 34 + (title ? 10 : 0) + moveFacts(m, id, foe, compact).reduce((n, l) => n + wrap(l, CARD_W - 10).length, 0) * 10;
 }
 function drawMoveCard(m, id, x, y, o = {}) {
   const { foe = null, title = null, pp = null, compact = false } = o;
@@ -305,7 +312,7 @@ function drawMoveCard(m, id, x, y, o = {}) {
   const selfOnly = !M.power && M.fx && (M.fx.self || M.fx.heal);
   text(`POW ${M.power || "-"}  HIT ${selfOnly ? "-" : Math.round(hitChance(M.acc, true) * 100) + "%"}  PP ${pp == null ? M.pp : pp}/${M.pp}`, x + 8, cy, "#303030", null);
   cy += 11;
-  for (const l of moveFacts(m, id, foe, compact)) for (const part of wrap(l, w - 14)) { text(part, x + 8, cy, "#505050", null); cy += 10; }
+  for (const l of moveFacts(m, id, foe, compact)) for (const part of wrap(l, w - 10)) { text(part, x + 8, cy, /^(STRONG|WEAK):/.test(part) ? (part[0] === "S" ? "#2a7a3a" : "#a04030") : "#505050", null); cy += 10; }
   return h;
 }
 // show a move card above whatever else is on screen until the promise settles
