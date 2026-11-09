@@ -142,8 +142,19 @@ dragons) → Champion's Hall in Prime City. Guards gate each leg by badge count 
 Wild levels climb from 2–5 on Route 1 to 46–51 on Victory Ridge; gym leaders' strongest pocemon go 13, 18, 25,
 31, 38, 42, 48, 53, and the Champion tops out at 55. The trainer card shows all 8 badges.
 
-**Support moves, stages and statuses:** every pocemon learns two moves for its first type (tools/build_data.py
-`SUPPORT_MOVES` / `SUPPORT_BY_TYPE`): stat raisers (Flex, Focus, Stone Skin, Mist Veil, Tailwind), drops (Snarl,
+**Learnsets follow the pocemon's own types (Nov 9):** every pocemon learns only moves of its primary and
+secondary type (Normal moves only if Normal is one of its types), and slowly: at most 7 moves, at Lv 1, 7, 13,
+20, 27, 34 and 42, never two at once. The Lv 1 move is always its weakest primary-type attack; power 80+ waits
+until Lv 14, 100+ until 27 and 116+ until 34. Tuxemon's own picks are kept where they fit, with gaps filled
+from that type's moves (`node tools/type_learnsets.js` rebuilds them all; 1,362 entries, down from 1,912, of
+which 756 used to be off-type). Pocemon you already have keep the moves they know. Because every attack now
+matches its user's type (x1.5), the playtest bot found Ironhold, the Prime Gym and the Hall harder, so they
+were lowered (Ironhold leader 2-3 levels, its trainers 2; Prime leader 2, its trainers 1; every Hall pocemon
+1, Champion ace Lv 49). Afterwards every gym's first-try rate was back within its old range.
+
+**Support moves, stages and statuses:** Tuxemon's build gave every pocemon two support moves for its first
+type (tools/build_data.py `SUPPORT_MOVES` / `SUPPORT_BY_TYPE`); learnsets now keep one support move of their
+own types: stat raisers (Flex, Focus, Stone Skin, Mist Veil, Tailwind), drops (Snarl,
 Acid Spit, Mud Shot), heals (Photosynth, Regenerate, Second Wind), SLEEP (Lullaby, Spore Cloud: skips 1-3 turns),
 PARALYSIS (Static Jolt: half speed, 1 in 4 turns lost) and strike-first attacks (Quick Strike, Ice Shard,
 Shadow Sneak). Stat stages: +1 = x1.5, +2 = x2, -1 = x0.67 (capped at +-4), reset when a pocemon leaves the

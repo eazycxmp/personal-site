@@ -905,19 +905,19 @@
     name: "Champion's Hall", w: 14, h: 30, music: "mystery", fight: "boss", wall: "blue", floor: "gray", gym: true,
     npcs: [
       elite({ id: "elite1", sprite: "witch", x: 6, y: 25, name: "Elite Glacia",
-        team: [["eaglace", 43], ["lucifice", 43], ["seraphice", 44], ["snowrilla", 45]],
+        team: [["eaglace", 42], ["lucifice", 42], ["seraphice", 43], ["snowrilla", 44]],
         intro: "Welcome to the Elite Four. I am\nGlacia. Let my FROST pocemon\nchill you to the bone!", lose: "Brr... Go on. Three more wait." }),
       elite({ id: "elite2", sprite: "magician", x: 6, y: 19, name: "Elite Lumina",
-        team: [["angrito", 44], ["mystikapi", 45], ["apeoro", 45], ["statursus", 46]],
+        team: [["angrito", 43], ["mystikapi", 44], ["apeoro", 44], ["statursus", 45]],
         intro: "I am Lumina. My PSYCHIC pocemon\nalready know how this ends.", lose: "I didn't foresee THAT. Pass." }),
       elite({ id: "elite3", sprite: "goth", x: 6, y: 13, name: "Elite Nox",
-        team: [["bewhich", 45], ["dracune", 45], ["banvengeance", 46], ["loliferno", 46], ["hoarseshoo", 47]],
+        team: [["bewhich", 44], ["dracune", 44], ["banvengeance", 45], ["loliferno", 45], ["hoarseshoo", 46]],
         intro: "Nox. DARK and VENOM. Nobody\nleaves my chamber unhurt.", lose: "Hmph. The last Elite is no joke." }),
       elite({ id: "elite", sprite: "knight", x: 6, y: 7, name: "Elite Vance",
-        team: [["saurchin", 46], ["jemuar", 47], ["deviraptor", 47], ["snokari", 46], ["brickhemoth", 48]],
+        team: [["saurchin", 45], ["jemuar", 46], ["deviraptor", 46], ["snokari", 45], ["brickhemoth", 47]],
         intro: "I am Vance, last of the Elite\nFour. None reach the Champion\nwithout beating me first!", lose: "Go on. The Champion awaits." }),
       trainer({ id: "champion", outfit: "royal", sprite: "knightlord", x: 6, y: 3, dir: "down", sight: 0, name: "Champion Aurora", champion: 1,
-        team: [["drokoro", 47], ["pythonova", 47], ["demosnow", 48], ["novaquarius", 48], ["ziggurat", 49], ["$rival", 50]],
+        team: [["drokoro", 46], ["pythonova", 46], ["demosnow", 47], ["novaquarius", 47], ["ziggurat", 48], ["$rival", 49]],
         intro: "So you beat the Elite Four. I am\nAurora, Champion of this land.\nGive me everything!",
         lose: "Magnificent! You are the new\nCHAMPION!" }),
     ],
@@ -957,21 +957,21 @@
   ], "funky", "boss");
   W.ironhold_gym = gym("Ironhold Gym", "blue", [
     trainer({ id: "g7_t1", outfit: "engineer", sprite: "scientist_black", x: 2, y: 9, dir: "right", sight: 5, name: "Welder Max",
-      team: [["bolt", 39], ["katacoon", 39]], intro: "Sparks will fly!", lose: "Burnt out." }),
+      team: [["bolt", 37], ["katacoon", 37]], intro: "Sparks will fly!", lose: "Burnt out." }),
     trainer({ id: "g7_t2", outfit: "engineer", sprite: "miner_blue", x: 9, y: 6, dir: "left", sight: 5, name: "Steelworker Dot",
-      team: [["uf0", 40], ["angrito", 40]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
+      team: [["uf0", 38], ["angrito", 38]], intro: "Calibrated for victory!", lose: "Recalibrating..." }),
     trainer({ id: "g7_leader", outfit: "engineer", sprite: "knight", x: 5, y: 3, dir: "down", sight: 0, name: "Leader Forge", leader: 7,
-      team: [["sphake", 41], ["gastronium", 42], ["tigrock", 42], ["hydrone", 43], ["lightmare", 44]],
+      team: [["sphake", 37], ["gastronium", 38], ["tigrock", 38], ["hydrone", 39], ["lightmare", 41]], // lower since moves became type-pure (Nov 9)
       intro: "I'm Forge. My STEEL pocemon\ndon't dent. Hit them with all\nyou've got!",
       lose: "You bent steel!\nThe IRON BADGE is yours.", badge: "Iron Badge" }),
   ], "route", "boss");
   W.prime_gym = gym("Prime Gym", "blue", [
     trainer({ id: "g8_t1", outfit: "royal", sprite: "dragonrider", x: 2, y: 9, dir: "right", sight: 5, name: "Dragon Tamer Ryu",
-      team: [["sapragon", 43], ["devidra", 44]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
+      team: [["sapragon", 42], ["devidra", 43]], intro: "Dragons answer only to the strong.", lose: "My dragons... respect you." }),
     trainer({ id: "g8_t2", outfit: "royal", sprite: "dragonrider_green", x: 9, y: 6, dir: "left", sight: 5, name: "Dragon Tamer Kira",
-      team: [["dragarbor", 44], ["ferricran", 45]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
+      team: [["dragarbor", 43], ["ferricran", 44]], intro: "Drake is waiting. Get past me first!", lose: "Go. Drake will finish you." }),
     trainer({ id: "g8_leader", outfit: "royal", sprite: "knightlord", x: 5, y: 3, dir: "down", sight: 0, name: "Prime Leader Drake", leader: 8,
-      team: [["allagon", 45], ["firomenis", 46], ["qetzlrokilus", 46], ["wrougon", 47], ["golnagi", 48]],
+      team: [["allagon", 43], ["firomenis", 44], ["qetzlrokilus", 44], ["wrougon", 45], ["golnagi", 46]], // 2 lower since moves became type-pure (Nov 9)
       intro: "I am Drake of the PRIME GYM.\nSeven badges got you here.\nDragons decide if you go on!",
       lose: "Incredible... The PRIME BADGE\nis yours. The Champion awaits!", badge: "Prime Badge" }),
   ], "mystery", "darkboss");
