@@ -233,6 +233,13 @@ window.World2D = (() => {
         smallTree(g, o, th, x, y);
       }
     }
+    // headbutt trees: a big golden tree on each 2x2 block of h (a green one where golden trees are the local kind)
+    const HB = th.tree === "autumn" ? TREES.round : TREES.autumn;
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      if (m.grid[y][x] !== "h" || at(m, x - 1, y) === "h" || at(m, x, y - 1) === "h") continue;
+      tile(g, "nat", HB[0], HB[1] + 1, x * TS, y * TS, 2, 2);
+      tile(o, "nat", HB[0], HB[1], x * TS, (y - 1) * TS, 2, 1);
+    }
     // the overhang tips of a forest's top row are drawn over people; inside the forest they're just more canopy
     // obstacles cleared with field moves
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
@@ -314,6 +321,14 @@ window.World2D = (() => {
       } else { // cards laid out on the blackjack felt
         for (let i = 0; i < 3; i++) { g.fillStyle = "#202020"; g.fillRect(X + 8 + i * 10, Y + 8, 8, 11); g.fillStyle = i === 1 ? "#2850b8" : "#fbfbf6"; g.fillRect(X + 9 + i * 10, Y + 9, 6, 9); }
       }
+    }
+    if (m.shop) { // the Mart's furniture (LimeZu "Modern Interiors"): fridges, two stocked shelves, a goods rack, the till
+      const mod = sheet("mod");
+      g.drawImage(mod, 32, 304, 64, 31, 5 * TS, 4 * TS - 31, 64, 31);
+      g.drawImage(mod, 160, 742, 32, 34, 6 * TS, 7 * TS - 34, 32, 34);
+      g.drawImage(mod, 192, 742, 32, 34, 8 * TS, 7 * TS - 34, 32, 34);
+      g.drawImage(mod, 80, 224, 32, 32, 0, 8 * TS - 32, 32, 32);
+      g.drawImage(mod, 112, 791, 16, 19, 1 * TS, 5 * TS - 21, 16, 19);
     }
     for (const [sx, sy] of m.stools || []) tile(g, "set", 5 + (sx % 4), 12, sx * TS, sy * TS);
     for (const [rx, ry] of m.rugs || []) g.drawImage(IMG.floors, 5 * TS, 0, 3 * TS, 3 * TS, rx * TS, ry * TS, 3 * TS, 3 * TS);
@@ -419,7 +434,14 @@ window.World2D = (() => {
     } });
     things.push({ y: p.pz, draw: () => {
       const sx = p.px * TS - cam.x - 8, sy = p.pz * TS - cam.y - 8, dir = p.dir || dirOf(p.angle);
-      if (p.mount && st.mountImg) { // surfing or flying: ride on top of your monster
+      if (p.driving && IMG.car) { // driving: the car (isaiah658's, CC0) in place of you; frames are up, down | right, left
+        const cx = Math.round(p.px * TS - cam.x), cy = Math.round(p.pz * TS - cam.y), side = dir === "left" || dir === "right";
+        const [fx, fy] = { up: [0, 0], down: [0, 48], right: [48, 0], left: [48, 48] }[dir];
+        const shake = Math.abs(p.speed) > 0.05 ? Math.round(Math.sin(now * 40)) * 0.5 : 0;
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        if (side) { ctx.fillRect(cx - 22, cy + 6, 44, 4); ctx.drawImage(IMG.car, fx, fy, 48, 48, cx - 24, cy - 31 + shake, 48, 48); }
+        else { ctx.fillRect(cx - 13, cy - 16, 26, 36); ctx.drawImage(IMG.car, fx, fy, 32, 48, cx - 16, cy - 26 + shake, 32, 48); }
+      } else if (p.mount && st.mountImg) { // surfing or flying: ride on top of your monster
         const bob = Math.sin(now * 4) * 1.5;
         ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(sx + 8, sy + 14, 11, 4, 0, 0, 7); ctx.fill();
         ctx.drawImage(st.mountImg, 0, 0, 64, 64, sx - 8, sy - 10 + bob, 32, 32);

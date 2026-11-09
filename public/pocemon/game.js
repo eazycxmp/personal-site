@@ -13,6 +13,8 @@ const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const EDGE_DIR = { n: "up", s: "down", w: "left", e: "right" };
 const OPP = { up: "down", down: "up", left: "right", right: "left" };
 const ROW = { down: 0, left: 1, right: 2, up: 3 };
+// The car is parked until the bike art arrives: Mom doesn't hand out the keys and C does nothing while this is false.
+const VEHICLE_READY = false;
 const ITEMS = {
   potion: { name: "Potion", price: 200, heal: 30, icon: "potion", desc: "Restores 30 HP." },
   super_potion: { name: "Super Potion", price: 600, heal: 80, icon: "super_potion", desc: "Restores 80 HP." },
@@ -37,11 +39,17 @@ const ITEMS = {
   // key items: kept forever, used from the bag or automatically
   fishing_rod: { name: "Fishing Rod", key: true, icon: "fishing_rod", desc: "Face water and press Z to fish." },
   lucky_bamboo: { name: "Lucky Bamboo", key: true, icon: "lucky_bamboo", desc: "Shiny pocemon appear 3x as often." },
+  car: { name: "Car Keys", key: true, icon: "car_keys", desc: "Press C (or DRIVE in the menu) to drive outdoors, faster than riding. Press C again to park." },
   saddle: { name: "Ride Pass", key: true, icon: "gold_pass", desc: "Press R (or RIDE in the menu) to ride your lead pocemon outdoors, twice as fast as walking." },
   lucky_horseshoe: { name: "Lucky Horseshoe", key: true, icon: "horseshoe", desc: "The reward for a complete Pocedex: shiny pocemon appear twice as often again." },
   toy_bear: { name: "Toy Bear", key: true, icon: "toy_bear", desc: "A well-loved teddy. Someone misses it." },
   ancient_egg: { name: "Ancient Egg", key: true, icon: "ancient_egg", desc: "Warm to the touch. Bring it to Prof. Oakley." },
   flute: { name: "Old Flute", key: true, icon: "flute", desc: "A wooden flute from Hollowmere." },
+  repel: { name: "Repel", price: 350, repel: 100, icon: "repel", desc: "For 100 steps, wild pocemon weaker than your lead keep away." },
+  escape_key: { name: "Escape Key", price: 550, escape: true, icon: "escape_key", desc: "In a cave or dungeon: warps you straight back outside." },
+  exp_share: { name: "Exp Share", key: true, icon: "exp_share", desc: "Use it to switch it ON or OFF. While ON, pocemon that sat out a win get half EXP." },
+  itemfinder: { name: "Itemfinder", key: true, icon: "itemfinder", desc: "Use it to point the way to buried items. Nearby ones twinkle while you carry it." },
+  safari_ball: { name: "Safari Ball", ball: 1.5, safari: true, icon: "safari_ball", desc: "Only works in the Safari Zone. The Warden hands them out." },
 };
 const TYPE_COLOR = {
   fire: "#e0502c", water: "#3a7be0", wood: "#3fa34d", earth: "#a8763e", steel: "#8c96a3", frost: "#7fd4e8",
@@ -118,11 +126,13 @@ function npcSpritesUsed() {
 async function loadAssets(progress) {
   const jobs = [
     ["tiles", "assets/tiles/Basic_Buch_Tiles_Compiled.png"], ["buildings", "assets/tiles/core_buildings.png"],
-    ["floors", "assets/tiles/floorsandwalls.png"], ["sign", "assets/obj/sign.png"], ["tuxeball", "assets/obj/tuxeball.png"],
+    ["floors", "assets/tiles/floorsandwalls.png"], ["sign", "assets/obj/sign.png"], ["tuxeball", "assets/obj/tuxeball.png"], ["car", "assets/obj/car.png"],
     ["portrait_player", "assets/portrait/adventurer.png"],
   ];
   for (const b of Object.values(BG_FOR)) jobs.push(["bg_" + b, `assets/bg/${b}.png`]);
   for (const k of Object.keys(ITEMS)) jobs.push(["item_" + k, `assets/items/${ITEMS[k].icon}.png`]);
+  jobs.push(["item_bait", "assets/items/bait.png"], ["item_rock", "assets/items/rock.png"]); // Safari Zone throws
+  MEDALS.forEach((md, i) => jobs.push(["medal_" + i, `assets/medals/${md.gem}.png`]));
   for (const s of npcSpritesUsed()) {
     jobs.push(["npc_" + s, `assets/npc/${s}.png`]);
     jobs.push(["portrait_" + s, `assets/portrait/${s}.png`]);
@@ -143,7 +153,7 @@ const KEYMAP = {
   ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   KeyW: "up", KeyS: "down", KeyA: "left", KeyD: "right",
   KeyZ: "a", Enter: "a", Space: "a", KeyX: "b", Escape: "b", Backspace: "b",
-  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly", KeyT: "teleport", KeyR: "ride",
+  ShiftLeft: "run", ShiftRight: "run", KeyM: "mute", KeyF: "fly", KeyT: "teleport", KeyR: "ride", ...(VEHICLE_READY ? { KeyC: "car" } : {}),
 };
 addEventListener("keydown", (e) => {
   const k = KEYMAP[e.code];
@@ -673,6 +683,8 @@ function loadMap(id, x, y, dir) {
     const f = k.match(/^field_(.+)_(\d+)_(\d+)$/);
     if (f && f[1] === id && m.grid[+f[3]]) m.grid[+f[3]][+f[2]] = ".";
   }
+  if (world.map && isDungeon(m) && !isDungeon(world.map) && !world.map.interior) S.lastOutside = { map: world.id, x: world.player.x, y: world.player.y };
+  if (S.safari && !m.safari) endSafari(); // walked out of the park
   world.map = m; world.id = id;
   S.map = id;
   const p = world.player;
@@ -706,13 +718,14 @@ function loadMap(id, x, y, dir) {
     world.statues.push({ ...L, kind: "legend", tiles: [[L.x, L.y]] });
   }
   world.pickups = (m.items || []).filter((it) => !S.flags[it.id] && (!it.needFlag || S.flags[it.needFlag]));
+  world.hidden = (m.hidden || []).filter((h) => !S.flags[hiddenKey(id, h)]);
   world.flash = m.cave ? flashMon() : null;
   if (m.sleeper && !S.flags[m.sleeper.id]) world.statues.push({ ...m.sleeper, kind: "sleeper" });
   for (const st of world.statues) for (const [x, y] of st.tiles) world.solid.add(x + "," + y);
   music(areaMusic(m));
   World2D.build(m, BUILDINGS);
   World2D.snapYaw(p.angle);
-  if (prevId !== id) worldScene.banner = { name: m.cave ? (world.flash ? `${monName(world.flash)} used FLASH!` : "It's pitch black...") : m.theme ? `${m.name}: ${m.theme}` : m.name, t: NOW };
+  if (prevId !== id) worldScene.banner = { name: m.cave ? (world.flash ? `${monName(world.flash)} used FLASH!` : "It's pitch black...") : m.theme && m.theme !== m.name ? `${m.name}: ${m.theme}` : m.name, t: NOW };
 }
 
 function tileAt(x, y) {
@@ -728,7 +741,7 @@ function heightAt(x, y) {
 }
 function blocked(x, y, ignorePlayer) {
   const t = tileAt(x, y);
-  if (t === null || "T~FWCbkoRHPgjQSOKLUp".includes(t)) return true;
+  if (t === null || "T~FWCbkoRHPgjQSOKLUphs".includes(t)) return true;
   if (world.solid.has(x + "," + y)) return true;
   if (npcAt(x, y)) return true;
   if (!ignorePlayer && world.player.x === x && world.player.y === y) return true;
@@ -757,12 +770,12 @@ function placePlayer(x, y, dir) {
   const p = world.player;
   p.x = x; p.y = y; p.px = x + 0.5; p.pz = y + 0.5;
   p.dir = dir; p.angle = ANGLE[dir]; p.speed = 0;
-  p.mount = null; p.surfing = false; p.alt = 0; p.slide = null; p.riding = false;
+  p.mount = null; p.surfing = false; p.alt = 0; p.slide = null; p.riding = false; p.driving = false;
 }
 // Your lead pocemon follows a step behind you along the path you walked.
 function followerMon() {
   const p = world.player, m = S.party.find((x) => x.hp > 0);
-  if (!m || p.mount || p.surfing || p.alt) return null;
+  if (!m || p.mount || p.surfing || p.alt || p.driving) return null;
   const spot = followerSpot();
   return spot && { slug: m.slug, shiny: m.shiny, x: spot[0], z: spot[1], right: spot[2], moving: Math.abs(p.speed) > 0.05 };
 }
@@ -786,11 +799,30 @@ const canRideHere = (m = world.map) => !m.interior && !m.cave && !m.walls;
 const rideMon = () => S.party.find((m) => m.hp > 0);
 function remount() {
   const p = world.player, m = rideMon();
+  if (S.driving && S.bag.car && canRideHere() && !p.surfing) { p.driving = true; p.riding = false; p.mount = null; return; }
   if (S.riding && S.bag.saddle && m && canRideHere() && !p.surfing) { p.riding = true; p.mount = mountKey(m); }
+}
+// Car Keys (item key "car", from Mom): drive outdoors on land, faster than riding. Like riding, you stay in the car
+// across routes and towns and step out by yourself indoors, in caves, or when you surf or fly.
+async function toggleDrive() {
+  const p = world.player;
+  if (!S.bag.car) { await say("You don't have a car yet. Maybe Mom can help?"); return; }
+  if (p.driving) { S.driving = false; p.driving = false; sfx("back", 0.6); return; }
+  if (p.surfing) { await say("You can't drive on water!"); return; }
+  if (!canRideHere()) { await say("There's no room to drive here. Try outdoors."); return; }
+  S.riding = false; p.riding = false; p.mount = null;
+  S.driving = true; remount(); sfx("confirm", 0.7);
+  await say("You hopped in the car. Vroom!", { auto: 0.8 });
+}
+async function giveCarKeys() {
+  await say("Mom: Oh, and take these! The keys to the old car out front. Press C anywhere outdoors to drive. It's much faster than walking!");
+  S.bag.car = 1; save();
+  await say(`You received the CAR KEYS! ${ITEMS.car.desc}`);
 }
 async function toggleRide() {
   const p = world.player;
   if (!S.bag.saddle) { await say("You don't have anything to ride with yet."); return; }
+  if (p.driving) { S.driving = false; p.driving = false; }
   if (p.riding) { S.riding = false; p.riding = false; p.mount = null; return; }
   if (p.surfing) { await say("You're already riding the waves!"); return; }
   if (!canRideHere()) { await say("There's no room to ride here. Try outdoors."); return; }
@@ -834,6 +866,7 @@ async function fish() {
   if (!table || !table.length) { await say("Nothing seems to live in this water."); return; }
   if (Math.random() > 0.72) { await say("Not even a nibble..."); return; }
   await say("Oh! A bite!");
+  stat("fished");
   const pick = pickWild(table), lv = Math.max(2, rand(pick[1], pick[2]) - 1);
   await wildBattle(wildMon(wildForm(pick[0], lv), lv));
 }
@@ -861,7 +894,7 @@ async function trySurf(tx, ty) {
   const m = rider("water");
   if (!m) { await say("None of your pocemon can swim. Catch a WATER-type pocemon to ride across water."); return; }
   if (!(await yesNo(`The water is calm. Ride ${monName(m)} across it?`))) return;
-  p.mount = mountKey(m); p.riding = false; p.surfing = true;
+  p.mount = mountKey(m); p.riding = false; p.driving = false; p.surfing = true;
   const x0 = p.px, z0 = p.pz;
   await tween(0.45, (k) => { p.px = x0 + (tx + 0.5 - x0) * k; p.pz = z0 + (ty + 0.5 - z0) * k; });
   p.x = tx; p.y = ty;
@@ -892,12 +925,13 @@ async function fieldAction(x, y) {
 function bumpField(dx, dz) {
   const p = world.player;
   const tx = Math.floor(p.px + Math.sign(dx) * 0.6), ty = Math.floor(p.pz + Math.sign(dz) * 0.6);
-  if (!FIELD[tileAt(tx, ty)] || (tx === p.x && ty === p.y)) return;
+  const isTree = tileAt(tx, ty) === "h";
+  if ((!FIELD[tileAt(tx, ty)] && !isTree) || (tx === p.x && ty === p.y)) return;
   world.hinted = world.hinted || new Set();
   const key = world.id + "_" + tx + "_" + ty;
   if (world.hinted.has(key)) return;
   world.hinted.add(key); p.speed = 0;
-  runScript(() => fieldAction(tx, ty));
+  runScript(() => (isTree ? headbutt() : fieldAction(tx, ty)));
 }
 // Gym switches: stepping on 1 opens every g gate, 2 every j gate, for good. Pressed switches show as y.
 function pressSwitch(m, n) {
@@ -911,9 +945,11 @@ const REGION = {
   frostsea: [90, 112, "side"], icecave: [90, 96, "side"], glacierpeak: [90, 80, "side"], shrine: [14, 92, "side"], crater: [74, 84, "side"], route3: [54, 92], hollow: [34, 92, "side"], volt: [54, 76, "town"], route4: [34, 76],
   cave: [34, 60, "side"], shade: [14, 76, "town"], route5: [14, 60], verdance: [14, 44, "town"], route6: [34, 44],
   cinder: [54, 44, "town"], route7: [54, 28], ironhold: [54, 12, "town"], route8: [78, 12], prime: [102, 12, "town"],
+  safari: [14, 28, "side"], isle: [54, 128, "town"],
 };
 const REGION_LINKS = [["cave", "route5"], ["icecave", "glacierpeak"], ["hollow", "shrine"], ["route4", "crater"], ["sprout", "route1", "ember", "route2", "tide", "route3", "volt", "route4", "shade", "route5", "verdance",
-  "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea", "icecave"], ["route3", "hollow"], ["route4", "cave"]];
+  "route6", "cinder", "route7", "ironhold", "route8", "prime"], ["tide", "frostsea", "icecave"], ["route3", "hollow"], ["route4", "cave"],
+  ["verdance", "safari"], ["tide", "isle"]];
 // the outdoor area you're in (indoors counts as the town or route outside)
 function regionHere() { let id = world.id; for (let i = 0; i < 4 && MAPS[id] && MAPS[id].interior && MAPS[id].out; i++) id = MAPS[id].out.map; return id; }
 // species found in an area, and how many of them you've caught
@@ -1015,7 +1051,7 @@ function typeGuide(start) {
     });
   });
 }
-const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime"];
+const FLY_TOWNS = ["sprout", "ember", "tide", "volt", "shade", "verdance", "cinder", "ironhold", "prime", "isle"];
 // every gym badge in order, with the monster shown for it on the trainer card
 const BADGES = [["Grove Badge", "dandylion"], ["Tide Badge", "bigfin"], ["Volt Badge", "ouroboutlet"], ["Shade Badge", "lendos"],
   ["Leaf Badge", "moloch"], ["Blaze Badge", "eruptibus"], ["Iron Badge", "lightmare"], ["Prime Badge", "golnagi"]];
@@ -1093,7 +1129,7 @@ function exitAt(edge, x, y) {
 }
 function gateAt(x, y, moveDir) {
   for (const g of world.map.gates || []) {
-    const shut = g.requires ? !S.flags[g.requires] : g.flag ? !!S.flags[g.needFlag] && !S.flags[g.flag] : S.badges.length < g.badges;
+    const shut = g.safari ? !S.safari : g.requires ? !S.flags[g.requires] : g.flag ? !!S.flags[g.needFlag] && !S.flags[g.flag] : S.badges.length < g.badges;
     if (moveDir === (EDGE_DIR[g.block] || g.block) && x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h && shut) return g;
   }
   return null;
@@ -1114,7 +1150,7 @@ function freeAt(nx, nz, moveDir) {
       }
       const g = gateAt(tx, ty, moveDir);
       if (g) {
-        if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => (g.badges != null && gateGuard(g) ? guardStop(g) : say(g.text))); }
+        if (gateCooldown <= 0) { gateCooldown = 2.5; runScript(() => (g.safari ? safariDesk() : g.badges != null && gateGuard(g) ? guardStop(g) : say(g.text))); }
         return false;
       }
       if (p.surfing && tileAt(tx, ty) === "~" && !npcAt(tx, ty) && heightAt(tx, ty) === heightAt(p.x, p.y)) continue;
@@ -1175,6 +1211,7 @@ function movePlayer(dx, dz) {
       return;
     }
     if (S.daycare) S.daycare.steps++;
+    stat("steps");
     for (const e of S.eggs || []) e.steps++;
     const hatch = (S.eggs || []).find((e) => e.steps >= EGG_STEPS);
     const ev = hatch ? () => hatchDayCareEgg(hatch) : stepEvent();
@@ -1232,13 +1269,16 @@ function stepEvent() {
   }
   const tr = world.npcs.find(trainerSees);
   if (tr) return () => trainerEncounter(tr, true);
+  if (m.safari && S.safari && p.y < 25 && --S.safari.steps <= 0) return () => safariOver("time"); // steps only count in the park
   const here = tileAt(p.x, p.y), land = here === "," || (m.cave && (here === "." || here === "="));
   const table = p.surfing && here === "~" ? m.water
     : land ? m.encounters.concat(isNight() && m.night ? m.night : [], weatherNow() && m.weather.mons ? m.weather.mons : []) : null;
   if (table && S.lure > 0 && !m.interior) S.lure--;
+  if (S.repel > 0 && !m.interior && --S.repel === 0) return repelWoreOff;
   const lured = S.lure > 0 ? 1.6 : 1;
   if (table && table.length && partyAlive().length && Math.random() < (p.surfing ? 0.07 : (m.rate || 0.1)) * lured) {
     const pick = pickWild(table), lv = rand(pick[1], pick[2]);
+    if (S.repel > 0 && partyAlive().length && lv < partyAlive()[0].level) return null; // REPEL: weaker ones keep away
     return () => wildBattle(wildMon(wildForm(pick[0], lv), lv));
   }
   return null;
@@ -1412,7 +1452,8 @@ async function trainerEncounter(n, spotted) {
     if (n.badge && !S.badges.includes(n.badge)) {
       S.badges.push(n.badge);
       await say(`You received the ${n.badge.toUpperCase()}!`);
-      if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER pocemon can carry you across water. Face the water and press Z to SURF!");
+      if (S.badges.length === 1 && !S.bag.exp_share) await say("Prof. Oakley would love to hear about your first badge. He has a present for you back in Sprout Town!");
+      if (n.badge === "Tide Badge") await say("With the TIDE BADGE, a WATER pocemon can carry you across water. Face the water and press Z to SURF! The ferry on the pier also sails to CORAL ISLE now.");
       if (n.badge === "Volt Badge") await say("With the VOLT BADGE, a SKY pocemon can FLY you to any town you've visited. Press F, or choose FLY in the menu!");
       if (n.badge === "Shade Badge" && !S.flags.q_flute_done) await say("With the SHADE BADGE, a PSYCHIC pocemon can TELEPORT you to any town you've visited, even from indoors. Press T!");
       const left = BADGES.length - S.badges.length;
@@ -1478,6 +1519,9 @@ async function interact() {
   }
   const [dx, dy] = DIRS[p.dir];
   let x = p.x + dx, y = p.y + dy;
+  const hid = (world.hidden || []).find((h) => (h.x === p.x && h.y === p.y) || (h.x === x && h.y === y));
+  if (hid) { await digUp(hid); return; }
+  if (tileAt(x, y) === "h") { await headbutt(); return; }
   if (tileAt(x, y) === "~" && !p.surfing) { await waterAction(x, y); return; }
   if (FIELD[tileAt(x, y)]) { await fieldAction(x, y); return; }
   if (tileAt(x, y) === "Q") { await boxMenu(); return; } // the PC
@@ -1534,6 +1578,7 @@ async function talkTo(n) {
     return;
   }
   if (n.role === "heal" && n.name === "Mom" && S.flags.go_see_mom && !S.flags.met_mom) return momTalk(n);
+  if (VEHICLE_READY && n.role === "heal" && n.name === "Mom" && S.flags.met_mom && !S.bag.car) await giveCarKeys();
   if (n.role === "heal") return healAt(n);
   if (n.quest) return questTalk(n);
   if (n.role === "rod") return angler(n);
@@ -1543,6 +1588,9 @@ async function talkTo(n) {
   if (n.role === "daycare") return dayCare(n);
   if (n.role === "box") return boxMenu();
   if (n.role === "saddle") return ranchHand(n);
+  if (n.role === "safari") return safariDesk();
+  if (n.role === "ferry") return ferry(n);
+  if (n.role === "keeper") return keeper(n);
   if (n.role === "coins") return coinClerk();
   if (n.role === "prizes") return prizeClerk();
   if (n.role === "roulette") { await say("Croupier: Place your bets!"); return roulette(); }
@@ -1883,6 +1931,7 @@ async function momTalk(n) {
   S.money += 1000;
   await say("Mom gave you 5 POTIONS and $1000 for the road!");
   S.party.forEach(healMon);
+  if (VEHICLE_READY) await giveCarKeys();
   await say("Mom: Now go make me proud. Route 1 is just north of town!");
   S.flags.met_mom = true;
   save();
@@ -1912,6 +1961,11 @@ async function professor(n) {
     return;
   }
   if (S.bag.ancient_egg) await hatchEgg();
+  if (S.badges.length >= 1 && !S.bag.exp_share) {
+    await say("Prof. Oakley: A gym badge already! Your whole team should share in wins like that. Take this!");
+    S.bag.exp_share = 1; S.expShare = true;
+    await say(`You received the EXP SHARE! ${ITEMS.exp_share.desc} It's ON now.`);
+  }
   const c = Object.keys(S.caught).length;
   await say(`Prof. Oakley: You've caught ${c} kinds of pocemon!`);
   for (const [need, item, n, label] of DEX_REWARDS) {
@@ -2341,10 +2395,10 @@ function monsterLog() {
 
 function bagScreen(inBattle) {
   return new Promise((res) => {
-    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat || ITEMS[k].hold)));
+    const keys = () => Object.keys(S.bag).filter((k) => S.bag[k] > 0 && ITEMS[k] && !(inBattle && (ITEMS[k].key || ITEMS[k].lure || ITEMS[k].treat || ITEMS[k].hold || ITEMS[k].repel || ITEMS[k].escape || ITEMS[k].safari)));
     const ks = keys();
     if (!ks.length) { say("Your bag is empty.").then(() => res(null)); return; }
-    choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
+    choose(ks.map((k) => ITEMS[k].key ? ITEMS[k].name + (k === "exp_share" ? (S.expShare ? " (ON)" : " (OFF)") : "") : `${ITEMS[k].name.padEnd(13)}x${S.bag[k]}`), {
       x: 50, y: 4, w: 186, extra: (i) => {
         box(0, 112, VW, 48);
         const it = ITEMS[ks[i]];
@@ -2362,6 +2416,12 @@ async function useItemOutside() {
   const it = ITEMS[key];
   if (it.ball) { await say("You can only throw that in battle at a wild pocemon!"); return; }
   if (key === "fishing_rod") { await say("Stand facing the water and press Z to fish."); return; }
+  if (key === "exp_share") {
+    S.expShare = !S.expShare;
+    await say(S.expShare ? "The EXP SHARE is ON. Pocemon that sit out a win get half EXP." : "The EXP SHARE is OFF. Only the pocemon that fought get EXP.");
+    return;
+  }
+  if (key === "itemfinder") { await useItemfinder(); return; }
   if (it.key) { await say(it.desc); return; }
   if (it.lure) {
     if (S.lure > 0) { await say(`The Sweet Sand is still working (${S.lure} steps left).`); return; }
@@ -2369,6 +2429,13 @@ async function useItemOutside() {
     await say("You scattered the SWEET SAND. Wild pocemon will be drawn out for a while!");
     return;
   }
+  if (it.repel) {
+    if (S.repel > 0) { await say(`The REPEL is still working (${S.repel} steps left).`); return; }
+    S.bag[key]--; S.repel = it.repel;
+    await say("You used a REPEL. Wild pocemon weaker than your lead will keep away for a while.");
+    return;
+  }
+  if (it.escape) { await useEscapeKey(key); return; }
   const i = await partyScreen("pick", `Use ${it.name} on which pocemon?`);
   if (i < 0) return;
   if (it.treat) { await levelTreat(S.party[i]); return; }
@@ -2411,13 +2478,15 @@ function applyItem(key, m) {
 
 async function startMenu() {
   for (;;) {
-    const opts = ["PARTY", "DEX", "BAG", "MAP", "TYPES", "QUESTS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
+    const opts = ["PARTY", "DEX", "BAG", "MAP", "TYPES", "QUESTS", "MEDALS", "TRAINER", "SAVE", muted ? "MUSIC: OFF" : "MUSIC: ON", "CLOSE"];
     if (S.badges.includes("Volt Badge")) opts.splice(3, 0, "FLY");
     if (S.bag.saddle && canRideHere()) opts.splice(3, 0, world.player.riding ? "GET OFF" : "RIDE");
+    if (S.bag.car && canRideHere()) opts.splice(3, 0, world.player.driving ? "PARK" : "DRIVE");
     if (rider("psychic") && canTeleport()) opts.splice(3, 0, "TELEPORT");
     const pick = opts[await choose(opts, { x: 150, y: 2, w: 88 })];
     if (pick === "FLY") { await flyMenu(); return; }
     if (pick === "RIDE" || pick === "GET OFF") { await toggleRide(); return; }
+    if (pick === "DRIVE" || pick === "PARK") { await toggleDrive(); return; }
     if (pick === "TELEPORT") { await teleportMenu(); return; }
     if (pick === "PARTY") { if (S.party.length) await partyScreen("view"); else await say("You don't have any pocemon yet."); }
     else if (pick === "DEX") await monsterLog();
@@ -2426,6 +2495,7 @@ async function startMenu() {
     else if (pick === "BAG") await useItemOutside();
     else if (pick === "QUESTS") await questLog();
     else if (pick === "TRAINER") await trainerCard();
+    else if (pick === "MEDALS") await medalScreen();
     else if (pick === "SAVE") { await say(save() ? "Game saved!" : "Couldn't save (storage blocked)."); }
     else if (pick && pick.startsWith("MUSIC")) toggleMute();
     else return;
@@ -2463,7 +2533,7 @@ function trainerCard() {
         ctx.drawImage(lookPortrait(myLook()), 64, 0, 64, 64, 160, 30, 64, 64);
         const t = Math.floor(S.time);
         const rows = [["MONEY", "$" + S.money], ["CAUGHT", `${Object.keys(S.caught).length}/${Object.keys(D.monsters).length}`],
-          ["SEEN", Object.keys(S.seen).length], ["TIME", `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`]];
+          ["MEDALS", `${medalCount()}/${MEDALS.length}`], ["TIME", `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`]];
         rows.forEach(([k, v], i) => { text(k, 16, 34 + i * 14); text(String(v), 80, 34 + i * 14); });
         text(`BADGES ${S.badges.length}/${BADGES.length}`, 16, 100);
         if (S.flags.dex_all) { drawStar(150, 102, "#ffd030"); text("POCEDEX COMPLETE", 158, 100, "#a07000", null); }
@@ -2477,6 +2547,225 @@ function trainerCard() {
   });
 }
 
+// ---------------------------------------------------------------- Repel, Escape Key, buried items, headbutt trees
+const isDungeon = (m) => !!(m && (m.cave || m.walls || m.look === "crater"));
+async function repelWoreOff() {
+  if (S.bag.repel > 0 && await yesNo("The REPEL wore off. Use another one?")) {
+    S.bag.repel--; S.repel = ITEMS.repel.repel;
+    await say("You used a REPEL. Weak wild pocemon will keep away.");
+  } else await say("The REPEL wore off.");
+}
+// The Escape Key takes you back to where you stood just before you went into this cave or dungeon.
+async function useEscapeKey(key) {
+  if (!isDungeon(world.map)) { await say("There's nothing to escape from here. It only works in caves and dungeons."); return; }
+  const o = S.lastOutside && MAPS[S.lastOutside.map] ? S.lastOutside : { map: S.lastHeal.map, x: S.lastHeal.x, y: S.lastHeal.y };
+  S.bag[key]--;
+  await say("You turned the ESCAPE KEY... a door of light opened!");
+  sfx("climb");
+  world.player.surfing = false; world.player.mount = null;
+  await warp(o.map, o.x, o.y, "down");
+}
+const hiddenKey = (id, h) => `hid_${id}_${h.x}_${h.y}`;
+async function digUp(h) {
+  S.flags[hiddenKey(world.id, h)] = true;
+  world.hidden = world.hidden.filter((x) => x !== h);
+  S.bag[h.item] = (S.bag[h.item] || 0) + h.n;
+  stat("hidden");
+  sfx("coin", 0.6);
+  const name = ITEMS[h.item].name.toUpperCase();
+  await say(`You poked around in the ground... and dug up ${h.n > 1 ? `${h.n} ${name}S` : `a hidden ${name}`}!`);
+  save();
+}
+async function useItemfinder() {
+  const p = world.player, list = world.hidden || [];
+  if (!list.length) { await say("...The ITEMFINDER stays quiet. Nothing is buried around here."); return; }
+  const d = (h) => Math.abs(h.x - p.x) + Math.abs(h.y - p.y);
+  const h = list.reduce((a, b) => (d(a) <= d(b) ? a : b)), dx = h.x - p.x, dy = h.y - p.y;
+  sfx("ding", 0.6, 1.6);
+  if (!dx && !dy) { await say("BEEP-BEEP-BEEP! It's right under your feet! Press Z to dig."); return; }
+  const steps = (n, a, b) => n && `${Math.abs(n)} step${Math.abs(n) > 1 ? "s" : ""} ${n < 0 ? a : b}`;
+  const where = [steps(dy, "north", "south"), steps(dx, "west", "east")].filter(Boolean).join(" and ");
+  await say(`BEEP! BEEP! Something is buried ${where}! (${list.length} left on this map.)`);
+}
+// While you carry the Itemfinder, buried items within a few steps glint now and then.
+function drawHiddenGlints() {
+  if (!S.bag.itemfinder || world.map.interior) return;
+  const p = world.player;
+  for (const h of world.hidden || []) {
+    if (Math.abs(h.x + 0.5 - p.px) + Math.abs(h.y + 0.5 - p.pz) > 5) continue;
+    const ph = (NOW * 0.8 + h.x * 0.37 + h.y * 0.61) % 2;
+    if (ph > 0.3) continue;
+    const s2 = World2D.project(h.x, h.y + 1);
+    drawStar(Math.round(s2.x - 2), Math.round(s2.y - 2), ph < 0.15 ? "#ffffff" : "#ffd030");
+  }
+}
+// Headbutt trees: your lead gives a big golden tree a knock; sometimes a tree-dweller drops out, now and then an Apple.
+async function headbutt() {
+  const mon = partyAlive()[0];
+  if (!mon) { await say("A big golden tree. Something rustles in its leaves..."); return; }
+  if (!(await yesNo(`A big golden tree. Something rustles in its leaves... Have ${monName(mon)} HEADBUTT it?`))) return;
+  await say(`${monName(mon)} did a HEADBUTT! *THUD*`);
+  sfx("crumble", 0.6);
+  stat("headbutts");
+  const t = world.map.trees, r = Math.random();
+  if (t && t.length && r < 0.55) {
+    await say("Something tumbled out of the tree!");
+    const pick = pickWild(t), lv = rand(pick[1], pick[2]);
+    await wildBattle(wildMon(wildForm(pick[0], lv), lv));
+    return;
+  }
+  if (r < 0.68) { S.bag.apple = (S.bag.apple || 0) + 1; await say("An APPLE dropped into your hands!"); save(); return; }
+  await say("...Only a few leaves fluttered down.");
+}
+
+// ---------------------------------------------------------------- the Safari Zone
+const SAFARI_FEE = 500, SAFARI_BALLS = 30, SAFARI_STEPS = 500;
+async function safariDesk() {
+  if (S.safari) { await say(`Safari Warden: You have ${S.bag.safari_ball || 0} SAFARI BALLS and ${S.safari.steps} steps left. In you go!`); return; }
+  await say("Safari Warden: Welcome to the SAFARI ZONE! Rare pocemon from all over the region roam free in here.");
+  if (!(await yesNo(`It's $${SAFARI_FEE} for ${SAFARI_BALLS} SAFARI BALLS and ${SAFARI_STEPS} steps in the park. Go in?`))) { await say("Safari Warden: Come back any time!"); return; }
+  if (S.money < SAFARI_FEE) { await say("Safari Warden: Sorry, you don't have enough money."); return; }
+  S.money -= SAFARI_FEE; S.safari = { steps: SAFARI_STEPS }; S.bag.safari_ball = SAFARI_BALLS;
+  sfx("coin", 0.6);
+  await say(`You paid $${SAFARI_FEE} and got ${SAFARI_BALLS} SAFARI BALLS!`);
+  await say("Safari Warden: In the park, pocemon never fight back. Throw BAIT to calm one, a ROCK to stun it, and then a SAFARI BALL!");
+  await say("Safari Warden: When your steps or balls run out, I'll call you back here. Good luck!");
+  save();
+}
+function endSafari() { S.safari = null; delete S.bag.safari_ball; }
+async function safariOver(why) {
+  await say(why === "balls" ? "PA: You've used your last SAFARI BALL! Your safari game is over." : "PA: Ding-dong! Time's up! Your safari game is over.");
+  endSafari();
+  await warp("safari", 19, 28, "down");
+  await say("Safari Warden: Welcome back! Did you catch anything good? Come again!");
+  save();
+}
+
+// ---------------------------------------------------------------- the ferry and the lighthouse
+const FERRY_FARE = 300;
+async function ferry(n) {
+  const toIsle = world.id !== "isle";
+  if (toIsle && !S.badges.includes("Tide Badge")) { await say(`${n.name}: The crossing to CORAL ISLE is rough. I only take trainers who've earned the TIDE BADGE.`); return; }
+  const ask = toIsle ? `${n.name}: All aboard for CORAL ISLE! The fare is $${FERRY_FARE}. Set sail?` : `${n.name}: Heading back to TIDE HARBOR? The trip home is free. Set sail?`;
+  if (!(await yesNo(ask))) { await say(`${n.name}: The boat's here whenever you need it.`); return; }
+  if (toIsle) {
+    if (S.money < FERRY_FARE) { await say(`${n.name}: That's $${FERRY_FARE}, and you're a little short. Sorry!`); return; }
+    S.money -= FERRY_FARE;
+  }
+  stat("ferry");
+  sfx("bell", 0.9);
+  await say(toIsle ? "The ferry casts off from Tide Harbor... gulls wheel over the waves." : "The ferry pulls away from Coral Isle and heads back across the bay...");
+  if (toIsle) await warp("isle", MAPS.isle.dock.x, MAPS.isle.dock.y, MAPS.isle.dock.dir); else await warp("tide", 22, 25, "up");
+  sfx("bell", 0.6);
+  await say(toIsle ? "Welcome to CORAL ISLE!" : "Back in TIDE HARBOR.");
+  save();
+}
+async function keeper(n) {
+  if (!S.bag.itemfinder) {
+    await say(`${n.name}: You climbed all the way up here? Hah! Not many get past my sailors.`);
+    await say(`${n.name}: From this lantern I see every glint on land. Treasure's buried all over the region, if you know where to dig.`);
+    S.bag.itemfinder = 1;
+    sfx("ding", 0.8);
+    await say(`You received the ITEMFINDER! ${ITEMS.itemfinder.desc}`);
+    save();
+    return;
+  }
+  const left = Object.values(MAPS).reduce((a, m) => a + (m.hidden || []).filter((h) => !S.flags[hiddenKey(m.id, h)]).length, 0);
+  await say(left ? `${n.name}: I can still see ${left} buried treasure${left > 1 ? "s" : ""} glinting out there. Keep digging!` : `${n.name}: Not a glint left anywhere. You've found every last one!`);
+}
+
+// ---------------------------------------------------------------- medals
+// 28 goals, each with a gem from Tuxemon's item art. Counters live in S.stats; the rest is read from the save.
+function stat(k, n = 1) { S.stats = S.stats || {}; S.stats[k] = (S.stats[k] || 0) + n; }
+const stv = (k) => (S.stats && S.stats[k]) || 0;
+const kinds = () => Object.keys(S.caught).length;
+const shinies = () => Object.keys(S.shinyCaught || {}).length;
+const hiddenAll = () => Object.values(MAPS).reduce((a, m) => a + (m.hidden || []).length, 0);
+const hiddenFound = () => Object.keys(S.flags).filter((k) => k.startsWith("hid_")).length;
+const GEMS = ["red", "yellow", "green", "cyan", "blue", "pink", "gray"].flatMap((c) => ["emerald", "triangular", "assymetrical", "triangular2"].map((sh) => `gem_${c}_${sh}`));
+const MEDALS = [
+  ["First Steps", "Walk 1,000 steps.", () => [stv("steps"), 1000]],
+  ["Trekker", "Walk 10,000 steps.", () => [stv("steps"), 10000]],
+  ["Globetrotter", "Walk 30,000 steps.", () => [stv("steps"), 30000]],
+  ["Gotcha!", "Catch a wild pocemon.", () => [stv("caught"), 1]],
+  ["Collector", "Own 25 kinds of pocemon.", () => [kinds(), 25]],
+  ["Curator", "Own 100 kinds of pocemon.", () => [kinds(), 100]],
+  ["Dex Master", "Complete the Pocedex.", () => [kinds(), Object.keys(D.monsters).length]],
+  ["Sparkle", "Catch a shiny pocemon.", () => [shinies(), 1]],
+  ["Star Hunter", "Catch 5 shiny pocemon.", () => [shinies(), 5]],
+  ["Rookie", "Win 10 battles.", () => [stv("wins"), 10]],
+  ["Veteran", "Win 100 battles.", () => [stv("wins"), 100]],
+  ["Unstoppable", "Win 500 battles.", () => [stv("wins"), 500]],
+  ["Trainer Tamer", "Beat 25 trainers.", () => [stv("trainers"), 25]],
+  ["Badge Holder", "Earn your first gym badge.", () => [S.badges.length, 1]],
+  ["Halfway There", "Earn 4 gym badges.", () => [S.badges.length, 4]],
+  ["Badge Master", "Earn all 8 gym badges.", () => [S.badges.length, 8]],
+  ["Champion", "Become the Champion.", () => [S.flags.champion ? 1 : 0, 1]],
+  ["Growing Up", "Evolve a pocemon.", () => [stv("evolved"), 1]],
+  ["Sculptor", "Evolve 10 pocemon.", () => [stv("evolved"), 10]],
+  ["Angler", "Hook 10 pocemon fishing.", () => [stv("fished"), 10]],
+  ["Tree Shaker", "Headbutt 20 trees.", () => [stv("headbutts"), 20]],
+  ["Digger", "Dig up 10 hidden items.", () => [hiddenFound(), 10]],
+  ["Treasure Map", "Dig up every hidden item.", () => [hiddenFound(), hiddenAll()]],
+  ["Safari Ranger", "Catch 5 in the Safari Zone.", () => [stv("safari"), 5]],
+  ["Island Hopper", "Sail to Coral Isle.", () => [stv("ferry"), 1]],
+  ["Keeper's Friend", "Reach the lighthouse lantern.", () => [S.bag.itemfinder ? 1 : 0, 1]],
+  ["Big Saver", "Have $50,000 at once.", () => [S.money, 50000]],
+  ["Myth Seeker", "Catch a legendary pocemon.", () => [["primordia", "pharavion", "kernel", "asudopt"].filter((x) => S.caught[x]).length, 1]],
+].map(([name, desc, prog], i) => ({ id: name.toLowerCase().replace(/[^a-z]+/g, "_"), name, desc, prog, gem: GEMS[i] }));
+const medalCount = () => MEDALS.filter((md) => S.medals && S.medals[md.id]).length;
+const medalQueue = [];
+// Award any newly met medal. A save from before medals existed gets its earned ones quietly, with one note.
+function checkMedals() {
+  if (!S || !S.party || !S.starter) return;
+  const first = !S.medals;
+  S.medals = S.medals || {};
+  const fresh = MEDALS.filter((md) => { const [a, b] = md.prog(); return !S.medals[md.id] && a >= b; });
+  for (const md of fresh) S.medals[md.id] = true;
+  if (fresh.length) medalQueue.push(...(first ? [{ summary: fresh.length }] : fresh));
+}
+async function announceMedals() {
+  while (medalQueue.length) {
+    const md = medalQueue.shift();
+    sfx("ding", 0.8, 1.5);
+    if (md.summary) await say(`You've already earned ${md.summary} MEDAL${md.summary > 1 ? "S" : ""} on your journey! Open MEDALS in the menu to see them.`);
+    else await say(`MEDAL EARNED: ${md.name.toUpperCase()}${md.name.endsWith("!") ? "" : "!"} ${md.desc}`);
+  }
+  save();
+}
+function medalScreen() {
+  return new Promise((res) => {
+    push({
+      opaque: true, i: 0,
+      update() {
+        const n = MEDALS.length, C = 7;
+        if (consume("left")) this.i = (this.i + n - 1) % n;
+        if (consume("right")) this.i = (this.i + 1) % n;
+        if (consume("up")) this.i = (this.i + n - C) % n;
+        if (consume("down")) this.i = (this.i + C) % n;
+        if (consume("a") || consume("b")) { pop(this); res(); }
+      },
+      draw() {
+        ctx.fillStyle = "#304860"; ctx.fillRect(0, 0, VW, VH);
+        box(2, 2, 236, 18, "#f0e8d0");
+        text(`MEDALS  ${medalCount()}/${MEDALS.length}`, 8, 7);
+        MEDALS.forEach((md, k) => {
+          const x = 8 + (k % 7) * 33, y = 23 + Math.floor(k / 7) * 27, got = S.medals && S.medals[md.id];
+          box(x, y, 30, 26, k === this.i ? "#fff8c0" : got ? "#f8f0d8" : "#8a96a2");
+          const im = IMG["medal_" + k];
+          if (im) { ctx.globalAlpha = got ? 1 : 0.3; ctx.drawImage(im, x + 3, y + 1); ctx.globalAlpha = 1; }
+        });
+        const md = MEDALS[this.i], got = S.medals && S.medals[md.id], [a, b] = md.prog();
+        box(2, 131, 236, 27, "#f0e8d0");
+        text(md.name.toUpperCase(), 8, 135, got ? "#a07000" : "#505050", null);
+        const pr = got ? "EARNED" : b > 1 ? `${Math.min(a, b).toLocaleString("en-US")}/${b.toLocaleString("en-US")}` : "";
+        if (pr) text(pr, 232 - textW(pr), 135, got ? "#a07000" : "#506070", null);
+        text(md.desc, 8, 146);
+      },
+    });
+  });
+}
+
 // ---------------------------------------------------------------- battle
 // Your monsters miss a quarter as often as a move's listed accuracy says (an 80% move hits 95%);
 // foes use the listed accuracy.
@@ -2484,8 +2773,10 @@ const PLAYER_MISS_SCALE = 0.25;
 function hitChance(acc, mine) { return mine ? 1 - (1 - acc) * PLAYER_MISS_SCALE : acc; }
 
 async function wildBattle(mon, extra = {}) {
+  if (world.map.safari && S.safari) extra = { safari: true, ...extra };
   const res = await runBattle({ wild: mon, party: [mon], bg: world.map.interior ? "interior" : world.map.bg, ...extra });
   if (res !== "lose") save();
+  if (extra.safari && S.safari && !(S.bag.safari_ball > 0)) await safariOver("balls");
   return res;
 }
 
@@ -2627,6 +2918,7 @@ async function evolveScene(m, to) {
   for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, v = 0.6 + Math.random() * 1.6; sparks.push({ x: OX + 32, y: OY + 36, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.8, life: 1 }); }
   await tween(0.25, (k) => { sc.flash = 0.7 * (1 - k); });
   S.caught[to] = true; S.seen[to] = true;
+  stat("evolved");
   await say(`Congratulations! ${m.nick || D.monsters[from].name} evolved into ${D.monsters[to].name}!`);
   pop(sc);
 }
@@ -2637,6 +2929,7 @@ class Battle {
     this.trainer = o.trainer;
     this.wild = o.wild;
     this.legendary = o.legendary;
+    this.safari = o.safari;
     this.eParty = o.party;
     this.e = this.eParty[0];
     this.p = null;
@@ -2765,6 +3058,7 @@ class Battle {
       if (this.e.shiny) await this.msg("Whoa! Its colors are different... it's a SHINY!");
       if (isNew) { S.seen[this.e.slug] = true; await this.msg(`New! ${monName(this.e)} was added to your Pocedex.`); }
     }
+    if (this.safari) return this.safariLoop(); // no pocemon of yours goes out in the Safari Zone
     const first = S.party.findIndex((m) => m.hp > 0);
     await tween(0.35, (k) => { this.plX = 20 - 110 * k; });
     await this.sendPlayer(S.party[first]);
@@ -3032,10 +3326,18 @@ class Battle {
       const gain = Math.floor((50 + stage * 50) * this.e.level / 7 * (this.trainer ? 1.5 : 1) * EXP_RATE);
       const alive = [...this.participants].filter((m) => m.hp > 0 && S.party.includes(m));
       for (const m of alive) await this.giveExp(m, Math.max(1, Math.floor(gain / alive.length * (m.item === "exp_candy" ? 1.5 : 1))));
+      // EXP SHARE: everyone healthy who sat this one out gets half of what a fighter got
+      const bench = S.expShare && S.bag.exp_share ? S.party.filter((m) => m.hp > 0 && !alive.includes(m) && m.level < 100) : [];
+      if (bench.length) {
+        const each = Math.max(1, Math.floor(gain / Math.max(1, alive.length) / 2));
+        await this.msg(`The rest of your team got ${each} EXP from the EXP SHARE!`);
+        for (const m of bench) await this.giveExp(m, Math.floor(each * (m.item === "exp_candy" ? 1.5 : 1)), true);
+      }
       this.participants = new Set(this.p.hp > 0 ? [this.p] : []);
       const next = this.eParty.find((m) => m.hp > 0);
       if (!next) {
         music("win");
+        stat("wins"); if (this.trainer) stat("trainers");
         if (this.trainer) {
           const prize = this.eParty[this.eParty.length - 1].level * (this.trainer.leader || this.trainer.champion ? 100 : 30);
           S.money += prize;
@@ -3062,9 +3364,9 @@ class Battle {
     return null;
   }
 
-  async giveExp(m, amount) {
+  async giveExp(m, amount, quiet) {
     const active = m === this.p;
-    await this.msg(`${monName(m)} gained ${amount} EXP!`);
+    if (!quiet) await this.msg(`${monName(m)} gained ${amount} EXP!`);
     const target = m.exp + amount;
     while (m.exp < target) {
       const next = expFor(m.level + 1);
@@ -3089,6 +3391,48 @@ class Battle {
     }
   }
 
+  // Safari Zone: nothing of yours goes out and the wild one never attacks. Each turn: a ball, bait (it calms down,
+  // so it stays longer but is harder to catch) or a rock (easier to catch, but it may bolt). Then it might run off.
+  async safariLoop() {
+    this.eat = 0; this.anger = 0;
+    const d = D.monsters[this.e.slug];
+    for (;;) {
+      const balls = S.bag.safari_ball || 0;
+      const c = await choose(["BALL", "BAIT", "ROCK", "RUN"], {
+        cols: 2, x: 120, y: 112, w: 120, h: 48, colW: 56, cancel: false, promptW: 104, prompt: `Safari Balls: ${balls}`,
+      });
+      if (c === 3) { await this.msg("Got away safely!"); return "run"; }
+      if (c === 0) {
+        if (!balls) { await this.msg("You're out of SAFARI BALLS!"); return "run"; }
+        if ((await this.throwBall("safari_ball")) === "caught") return "caught";
+        if (!(S.bag.safari_ball > 0)) return "run";
+      } else if (c === 1) {
+        await this.throwThing("bait"); this.eat = rand(2, 4); this.anger = 0;
+        await this.msg(`Wild ${monName(this.e)} is eating!`);
+      } else {
+        await this.throwThing("rock"); this.anger = rand(2, 4); this.eat = 0;
+        await this.msg(`Wild ${monName(this.e)} is angry!`);
+      }
+      const flee = clamp(0.08 + (255 - d.catch) / 255 * 0.2, 0.08, 0.35) * (this.eat ? 0.4 : this.anger ? 1.7 : 1);
+      if (this.eat) this.eat--;
+      if (this.anger) this.anger--;
+      if (Math.random() < flee) {
+        await tween(0.4, (k) => { this.eX = 148 + 110 * k; });
+        this.eVis = false; this.showEBox = false;
+        await this.msg(`Wild ${monName(this.e)} ran away!`);
+        return "run";
+      }
+    }
+  }
+  async throwThing(kind) {
+    this.ballKey = kind;
+    sfx("throw");
+    await this.msg(kind === "bait" ? "You threw some BAIT!" : "You threw a ROCK!");
+    this.ball = { x: 40, y: 100, r: 0 };
+    await tween(0.5, (k) => { this.ball.x = 40 + 140 * k; this.ball.y = 100 - 40 * k - Math.sin(k * Math.PI) * 50; this.ball.r = k * 8; });
+    this.ball = null;
+    if (kind === "rock") { this.eAlpha = 0.3; await wait(0.12); this.eAlpha = 1; }
+  }
   async throwBall(key = "tuxeball") {
     S.bag[key]--;
     this.ballKey = key;
@@ -3106,7 +3450,8 @@ class Battle {
     await tween(0.25, (k) => { this.ball.y = 60 + k * 2; });
     const e = this.e, d = D.monsters[e.slug];
     const a = ((3 * e.maxhp - 2 * e.hp) * d.catch) / (3 * e.maxhp) * (e.status ? 1.5 : 1);
-    const p = clamp(a / 255 * 1.6 * (ITEMS[this.ballKey || "tuxeball"].ball || 1), 0.03, 1);
+    const mood = this.safari ? (this.anger ? 2 : this.eat ? 0.6 : 1) : 1; // Safari Zone: a rock makes it easier, bait harder
+    const p = clamp(a / 255 * 1.6 * (ITEMS[this.ballKey || "tuxeball"].ball || 1) * mood, 0.03, 1);
     const shakeP = Math.pow(p, 1 / 3);
     let shakes = 0;
     while (shakes < 3 && Math.random() < shakeP) shakes++;
@@ -3118,6 +3463,7 @@ class Battle {
     if (shakes === 3) {
       const first = !S.caught[e.slug];
       if (e.shiny) { S.shinyCaught = S.shinyCaught || {}; S.shinyCaught[e.slug] = true; }
+      stat("caught"); if (this.safari) stat("safari");
       music("caught");
       sfx("ding", 0.8);
       await this.msg(`Gotcha! ${monName(e)} was caught!`);
@@ -3137,7 +3483,7 @@ class Battle {
 }
 
 // ---------------------------------------------------------------- minimap (top-right)
-const MM_COL = { T: "#2f5e2a", ",": "#3f8a34", ".": "#6db654", "=": "#d8c08a", "~": "#3a86d0", f: "#8fca5c", F: "#8a6a40", W: "#55606a", C: "#8a6a40", X: "#e05040" };
+const MM_COL = { h: "#c8a020", T: "#2f5e2a", ",": "#3f8a34", ".": "#6db654", "=": "#d8c08a", "~": "#3a86d0", f: "#8fca5c", F: "#8a6a40", W: "#55606a", C: "#8a6a40", X: "#e05040" };
 let mmCache = null;
 function minimapCanvas() {
   const m = world.map;
@@ -3175,11 +3521,11 @@ function drawMinimap() {
     ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - cw, y0 - 2, cw, 12);
     text(ct, x0 - 2 - cw, y0, isNight() ? "#b8c8ff" : "#fff0a0", null);
   }
-  if (S.lure > 0) {
-    const lt = `LURE ${S.lure}`, lw = textW(lt) + 8;
-    ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - lw, y0 + 12, lw, 12);
-    text(lt, x0 - 2 - lw, y0 + 14, "#ffb0e0", null);
-  }
+  let hy = y0 + 12; // status chips stack under the clock
+  const chip = (t, col) => { const w2 = textW(t) + 8; ctx.fillStyle = "rgba(16,24,20,0.75)"; ctx.fillRect(x0 - 6 - w2, hy, w2, 12); text(t, x0 - 2 - w2, hy + 2, col, null); hy += 12; };
+  if (S.lure > 0) chip(`LURE ${S.lure}`, "#ffb0e0");
+  if (S.repel > 0) chip(`REPEL ${S.repel}`, "#b0f0c0");
+  if (S.safari && m.safari) { chip(`STEPS ${S.safari.steps}`, "#fff0a0"); chip(`BALLS ${S.bag.safari_ball || 0}`, "#fff0a0"); }
   // exit labels: short arrow toward each edge
   // player arrow
   ctx.save();
@@ -3225,7 +3571,7 @@ function areaMusic(m = world.map) {
 
 // ---------------------------------------------------------------- world scene
 // The arrows walk in that direction (top-down, like the classic handhelds); SHIFT runs.
-const WALK_SPEED = 3.6, RUN_SPEED = 6.4, RIDE_SPEED = 8.5;
+const WALK_SPEED = 3.6, RUN_SPEED = 6.4, RIDE_SPEED = 8.5, DRIVE_SPEED = 12;
 
 // ---------------------------------------------------------------- tap to walk
 // Tap a spot and you walk there along the shortest open path. Tap a person, sign, item ball, obstacle or the
@@ -3331,6 +3677,8 @@ const worldScene = {
     if (wasRain !== weatherNow() && !world.busy) this.banner = { name: weatherNow() ? "It started to rain..." : "The rain stopped.", t: NOW };
     const p = world.player;
     for (const n of world.npcs) if (!n.walking) { n.fx = n.x * T; n.fy = n.y * T; }
+    if (!world.busy && NOW - (this.medalCheck || 0) > 1) { this.medalCheck = NOW; checkMedals(); }
+    if (!world.busy && medalQueue.length) { p.speed = 0; runScript(announceMedals); return; }
     if (world.busy) { p.speed = 0; consumeTap(); world.route = null; return; }
     const tap = consumeTap();
     if (tap) tapWalk(tap);
@@ -3339,6 +3687,7 @@ const worldScene = {
     if (consume("fly")) { p.speed = 0; runScript(flyMenu); return; }
     if (consume("teleport")) { p.speed = 0; runScript(teleportMenu); return; }
     if (consume("ride")) { p.speed = 0; runScript(toggleRide); return; }
+    if (consume("car")) { p.speed = 0; runScript(toggleDrive); return; }
     const tapped = ["up", "down", "left", "right"].find((k) => pressed[k]);
     for (const k of ["up", "down", "left", "right"]) pressed[k] = false;
     if (p.slide) { // sliding: no steering until you stop
@@ -3356,7 +3705,7 @@ const worldScene = {
     if (tapped && tapped !== p.dir && !p.speed) this.turnHold = 0.09;
     this.turnHold = Math.max(0, (this.turnHold || 0) - dt);
     if (dir) { p.dir = dir; p.angle = ANGLE[dir]; }
-    const target = dir && !this.turnHold ? (p.riding ? RIDE_SPEED : held.run || auto ? RUN_SPEED : WALK_SPEED) : 0;
+    const target = dir && !this.turnHold ? (p.driving ? DRIVE_SPEED : p.riding ? RIDE_SPEED : held.run || auto ? RUN_SPEED : WALK_SPEED) : 0;
     p.speed = target ? p.speed + (target - p.speed) * Math.min(1, dt * 14) : 0;
     if (p.speed) {
       const [vx, vz] = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
@@ -3370,6 +3719,7 @@ const worldScene = {
     trackTrail();
   },
   draw() {
+    drawHiddenGlints();
     drawMinimap();
     if (world.bubble) {
       const n = world.bubble;
@@ -3478,7 +3828,7 @@ async function boot() {
   loadMap(S.map, S.x, S.y, S.dir);
   if (tileAt(S.x, S.y) === "~") {
     const m = rider("water");
-    if (m) { world.player.mount = mountKey(m); world.player.surfing = true; world.player.riding = false; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
+    if (m) { world.player.mount = mountKey(m); world.player.surfing = true; world.player.riding = false; world.player.driving = false; } else loadMap(S.lastHeal.map, S.lastHeal.x, S.lastHeal.y, "up");
   }
   if (!S.starter) {
     runScript(async () => {
@@ -3489,5 +3839,6 @@ async function boot() {
     });
   }
 }
-window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, starterSelect, monsterLog, summary, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
+window.__game = { world, get S() { return S; }, D, MAPS, scenes, warp, makeMon, trainerSees, readyFor, wildBattle, starterSelect, monsterLog, summary, ITEMS, MEDALS, newState, save, loadMap, stepEvent, interact, checkMedals, medalQueue,
+  runScript, isDungeon, tick: (n = 1, dt = 1 / 30) => { for (let i = 0; i < n; i++) step(dt); } };
 boot();

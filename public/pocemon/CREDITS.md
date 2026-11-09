@@ -239,8 +239,49 @@ the Game Corner all have theirs. M mutes music and sounds together.
 **Your lead pocemon follows you** a step behind, along the path you walked (not while you surf, fly or
 ride). **Riding:** after the Grove Badge, the Ranch Hand in Ember City gives you a RIDE PASS: press R (or RIDE in
 the menu) to ride your lead pocemon outdoors at about twice walking speed; you stay on across maps and hop off
-indoors, in caves and when you surf. **Completing the Pocedex** (all 212 kinds) earns a diploma from Prof. Oakley,
+indoors, in caves and when you surf.
+(A faster vehicle is in the code but parked behind `VEHICLE_READY = false` in `game/game.js` until its bike art
+arrives: Mom gives no keys and C does nothing while it's off.) **Completing the Pocedex** (all 212 kinds) earns a diploma from Prof. Oakley,
 a gold star on your trainer card, and the LUCKY HORSESHOE (shinies twice as often again).
+
+**Repel and Escape Key** (every Mart): a REPEL keeps wild pocemon weaker than your lead away for 100 steps
+(a REPEL chip shows the steps left under the clock, and when it wears off you're offered another). The ESCAPE
+KEY (Tuxemon's own escape item) warps you out of a cave or dungeon (Glimmer Cave, the Ice Cave, Glacier Peak,
+the Shrine of Origins, Starfall Crater) to the spot you stood on just before you went in.
+
+**Exp Share:** Prof. Oakley gives it to you once you have a gym badge (your first badge reminds you to visit
+him). Use it from the BAG to switch it ON or OFF (the bag shows which). While it's ON, every healthy pocemon
+that sat out a win gets half of what a fighter got, with one message for the lot.
+
+**Headbutt trees and hidden items:** each route has two big golden trees at the edge of a wood (green ones on
+Victory Ridge, where golden is the local tree; three in the Safari Zone). Walk into one or face it and press
+Z, and your lead HEADBUTTs it: about half the time a tree-dwelling pocemon from that route drops out, now
+and then an Apple. 38 items are buried around the region (routes, towns, the Frost Sea, Hollowmere, Coral
+Isle and the Safari Zone); they're invisible: stand on or face the spot and press Z. The lighthouse keeper's
+ITEMFINDER (use it from the BAG) says how many steps north/south and east/west the nearest one is, and while
+you carry it, buried items within a few steps glint. Spots come from `node tools/place_extras.js`.
+
+**Safari Zone** (north of Verdance, through its north road): pay the Warden $500 for 30 SAFARI BALLS and 500
+steps. Past the tree fence, wild pocemon never attack and none of yours goes out: each turn throw a ball,
+BAIT (it calms down and stays longer but is harder to catch) or a ROCK (twice as easy to catch but it may bolt),
+then it may run off (rarer kinds are jumpier). The park has rare kinds from all over (Lv 26-32), with the Fire
+and Wood starters as its rarest finds, water kinds in the lake, and an islet with a prize. When the steps or
+balls run out you're called back to the lobby; walking out ends the game too.
+
+**Coral Isle** (the ferry at the end of Tide Harbor's pier, $300 once you have the Tide Badge; the trip home
+is free): a sandy island town with a Healing Center, Mart, two huts, three beach trainers, tropical pocemon
+(Lv 15-20) and the Water starter in the shallows. Climb the lighthouse past two sailors and the keeper at the
+lantern gives you the ITEMFINDER. Once you've been, FLY can take you there.
+
+**Medals** (menu: MEDALS, and a count on the trainer card): 28 goals, from walking 1,000 steps to catching a
+legendary, each shown as one of Tuxemon's gems (grey until earned, with your progress toward it). They pop up
+the moment you earn one; an older save gets the ones it has already earned in one quiet note.
+
+**Marts look like stores:** drink fridges along the back wall, two aisles of stocked shelves, a rack of goods by
+the door, a till on the counter, and a shopper with a Repel tip. Marts sell REPEL and ESCAPE KEY too.
+
+**Every road goes somewhere:** a road that reaches the edge of a map is always an exit, and every road ends
+at a door, a sign, a person or another road (`node tools/check_paths.js` checks it).
 
 **Already caught?** In a wild battle, a small Poceball next to the wild pocemon's name box means you already
 own that kind. **The PC box** shows your stored pocemon as a grid of pictures: move the arrow with the arrow
@@ -348,12 +389,22 @@ node tools/validate_world.js    # checks maps: overlaps, reachable doors, paired
   - `Basic_Buch_Tiles_Compiled.png` by Buch, commissioned by luke83, changes by luke83 and Past the Future; CC BY 3.0.
   - `interior.png` ("Interior Tiles") by ArMM1998; public domain (CC0).
   - `electronics.png` ("Electronics Tileset") by Mike Bramson; CC BY-SA 4.0.
-  - Item icons `horseshoe.png` and `gold_pass.png` are Tuxemon's own item art.
+  - Item icons `horseshoe.png` and `gold_pass.png` are Tuxemon's own item art, as are the newer ones: REPEL
+    (`repel.png`, Tuxemon's petrified_dung), ESCAPE KEY (escape_key), EXP SHARE (xp_transmitter), ITEMFINDER
+    (`itemfinder.png`, the drone), SAFARI BALL (tuxeball_park), Safari bait (banana) and rock (flintstone).
+  - The 28 medals (`game/assets/medals/`) are Tuxemon's gem item icons (7 colours, 4 cuts).
+  - Coral Isle's lighthouse and huts are from Tuxemon's `core_buildings.png` (the lighthouse is the same picture
+    as the Champion's Hall in Prime City; it's the only lighthouse in the sheet).
+  - The car (parked, not in play yet; `game/assets/obj/car.png`, "Car, Black" from Tuxemon's tilesets) is by isaiah658, from
+    [isaiah658's Pixel Pack #1](https://opengameart.org/content/isaiah658s-pixel-pack-1); CC0. The CAR KEYS bag
+    icon (`game/assets/items/car_keys.png`) is that car's side view shrunk to half size.
   - `modern.png` ("Modern Interiors" by LimeZu, as included in Tuxemon); CC BY. Used for the Game Corner's
-    carpet, rug and felt.
+    carpet, rug and felt, the beach umbrellas, and every Mart's store furniture (drink fridges, stocked shelves,
+    the wooden goods rack and the till).
   - `setpieces.png` ("Core Set Pieces", Tuxemon; based on works by Kelvin Shadewing (XYG Open Source License),
     Mike Bramson (CC BY-SA 4.0), Keith Karnage, ArMM1998 and Redshrike). Used for the slot machines and stools.
-- The roulette wheel, playing cards and the little wheel and cards on the tables are drawn in code.
+- The roulette wheel, playing cards and the little wheel and cards on the tables are drawn in code, and so is
+  the little star that makes buried items glint near the ITEMFINDER (the same one shinies sparkle with).
 - The old 3D version (Kenney and Quaternius models, three.js) is kept outside the game in `legacy3d/`.
 
 Because of the CC BY-SA art and the not-for-profit 909 samples, keep this project free and credited.

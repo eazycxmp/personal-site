@@ -15,6 +15,10 @@
     hall:   { src: [579, 255, 138, 177], tw: 9, th: 12, door: 4 },
     tower:  { src: [320, 80, 80, 64], tw: 5, th: 4, door: 2 },
     casino: { src: [480, 80, 80, 64], tw: 5, th: 4, door: 2 },
+    // Coral Isle: the lighthouse (with its lantern) and two island huts from the same sheet
+    lighthouse: { src: [579, 228, 138, 205], tw: 9, th: 13, door: 4 },
+    hut:    { src: [432, 308, 62, 43], tw: 4, th: 3, door: 1 },
+    hut2:   { src: [432, 354, 64, 45], tw: 4, th: 3, door: 1 },
   };
 
   function outdoor(def) {
@@ -142,12 +146,12 @@
   W.tide = outdoor({
     name: "Tide Harbor", w: 30, h: 32, music: "town", bg: "beach",
     ops: [
-      ["~", 0, 19, 30, 11], [".", 11, 23, 7, 4], [",", 12, 24, 5, 2], ["=", 0, 18, 30, 1], ["=", 0, 7, 28, 2], ["=", 26, 0, 2, 18],
+      ["~", 0, 19, 30, 11], [".", 11, 23, 7, 4], [",", 12, 24, 5, 2], ["=", 2, 18, 28, 1], ["=", 0, 7, 28, 2], ["=", 26, 0, 2, 18],
       ["=", 7, 17, 23, 1], ["f", 12, 11, 3, 3], ["T", 12, 2, 2, 4],
       // the beach: a strip of sand along the shore, palms, umbrellas, and a wooden pier out to sea
       [":", 0, 19, 30, 2], ["p", 1, 19, 1, 1], ["p", 19, 19, 1, 1], ["p", 28, 20, 1, 1],
       ["U", 5, 19, 1, 1], ["U", 10, 19, 1, 1], ["U", 15, 20, 1, 1], ["U", 25, 19, 1, 1],
-      ["D", 22, 21, 2, 6],
+      ["D", 22, 21, 2, 6], ["p", 0, 19, 2, 2], ["p", 28, 19, 2, 1],
     ],
     umbrellas: [[5, 19, 0], [10, 19, 1], [15, 20, 2], [25, 19, 3]],
     exits: [{ edge: "w", at: 7, w: 2, to: "route2" }, { edge: "n", at: 26, w: 2, to: "route3" },
@@ -165,6 +169,7 @@
       { sprite: "soldier", x: 25, y: 3, dir: "right", name: "Guard",
         talk: ["Two badges, then you may pass\nnorth to Route 3."] },
       { sprite: "fisher", x: 3, y: 18, dir: "down", name: "Old Angler", role: "rod" },
+      { sprite: "riverboatcaptain", x: 22, y: 26, dir: "up", name: "Ferry Captain", role: "ferry" },
       { sprite: "beachcomber", x: 10, y: 15, dir: "down", name: "Beachcomber",
         talk: ["Marina's WATER pocemon hate\nWOOD and LIGHTNING attacks!",
           "See that island out at sea? With the TIDE BADGE, a Water pocemon can carry you there.",
@@ -298,7 +303,7 @@
     ops: [
       ["~", 2, 2, 36, 26],
       // the snowy west shore, with pines and a trail down to the water
-      [".", 0, 12, 8, 11], ["=", 0, 17, 6, 2], ["T", 5, 12, 3, 2], ["T", 6, 21, 2, 2], [",", 2, 13, 3, 3], [",", 2, 20, 3, 2],
+      [".", 2, 12, 6, 11], ["=", 0, 17, 6, 2], ["T", 5, 12, 3, 2], ["T", 6, 21, 2, 2], [",", 2, 13, 3, 3], [",", 2, 20, 3, 2],
       // three floes out on the water
       [".", 10, 4, 6, 5], [",", 11, 5, 4, 3],
       [".", 12, 19, 7, 6], [",", 13, 20, 5, 4], ["T", 17, 19, 2, 2],
@@ -381,11 +386,18 @@
     const ex = { n: { edge: "n", at: 12, w: 2 }, s: { edge: "s", at: 12, w: 2 }, w: { edge: "w", at: 11, w: 2 }, e: { edge: "e", at: 11, w: 2 } };
     const gate = { n: { x: 12, y: 2, w: 2, h: 1 }, e: { x: 27, y: 11, w: 1, h: 2 } }[out[0]];
     const guard = { n: [14, 3, "down"], e: [27, 10, "down"] }[out[0]];
+    // Only a road with an exit runs to the edge of town; the others stop where they meet the town's own streets
+    // (north at the Center and Mart lane, east at the gym door, south at the house lane), so no road leads nowhere.
+    const used = (d) => inn[0] === d || out[0] === d || (def.extraExits || []).some((e) => e.edge === d);
+    const arms = [
+      used("n") ? ["=", 12, 0, 2, 11] : ["=", 12, 7, 2, 4], used("s") ? ["=", 12, 13, 2, 11] : ["=", 12, 13, 2, 8],
+      used("w") ? ["=", 0, 11, 12, 2] : null, used("e") ? ["=", 14, 11, 16, 2] : ["=", 14, 11, 7, 2],
+    ].filter(Boolean);
     return outdoor(Object.assign(def, {
       w: 30, h: 24,
-      ops: [["=", 12, 0, 2, 24], ["=", 0, 11, 30, 2], ["=", 2, 7, 10, 1], ["=", 20, 10, 1, 1], ["=", 3, 20, 10, 1], ["=", 12, 21, 11, 1],
+      ops: [["=", 12, 11, 2, 2], ...arms, ["=", 2, 7, 10, 1], ["=", 20, 10, 1, 1], ["=", 3, 20, 10, 1],
         ...(def.ops || [])],
-      exits: [Object.assign(ex[inn[0]], { to: inn[1] }), Object.assign(ex[out[0]], { to: out[1] })],
+      exits: [Object.assign(ex[inn[0]], { to: inn[1] }), Object.assign(ex[out[0]], { to: out[1] }), ...(def.extraExits || [])],
       buildings: [
         { type: "center", x: 2, y: 3, to: def.id + "_center" }, { type: "mart", x: 7, y: 3, to: def.id + "_mart" },
         { type: "gym", x: 17, y: 2, to: def.id + "_gym" }, { type: "house", x: 3, y: 14, to: def.id + "_house" },
@@ -397,6 +409,7 @@
 
   // ---------------- Verdance (Gym 5: Wood) ----------------
   W.verdance = town({ id: "verdance", name: "Verdance", music: "chill", bg: "forest", look: "wood",
+    extraExits: [{ edge: "n", at: 12, w: 2, to: "safari" }],
     ops: [["f", 15, 15, 4, 3], ["T", 24, 15, 4, 6], ["~", 19, 15, 3, 2]],
     signs: [{ x: 14, y: 13, text: "VERDANCE\nGym Leader: FERN\n\"Roots run deep.\"" }],
     npcs: [{ sprite: "florist", x: 10, y: 15, dir: "left", name: "Gardener",
@@ -491,7 +504,7 @@
   W.prime = outdoor({
     name: "Prime City", w: 34, h: 28, music: "funky", bg: "grass", look: "prime",
     ops: [
-      ["=", 0, 16, 34, 2], ["=", 16, 14, 2, 2], ["=", 4, 14, 1, 2], ["=", 9, 14, 1, 2], ["=", 26, 14, 1, 2],
+      ["=", 0, 16, 27, 2], ["=", 16, 14, 2, 2], ["=", 4, 14, 1, 2], ["=", 9, 14, 1, 2], ["=", 26, 14, 1, 2],
       ["f", 2, 6, 4, 2], ["f", 27, 22, 4, 2], ["T", 28, 2, 4, 3], ["T", 2, 2, 3, 4], ["~", 20, 21, 4, 3],
     ],
     exits: [{ edge: "w", at: 16, w: 2, to: "route8" }],
@@ -536,10 +549,14 @@
       { sprite: "nurse", x: 4, y: 3, dir: "down", name: "Nurse", role: "heal" },
     ],
   });
+  // A Mart is a little store: drink fridges along the back wall, two stocked shelves, a wooden rack of goods by
+  // the door and a till on the counter (LimeZu "Modern Interiors" furniture; s = shelf footprint, solid).
   const mart = (town) => interior({
-    name: town + " Mart", w: 10, h: 9, music: "chill", wall: "blue", floor: "planks",
-    ops: [["C", 1, 4, 3, 1], ["C", 6, 3, 3, 1]], decor: [[5, 1, "board"]],
-    npcs: [{ sprite: "shopkeeper", x: 2, y: 3, dir: "down", name: "Clerk", role: "shop" }],
+    name: town + " Mart", w: 10, h: 9, music: "chill", wall: "blue", floor: "planks", shop: true,
+    ops: [["C", 1, 4, 3, 1], ["s", 5, 3, 4, 1], ["s", 6, 5, 4, 2], ["s", 0, 6, 2, 2]], decor: [[2, 1, "poster"]],
+    npcs: [{ sprite: "shopkeeper", x: 2, y: 3, dir: "down", name: "Clerk", role: "shop" },
+      { sprite: "fashionista", x: 8, y: 7, dir: "up", name: "Shopper",
+        talk: ["I always stock up on REPELS before a long walk.", "Wild pocemon weaker than your lead won't bother you at all!"] }],
   });
   const house = (name, npc) => interior({
     name, w: 8, h: 8, music: "chill", wall: "green", floor: "parquet", decor: [[2, 1, "poster"]], npcs: [npc],
@@ -797,7 +814,7 @@
   W.hollow = outdoor({
     name: "Hollowmere", w: 30, h: 24, music: "mystery", bg: "forest", ghost: true,
     ops: [
-      ["=", 6, 20, 24, 2], ["=", 14, 6, 2, 14], ["=", 6, 12, 18, 1],
+      ["=", 6, 20, 24, 2], ["=", 14, 6, 2, 14], ["=", 11, 12, 11, 1], ["=", 11, 9, 1, 3],
       [",", 2, 2, 6, 7], [",", 22, 14, 6, 5], [",", 2, 14, 5, 4], [",", 18, 2, 8, 4],
       ["F", 7, 10, 3, 1], ["F", 17, 9, 4, 1], ["F", 3, 19, 2, 1], ["T", 25, 7, 3, 4], ["~", 9, 15, 3, 2],
     ],
@@ -992,6 +1009,86 @@
     ],
   });
 
+  // ---------------- Safari Zone (north of Verdance) ----------------
+  // Pay the Warden at the gate for 30 SAFARI BALLS and 500 steps. Inside, wild pocemon never attack: throw
+  // BAIT (it stays, but is harder to catch), a ROCK (easier to catch, but it may bolt) or a ball.
+  W.safari = outdoor({
+    name: "Safari Zone", w: 40, h: 34, music: "route", bg: "grass", safari: true, rate: 0.14,
+    ops: [
+      ["T", 2, 25, 17, 2], ["T", 21, 25, 17, 2], // the fence of trees between the lobby and the park
+      ["=", 19, 26, 2, 8], ["=", 19, 15, 2, 10], ["=", 8, 15, 24, 1],
+      [",", 3, 3, 14, 10], [",", 3, 17, 14, 7], [",", 23, 18, 14, 6],
+      ["~", 23, 3, 13, 10], [".", 28, 6, 3, 3], [",", 29, 7, 1, 1],
+      ["f", 6, 28, 4, 2], ["f", 27, 28, 4, 2], ["T", 18, 3, 3, 3],
+    ],
+    exits: [{ edge: "s", at: 19, w: 2, to: "verdance" }],
+    gates: [{ x: 19, y: 25, w: 2, h: 1, block: "n", safari: true, text: "WARDEN: Pay at the desk to enter the park!" }],
+    signs: [{ x: 22, y: 30, text: "SAFARI ZONE\nRare pocemon roam free.\nNo battles: just bait, rocks\nand SAFARI BALLS." },
+      { x: 7, y: 15, text: "WEST MEADOW\nShy pocemon hide in the long grass." },
+      { x: 32, y: 15, text: "THE LAKE\nFish or surf for water pocemon.\nSomething shines on the islet." }],
+    items: [{ id: "item_safari_islet", x: 29, y: 6, item: "level_treat", n: 2 }],
+    npcs: [
+      { sprite: "ninja", x: 17, y: 27, dir: "right", name: "Safari Warden", role: "safari" },
+      { sprite: "picnicker", x: 23, y: 16, dir: "left", name: "Camper",
+        talk: ["Throw a ROCK and they're easier to catch, but they might run off!", "BAIT calms them down, but then they're harder to catch. I like a rock, then a ball."] },
+    ],
+    encounters: [],
+  });
+
+  // ---------------- Coral Isle (the ferry from Tide Harbor's pier) ----------------
+  // A sandy island town: a Healing Center and Mart, two huts, beach trainers, tropical pocemon in the grass,
+  // and the old lighthouse, whose keeper hands the ITEMFINDER to anyone who climbs to the lantern.
+  W.isle = outdoor({
+    name: "Coral Isle", w: 32, h: 30, music: "town", bg: "beach", dock: { x: 16, y: 26, dir: "up" },
+    ops: [
+      ["~", 0, 0, 32, 30], [":", 2, 2, 28, 24], [".", 4, 4, 24, 20], ["T", 2, 0, 28, 2], // the island's northern woods
+      ["=", 6, 8, 1, 1], ["=", 12, 8, 1, 1], ["=", 6, 9, 12, 1], ["=", 16, 9, 2, 16], ["=", 18, 15, 6, 1], ["=", 6, 16, 10, 1],
+      ["D", 16, 26, 2, 4],
+      [",", 4, 18, 10, 5], [",", 19, 18, 8, 5], [",", 9, 10, 5, 2],
+      ["p", 2, 5, 1, 1], ["p", 29, 6, 1, 1], ["p", 2, 20, 1, 1], ["p", 29, 20, 1, 1], ["p", 3, 24, 1, 1], ["p", 28, 24, 1, 1],
+      ["U", 9, 24, 1, 1], ["U", 23, 24, 1, 1],
+    ],
+    umbrellas: [[9, 24, 0], [23, 24, 2]],
+    buildings: [
+      { type: "center", x: 4, y: 4, to: "isle_center" },
+      { type: "mart", x: 10, y: 4, to: "isle_mart" },
+      { type: "lighthouse", x: 19, y: 2, to: "lighthouse" },
+      { type: "hut", x: 5, y: 13, to: "isle_hut" },
+      { type: "hut2", x: 10, y: 13, to: "isle_hut2" },
+    ],
+    signs: [{ x: 15, y: 22, text: "CORAL ISLE\nSun, sand and the old lighthouse.\nFerry back to Tide Harbor: south pier." }],
+    npcs: [
+      { sprite: "riverboatcaptain", x: 17, y: 27, dir: "up", name: "Ferry Captain", role: "ferry" },
+      trainer({ id: "isle_swim", swim: true, sprite: "swimmer_blue", x: 25, y: 26, dir: "up", sight: 2, name: "Swimmer Kai",
+        team: [["dollfin", 16], ["jelillow", 17]], intro: "The water's warmer out here! Let's battle!", lose: "Wiped out!" }),
+      trainer({ id: "isle_beach", outfit: "sailor", sprite: "beachcomber_blue", x: 25, y: 17, dir: "left", sight: 3, name: "Beachcomber Lani",
+        team: [["hatchling", 16], ["lesmagu", 17], ["fluttaflap", 17]], intro: "Found anything shiny in the sand? I found a battle!", lose: "Washed up..." }),
+      trainer({ id: "isle_tennis", sprite: "tennisplayer", x: 8, y: 11, dir: "right", sight: 2, name: "Tourist Remy",
+        team: [["pipis", 17], ["budaye", 17], ["lambert", 18]], intro: "I'm on holiday, but I never travel without a battle!", lose: "Best holiday ever, even so." }),
+      { sprite: "florist_rose", x: 14, y: 11, dir: "down", name: "Islander",
+        talk: ["The lighthouse keeper sees everything from up there.", "He swears there are treasures buried all over this island. Climb up and he might share his secret."] },
+    ],
+    rate: 0.14, encounters: [],
+  });
+  W.isle_center = center("Coral"); W.isle_mart = mart("Coral");
+  W.isle_hut = house("Hut", { sprite: "beachcomber_gray", x: 3, y: 4, dir: "down", name: "Old Sailor",
+    talk: ["I've sailed every sea there is.", "Out here they say the old lighthouse keeper can find anything buried, anywhere."] });
+  W.isle_hut2 = house("Hut", { sprite: "florist", x: 4, y: 4, dir: "down", name: "Shell Collector",
+    talk: ["Some pocemon only live in the trees. Give a big golden tree a good HEADBUTT and see what drops out!"] });
+  W.isle_hut.wall = W.isle_hut2.wall = "wood";
+  // the lighthouse: a winding climb past two sailors to the keeper at the lantern
+  W.lighthouse = interior({
+    name: "Lighthouse", w: 10, h: 14, music: "mystery", wall: "cream", floor: "planks",
+    ops: [["C", 0, 10, 7, 1], ["C", 3, 7, 7, 1], ["C", 0, 4, 6, 1]], decor: [[2, 1, "poster"], [7, 1, "board"]],
+    npcs: [
+      trainer({ id: "lh_sailor1", outfit: "sailor", sprite: "riverboatcaptain", x: 8, y: 11, dir: "left", sight: 3, name: "Sailor Brine",
+        team: [["nostray", 18], ["squink", 18], ["hatchling", 19]], intro: "No landlubbers past this deck!", lose: "Go on up, then." }),
+      trainer({ id: "lh_sailor2", outfit: "sailor", sprite: "swimmer", x: 1, y: 8, dir: "right", sight: 3, name: "Sailor Marlo",
+        team: [["dollfin", 19], ["lesmagu", 19], ["gupphish", 20]], intro: "The lantern's just above. You'll have to get past me first!", lose: "Ahoy... that stung." }),
+      { sprite: "fisher_fiery", x: 7, y: 3, dir: "down", name: "Lighthouse Keeper", role: "keeper" },
+    ],
+  });
+
   // ---------------- Side quests ----------------
   // quest: { id, ...} drives talk in game.js (questTalk); items appear once the quest is started.
   W.ember.npcs.push({ sprite: "picnicker", x: 14, y: 12, dir: "down", name: "Little Pia", quest: "teddy" });
@@ -1079,6 +1176,29 @@
     ["strella", 2], ["gryfix", 2], ["aardart", 2], ["komoduel", 1], ["devidra", 1]]),
     null,
     lv(38, 42, [["mystikapi", 2], ["qetzlrokilus", 1]]));
+
+  // The Safari Zone gathers rare kinds from all over (and the Fire and Wood starters); Coral Isle has its own
+  // tropical mix and the Water starter in the shallows.
+  area("safari", "Safari Zone", lv(26, 32, [
+    ["agnite", 1], ["anoleaf", 1], ["chloragon", 1], ["cardinale", 1], ["pythonova", 1], ["bugnin", 1], ["devidin", 1],
+    ["runesquito", 2], ["squabbit", 2], ["aardorn", 2], ["hoarse", 2], ["komodraw", 2], ["dandicub", 2], ["fordin", 2], ["lesmagu", 2]]),
+    lv(25, 30, [["kroki", 1], ["spirain", 2], ["gupphish", 2], ["nebufin", 2]]),
+    lv(27, 32, [["cateye", 2], ["fluttaflap", 2]]));
+  area("isle", "Coral Isle", lv(15, 20, [
+    ["hatchling", 3], ["fluttaflap", 2], ["lambert", 2], ["budaye", 2], ["pipis", 2], ["lesmagu", 2], ["komodraw", 1], ["selket", 1]]),
+    lv(14, 19, [["dollfin", 3], ["fluoresfin", 2], ["jelillow", 2], ["kroki", 1]]),
+    lv(16, 20, [["noctula", 2], ["fluttaflap", 2]]));
+  // Headbutt trees (big golden trees, tile h): who drops out when your pocemon gives one a good knock.
+  const treeTable = { route1: lv(3, 5, [["chickadee", 3], ["pipis", 2], ["katapill", 2], ["cataspike", 1]]),
+    route2: lv(8, 12, [["hatchling", 2], ["tumbleworm", 2], ["noctula", 1], ["fluttaflap", 1]]),
+    route3: lv(13, 17, [["flacono", 3], ["tweesher", 2], ["cardiling", 2]]),
+    route4: lv(17, 22, [["bugnin", 2], ["fancair", 2], ["tetrchimp", 2], ["cardinale", 1]]),
+    route5: lv(23, 27, [["tumblebee", 2], ["birdling", 2], ["ninjasmine", 2], ["corvix", 1]]),
+    route6: lv(28, 32, [["cardiwing", 2], ["cocrune", 2], ["solight", 1]]),
+    route7: lv(33, 37, [["weavifly", 2], ["puparmor", 2], ["windeye", 1]]),
+    route8: lv(38, 42, [["gryfix", 2], ["strella", 2], ["myrmison", 1]]),
+    safari: lv(26, 31, [["fluttaflap", 2], ["bugnin", 2], ["corvix", 1]]) };
+  for (const [id, t] of Object.entries(treeTable)) W[id].trees = t;
 
   // ---------------- Weather ----------------
   // kind: rain / snow / ash. from-to: the in-game hours it happens (always, if left out). mons: weather-only monsters
@@ -1248,6 +1368,50 @@
   nook("route6", [16, 5, "k"], [16, 4], "elixir", 2);
   nook("route7", [14, 21, "o"], [14, 20], "exp_candy");
   nook("route8", [29, 6, "b"], [29, 5], "level_treat", 2);
+
+  // ---------------- Headbutt trees and hidden items ----------------
+  // Spots come from tools/place_extras.js (2x2 golden trees at the edge of a wood; buried items on reachable
+  // ground off the roads). Hidden items are invisible: face the spot (or stand on it) and press Z. The
+  // ITEMFINDER from Coral Isle's lighthouse keeper points the way and makes nearby ones twinkle.
+  const headbutt = (id, spots) => { for (const [x, y] of spots) for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) W[id].grid[y + b][x + a] = "h"; };
+  const HIDE_TIER = {
+    early: [["potion", 2], ["tuxeball", 3], ["full_heal", 1], ["apple", 1], ["repel", 2]],
+    mid: [["super_potion", 2], ["great_ball", 2], ["revive", 1], ["repel", 3], ["escape_key", 1], ["elixir", 1]],
+    late: [["mega_potion", 2], ["revive", 2], ["great_ball", 3], ["level_treat", 1], ["exp_candy", 1], ["escape_key", 2]],
+  };
+  const TIER_OF = { sprout: "early", route1: "early", ember: "early", route2: "early", tide: "mid", route3: "mid", volt: "mid",
+    route4: "mid", frostsea: "mid", isle: "mid", hollow: "mid", shade: "mid" };
+  const hide = (id, spots) => {
+    const tier = HIDE_TIER[TIER_OF[id] || "late"];
+    const seed = [...id].reduce((a, c) => a + c.charCodeAt(0), 0); // each map starts at its own place in the list
+    W[id].hidden = spots.map(([x, y], i) => { const [item, n] = tier[(seed + i) % tier.length]; return { x, y, item, n }; });
+  };
+  headbutt("route1", [[17,18],[18,33]]);
+  headbutt("route2", [[6,14],[3,2]]);
+  headbutt("route3", [[18,3],[2,40]]);
+  headbutt("route4", [[14,2],[30,14]]);
+  headbutt("route5", [[3,16],[18,8]]);
+  headbutt("route6", [[4,14],[28,2]]);
+  headbutt("route7", [[18,2],[2,14]]);
+  headbutt("route8", [[28,14],[14,2]]);
+  headbutt("safari", [[21,3],[12,27],[36,10]]);
+  hide("route1", [[19,35],[19,18],[2,34]]);
+  hide("route2", [[12,4],[37,3],[6,13]]);
+  hide("route3", [[17,32],[12,6],[5,39]]);
+  hide("route4", [[10,2],[40,3],[29,12]]);
+  hide("route5", [[19,7],[5,27],[16,29]]);
+  hide("route6", [[11,12],[36,2],[37,12]]);
+  hide("route7", [[2,32],[17,11],[4,6]]);
+  hide("route8", [[18,4],[23,12],[2,4]]);
+  hide("safari", [[5,8],[11,29]]);
+  hide("isle", [[9,21],[2,15],[24,20]]);
+  hide("frostsea", [[2,12],[3,22]]);
+  hide("hollow", [[21,7],[6,14]]);
+  hide("sprout", [[17,19]]);
+  hide("ember", [[27,20]]);
+  hide("tide", [[12,11]]);
+  hide("volt", [[2,18]]);
+  hide("shade", [[11,9]]);
 
   window.WORLD = { maps: W, BUILDINGS };
 })();
