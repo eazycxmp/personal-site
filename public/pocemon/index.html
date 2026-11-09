@@ -46,7 +46,11 @@
 // Phone controls: they press the same keys the keyboard does, so the game needs no special cases.
 (() => {
   const key = (code, down) => dispatchEvent(new KeyboardEvent(down ? "keydown" : "keyup", { code, bubbles: true, cancelable: true }));
-  const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+  // The pad is for phones and tablets: a laptop with a touchscreen still has its main pointer "fine", so it gets
+  // the keyboard layout. Touching the screen brings the pad up; pressing a real key puts it away again.
+  let isTouch = matchMedia("(pointer: coarse)").matches;
+  addEventListener("touchstart", () => { if (!isTouch) { isTouch = true; setMode(); } }, { passive: true, capture: true });
+  addEventListener("keydown", (e) => { if (e.isTrusted && isTouch) { isTouch = false; setMode(); } }, true);
   function setMode() {
     document.body.classList.toggle("touch", isTouch);
     document.body.classList.toggle("landscape", isTouch && innerWidth > innerHeight);

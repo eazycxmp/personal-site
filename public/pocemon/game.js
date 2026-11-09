@@ -147,7 +147,7 @@ const KEYMAP = {
 };
 addEventListener("keydown", (e) => {
   const k = KEYMAP[e.code];
-  if (!k) return;
+  if (!k || e.metaKey || e.ctrlKey || e.altKey) return; // leave browser shortcuts (Cmd+R, Ctrl+W...) to the browser
   e.preventDefault();
   unlockAudio();
   if (!held[k]) pressed[k] = true;
@@ -1866,7 +1866,7 @@ async function momTalk(n) {
   const lines = [
     `Oh, ${me}! The professor called. So ${partner} is your partner now? It's adorable!`,
     "Listen, before you go, here's what's ahead of you. Sit down for a second.",
-    "There are 8 GYMS. First Ember City (Rock), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow).",
+    "There are 8 GYMS. First Ember City (Wood and Normal), Tide Harbor (Water), Volt City (Lightning) and Shade Hollow (Shadow).",
     "Past Shade Hollow come Verdance (Wood), Cinder Peak (Fire) and Ironhold (Steel). Last of all is the PRIME GYM in Prime City, full of dragons.",
     "With all 8 badges you can enter the Champion's Hall in Prime City. Guards won't let you through some roads until you have enough badges.",
     "Tall grass is full of wild pocemon. Every route has its own kinds, and they get tougher the farther you go.",

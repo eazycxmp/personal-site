@@ -23,7 +23,7 @@ export default function PocemonPage() {
             A top-down pocemon-catching adventure. Pick a starter, walk into the tall grass to battle and catch
             over 200 strange creatures, beat eight gyms and challenge the Champion, all to a live drum &amp; bass
             soundtrack. The arrow keys walk, SHIFT runs, Z talks and confirms, X opens the menu.
-            Click the game first so it gets your keyboard.{" "}
+            No clicking needed: the game takes your keyboard as soon as it loads.{" "}
             <a href="/pocemon/CREDITS.md" className="underline">Art credits</a>.
           </p>
         </div>
